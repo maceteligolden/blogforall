@@ -3,6 +3,7 @@ import authRouter from "./modules/auth/routes/auth.router";
 import blogRouter from "./modules/blog/routes/blog.router";
 import apiKeyRouter from "./modules/api-key/routes/api-key.router";
 import publicBlogRouter from "./modules/blog/routes/public-blog.router";
+import commentRouter from "./modules/comment/routes/comment.router";
 
 const router = Router();
 
@@ -18,7 +19,7 @@ router.use("/public/blogs", publicBlogRouter);
 // API Key routes
 router.use("/api-keys", apiKeyRouter);
 
-// Placeholder routes - will be implemented in later phases
-// router.use("/comments", commentRouter);
+// Comment routes (public for create/like, protected for update/delete)
+router.use("/comments", commentRouter);
 
 export { router as routes };

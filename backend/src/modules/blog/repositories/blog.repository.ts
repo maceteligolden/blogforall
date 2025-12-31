@@ -108,5 +108,15 @@ export class BlogRepository {
     await blog.save();
     return { likes: blog.likes, isLiked: !isLiked };
   }
+
+  async incrementCommentCount(id: string): Promise<void> {
+    // Comment count is tracked via Comment collection queries
+    // This method is kept for consistency but doesn't modify blog document
+  }
+
+  async decrementCommentCount(id: string): Promise<void> {
+    // Comment count is tracked via Comment collection queries
+    // This method is kept for consistency but doesn't modify blog document
+  }
 }
 

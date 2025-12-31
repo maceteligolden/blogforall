@@ -24,7 +24,7 @@ router.post("/images/upload", authMiddleware, uploadSingle as any, imageControll
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 router.post("/images/upload-multiple", authMiddleware, uploadMultiple as any, imageController.uploadMultiple);
 
-// Public routes
+// Public routes (no authentication required)
 router.get("/", blogController.getAllBlogs);
 router.get("/slug/:slug", blogController.getBySlug);
 router.post("/:id/like", blogController.toggleLike);
