@@ -47,6 +47,12 @@ export default function DashboardPage() {
               <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">
                 Home
               </Link>
+              <Link
+                href="/dashboard/profile"
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Profile
+              </Link>
               <span className="text-sm text-gray-400">
                 {user?.first_name} {user?.last_name}
               </span>

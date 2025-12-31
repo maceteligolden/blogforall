@@ -48,7 +48,15 @@ export function useAuth() {
   const updateProfileMutation = useMutation({
     mutationFn: (data: { first_name?: string; last_name?: string; phone_number?: string }) =>
       AuthService.updateProfile(data),
-    onSuccess: () => {
+    onSuccess: (response, variables) => {
+      // Update user in store
+      if (variables.first_name || variables.last_name || variables.phone_number) {
+        useAuthStore.getState().updateUser({
+          first_name: variables.first_name,
+          last_name: variables.last_name,
+          phone_number: variables.phone_number,
+        });
+      }
       // Refetch profile
       profileQuery.refetch();
     },
