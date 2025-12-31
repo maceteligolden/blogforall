@@ -8,6 +8,7 @@ import { useCategories } from "@/lib/hooks/use-category";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RichTextEditor } from "@/components/editor/rich-text-editor";
 
 export default function EditBlogPage() {
   const router = useRouter();
@@ -78,6 +79,32 @@ export default function EditBlogPage() {
       console.error("Image upload error:", err);
     }
   };
+
+  // Handle image uploads from the rich text editor
+  useEffect(() => {
+    const handleEditorImageUpload = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { file, resolve, reject } = customEvent.detail;
+
+      try {
+        const response = await uploadImage.mutateAsync(file);
+        const imageUrl = response.data.data.url;
+        resolve(imageUrl);
+      } catch (err: unknown) {
+        const errorMessage =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Failed to upload image";
+        reject(new Error(errorMessage));
+        console.error("Editor image upload error:", err);
+      }
+    };
+
+    window.addEventListener("upload-image" as any, handleEditorImageUpload);
+
+    return () => {
+      window.removeEventListener("upload-image" as any, handleEditorImageUpload);
+    };
+  }, [uploadImage]);
 
   if (isLoading) {
     return (
@@ -167,13 +194,16 @@ export default function EditBlogPage() {
             <Label htmlFor="content" className="text-gray-300">
               Content *
             </Label>
-            <textarea
-              id="content"
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              className="mt-1 flex min-h-[300px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-              required
-            />
+            <div className="mt-1">
+              <RichTextEditor
+                value={formData.content}
+                onChange={(value) => setFormData({ ...formData, content: value })}
+                placeholder="Start writing your blog post..."
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Use the toolbar to format your text, add headers, lists, images, and more.
+            </p>
           </div>
 
           <div>
