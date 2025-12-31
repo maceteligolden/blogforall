@@ -117,6 +117,12 @@ export default function DashboardPage() {
             >
               Manage API Keys
             </Button>
+            <Button
+              className="w-full justify-start bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 h-12 text-base font-medium"
+              onClick={() => router.push("/dashboard/categories")}
+            >
+              Manage Categories
+            </Button>
           </div>
         </div>
 

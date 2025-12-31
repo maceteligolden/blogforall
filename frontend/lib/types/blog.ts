@@ -11,6 +11,7 @@ export interface Blog {
   featured_image?: string;
   images?: string[];
   status: BlogStatus;
+  category?: string;
   likes: number;
   liked_by: string[];
   views: number;

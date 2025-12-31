@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { useBlog, useUpdateBlog, useUploadImage } from "@/lib/hooks/use-blog";
+import { useCategories } from "@/lib/hooks/use-category";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,12 +16,14 @@ export default function EditBlogPage() {
   const { data: blog, isLoading } = useBlog(id);
   const updateBlog = useUpdateBlog();
   const uploadImage = useUploadImage();
+  const { data: categories } = useCategories({ tree: false });
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     content_type: "html" as "html" | "markdown",
     excerpt: "",
     featured_image: "",
+    category: "",
     status: "draft" as "draft" | "published" | "unpublished",
   });
   const [error, setError] = useState("");
@@ -33,6 +36,7 @@ export default function EditBlogPage() {
         content_type: blog.content_type || "html",
         excerpt: blog.excerpt || "",
         featured_image: blog.featured_image || "",
+        category: (blog as any).category || "",
         status: blog.status || "draft",
       });
     }
@@ -208,6 +212,28 @@ export default function EditBlogPage() {
                 />
               </div>
             )}
+          </div>
+
+          <div>
+            <Label htmlFor="category" className="text-gray-300">
+              Category
+            </Label>
+            <select
+              id="category"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+            >
+              <option value="">No Category</option>
+              {categories &&
+                categories
+                  .filter((cat: any) => cat.is_active)
+                  .map((cat: any) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </option>
+                  ))}
+            </select>
           </div>
 
           <div>

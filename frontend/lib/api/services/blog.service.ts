@@ -9,6 +9,7 @@ export interface CreateBlogRequest {
   featured_image?: string;
   images?: string[];
   status?: "draft" | "published" | "unpublished";
+  category?: string;
   dynamic_forms?: Record<string, unknown>;
   meta?: {
     description?: string;

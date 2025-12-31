@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useCreateBlog, useUploadImage } from "@/lib/hooks/use-blog";
+import { useCategories } from "@/lib/hooks/use-category";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,12 +13,14 @@ export default function NewBlogPage() {
   const router = useRouter();
   const createBlog = useCreateBlog();
   const uploadImage = useUploadImage();
+  const { data: categories } = useCategories({ tree: false });
   const [formData, setFormData] = useState({
     title: "",
     content: "",
     content_type: "html" as "html" | "markdown",
     excerpt: "",
     featured_image: "",
+    category: "",
     status: "draft" as "draft" | "published" | "unpublished",
   });
   const [error, setError] = useState("");
@@ -32,7 +35,11 @@ export default function NewBlogPage() {
     }
 
     try {
-      createBlog.mutate(formData);
+      const submitData = {
+        ...formData,
+        category: formData.category || undefined,
+      };
+      createBlog.mutate(submitData);
     } catch (err: unknown) {
       const errorMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -60,18 +67,18 @@ export default function NewBlogPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-black text-white">
+      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.push("/dashboard/blogs")}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-400 hover:text-white transition-colors"
               >
                 ← Back
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Create New Blog</h1>
+              <h1 className="text-2xl font-bold text-white">Create New Blog</h1>
             </div>
           </div>
         </div>
@@ -132,13 +139,15 @@ export default function NewBlogPage() {
           </div>
 
           <div>
-            <Label htmlFor="featured_image">Featured Image</Label>
+            <Label htmlFor="featured_image" className="text-gray-300">
+              Featured Image
+            </Label>
             <Input
               id="featured_image"
               type="file"
               accept="image/*"
               onChange={handleImageUpload}
-              className="mt-1"
+              className="mt-1 bg-black border-gray-700 text-white"
             />
             {formData.featured_image && (
               <div className="mt-2 relative w-32 h-32">
@@ -154,7 +163,31 @@ export default function NewBlogPage() {
           </div>
 
           <div>
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="category" className="text-gray-300">
+              Category
+            </Label>
+            <select
+              id="category"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+            >
+              <option value="">No Category</option>
+              {categories &&
+                categories
+                  .filter((cat: any) => cat.is_active)
+                  .map((cat: any) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </option>
+                  ))}
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="status" className="text-gray-300">
+              Status
+            </Label>
             <select
               id="status"
               value={formData.status}
@@ -164,7 +197,7 @@ export default function NewBlogPage() {
                   status: e.target.value as "draft" | "published" | "unpublished",
                 })
               }
-              className="mt-1 flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
+              className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
             >
               <option value="draft">Draft</option>
               <option value="published">Published</option>
@@ -173,10 +206,18 @@ export default function NewBlogPage() {
           </div>
 
           <div className="flex space-x-4">
-            <Button type="submit" disabled={createBlog.isPending}>
+            <Button
+              type="submit"
+              className="bg-primary hover:bg-primary/90 text-white"
+              disabled={createBlog.isPending}
+            >
               {createBlog.isPending ? "Creating..." : "Create Blog"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.push("/dashboard/blogs")}>
+            <Button
+              type="button"
+              className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+              onClick={() => router.push("/dashboard/blogs")}
+            >
               Cancel
             </Button>
           </div>

@@ -44,6 +44,13 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/comments/${id}`,
     LIKE: (id: string) => `/comments/${id}/like`,
   },
+  CATEGORIES: {
+    CREATE: "/categories",
+    LIST: "/categories",
+    GET_ONE: (id: string) => `/categories/${id}`,
+    UPDATE: (id: string) => `/categories/${id}`,
+    DELETE: (id: string) => `/categories/${id}`,
+  },
 };
 
 export const QUERY_KEYS = {
@@ -55,5 +62,6 @@ export const QUERY_KEYS = {
   COMMENTS: ["comments"],
   COMMENTS_BY_BLOG: (blogId: string) => ["comments", "blog", blogId],
   COMMENT_REPLIES: (commentId: string) => ["comments", commentId, "replies"],
+  CATEGORIES: ["categories"],
 };
 
