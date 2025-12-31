@@ -46,6 +46,7 @@ export function useCreateBlog() {
 
 export function useUpdateBlog() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateBlogRequest }) =>
@@ -54,6 +55,8 @@ export function useUpdateBlog() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOG(variables.id) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOGS });
+      // Optionally redirect to view page after update
+      // router.push(`/dashboard/blogs/${variables.id}/view`);
     },
   });
 }

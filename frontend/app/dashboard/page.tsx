@@ -120,29 +120,34 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Blogs */}
-        {recentBlogs.length > 0 && (
-          <div className="mb-12">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-white">Recent Blogs</h3>
+        {/* Recent Activity */}
+        <div className="mb-12">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-semibold text-white">Recent Activity</h3>
+            {recentBlogs.length > 0 && (
               <Link
                 href="/dashboard/blogs"
                 className="text-sm text-primary hover:text-primary/80 transition-colors"
               >
                 View all →
               </Link>
-            </div>
+            )}
+          </div>
+
+          {recentBlogs.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {recentBlogs.map((blog: any) => (
                 <div
                   key={blog._id}
                   className="bg-gray-900 rounded-lg border border-gray-800 p-4 hover:border-gray-700 transition-colors cursor-pointer"
-                  onClick={() => router.push(`/dashboard/blogs/${blog._id}`)}
+                  onClick={() => router.push(`/dashboard/blogs/${blog._id}/view`)}
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-base font-semibold text-white line-clamp-2 flex-1">{blog.title}</h4>
+                    <h4 className="text-base font-semibold text-white line-clamp-2 flex-1">
+                      {blog.title}
+                    </h4>
                     <span
-                      className={`ml-2 px-2 py-1 text-xs rounded ${
+                      className={`ml-2 px-2 py-1 text-xs rounded capitalize ${
                         blog.status === "published"
                           ? "bg-green-900/30 text-green-400 border border-green-800"
                           : blog.status === "draft"
@@ -156,29 +161,31 @@ export default function DashboardPage() {
                   {blog.excerpt && (
                     <p className="text-sm text-gray-400 line-clamp-2 mb-3">{blog.excerpt}</p>
                   )}
-                  <div className="flex items-center justify-between text-xs text-gray-500">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                     <span>{blog.views || 0} views</span>
                     <span>{blog.likes || 0} likes</span>
                   </div>
+                  {blog.updated_at && (
+                    <p className="text-xs text-gray-500">
+                      Updated {new Date(blog.updated_at).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {recentBlogs.length === 0 && (
-          <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
-            <h3 className="text-xl font-semibold text-white mb-2">No blogs yet</h3>
-            <p className="text-gray-400 mb-6">Start by creating your first blog post!</p>
-            <Button
-              className="bg-primary hover:bg-primary/90 text-white"
-              onClick={() => router.push("/dashboard/blogs/new")}
-            >
-              Create Your First Blog
-            </Button>
-          </div>
-        )}
+          ) : (
+            <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
+              <h3 className="text-xl font-semibold text-white mb-2">No activity yet</h3>
+              <p className="text-gray-400 mb-6">Start by creating your first blog post!</p>
+              <Button
+                className="bg-primary hover:bg-primary/90 text-white"
+                onClick={() => router.push("/dashboard/blogs/new")}
+              >
+                Create Your First Blog
+              </Button>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

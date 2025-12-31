@@ -173,6 +173,13 @@ export default function BlogsPage() {
                     <Button
                       className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex-1"
                       size="sm"
+                      onClick={() => router.push(`/dashboard/blogs/${blog._id}/view`)}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex-1"
+                      size="sm"
                       onClick={() => router.push(`/dashboard/blogs/${blog._id}`)}
                     >
                       Edit
