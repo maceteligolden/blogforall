@@ -31,7 +31,7 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "BlogForAll API is running" });
 });
 
-app.use("/api", routes);
+app.use("/api/v1", routes);
 
 // Error handler (must be last)
 app.use(errorHandler);
