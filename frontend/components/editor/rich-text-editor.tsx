@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 // Import CSS
 if (typeof window !== "undefined") {
@@ -22,6 +22,11 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   const [editingImage, setEditingImage] = useState<{ index: number; data: any } | null>(null);
   const [imageProps, setImageProps] = useState({ width: "", height: "", caption: "" });
   const isUpdatingFromProp = useRef(false);
+  
+  // Memoize onChange to prevent unnecessary re-renders
+  const handleChange = useCallback((html: string) => {
+    onChange(html);
+  }, [onChange]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !editorRef.current) return;
@@ -201,21 +206,24 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
         // Only trigger onChange if the change wasn't from a prop update
         if (!isUpdatingFromProp.current) {
           const html = quill.root.innerHTML;
-          onChange(html);
+          handleChange(html);
         }
       });
     });
 
     return () => {
-      if (quillRef.current) {
+      const quillInstance = quillRef.current;
+      const editorElement = editorRef.current;
+      
+      if (quillInstance) {
         quillRef.current = null;
       }
       // Clear the editor div on unmount
-      if (editorRef.current) {
-        editorRef.current.innerHTML = "";
+      if (editorElement) {
+        editorElement.innerHTML = "";
       }
     };
-  }, []);
+  }, [handleChange, placeholder]);
 
   // Update content when value prop changes (but not from internal changes)
   useEffect(() => {

@@ -1,0 +1,17 @@
+[build]
+  command = "cd frontend && npm install && npm run build"
+  publish = "frontend/.next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+# Redirect all routes to Next.js
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
