@@ -4,9 +4,6 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-  [plugins.inputs]
-    # Disable edge functions to avoid import assertion issues
-    edge_functions = false
 
 [build.environment]
   NODE_VERSION = "20"
