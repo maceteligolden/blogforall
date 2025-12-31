@@ -1,8 +1,8 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
-import { sendSuccess, sendCreated } from "../../../shared/helper/response.helper";
+import { sendCreated } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
-import path from "path";
+import { logger } from "../../../shared/utils/logger";
 
 @injectable()
 export class ImageController {
