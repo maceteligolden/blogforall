@@ -30,6 +30,11 @@ export const API_ENDPOINTS = {
     UPLOAD_IMAGE: "/blogs/images/upload",
     UPLOAD_IMAGES: "/blogs/images/upload-multiple",
   },
+  API_KEYS: {
+    CREATE: "/api-keys",
+    LIST: "/api-keys",
+    DELETE: (accessKeyId: string) => `/api-keys/${accessKeyId}`,
+  },
 };
 
 export const QUERY_KEYS = {
@@ -37,5 +42,6 @@ export const QUERY_KEYS = {
   BLOGS: ["blogs"],
   BLOG: (id: string) => ["blogs", id],
   MY_BLOGS: ["blogs", "my-blogs"],
+  API_KEYS: ["api-keys"],
 };
 

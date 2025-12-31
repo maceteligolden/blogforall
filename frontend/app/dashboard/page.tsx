@@ -86,6 +86,13 @@ export default function DashboardPage() {
             >
               Manage Blogs
             </Button>
+            <Button
+              className="w-full justify-start"
+              variant="outline"
+              onClick={() => router.push("/dashboard/api-keys")}
+            >
+              Manage API Keys
+            </Button>
           </div>
         </div>
 
