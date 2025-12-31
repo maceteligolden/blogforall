@@ -8,6 +8,7 @@ export interface CreateBlogInput {
   featured_image?: string;
   images?: string[];
   status?: BlogStatus;
+  category?: string;
   dynamic_forms?: Record<string, unknown>;
   meta?: {
     description?: string;
@@ -23,6 +24,7 @@ export interface UpdateBlogInput {
   featured_image?: string;
   images?: string[];
   status?: BlogStatus;
+  category?: string;
   dynamic_forms?: Record<string, unknown>;
   meta?: {
     description?: string;
@@ -33,6 +35,7 @@ export interface UpdateBlogInput {
 export interface BlogQueryFilters {
   status?: BlogStatus;
   search?: string;
+  category?: string;
   page?: number;
   limit?: number;
 }

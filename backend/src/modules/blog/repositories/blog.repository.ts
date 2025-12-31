@@ -29,6 +29,7 @@ export class BlogRepository {
   async findAll(filters?: {
     status?: BlogStatus;
     search?: string;
+    category?: string;
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<BlogType>> {
@@ -39,6 +40,9 @@ export class BlogRepository {
     const query: Record<string, unknown> = {};
     if (filters?.status) {
       query.status = filters.status;
+    }
+    if (filters?.category) {
+      query.category = filters.category;
     }
     if (filters?.search) {
       query.$or = [
@@ -66,6 +70,7 @@ export class BlogRepository {
 
   async findPublished(filters?: {
     search?: string;
+    category?: string;
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<BlogType>> {

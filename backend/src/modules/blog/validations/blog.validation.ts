@@ -9,6 +9,7 @@ export const createBlogSchema = z.object({
   featured_image: z.string().optional(),
   images: z.array(z.string()).optional(),
   status: z.nativeEnum(BlogStatus).optional().default(BlogStatus.DRAFT),
+  category: z.string().optional(),
   dynamic_forms: z.record(z.unknown()).optional(),
   meta: z
     .object({
@@ -26,6 +27,7 @@ export const updateBlogSchema = z.object({
   featured_image: z.string().optional(),
   images: z.array(z.string()).optional(),
   status: z.nativeEnum(BlogStatus).optional(),
+  category: z.string().optional(),
   dynamic_forms: z.record(z.unknown()).optional(),
   meta: z
     .object({
@@ -38,6 +40,7 @@ export const updateBlogSchema = z.object({
 export const blogQuerySchema = z.object({
   status: z.nativeEnum(BlogStatus).optional(),
   search: z.string().optional(),
+  category: z.string().optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
 });

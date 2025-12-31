@@ -1,5 +1,6 @@
 import { injectable } from "tsyringe";
 import { BlogRepository } from "../repositories/blog.repository";
+import { CategoryRepository } from "../../category/repositories/category.repository";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { BlogStatus } from "../../../shared/constants";
 import { logger } from "../../../shared/utils/logger";
@@ -9,7 +10,10 @@ import { PaginatedResponse } from "../../../shared/interfaces";
 
 @injectable()
 export class BlogService {
-  constructor(private blogRepository: BlogRepository) {}
+  constructor(
+    private blogRepository: BlogRepository,
+    private categoryRepository: CategoryRepository
+  ) {}
 
   private generateSlug(title: string): string {
     return title
@@ -38,6 +42,17 @@ export class BlogService {
 
   async createBlog(authorId: string, input: CreateBlogInput): Promise<Blog> {
     const slug = await this.ensureUniqueSlug(this.generateSlug(input.title));
+
+    // Validate category if provided
+    if (input.category) {
+      const category = await this.categoryRepository.findById(input.category, authorId);
+      if (!category) {
+        throw new NotFoundError("Category not found");
+      }
+      if (!category.is_active) {
+        throw new BadRequestError("Category is not active");
+      }
+    }
 
     const blog = await this.blogRepository.create({
       ...input,
@@ -95,6 +110,17 @@ export class BlogService {
     }
 
     const updateData: Partial<Blog> = { ...input };
+
+    // Validate category if provided
+    if (input.category) {
+      const category = await this.categoryRepository.findById(input.category, authorId);
+      if (!category) {
+        throw new NotFoundError("Category not found");
+      }
+      if (!category.is_active) {
+        throw new BadRequestError("Category is not active");
+      }
+    }
 
     // If title is updated, regenerate slug
     if (input.title && input.title !== blog.title) {

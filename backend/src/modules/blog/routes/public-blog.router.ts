@@ -8,6 +8,8 @@ const publicBlogController = container.resolve(PublicBlogController);
 
 // All routes require API key authentication
 router.get("/", apiKeyAuthMiddleware, publicBlogController.getPublishedBlogs);
+router.get("/categories", apiKeyAuthMiddleware, publicBlogController.getCategories);
+router.get("/categories/:categoryId", apiKeyAuthMiddleware, publicBlogController.getBlogsByCategory);
 router.get("/:id", apiKeyAuthMiddleware, publicBlogController.getPublishedBlogById);
 router.get("/slug/:slug", apiKeyAuthMiddleware, publicBlogController.getPublishedBlogBySlug);
 

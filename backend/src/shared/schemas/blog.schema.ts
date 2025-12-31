@@ -12,6 +12,7 @@ export interface Blog extends BaseEntity {
   featured_image?: string; // Path to featured image
   images?: string[]; // Array of image paths
   status: BlogStatus;
+  category?: string; // Category ID
   likes: number;
   liked_by: string[]; // Array of user IDs or guest IPs
   views: number;
@@ -82,6 +83,12 @@ const blogSchema = new Schema<Blog>(
       type: Number,
       default: 0,
     },
+    category: {
+      type: String,
+      ref: "Category",
+      required: false,
+      index: true,
+    },
     published_at: {
       type: Date,
     },
@@ -126,6 +133,7 @@ blogSchema.pre("save", function (next) {
 blogSchema.index({ author: 1, status: 1 });
 blogSchema.index({ status: 1, published_at: -1 });
 blogSchema.index({ slug: 1 });
+blogSchema.index({ category: 1, status: 1 });
 
 export default model<Blog>("Blog", blogSchema);
 

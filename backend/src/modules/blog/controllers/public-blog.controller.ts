@@ -34,6 +34,63 @@ export class PublicBlogController {
   };
 
   /**
+   * Get all categories for the authenticated user
+   * Requires API key authentication
+   */
+  getCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("API key authentication required"));
+      }
+
+      const { container } = await import("tsyringe");
+      const { CategoryService } = await import("../../category/services/category.service");
+      const categoryService = container.resolve(CategoryService);
+
+      const tree = req.query.tree === "true";
+      const includeInactive = req.query.include_inactive === "true";
+
+      if (tree) {
+        const categories = await categoryService.getUserCategoriesTree(userId, includeInactive);
+        sendSuccess(res, "Categories retrieved successfully", categories);
+      } else {
+        const categories = await categoryService.getUserCategories(userId, includeInactive);
+        sendSuccess(res, "Categories retrieved successfully", categories);
+      }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get published blogs by category
+   * Requires API key authentication
+   */
+  getBlogsByCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("API key authentication required"));
+      }
+
+      const { categoryId } = req.params;
+      const validatedFilters = blogQuerySchema.parse(req.query);
+      const result = await this.blogService.getPublishedBlogs({
+        ...validatedFilters,
+        category: categoryId,
+      });
+      sendSuccess(res, "Published blogs retrieved successfully", result);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+        return next(new BadRequestError(errorMessages));
+      }
+      next(error);
+    }
+  };
+
+  /**
    * Get a single published blog by ID
    * Requires API key authentication
    */
