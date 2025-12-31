@@ -13,13 +13,7 @@ interface LogEntry {
 }
 
 class Logger {
-  private formatEntry(
-    level: LogLevel,
-    message: string,
-    metadata?: unknown,
-    context?: string,
-    error?: Error
-  ): LogEntry {
+  private formatEntry(level: LogLevel, message: string, metadata?: unknown, context?: string, error?: Error): LogEntry {
     return {
       timestamp: new Date().toISOString(),
       level,
@@ -64,13 +58,7 @@ class Logger {
 
   error(message: string, error?: Error | unknown, metadata?: unknown, context?: string): void {
     this.executeLog(
-      this.formatEntry(
-        "error",
-        message,
-        metadata,
-        context,
-        error instanceof Error ? error : new Error(String(error))
-      )
+      this.formatEntry("error", message, metadata, context, error instanceof Error ? error : new Error(String(error)))
     );
   }
 
@@ -86,4 +74,3 @@ class Logger {
 }
 
 export const logger = new Logger();
-

@@ -25,4 +25,3 @@ export const disconnectDatabase = async (): Promise<void> => {
     throw error;
   }
 };
-

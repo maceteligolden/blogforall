@@ -11,11 +11,19 @@ export interface ResponseOptions {
 
 export const sendResponse = (options: ResponseOptions): void => {
   const { res, code, message, data, error } = options;
-  res.status(code).json({
+  const responseBody: Record<string, unknown> = {
     message,
-    ...(data && { data }),
-    ...(error && { error }),
-  });
+  };
+  
+  if (data !== undefined) {
+    responseBody.data = data;
+  }
+  
+  if (error !== undefined) {
+    responseBody.error = error;
+  }
+  
+  res.status(code).json(responseBody);
 };
 
 export const sendSuccess = (res: Response, message: string, data?: unknown): void => {
@@ -29,4 +37,3 @@ export const sendCreated = (res: Response, message: string, data?: unknown): voi
 export const sendNoContent = (res: Response, message: string): void => {
   sendResponse({ res, code: HttpStatus.NO_CONTENT, message });
 };
-

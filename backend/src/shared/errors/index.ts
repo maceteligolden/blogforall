@@ -41,4 +41,3 @@ export class ConflictError extends AppError {
     super(message, HttpStatus.CONFLICT);
   }
 }
-

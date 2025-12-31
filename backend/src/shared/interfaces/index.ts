@@ -23,4 +23,3 @@ export interface QueryFilters {
   search?: string;
   [key: string]: unknown;
 }
-

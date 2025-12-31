@@ -120,4 +120,3 @@ userSchema.pre("save", function (next) {
 });
 
 export default model<User>("User", userSchema);
-

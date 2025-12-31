@@ -12,4 +12,3 @@ router.use("/auth", authRouter);
 // router.use("/comments", commentRouter);
 
 export { router as routes };
-

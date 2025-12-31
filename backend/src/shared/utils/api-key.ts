@@ -22,4 +22,3 @@ export const verifyApiKeySecret = (secretKey: string, hashedSecret: string): boo
   const providedHash = crypto.createHash("sha256").update(secretKey).digest("hex");
   return providedHash === hashedSecret;
 };
-

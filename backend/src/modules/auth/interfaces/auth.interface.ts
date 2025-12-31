@@ -37,4 +37,3 @@ export interface LoginResponse {
     plan: string;
   };
 }
-

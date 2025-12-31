@@ -18,4 +18,3 @@ router.put("/profile", authMiddleware, authController.updateProfile);
 router.put("/change-password", authMiddleware, authController.changePassword);
 
 export default router;
-

@@ -1,11 +1,7 @@
 import { injectable } from "tsyringe";
 import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-} from "../../../shared/utils/token";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
 import { BadRequestError, UnauthorizedError, NotFoundError } from "../../../shared/errors";
 import { UserPlan } from "../../../shared/constants";
 import { logger } from "../../../shared/utils/logger";
@@ -180,4 +176,3 @@ export class AuthService {
     logger.info("Password changed", { userId }, "AuthService");
   }
 }
-

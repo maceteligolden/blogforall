@@ -3,12 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { AuthService } from "../services/auth.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
-import {
-  signupSchema,
-  loginSchema,
-  updateProfileSchema,
-  changePasswordSchema,
-} from "../validations/auth.validation";
+import { signupSchema, loginSchema, updateProfileSchema, changePasswordSchema } from "../validations/auth.validation";
 
 @injectable()
 export class AuthController {
@@ -113,4 +108,3 @@ export class AuthController {
     }
   };
 }
-

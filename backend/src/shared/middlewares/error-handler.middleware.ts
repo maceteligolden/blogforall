@@ -3,12 +3,7 @@ import { AppError } from "../errors";
 import { HttpStatus } from "../constants";
 import { logger } from "../utils/logger";
 
-export const errorHandler = (
-  error: Error | AppError,
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+export const errorHandler = (error: Error | AppError, req: Request, res: Response, _next: NextFunction): void => {
   if (error instanceof AppError) {
     logger.error(error.message, error, { path: req.path, method: req.method }, "ErrorHandler");
     res.status(error.statusCode).json({
@@ -25,4 +20,3 @@ export const errorHandler = (
     ...(process.env.NODE_ENV !== "production" && { stack: error.stack }),
   });
 };
-

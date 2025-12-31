@@ -1,6 +1,5 @@
 import { injectable } from "tsyringe";
 import User, { User as UserType } from "../../../shared/schemas/user.schema";
-import { NotFoundError } from "../../../shared/errors";
 
 @injectable()
 export class UserRepository {
@@ -42,4 +41,3 @@ export class UserRepository {
     });
   }
 }
-

@@ -40,4 +40,3 @@ export const verifyRefreshToken = (token: string): TokenPayload => {
   }
   return verifyToken(token, secret);
 };
-
