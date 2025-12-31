@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
-import dynamic from "next/dynamic";
-import "react-quill/dist/quill.snow.css";
+import { useEffect, useRef } from "react";
 
-// Dynamically import ReactQuill to avoid SSR issues
-const ReactQuill = dynamic(() => import("react-quill"), { ssr: false });
+// Import CSS
+if (typeof window !== "undefined") {
+  require("quill/dist/quill.snow.css");
+}
 
 interface RichTextEditorProps {
   value: string;
@@ -15,136 +15,116 @@ interface RichTextEditorProps {
 }
 
 export function RichTextEditor({ value, onChange, placeholder, className }: RichTextEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const quillRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    // Set up image upload handler after component mounts
-    if (typeof window !== "undefined") {
-      const handleImageButton = () => {
-        // Find the Quill editor instance
-        const quillEditor = document.querySelector(".ql-editor");
-        if (!quillEditor) return;
+    if (typeof window === "undefined" || !editorRef.current || quillRef.current) return;
 
-        // Find the Quill container to access the Quill instance
-        const quillContainer = quillEditor.closest(".ql-container")?.parentElement;
-        if (!quillContainer) return;
+    // Dynamically import Quill
+    import("quill").then((QuillModule) => {
+      const Quill = QuillModule.default;
 
-        // Access Quill instance - ReactQuill stores it on the container
-        const quillInstance = (quillContainer as any).__quill;
-        if (!quillInstance) return;
+      // Initialize Quill
+      const quill = new Quill(editorRef.current!, {
+        theme: "snow",
+        placeholder: placeholder || "Start writing your blog post...",
+        modules: {
+          toolbar: {
+            container: [
+              [{ header: [1, 2, 3, 4, 5, 6, false] }],
+              [{ size: ["small", false, "large", "huge"] }],
+              ["bold", "italic", "underline", "strike"],
+              [{ color: [] }, { background: [] }],
+              [{ script: "sub" }, { script: "super" }],
+              [{ list: "ordered" }, { list: "bullet" }],
+              [{ indent: "-1" }, { indent: "+1" }],
+              [{ align: [] }],
+              ["blockquote", "code-block"],
+              ["link", "image", "video"],
+              ["clean"],
+            ],
+            handlers: {
+              image: function (this: any) {
+                const quillInstance = quillRef.current;
+                if (!quillInstance) return;
 
-        const input = document.createElement("input");
-        input.setAttribute("type", "file");
-        input.setAttribute("accept", "image/*");
-        input.click();
+                const input = document.createElement("input");
+                input.setAttribute("type", "file");
+                input.setAttribute("accept", "image/*");
+                input.click();
 
-        input.onchange = async () => {
-          const file = input.files?.[0];
-          if (!file) return;
+                input.onchange = async () => {
+                  const file = input.files?.[0];
+                  if (!file) return;
 
-          const range = quillInstance.getSelection(true);
-          const index = range ? range.index : quillInstance.getLength();
+                  const range = quillInstance.getSelection(true);
+                  const index = range ? range.index : quillInstance.getLength();
 
-          // Create a placeholder
-          quillInstance.insertText(index, "Uploading image...\n", "user");
-          quillInstance.setSelection(index + 20);
+                  // Create a placeholder
+                  quillInstance.insertText(index, "Uploading image...\n", "user");
+                  quillInstance.setSelection(index + 20);
 
-          try {
-            // Call the image upload handler
-            const imageUrl = await new Promise<string>((resolve, reject) => {
-              const event = new CustomEvent("upload-image", {
-                detail: { file, resolve, reject },
-              });
-              window.dispatchEvent(event);
-            });
+                  try {
+                    // Call the image upload handler
+                    const imageUrl = await new Promise<string>((resolve, reject) => {
+                      const event = new CustomEvent("upload-image", {
+                        detail: { file, resolve, reject },
+                      });
+                      window.dispatchEvent(event);
+                    });
 
-            // Insert the image
-            quillInstance.deleteText(index, 20);
-            quillInstance.insertEmbed(index, "image", imageUrl, "user");
-            quillInstance.setSelection(index + 1);
-          } catch (error) {
-            quillInstance.deleteText(index, 20);
-            quillInstance.insertText(index, "Image upload failed\n", "user");
-            console.error("Image upload failed:", error);
-          }
-        };
-      };
+                    // Insert the image
+                    quillInstance.deleteText(index, 20);
+                    quillInstance.insertEmbed(index, "image", imageUrl, "user");
+                    quillInstance.setSelection(index + 1);
+                  } catch (error) {
+                    quillInstance.deleteText(index, 20);
+                    quillInstance.insertText(index, "Image upload failed\n", "user");
+                    console.error("Image upload failed:", error);
+                  }
+                };
+              },
+            },
+          },
+          clipboard: {
+            matchVisual: false,
+          },
+        },
+      });
 
-      // Wait for Quill to be ready, then attach handler
-      const timer = setTimeout(() => {
-        const imageButton = document.querySelector('.ql-toolbar button[data-value="image"]');
-        if (imageButton) {
-          imageButton.addEventListener("click", handleImageButton);
-        }
-      }, 100);
+      quillRef.current = quill;
 
-      return () => {
-        clearTimeout(timer);
-        const imageButton = document.querySelector('.ql-toolbar button[data-value="image"]');
-        if (imageButton) {
-          imageButton.removeEventListener("click", handleImageButton);
-        }
-      };
-    }
+      // Set initial content
+      if (value) {
+        quill.root.innerHTML = value;
+      }
+
+      // Listen for text changes
+      quill.on("text-change", () => {
+        const html = quill.root.innerHTML;
+        onChange(html);
+      });
+    });
+
+    return () => {
+      if (quillRef.current) {
+        quillRef.current = null;
+      }
+    };
   }, []);
 
-  const modules = useMemo(
-    () => ({
-      toolbar: {
-        container: [
-          [{ header: [1, 2, 3, 4, 5, 6, false] }],
-          [{ size: ["small", false, "large", "huge"] }],
-          ["bold", "italic", "underline", "strike"],
-          [{ color: [] }, { background: [] }],
-          [{ script: "sub" }, { script: "super" }],
-          [{ list: "ordered" }, { list: "bullet" }],
-          [{ indent: "-1" }, { indent: "+1" }],
-          [{ align: [] }],
-          ["blockquote", "code-block"],
-          ["link", "image", "video"],
-          ["clean"],
-        ],
-      },
-      clipboard: {
-        matchVisual: false,
-      },
-    }),
-    []
-  );
-
-  const formats = [
-    "header",
-    "size",
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "color",
-    "background",
-    "script",
-    "list",
-    "bullet",
-    "indent",
-    "align",
-    "blockquote",
-    "code-block",
-    "link",
-    "image",
-    "video",
-  ];
+  // Update content when value prop changes (but not from internal changes)
+  useEffect(() => {
+    if (quillRef.current && value !== quillRef.current.root.innerHTML) {
+      quillRef.current.root.innerHTML = value;
+    }
+  }, [value]);
 
   return (
-    <div className={`rich-text-editor ${className || ""}`}>
-      <ReactQuill
-        theme="snow"
-        value={value}
-        onChange={onChange}
-        modules={modules}
-        formats={formats}
-        placeholder={placeholder || "Start writing your blog post..."}
-        style={{
-          backgroundColor: "#000",
-          color: "#fff",
-        }}
-      />
+    <div className={`rich-text-editor ${className || ""}`} ref={containerRef}>
+      <div ref={editorRef} style={{ minHeight: "400px" }} />
       <style jsx global>{`
         .rich-text-editor .ql-container {
           font-family: inherit;
