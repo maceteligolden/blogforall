@@ -18,19 +18,30 @@ app.use(express.urlencoded({ extended: true }));
 // CORS
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  
+  // Default allowed origins for development
+  const defaultOrigins = ["http://localhost:3000", "http://localhost:3002", "http://localhost:3001"];
+  
+  // Get allowed origins from environment or use defaults
   const allowedOrigins = process.env.FRONTEND_URL
-    ? process.env.FRONTEND_URL.split(",").map((url) => url.trim())
-    : ["http://localhost:3000", "http://localhost:3002", "http://localhost:3001"];
+    ? [...process.env.FRONTEND_URL.split(",").map((url) => url.trim()), ...defaultOrigins]
+    : defaultOrigins;
 
-  // Allow requests from whitelisted origins or any origin in development
-  if (origin && (allowedOrigins.includes(origin) || process.env.NODE_ENV === "development")) {
-    res.header("Access-Control-Allow-Origin", origin);
-  } else if (!process.env.FRONTEND_URL && process.env.NODE_ENV === "development") {
-    // In development, allow any origin if FRONTEND_URL is not set
-    res.header("Access-Control-Allow-Origin", origin || "*");
-  } else if (process.env.FRONTEND_URL) {
-    // In production, use the configured frontend URL
-    res.header("Access-Control-Allow-Origin", allowedOrigins[0]);
+  // Remove duplicates
+  const uniqueOrigins = [...new Set(allowedOrigins)];
+
+  // In development, allow any localhost origin or configured origins
+  if (process.env.NODE_ENV === "development") {
+    if (origin && (uniqueOrigins.includes(origin) || (origin.includes("localhost") && origin.match(/^http:\/\/localhost:\d+$/)))) {
+      res.header("Access-Control-Allow-Origin", origin);
+    } else if (origin) {
+      res.header("Access-Control-Allow-Origin", origin);
+    }
+  } else {
+    // In production, only allow configured origins
+    if (origin && uniqueOrigins.includes(origin)) {
+      res.header("Access-Control-Allow-Origin", origin);
+    }
   }
 
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
