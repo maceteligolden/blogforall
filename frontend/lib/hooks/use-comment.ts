@@ -7,6 +7,7 @@ export function useCommentsByBlog(blogId: string, params?: { page?: number; limi
     queryKey: [...QUERY_KEYS.COMMENTS_BY_BLOG(blogId), params],
     queryFn: async () => {
       const response = await CommentService.getCommentsByBlog(blogId, params);
+      // Response structure: { message, data: { data: Comment[], pagination: {...} } }
       return response.data.data;
     },
     enabled: !!blogId,
@@ -53,10 +54,17 @@ export function useDeleteComment() {
 
   return useMutation({
     mutationFn: (id: string) => CommentService.deleteComment(id),
-    onSuccess: (response, id) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.COMMENTS });
       // Invalidate all blog comment queries
       queryClient.invalidateQueries({ queryKey: ["comments", "blog"] });
+      // Also invalidate queries that start with COMMENTS_BY_BLOG pattern
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey;
+          return Array.isArray(key) && key[0] === "comments" && key[1] === "blog";
+        }
+      });
     },
   });
 }

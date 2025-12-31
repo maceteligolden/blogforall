@@ -334,14 +334,14 @@ export default function ViewBlogPage() {
 function CommentsSection({ blogId }: { blogId: string }) {
   const [page, setPage] = useState(1);
   const limit = 10;
-  const { data: commentsData, isLoading } = useCommentsByBlog(blogId, { page, limit });
+  const { data: commentsData, isLoading, error } = useCommentsByBlog(blogId, { page, limit });
   const deleteComment = useDeleteComment();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
-  const comments = commentsData?.comments || [];
-  const totalComments = commentsData?.total || 0;
-  const totalPages = Math.ceil(totalComments / limit);
+  const comments = commentsData?.data || [];
+  const totalComments = commentsData?.pagination?.total || 0;
+  const totalPages = commentsData?.pagination?.totalPages || 0;
 
   const handleDeleteClick = (commentId: string) => {
     setCommentToDelete(commentId);
@@ -350,8 +350,14 @@ function CommentsSection({ blogId }: { blogId: string }) {
 
   const handleDeleteConfirm = () => {
     if (commentToDelete) {
-      deleteComment.mutate(commentToDelete);
-      setCommentToDelete(null);
+      deleteComment.mutate(commentToDelete, {
+        onSuccess: () => {
+          setCommentToDelete(null);
+        },
+        onError: (error) => {
+          console.error("Failed to delete comment:", error);
+        },
+      });
     }
   };
 
@@ -363,6 +369,10 @@ function CommentsSection({ blogId }: { blogId: string }) {
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-2"></div>
           <p className="text-gray-400 text-sm">Loading comments...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-8">
+          <p className="text-red-400 text-sm">Failed to load comments. Please try again.</p>
         </div>
       ) : comments.length === 0 ? (
         <div className="text-center py-8">
