@@ -18,7 +18,7 @@ export default function NewBlogPage() {
   const [formData, setFormData] = useState({
     title: "",
     content: "",
-    content_type: "html" as "html" | "markdown",
+    content_type: "html" as "html" | "markdown", // Rich text editor always outputs HTML
     excerpt: "",
     featured_image: "",
     category: "",
