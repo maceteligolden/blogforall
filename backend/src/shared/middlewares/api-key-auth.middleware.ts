@@ -24,9 +24,9 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
     const { userId } = await apiKeyService.verifyApiKey(accessKeyId, secretKey);
 
     // Attach user info to request
+    // For API key auth, we only need userId (email not required)
     req.user = {
       userId,
-      email: "", // Not needed for API key auth
     };
 
     next();
