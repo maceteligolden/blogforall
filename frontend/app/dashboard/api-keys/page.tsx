@@ -62,58 +62,63 @@ export default function ApiKeysPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <p className="text-gray-600">Loading API keys...</p>
+          <p className="text-gray-400">Loading API keys...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => router.push("/dashboard")}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-400 hover:text-white transition-colors"
               >
                 ← Back
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">API Keys</h1>
+              <h1 className="text-2xl font-bold text-white">API Keys</h1>
             </div>
-            <Button onClick={() => setShowCreateForm(true)}>Create API Key</Button>
+            <Button
+              className="bg-primary hover:bg-primary/90 text-white"
+              onClick={() => setShowCreateForm(true)}
+            >
+              Create API Key
+            </Button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
         {/* Newly Created Key Display */}
         {newlyCreatedKey && (
-          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-yellow-900 mb-4">
+          <div className="mb-6 bg-yellow-900/20 border border-yellow-800 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-yellow-400 mb-4">
               ⚠️ Save Your API Key Credentials
             </h3>
-            <p className="text-sm text-yellow-800 mb-4">
+            <p className="text-sm text-yellow-300 mb-4">
               This is the only time you&apos;ll be able to see the secret key. Make sure to save it
               securely.
             </p>
             <div className="space-y-4">
               <div>
-                <Label className="text-yellow-900">Access Key ID</Label>
+                <Label className="text-yellow-400">Access Key ID</Label>
                 <div className="flex items-center space-x-2 mt-1">
                   <Input
                     value={newlyCreatedKey.accessKeyId}
                     readOnly
-                    className="bg-white font-mono text-sm"
+                    className="bg-black border-gray-700 text-gray-300 font-mono text-sm"
                   />
                   <Button
-                    variant="outline"
+                    className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
                     size="sm"
                     onClick={() => copyToClipboard(newlyCreatedKey.accessKeyId)}
                   >
@@ -122,16 +127,16 @@ export default function ApiKeysPage() {
                 </div>
               </div>
               <div>
-                <Label className="text-yellow-900">Secret Key</Label>
+                <Label className="text-yellow-400">Secret Key</Label>
                 <div className="flex items-center space-x-2 mt-1">
                   <Input
                     value={newlyCreatedKey.secretKey}
                     readOnly
                     type="password"
-                    className="bg-white font-mono text-sm"
+                    className="bg-black border-gray-700 text-gray-300 font-mono text-sm"
                   />
                   <Button
-                    variant="outline"
+                    className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
                     size="sm"
                     onClick={() => copyToClipboard(newlyCreatedKey.secretKey)}
                   >
@@ -141,7 +146,7 @@ export default function ApiKeysPage() {
               </div>
             </div>
             <Button
-              className="mt-4"
+              className="mt-4 bg-primary hover:bg-primary/90 text-white"
               onClick={() => {
                 setNewlyCreatedKey(null);
               }}
@@ -153,10 +158,12 @@ export default function ApiKeysPage() {
 
         {/* Create Form */}
         {showCreateForm && (
-          <div className="mb-6 bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New API Key</h3>
+          <div className="mb-6 bg-gray-900 rounded-lg border border-gray-800 p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Create New API Key</h3>
             {error && (
-              <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>
+              <div className="mb-4 rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
+                {error}
+              </div>
             )}
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
@@ -175,12 +182,16 @@ export default function ApiKeysPage() {
                 </p>
               </div>
               <div className="flex space-x-4">
-                <Button type="submit" disabled={createApiKey.isPending}>
+                <Button
+                  type="submit"
+                  className="bg-primary hover:bg-primary/90 text-white"
+                  disabled={createApiKey.isPending}
+                >
                   {createApiKey.isPending ? "Creating..." : "Create API Key"}
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
                   onClick={() => {
                     setShowCreateForm(false);
                     setNewKeyName("");
@@ -196,43 +207,48 @@ export default function ApiKeysPage() {
 
         {/* API Keys List */}
         {!apiKeys || apiKeys.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <p className="text-gray-500 mb-4">No API keys found.</p>
-            <Button onClick={() => setShowCreateForm(true)}>Create Your First API Key</Button>
+          <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
+            <p className="text-gray-400 mb-4">No API keys found.</p>
+            <Button
+              className="bg-primary hover:bg-primary/90 text-white"
+              onClick={() => setShowCreateForm(true)}
+            >
+              Create Your First API Key
+            </Button>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Your API Keys</h2>
-              <p className="text-sm text-gray-600 mt-1">
+          <div className="bg-gray-900 rounded-lg border border-gray-800">
+            <div className="p-6 border-b border-gray-800">
+              <h2 className="text-lg font-semibold text-white">Your API Keys</h2>
+              <p className="text-sm text-gray-400 mt-1">
                 Manage your API keys for accessing your blogs programmatically
               </p>
             </div>
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-800">
               {apiKeys.map((key: any) => (
                 <div key={key.id} className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h3 className="text-lg font-medium text-gray-900">{key.name}</h3>
+                      <h3 className="text-lg font-medium text-white">{key.name}</h3>
                       <div className="mt-2 space-y-1">
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-500">Access Key ID:</span>
-                          <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                          <span className="text-sm text-gray-400">Access Key ID:</span>
+                          <code className="text-sm font-mono bg-black border border-gray-700 text-gray-300 px-2 py-1 rounded">
                             {key.accessKeyId}
                           </code>
                           <Button
-                            variant="ghost"
+                            className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
                             size="sm"
                             onClick={() => copyToClipboard(key.accessKeyId)}
                           >
                             Copy
                           </Button>
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-400">
                           Created: {new Date(key.createdAt).toLocaleDateString()}
                         </div>
                         {key.lastUsed && (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-gray-400">
                             Last used: {new Date(key.lastUsed).toLocaleDateString()}
                           </div>
                         )}
@@ -240,8 +256,8 @@ export default function ApiKeysPage() {
                           <span
                             className={`px-2 py-1 text-xs rounded ${
                               key.isActive
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
+                                ? "bg-green-900/30 text-green-400 border border-green-800"
+                                : "bg-gray-800 text-gray-400 border border-gray-700"
                             }`}
                           >
                             {key.isActive ? "Active" : "Inactive"}
@@ -250,9 +266,8 @@ export default function ApiKeysPage() {
                       </div>
                     </div>
                     <Button
-                      variant="outline"
+                      className="bg-gray-800 hover:bg-red-900/30 text-red-400 border border-gray-700 hover:border-red-800"
                       onClick={() => handleDelete(key.accessKeyId)}
-                      className="text-red-600 hover:text-red-700"
                       disabled={deleteApiKey.isPending}
                     >
                       Delete
@@ -265,23 +280,23 @@ export default function ApiKeysPage() {
         )}
 
         {/* Usage Instructions */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4">How to Use API Keys</h3>
-          <div className="space-y-3 text-sm text-blue-800">
+        <div className="mt-8 bg-blue-900/20 border border-blue-800 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-blue-400 mb-4">How to Use API Keys</h3>
+          <div className="space-y-3 text-sm text-blue-300">
             <p>
               Include these headers in your API requests to authenticate:
             </p>
-            <div className="bg-blue-100 rounded p-3 font-mono text-xs">
+            <div className="bg-black border border-gray-700 rounded p-3 font-mono text-xs text-gray-300">
               <div>x-access-key-id: your_access_key_id</div>
               <div>x-secret-key: your_secret_key</div>
             </div>
             <p className="mt-3">
               Example using curl:
             </p>
-            <div className="bg-blue-100 rounded p-3 font-mono text-xs">
+            <div className="bg-black border border-gray-700 rounded p-3 font-mono text-xs text-gray-300">
               curl -H &quot;x-access-key-id: your_key&quot; \<br />
               &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-H &quot;x-secret-key: your_secret&quot; \<br />
-              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http://localhost:5005/api/v1/blogs
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;http://localhost:5005/api/v1/public/blogs
             </div>
           </div>
         </div>
