@@ -31,13 +31,25 @@ export default function EditBlogPage() {
 
   useEffect(() => {
     if (blog) {
+      // Handle category - it might be an object with _id or a string
+      let categoryId = "";
+      if ((blog as any).category) {
+        if (typeof (blog as any).category === "string") {
+          categoryId = (blog as any).category;
+        } else if ((blog as any).category._id) {
+          categoryId = (blog as any).category._id;
+        } else if ((blog as any).category.toString) {
+          categoryId = (blog as any).category.toString();
+        }
+      }
+
       setFormData({
         title: blog.title || "",
         content: blog.content || "",
         content_type: blog.content_type || "html",
         excerpt: blog.excerpt || "",
         featured_image: blog.featured_image || "",
-        category: (blog as any).category || "",
+        category: categoryId,
         status: blog.status || "draft",
       });
     }

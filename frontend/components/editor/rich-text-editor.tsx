@@ -21,6 +21,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [editingImage, setEditingImage] = useState<{ index: number; data: any } | null>(null);
   const [imageProps, setImageProps] = useState({ width: "", height: "", caption: "" });
+  const isUpdatingFromProp = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !editorRef.current) return;
@@ -190,13 +191,18 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
 
       // Set initial content
       if (value) {
+        isUpdatingFromProp.current = true;
         quill.root.innerHTML = value;
+        isUpdatingFromProp.current = false;
       }
 
       // Listen for text changes
       quill.on("text-change", () => {
-        const html = quill.root.innerHTML;
-        onChange(html);
+        // Only trigger onChange if the change wasn't from a prop update
+        if (!isUpdatingFromProp.current) {
+          const html = quill.root.innerHTML;
+          onChange(html);
+        }
       });
     });
 
@@ -213,8 +219,18 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
 
   // Update content when value prop changes (but not from internal changes)
   useEffect(() => {
-    if (quillRef.current && value !== quillRef.current.root.innerHTML) {
-      quillRef.current.root.innerHTML = value;
+    if (quillRef.current) {
+      const currentContent = quillRef.current.root.innerHTML;
+      // Normalize both values for comparison (remove empty paragraphs, etc.)
+      const normalizedValue = value || "";
+      const normalizedCurrent = currentContent || "";
+      
+      // Only update if the content is actually different
+      if (normalizedValue !== normalizedCurrent) {
+        isUpdatingFromProp.current = true;
+        quillRef.current.root.innerHTML = normalizedValue;
+        isUpdatingFromProp.current = false;
+      }
     }
   }, [value]);
 
