@@ -53,8 +53,10 @@ export function useDeleteComment() {
 
   return useMutation({
     mutationFn: (id: string) => CommentService.deleteComment(id),
-    onSuccess: () => {
+    onSuccess: (response, id) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.COMMENTS });
+      // Invalidate all blog comment queries
+      queryClient.invalidateQueries({ queryKey: ["comments", "blog"] });
     },
   });
 }

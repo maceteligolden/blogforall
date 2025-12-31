@@ -6,6 +6,8 @@ import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { ConfirmModal } from "@/components/ui/modal";
 
 export default function CategoriesPage() {
   const router = useRouter();
@@ -22,6 +24,8 @@ export default function CategoriesPage() {
     color: "#3b82f6",
   });
   const [error, setError] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,10 +62,16 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this category? Blogs assigned to it will lose their category.")) {
+  const handleDeleteClick = (id: string) => {
+    setCategoryToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (categoryToDelete) {
       try {
-        await deleteCategory.mutateAsync(id);
+        await deleteCategory.mutateAsync(categoryToDelete);
+        setCategoryToDelete(null);
       } catch (err) {
         setError("Failed to delete category");
       }
@@ -116,7 +126,7 @@ export default function CategoriesPage() {
               <Button
                 className="bg-gray-800 hover:bg-red-900/30 text-red-400 border border-gray-700 hover:border-red-800"
                 size="sm"
-                onClick={() => handleDelete(category._id)}
+                onClick={() => handleDeleteClick(category._id)}
               >
                 Delete
               </Button>
@@ -143,29 +153,19 @@ export default function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ← Back
-              </button>
-              <h1 className="text-2xl font-bold text-white">Categories</h1>
-            </div>
-            <Button
-              className="bg-primary hover:bg-primary/90 text-white"
-              onClick={() => setShowCreateForm(true)}
-            >
-              Create Category
-            </Button>
-          </div>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+        <Breadcrumb items={[{ label: "Categories" }]} />
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-display text-white">Categories</h1>
+          <Button
+            className="bg-primary hover:bg-primary/90 text-white"
+            onClick={() => setShowCreateForm(true)}
+          >
+            Create Category
+          </Button>
         </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
+        <main className="max-w-4xl mx-auto">
         {/* Create/Edit Form */}
         {(showCreateForm || editingId) && (
           <div className="mb-6 bg-gray-900 rounded-lg border border-gray-800 p-6">
@@ -293,7 +293,22 @@ export default function CategoriesPage() {
             {renderCategoryTree(categories)}
           </div>
         )}
-      </main>
+        </main>
+      </div>
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setCategoryToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? Blogs assigned to it will lose their category."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Bell, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useState } from "react";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 interface NavbarProps {
   showNotifications?: boolean;
@@ -60,26 +61,33 @@ export function Navbar({ showNotifications = true }: NavbarProps) {
 
           {/* Right Side */}
           <div className="flex items-center space-x-4">
-            {showNotifications && (
-              <button className="relative p-2 text-gray-400 hover:text-white transition-colors">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
-              </button>
-            )}
+            {showNotifications && <NotificationBell />}
 
             {/* User Menu */}
             <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-                  <User className="w-4 h-4 text-primary" />
-                </div>
-                <span className="hidden md:block text-sm font-medium">
-                  {user?.first_name} {user?.last_name}
-                </span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => router.push("/dashboard/profile")}
+                  className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+                  title="Go to Profile"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center cursor-pointer hover:bg-primary/30 transition-colors">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="hidden md:block text-sm font-medium">
+                    {user?.first_name} {user?.last_name}
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
 
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-lg py-2">

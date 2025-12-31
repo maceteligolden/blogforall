@@ -6,6 +6,7 @@ import { useApiKeys } from "@/lib/hooks/use-api-key";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default function DashboardPage() {
   const { user, logout, isLoading: authLoading } = useAuth();
@@ -36,45 +37,16 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header - Netflix-inspired */}
-      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/dashboard" className="flex items-center">
-              <h1 className="text-2xl font-bold text-primary">BlogForAll</h1>
-            </Link>
-            <div className="flex items-center space-x-6">
-              <Link href="/" className="text-sm text-gray-400 hover:text-white transition-colors">
-                Home
-              </Link>
-              <Link
-                href="/dashboard/profile"
-                className="text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                Profile
-              </Link>
-              <span className="text-sm text-gray-400">
-                {user?.first_name} {user?.last_name}
-              </span>
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
-              >
-                Logout
-              </Button>
-            </div>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+        <Breadcrumb items={[{ label: "Dashboard" }]} />
+        
+        {/* Main Content */}
+        <main className="py-8">
+          {/* Welcome Section */}
+          <div className="mb-12">
+            <h2 className="text-4xl font-display mb-2 tracking-tight">Welcome back, {user?.first_name}!</h2>
+            <p className="text-gray-400 text-lg">Manage your blogs and API keys from here</p>
           </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-12">
-          <h2 className="text-4xl font-bold mb-2 tracking-tight">Welcome back, {user?.first_name}!</h2>
-          <p className="text-gray-400 text-lg">Manage your blogs and API keys from here</p>
-        </div>
 
         {/* Stats Cards - Netflix card style */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -192,7 +164,8 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

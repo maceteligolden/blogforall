@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default function NewBlogPage() {
   const router = useRouter();
@@ -95,38 +96,34 @@ export default function NewBlogPage() {
 
   return (
     <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
-      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 flex-shrink-0">
-        <div className="px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push("/dashboard/blogs")}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ← Back
-              </button>
-              <h1 className="text-2xl font-bold text-white">Create New Blog</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button
-                type="button"
-                className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                onClick={() => router.push("/dashboard/blogs")}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                form="blog-form"
-                className="bg-primary hover:bg-primary/90 text-white"
-                disabled={createBlog.isPending}
-              >
-                {createBlog.isPending ? "Creating..." : "Create Blog"}
-              </Button>
-            </div>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex-shrink-0">
+        <Breadcrumb
+          items={[
+            { label: "Blogs", href: "/dashboard/blogs" },
+            { label: "Create New Blog" },
+          ]}
+        />
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-display text-white">Create New Blog</h1>
+          <div className="flex items-center space-x-4">
+            <Button
+              type="button"
+              className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+              onClick={() => router.push("/dashboard/blogs")}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="blog-form"
+              className="bg-primary hover:bg-primary/90 text-white"
+              disabled={createBlog.isPending}
+            >
+              {createBlog.isPending ? "Creating..." : "Create Blog"}
+            </Button>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">

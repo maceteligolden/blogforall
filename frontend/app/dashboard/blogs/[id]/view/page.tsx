@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { useBlog } from "@/lib/hooks/use-blog";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { useCommentsByBlog, useDeleteComment } from "@/lib/hooks/use-comment";
+import { ConfirmModal } from "@/components/ui/modal";
+import { Trash2 } from "lucide-react";
 
 export default function ViewBlogPage() {
   const router = useRouter();
@@ -319,7 +323,137 @@ export default function ViewBlogPage() {
             </div>
           )}
         </div>
+
+        {/* Comments Section */}
+        <CommentsSection blogId={id} />
       </main>
+    </div>
+  );
+}
+
+function CommentsSection({ blogId }: { blogId: string }) {
+  const [page, setPage] = useState(1);
+  const limit = 10;
+  const { data: commentsData, isLoading } = useCommentsByBlog(blogId, { page, limit });
+  const deleteComment = useDeleteComment();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+
+  const comments = commentsData?.comments || [];
+  const totalComments = commentsData?.total || 0;
+  const totalPages = Math.ceil(totalComments / limit);
+
+  const handleDeleteClick = (commentId: string) => {
+    setCommentToDelete(commentId);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (commentToDelete) {
+      deleteComment.mutate(commentToDelete);
+      setCommentToDelete(null);
+    }
+  };
+
+  return (
+    <div className="mt-12 bg-gray-900 rounded-lg border border-gray-800 p-8">
+      <h2 className="text-2xl font-display text-white mb-6">Comments ({totalComments})</h2>
+
+      {isLoading ? (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-2"></div>
+          <p className="text-gray-400 text-sm">Loading comments...</p>
+        </div>
+      ) : comments.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-gray-400">No comments yet.</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-6 mb-6">
+            {comments.map((comment: any) => (
+              <div
+                key={comment._id}
+                className="bg-gray-800 rounded-lg border border-gray-700 p-6"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center space-x-2 mb-1">
+                      <span className="font-semibold text-white">{comment.author_name}</span>
+                      {comment.author_email && (
+                        <span className="text-sm text-gray-400">({comment.author_email})</span>
+                      )}
+                    </div>
+                    {comment.created_at && (
+                      <span className="text-xs text-gray-500">
+                        {new Date(comment.created_at).toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteClick(comment._id)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+                <p className="text-gray-300 whitespace-pre-wrap">{comment.content}</p>
+                <div className="flex items-center space-x-4 mt-3 text-sm text-gray-400">
+                  <span>{comment.likes || 0} likes</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-gray-800 pt-6">
+              <p className="text-sm text-gray-400">
+                Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalComments)} of {totalComments} comments
+              </p>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-gray-400 px-4">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setCommentToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Comment"
+        message="Are you sure you want to delete this comment? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }

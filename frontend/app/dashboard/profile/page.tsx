@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -121,25 +122,12 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ← Back
-              </button>
-              <h1 className="text-2xl font-bold text-white">Profile Settings</h1>
-            </div>
-          </div>
-        </div>
-      </header>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+        <Breadcrumb items={[{ label: "Profile" }]} />
+        <h1 className="text-2xl font-display text-white mb-6">Profile Settings</h1>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
+        {/* Main Content */}
+        <main className="max-w-4xl mx-auto">
         {/* Tabs */}
         <div className="mb-8 flex space-x-4 border-b border-gray-800">
           <button
@@ -321,7 +309,8 @@ export default function ProfilePage() {
             </form>
           </div>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

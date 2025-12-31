@@ -6,6 +6,8 @@ import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/lib/hooks/use-ap
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { ConfirmModal } from "@/components/ui/modal";
 
 export default function ApiKeysPage() {
   const router = useRouter();
@@ -19,6 +21,8 @@ export default function ApiKeysPage() {
     secretKey: string;
   } | null>(null);
   const [error, setError] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [keyToDelete, setKeyToDelete] = useState<string | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,10 +50,16 @@ export default function ApiKeysPage() {
     }
   };
 
-  const handleDelete = async (accessKeyId: string) => {
-    if (confirm("Are you sure you want to delete this API key? It will no longer work.")) {
+  const handleDeleteClick = (accessKeyId: string) => {
+    setKeyToDelete(accessKeyId);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (keyToDelete) {
       try {
-        await deleteApiKey.mutateAsync(accessKeyId);
+        await deleteApiKey.mutateAsync(keyToDelete);
+        setKeyToDelete(null);
       } catch (err) {
         setError("Failed to delete API key");
       }
@@ -73,31 +83,20 @@ export default function ApiKeysPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push("/dashboard")}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ← Back
-              </button>
-              <h1 className="text-2xl font-bold text-white">API Keys</h1>
-            </div>
-            <Button
-              className="bg-primary hover:bg-primary/90 text-white"
-              onClick={() => setShowCreateForm(true)}
-            >
-              Create API Key
-            </Button>
-          </div>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+        <Breadcrumb items={[{ label: "API Keys" }]} />
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-display text-white">API Keys</h1>
+          <Button
+            className="bg-primary hover:bg-primary/90 text-white"
+            onClick={() => setShowCreateForm(true)}
+          >
+            Create API Key
+          </Button>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
+        {/* Main Content */}
+        <main className="max-w-4xl mx-auto">
         {/* Newly Created Key Display */}
         {newlyCreatedKey && (
           <div className="mb-6 bg-yellow-900/20 border border-yellow-800 rounded-lg p-6">
@@ -267,7 +266,7 @@ export default function ApiKeysPage() {
                     </div>
                     <Button
                       className="bg-gray-800 hover:bg-red-900/30 text-red-400 border border-gray-700 hover:border-red-800"
-                      onClick={() => handleDelete(key.accessKeyId)}
+                      onClick={() => handleDeleteClick(key.accessKeyId)}
                       disabled={deleteApiKey.isPending}
                     >
                       Delete
@@ -300,7 +299,22 @@ export default function ApiKeysPage() {
             </div>
           </div>
         </div>
-      </main>
+        </main>
+      </div>
+
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setKeyToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete API Key"
+        message="Are you sure you want to delete this API key? It will no longer work."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 }
