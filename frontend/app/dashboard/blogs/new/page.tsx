@@ -94,9 +94,9 @@ export default function NewBlogPage() {
   }, [uploadImage]);
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
+      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 flex-shrink-0">
+        <div className="px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
               <button
@@ -107,37 +107,57 @@ export default function NewBlogPage() {
               </button>
               <h1 className="text-2xl font-bold text-white">Create New Blog</h1>
             </div>
+            <div className="flex items-center space-x-4">
+              <Button
+                type="button"
+                className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                onClick={() => router.push("/dashboard/blogs")}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="blog-form"
+                className="bg-primary hover:bg-primary/90 text-white"
+                disabled={createBlog.isPending}
+              >
+                {createBlog.isPending ? "Creating..." : "Create Blog"}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
-        <form onSubmit={handleSubmit} className="bg-gray-900 rounded-lg border border-gray-800 p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+          <form id="blog-form" onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
               {error}
             </div>
           )}
 
-          <div>
-            <Label htmlFor="title" className="text-gray-300">
-              Title *
-            </Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="mt-1 bg-black border-gray-700 text-white"
-              required
-              maxLength={200}
-            />
-          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <div>
+                <Label htmlFor="title" className="text-gray-300">
+                  Title *
+                </Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="mt-1 bg-black border-gray-700 text-white"
+                  required
+                  maxLength={200}
+                />
+              </div>
 
-          <div>
-            <Label htmlFor="content" className="text-gray-300">
+          <div className="flex-1 min-h-0">
+            <Label htmlFor="content" className="text-gray-300 mb-2 block">
               Content *
             </Label>
-            <div className="mt-1">
+            <div className="h-[calc(100vh-500px)] min-h-[600px]">
               <RichTextEditor
                 value={formData.content}
                 onChange={(value) => setFormData({ ...formData, content: value })}
@@ -149,104 +169,96 @@ export default function NewBlogPage() {
             </p>
           </div>
 
-          <div>
-            <Label htmlFor="excerpt" className="text-gray-300">
-              Excerpt
-            </Label>
-            <textarea
-              id="excerpt"
-              value={formData.excerpt}
-              onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-              className="mt-1 flex min-h-[80px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-              maxLength={500}
-            />
-            <p className="mt-1 text-xs text-gray-500">{formData.excerpt.length}/500</p>
-          </div>
+            </div>
 
-          <div>
-            <Label htmlFor="featured_image" className="text-gray-300">
-              Featured Image
-            </Label>
-            <Input
-              id="featured_image"
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="mt-1 bg-black border-gray-700 text-white"
-            />
-            {formData.featured_image && (
-              <div className="mt-2 relative w-32 h-32">
-                <Image
-                  src={formData.featured_image}
-                  alt="Featured"
-                  fill
-                  className="object-cover rounded"
-                  unoptimized={formData.featured_image.includes("localhost")}
-                />
+            <div className="lg:col-span-1 space-y-6">
+              <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 space-y-6">
+                <div>
+                  <Label htmlFor="status" className="text-gray-300">
+                    Status
+                  </Label>
+                  <select
+                    id="status"
+                    value={formData.status}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        status: e.target.value as "draft" | "published" | "unpublished",
+                      })
+                    }
+                    className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                    <option value="unpublished">Unpublished</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="category" className="text-gray-300">
+                    Category
+                  </Label>
+                  <select
+                    id="category"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                  >
+                    <option value="">No Category</option>
+                    {categories &&
+                      categories
+                        .filter((cat: any) => cat.is_active)
+                        .map((cat: any) => (
+                          <option key={cat._id} value={cat._id}>
+                            {cat.name}
+                          </option>
+                        ))}
+                  </select>
+                </div>
+
+                <div>
+                  <Label htmlFor="excerpt" className="text-gray-300">
+                    Excerpt
+                  </Label>
+                  <textarea
+                    id="excerpt"
+                    value={formData.excerpt}
+                    onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+                    className="mt-1 flex min-h-[100px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                    maxLength={500}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">{formData.excerpt.length}/500</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="featured_image" className="text-gray-300">
+                    Featured Image
+                  </Label>
+                  <Input
+                    id="featured_image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="mt-1 bg-black border-gray-700 text-white"
+                  />
+                  {formData.featured_image && (
+                    <div className="mt-2 relative w-full aspect-video">
+                      <Image
+                        src={formData.featured_image}
+                        alt="Featured"
+                        fill
+                        className="object-cover rounded"
+                        unoptimized={formData.featured_image.includes("localhost")}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="category" className="text-gray-300">
-              Category
-            </Label>
-            <select
-              id="category"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-            >
-              <option value="">No Category</option>
-              {categories &&
-                categories
-                  .filter((cat: any) => cat.is_active)
-                  .map((cat: any) => (
-                    <option key={cat._id} value={cat._id}>
-                      {cat.name}
-                    </option>
-                  ))}
-            </select>
-          </div>
-
-          <div>
-            <Label htmlFor="status" className="text-gray-300">
-              Status
-            </Label>
-            <select
-              id="status"
-              value={formData.status}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  status: e.target.value as "draft" | "published" | "unpublished",
-                })
-              }
-              className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-            >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="unpublished">Unpublished</option>
-            </select>
-          </div>
-
-          <div className="flex space-x-4">
-            <Button
-              type="submit"
-              className="bg-primary hover:bg-primary/90 text-white"
-              disabled={createBlog.isPending}
-            >
-              {createBlog.isPending ? "Creating..." : "Create Blog"}
-            </Button>
-            <Button
-              type="button"
-              className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-              onClick={() => router.push("/dashboard/blogs")}
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
+          </form>
+        </div>
       </main>
     </div>
   );

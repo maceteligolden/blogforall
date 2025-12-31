@@ -123,20 +123,26 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   }, [value]);
 
   return (
-    <div className={`rich-text-editor ${className || ""}`} ref={containerRef}>
-      <div ref={editorRef} style={{ minHeight: "400px" }} />
+    <div className={`rich-text-editor ${className || ""}`} ref={containerRef} style={{ height: "100%" }}>
+      <div ref={editorRef} style={{ height: "100%", display: "flex", flexDirection: "column" }} />
       <style jsx global>{`
+        .rich-text-editor {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+
         .rich-text-editor .ql-container {
           font-family: inherit;
           font-size: 16px;
-          height: 400px;
+          flex: 1;
           background-color: #000;
           color: #fff;
           border-color: #374151;
         }
 
         .rich-text-editor .ql-editor {
-          min-height: 400px;
+          min-height: 100%;
           color: #fff;
         }
 
