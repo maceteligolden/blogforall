@@ -52,24 +52,43 @@ export class ApiKeyService {
   }
 
   async verifyApiKey(accessKeyId: string, secretKey: string): Promise<{ userId: string }> {
+    logger.debug("Verifying API key", { accessKeyId }, "ApiKeyService");
+
     const userApiKey = await this.apiKeyRepository.findUserByApiKey(accessKeyId);
 
     if (!userApiKey) {
+      logger.warn("API key verification failed: Key not found", { accessKeyId }, "ApiKeyService");
       throw new ForbiddenError("Invalid API credentials");
     }
 
     if (!userApiKey.apiKey.isActive) {
+      logger.warn("API key verification failed: Key inactive", {
+        accessKeyId,
+        userId: userApiKey.userId,
+      }, "ApiKeyService");
       throw new ForbiddenError("API key is inactive");
     }
 
     const isValid = verifyApiKeySecret(secretKey, userApiKey.apiKey.hashedSecret);
     if (!isValid) {
+      logger.warn("API key verification failed: Invalid secret", {
+        accessKeyId,
+        userId: userApiKey.userId,
+      }, "ApiKeyService");
       throw new ForbiddenError("Invalid API credentials");
     }
 
+    logger.info("API key verified successfully", {
+      accessKeyId,
+      userId: userApiKey.userId,
+    }, "ApiKeyService");
+
     // Update last used timestamp (fire and forget)
     this.apiKeyRepository.updateLastUsed(userApiKey.userId, accessKeyId).catch((err) => {
-      logger.error("Failed to update API key lastUsed", err as Error, {}, "ApiKeyService");
+      logger.error("Failed to update API key lastUsed", err as Error, {
+        accessKeyId,
+        userId: userApiKey.userId,
+      }, "ApiKeyService");
     });
 
     return { userId: userApiKey.userId };
