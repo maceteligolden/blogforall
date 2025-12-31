@@ -75,18 +75,16 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               className="w-full justify-start"
-              onClick={() => router.push("/dashboard/blogs")}
-              disabled
+              onClick={() => router.push("/dashboard/blogs/new")}
             >
               Create Blog Post
             </Button>
             <Button
               className="w-full justify-start"
               variant="outline"
-              onClick={() => router.push("/dashboard/api-keys")}
-              disabled
+              onClick={() => router.push("/dashboard/blogs")}
             >
-              Manage API Keys
+              Manage Blogs
             </Button>
           </div>
         </div>
