@@ -1,0 +1,131 @@
+import { Schema, model } from "mongoose";
+import { BlogStatus } from "../constants";
+import { BaseEntity } from "../interfaces";
+
+export interface Blog extends BaseEntity {
+  author: string; // User ID
+  title: string;
+  content: string; // HTML or Markdown content
+  content_type: "html" | "markdown";
+  slug: string; // URL-friendly version of title
+  excerpt?: string; // Short description
+  featured_image?: string; // Path to featured image
+  images?: string[]; // Array of image paths
+  status: BlogStatus;
+  likes: number;
+  liked_by: string[]; // Array of user IDs or guest IPs
+  views: number;
+  published_at?: Date;
+  dynamic_forms?: Record<string, unknown>; // For dynamic form data
+  meta?: {
+    description?: string;
+    keywords?: string[];
+  };
+}
+
+const blogSchema = new Schema<Blog>(
+  {
+    author: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 200,
+    },
+    content: {
+      type: String,
+      required: true,
+    },
+    content_type: {
+      type: String,
+      enum: ["html", "markdown"],
+      default: "html",
+    },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      lowercase: true,
+      trim: true,
+    },
+    excerpt: {
+      type: String,
+      maxlength: 500,
+    },
+    featured_image: {
+      type: String,
+    },
+    images: {
+      type: [String],
+      default: [],
+    },
+    status: {
+      type: String,
+      enum: Object.values(BlogStatus),
+      default: BlogStatus.DRAFT,
+      index: true,
+    },
+    likes: {
+      type: Number,
+      default: 0,
+    },
+    liked_by: {
+      type: [String],
+      default: [],
+    },
+    views: {
+      type: Number,
+      default: 0,
+    },
+    published_at: {
+      type: Date,
+    },
+    dynamic_forms: {
+      type: Schema.Types.Mixed,
+      default: {},
+    },
+    meta: {
+      description: {
+        type: String,
+        maxlength: 300,
+      },
+      keywords: {
+        type: [String],
+        default: [],
+      },
+    },
+    created_at: {
+      type: Date,
+      default: Date.now,
+    },
+    updated_at: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    timestamps: false,
+  }
+);
+
+// Update updated_at before saving
+blogSchema.pre("save", function (next) {
+  this.updated_at = new Date();
+  if (this.status === BlogStatus.PUBLISHED && !this.published_at) {
+    this.published_at = new Date();
+  }
+  next();
+});
+
+// Index for efficient queries
+blogSchema.index({ author: 1, status: 1 });
+blogSchema.index({ status: 1, published_at: -1 });
+blogSchema.index({ slug: 1 });
+
+export default model<Blog>("Blog", blogSchema);
+

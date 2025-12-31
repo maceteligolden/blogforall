@@ -15,6 +15,9 @@ app.use(requestLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded images statically
+app.use("/uploads", express.static("uploads"));
+
 // CORS
 app.use((req, res, next) => {
   const origin = req.headers.origin;
