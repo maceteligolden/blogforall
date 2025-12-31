@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+// Use Node.js runtime instead of edge runtime to avoid import assertion issues
+export const runtime = "nodejs";
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 

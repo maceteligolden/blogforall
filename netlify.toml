@@ -4,14 +4,13 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+  [plugins.inputs]
+    # Disable edge functions to avoid import assertion issues
+    edge_functions = false
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--legacy-peer-deps"
-
-# Redirect all routes to Next.js
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  # Use Node.js runtime instead of edge functions
+  NETLIFY_NEXT_PLUGIN_SKIP = "false"
 
