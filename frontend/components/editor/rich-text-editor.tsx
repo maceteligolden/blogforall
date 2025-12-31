@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Import CSS
 if (typeof window !== "undefined") {
@@ -18,6 +18,9 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [editingImage, setEditingImage] = useState<{ index: number; data: any } | null>(null);
+  const [imageProps, setImageProps] = useState({ width: "", height: "", caption: "" });
 
   useEffect(() => {
     if (typeof window === "undefined" || !editorRef.current) return;
@@ -33,9 +36,27 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
       editorRef.current.innerHTML = "";
     }
 
-    // Dynamically import Quill
-    import("quill").then((QuillModule) => {
+    // Dynamically import Quill and modules
+    Promise.all([
+      import("quill"),
+      import("quill-resize-module").catch(() => null),
+      import("./image-with-caption"),
+    ]).then(([QuillModule, ResizeModule, ImageWithCaptionModule]) => {
       const Quill = QuillModule.default;
+      
+      // Register resize module if available
+      if (ResizeModule?.default) {
+        try {
+          Quill.register("modules/resize", ResizeModule.default);
+        } catch (e) {
+          console.warn("Could not register resize module:", e);
+        }
+      }
+      
+      // Register image with caption blot
+      if (ImageWithCaptionModule?.createImageWithCaption) {
+        ImageWithCaptionModule.createImageWithCaption(Quill);
+      }
 
       // Check again to prevent race conditions
       if (quillRef.current || !editorRef.current) return;
@@ -100,9 +121,14 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
                       window.dispatchEvent(event);
                     });
 
-                    // Insert the image
+                    // Insert the image with caption support
                     quillInstance.deleteText(index, 20);
-                    quillInstance.insertEmbed(index, "image", imageUrl, "user");
+                    quillInstance.insertEmbed(
+                      index,
+                      "imageWithCaption",
+                      { url: imageUrl, caption: "" },
+                      "user"
+                    );
                     quillInstance.setSelection(index + 1);
                   } catch (error) {
                     quillInstance.deleteText(index, 20);
@@ -116,7 +142,48 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
           clipboard: {
             matchVisual: false,
           },
+          ...(ResizeModule?.default ? {
+            resize: {
+              parchment: Quill.import("parchment"),
+              modules: ["Resize", "DisplaySize", "Toolbar"],
+            },
+          } : {}),
         },
+      });
+
+      // Add click handler for images to edit properties
+      quill.root.addEventListener("click", (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.tagName === "IMG" || target.closest("figure.ql-image-with-caption")) {
+          const figure = target.closest("figure.ql-image-with-caption") as HTMLElement;
+          if (figure) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Get image data
+            const img = figure.querySelector("img");
+            const caption = figure.querySelector("figcaption");
+            const data = {
+              url: img?.getAttribute("src") || "",
+              width: figure.getAttribute("data-width") || img?.style.width || "",
+              height: figure.getAttribute("data-height") || img?.style.height || "",
+              caption: caption?.textContent || figure.getAttribute("data-caption") || "",
+            };
+
+            // Find the index of this image in the editor
+            const editor = quill.root;
+            const figures = Array.from(editor.querySelectorAll("figure.ql-image-with-caption"));
+            const index = figures.indexOf(figure);
+
+            setEditingImage({ index, data });
+            setImageProps({
+              width: data.width.replace("px", "") || "",
+              height: data.height.replace("px", "") || "",
+              caption: data.caption || "",
+            });
+            setImageDialogOpen(true);
+          }
+        }
       });
 
       quillRef.current = quill;
@@ -151,9 +218,116 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
     }
   }, [value]);
 
+  const handleImagePropsSave = () => {
+    if (!editingImage || !quillRef.current) return;
+
+    const { index, data } = editingImage;
+    const figures = Array.from(quillRef.current.root.querySelectorAll("figure.ql-image-with-caption"));
+    const figure = figures[index] as HTMLElement;
+
+    if (figure) {
+      const img = figure.querySelector("img");
+      const caption = figure.querySelector("figcaption");
+
+      // Update width
+      if (imageProps.width) {
+        const width = imageProps.width.includes("px") ? imageProps.width : `${imageProps.width}px`;
+        if (img) img.style.width = width;
+        figure.setAttribute("data-width", width);
+      } else {
+        if (img) img.style.width = "";
+        figure.removeAttribute("data-width");
+      }
+
+      // Update height
+      if (imageProps.height) {
+        const height = imageProps.height.includes("px") ? imageProps.height : `${imageProps.height}px`;
+        if (img) img.style.height = height;
+        figure.setAttribute("data-height", height);
+      } else {
+        if (img) img.style.height = "";
+        figure.removeAttribute("data-height");
+      }
+
+      // Update caption
+      if (caption) {
+        caption.textContent = imageProps.caption || "";
+        figure.setAttribute("data-caption", imageProps.caption || "");
+      }
+
+      // Trigger change
+      const html = quillRef.current.root.innerHTML;
+      onChange(html);
+    }
+
+    setImageDialogOpen(false);
+    setEditingImage(null);
+  };
+
   return (
     <div className={`rich-text-editor ${className || ""}`} ref={containerRef} style={{ height: "100%" }}>
       <div ref={editorRef} />
+      
+      {/* Image Properties Dialog */}
+      {imageDialogOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold text-white mb-4">Image Properties</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Width (px)</label>
+                <input
+                  type="text"
+                  value={imageProps.width}
+                  onChange={(e) => setImageProps({ ...imageProps, width: e.target.value })}
+                  className="w-full px-3 py-2 bg-black border border-gray-700 rounded text-white"
+                  placeholder="e.g., 800 or 50%"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Height (px)</label>
+                <input
+                  type="text"
+                  value={imageProps.height}
+                  onChange={(e) => setImageProps({ ...imageProps, height: e.target.value })}
+                  className="w-full px-3 py-2 bg-black border border-gray-700 rounded text-white"
+                  placeholder="e.g., 600 or auto"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Caption</label>
+                <textarea
+                  value={imageProps.caption}
+                  onChange={(e) => setImageProps({ ...imageProps, caption: e.target.value })}
+                  className="w-full px-3 py-2 bg-black border border-gray-700 rounded text-white min-h-[80px]"
+                  placeholder="Add a caption for this image..."
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setImageDialogOpen(false);
+                  setEditingImage(null);
+                }}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleImagePropsSave}
+                className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style jsx global>{`
         .rich-text-editor {
           height: 100%;
@@ -234,6 +408,38 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
           height: auto;
           border-radius: 0.5rem;
           margin: 1rem 0;
+        }
+
+        .rich-text-editor .ql-snow .ql-editor figure.ql-image-with-caption {
+          margin: 1.5rem 0;
+          text-align: center;
+        }
+
+        .rich-text-editor .ql-snow .ql-editor figure.ql-image-with-caption img {
+          display: block;
+          margin: 0 auto;
+          border-radius: 0.5rem;
+        }
+
+        .rich-text-editor .ql-snow .ql-editor figure.ql-image-with-caption .image-caption {
+          text-align: center;
+          font-size: 0.875rem;
+          color: #9ca3af;
+          margin-top: 0.5rem;
+          font-style: italic;
+          padding: 0.25rem 0.5rem;
+          border-radius: 0.25rem;
+          min-height: 1.5rem;
+        }
+
+        .rich-text-editor .ql-snow .ql-editor figure.ql-image-with-caption .image-caption:empty:before {
+          content: attr(data-placeholder);
+          color: #6b7280;
+        }
+
+        .rich-text-editor .ql-snow .ql-editor figure.ql-image-with-caption .image-caption:focus {
+          outline: 1px solid #3b82f6;
+          outline-offset: 2px;
         }
 
         .rich-text-editor .ql-snow .ql-editor blockquote {
