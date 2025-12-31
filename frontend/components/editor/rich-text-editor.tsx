@@ -78,27 +78,29 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
         });
       }
 
-      // Initialize Quill
-      const quill = new Quill(editorRef.current!, {
-        theme: "snow",
-        placeholder: placeholder || "Start writing your blog post...",
-        modules: {
-          toolbar: {
-            container: [
-              [{ header: [1, 2, 3, 4, 5, 6, false] }],
-              [{ size: ["small", false, "large", "huge"] }],
-              ["bold", "italic", "underline", "strike"],
-              [{ color: [] }, { background: [] }],
-              [{ script: "sub" }, { script: "super" }],
-              [{ list: "ordered" }, { list: "bullet" }],
-              [{ indent: "-1" }, { indent: "+1" }],
-              [{ align: [] }],
-              ["blockquote", "code-block"],
-              ["link", "image", "video"],
-              ["clean"],
-            ],
-            handlers: {
-              image: function (this: any) {
+      // Initialize Quill with error handling
+      let quill: any;
+      try {
+        quill = new Quill(editorRef.current!, {
+          theme: "snow",
+          placeholder: placeholder || "Start writing your blog post...",
+          modules: {
+            toolbar: {
+              container: [
+                [{ header: [1, 2, 3, 4, 5, 6, false] }],
+                [{ size: ["small", false, "large", "huge"] }],
+                ["bold", "italic", "underline", "strike"],
+                [{ color: [] }, { background: [] }],
+                [{ script: "sub" }, { script: "super" }],
+                [{ list: "ordered" }, { list: "bullet" }],
+                [{ indent: "-1" }, { indent: "+1" }],
+                [{ align: [] }],
+                ["blockquote", "code-block"],
+                ["link", "image", "video"],
+                ["clean"],
+              ],
+              handlers: {
+                image: function (this: any) {
                 const quillInstance = quillRef.current;
                 if (!quillInstance) return;
 
@@ -156,6 +158,10 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
           } : {}),
         },
       });
+      } catch (error) {
+        console.error("Error initializing Quill:", error);
+        throw error;
+      }
 
       // Add click handler for images to edit properties
       quill.root.addEventListener("click", (e: MouseEvent) => {

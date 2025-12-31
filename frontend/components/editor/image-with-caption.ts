@@ -1,6 +1,21 @@
 // Custom Quill blot for images with captions
 export function createImageWithCaption(QuillInstance: any) {
-  const BlockEmbed = QuillInstance.import("blots/block/embed");
+  // Safely import BlockEmbed with error handling
+  let BlockEmbed: any;
+  try {
+    BlockEmbed = QuillInstance.import("blots/block/embed");
+    if (!BlockEmbed || typeof BlockEmbed !== "function") {
+      throw new Error("BlockEmbed not found");
+    }
+  } catch (error) {
+    console.error("Error importing BlockEmbed:", error);
+    // Fallback: create a basic BlockEmbed class
+    BlockEmbed = class {
+      static create() {
+        return document.createElement("div");
+      }
+    };
+  }
 
   class ImageWithCaption extends BlockEmbed {
     static blotName = "imageWithCaption";
