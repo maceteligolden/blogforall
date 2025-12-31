@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signup, isLoading } = useAuth();
+  const { signupAsync, isLoading, signupError } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -34,9 +34,13 @@ export default function SignupPage() {
     }
 
     try {
-      signup(formData);
-    } catch (err) {
-      setError("Signup failed. Please try again.");
+      await signupAsync(formData);
+    } catch (err: unknown) {
+      const errorMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Signup failed. Please try again.";
+      setError(errorMessage);
     }
   };
 

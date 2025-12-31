@@ -29,6 +29,7 @@ export function useAuth() {
     onError: (error: unknown) => {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";
       console.error("Signup failed:", message);
+      throw error; // Re-throw to allow component to handle
     },
   });
 
@@ -69,6 +70,7 @@ export function useAuth() {
   return {
     login: loginMutation.mutate,
     signup: signupMutation.mutate,
+    signupAsync: signupMutation.mutateAsync,
     logout: logoutMutation.mutate,
     updateProfile: updateProfileMutation.mutate,
     changePassword: changePasswordMutation.mutate,
@@ -76,6 +78,7 @@ export function useAuth() {
     isLoading: loginMutation.isPending || signupMutation.isPending || logoutMutation.isPending,
     isUpdatingProfile: updateProfileMutation.isPending,
     isChangingPassword: changePasswordMutation.isPending,
+    signupError: signupMutation.error,
     user,
     isAuthenticated,
     profileQuery,

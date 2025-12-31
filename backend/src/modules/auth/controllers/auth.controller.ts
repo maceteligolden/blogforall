@@ -1,5 +1,6 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
 import { AuthService } from "../services/auth.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
@@ -15,8 +16,9 @@ export class AuthController {
       await this.authService.signup(validatedData);
       sendCreated(res, "User created successfully");
     } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        return next(new BadRequestError(error.message));
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+        return next(new BadRequestError(errorMessages));
       }
       next(error);
     }
@@ -28,8 +30,9 @@ export class AuthController {
       const result = await this.authService.login(validatedData);
       sendSuccess(res, "Login successful", result);
     } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        return next(new BadRequestError(error.message));
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+        return next(new BadRequestError(errorMessages));
       }
       next(error);
     }
@@ -84,8 +87,9 @@ export class AuthController {
       await this.authService.updateProfile(userId, validatedData);
       sendNoContent(res, "Profile updated successfully");
     } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        return next(new BadRequestError(error.message));
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+        return next(new BadRequestError(errorMessages));
       }
       next(error);
     }
@@ -101,8 +105,9 @@ export class AuthController {
       await this.authService.changePassword(userId, validatedData);
       sendNoContent(res, "Password changed successfully");
     } catch (error) {
-      if (error instanceof Error && error.name === "ZodError") {
-        return next(new BadRequestError(error.message));
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+        return next(new BadRequestError(errorMessages));
       }
       next(error);
     }
