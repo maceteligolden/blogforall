@@ -33,6 +33,11 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== "undefined") {
           localStorage.setItem("access_token", accessToken);
           localStorage.setItem("refresh_token", refreshToken);
+          
+          // Set cookie for Next.js Middleware
+          const expires = new Date();
+          expires.setDate(expires.getDate() + 7);
+          document.cookie = `auth-token=${accessToken}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
         }
 
         set({
@@ -55,6 +60,9 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
           localStorage.removeItem("user_email");
+          
+          // Clear cookie
+          document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         }
 
         set({

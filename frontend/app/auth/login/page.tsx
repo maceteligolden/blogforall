@@ -1,15 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useAuthStore } from "@/lib/store/auth.store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, isLoading } = useAuth();
+  const { isAuthenticated } = useAuthStore();
+  
+  useEffect(() => {
+    // Redirect to dashboard if already authenticated
+    if (isAuthenticated) {
+      const redirect = searchParams.get("redirect") || "/dashboard";
+      router.push(redirect);
+    }
+  }, [isAuthenticated, router, searchParams]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -77,7 +88,7 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center text-sm">
-            <span className="text-gray-600">Don't have an account? </span>
+            <span className="text-gray-600">Don&apos;t have an account? </span>
             <button
               type="button"
               onClick={() => router.push("/auth/signup")}
