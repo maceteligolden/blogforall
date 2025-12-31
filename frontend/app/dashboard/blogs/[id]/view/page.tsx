@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useBlog } from "@/lib/hooks/use-blog";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default function ViewBlogPage() {
   const router = useRouter();
@@ -41,28 +42,22 @@ export default function ViewBlogPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="bg-black/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.push("/dashboard/blogs")}
-                className="text-gray-400 hover:text-white transition-colors"
-              >
-                ← Back
-              </button>
-              <h1 className="text-2xl font-bold text-white">View Blog</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link href={`/dashboard/blogs/${id}`}>
-                <Button className="bg-primary hover:bg-primary/90 text-white">Edit</Button>
-              </Link>
-            </div>
-          </div>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+        <Breadcrumb
+          items={[
+            { label: "Blogs", href: "/dashboard/blogs" },
+            { label: blog.title || "View Blog" },
+          ]}
+        />
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-display text-white">View Blog</h1>
+          <Link href={`/dashboard/blogs/${id}`}>
+            <Button className="bg-primary hover:bg-primary/90 text-white">Edit</Button>
+          </Link>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-4xl mx-auto px-6 lg:px-8 py-8">
+      <main className="max-w-6xl mx-auto px-6 lg:px-8 pb-8">
         <div className="bg-gray-900 rounded-lg border border-gray-800 p-8">
           {/* Status Badge */}
           <div className="mb-6">
