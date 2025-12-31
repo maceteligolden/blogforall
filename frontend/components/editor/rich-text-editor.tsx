@@ -20,11 +20,36 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !editorRef.current || quillRef.current) return;
+    if (typeof window === "undefined" || !editorRef.current) return;
+    
+    // Prevent duplicate initialization
+    if (quillRef.current) return;
+    
+    // Clear any existing Quill toolbars and content
+    if (editorRef.current) {
+      // Remove any existing Quill toolbars
+      const existingToolbars = editorRef.current.parentElement?.querySelectorAll('.ql-toolbar');
+      existingToolbars?.forEach(toolbar => toolbar.remove());
+      editorRef.current.innerHTML = "";
+    }
 
     // Dynamically import Quill
     import("quill").then((QuillModule) => {
       const Quill = QuillModule.default;
+
+      // Check again to prevent race conditions
+      if (quillRef.current || !editorRef.current) return;
+
+      // Remove any existing Quill instances from the container
+      const container = editorRef.current.parentElement;
+      if (container) {
+        const existingQuillContainers = container.querySelectorAll('.ql-container');
+        existingQuillContainers.forEach(el => {
+          if (el !== editorRef.current) {
+            el.remove();
+          }
+        });
+      }
 
       // Initialize Quill
       const quill = new Quill(editorRef.current!, {
@@ -112,6 +137,10 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
       if (quillRef.current) {
         quillRef.current = null;
       }
+      // Clear the editor div on unmount
+      if (editorRef.current) {
+        editorRef.current.innerHTML = "";
+      }
     };
   }, []);
 
@@ -124,7 +153,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
 
   return (
     <div className={`rich-text-editor ${className || ""}`} ref={containerRef} style={{ height: "100%" }}>
-      <div ref={editorRef} style={{ height: "100%", display: "flex", flexDirection: "column" }} />
+      <div ref={editorRef} />
       <style jsx global>{`
         .rich-text-editor {
           height: 100%;
