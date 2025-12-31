@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import express from "express";
 import "dotenv/config";
+import path from "path";
 import { connectDatabase } from "./shared/database";
 import { logger } from "./shared/utils/logger";
 import { errorHandler } from "./shared/middlewares/error-handler.middleware";
@@ -10,13 +11,13 @@ import { routes } from "./routes";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Serve uploaded images statically (before other middlewares to avoid conflicts)
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
 // Middlewares
 app.use(requestLogger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Serve uploaded images statically
-app.use("/uploads", express.static("uploads"));
 
 // CORS
 app.use((req, res, next) => {

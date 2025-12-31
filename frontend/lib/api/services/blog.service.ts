@@ -73,6 +73,7 @@ export class BlogService {
       headers: {
         "Content-Type": "multipart/form-data",
       },
+      timeout: 60000, // 60 seconds for file uploads
     });
   }
 

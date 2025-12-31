@@ -101,6 +101,9 @@ export function useUnpublishBlog() {
 export function useUploadImage() {
   return useMutation({
     mutationFn: (file: File) => BlogService.uploadImage(file),
+    onError: (error: unknown) => {
+      console.error("Image upload failed:", error);
+    },
   });
 }
 

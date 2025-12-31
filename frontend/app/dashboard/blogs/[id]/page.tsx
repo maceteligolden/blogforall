@@ -63,9 +63,15 @@ export default function EditBlogPage() {
 
     try {
       const response = await uploadImage.mutateAsync(file);
-      setFormData({ ...formData, featured_image: response.data.data.url });
-    } catch (err) {
-      setError("Failed to upload image");
+      const imageUrl = response.data.data.url;
+      setFormData({ ...formData, featured_image: imageUrl });
+      setError(""); // Clear any previous errors
+    } catch (err: unknown) {
+      const errorMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to upload image";
+      setError(errorMessage);
+      console.error("Image upload error:", err);
     }
   };
 
@@ -179,6 +185,7 @@ export default function EditBlogPage() {
                   alt="Featured"
                   fill
                   className="object-cover rounded"
+                  unoptimized={formData.featured_image.includes("localhost")}
                 />
               </div>
             )}

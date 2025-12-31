@@ -114,6 +114,7 @@ export default function BlogsPage() {
                       alt={blog.title}
                       fill
                       className="object-cover rounded-t-lg"
+                      unoptimized={blog.featured_image.includes("localhost")}
                     />
                   </div>
                 )}
