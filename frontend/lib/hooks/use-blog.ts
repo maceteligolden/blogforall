@@ -107,3 +107,15 @@ export function useUploadImage() {
   });
 }
 
+export function useToggleBlogLike() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => BlogService.toggleLike(id),
+    onSuccess: (response, id) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOG(id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOGS });
+    },
+  });
+}
+

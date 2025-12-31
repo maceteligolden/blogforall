@@ -35,6 +35,15 @@ export const API_ENDPOINTS = {
     LIST: "/api-keys",
     DELETE: (accessKeyId: string) => `/api-keys/${accessKeyId}`,
   },
+  COMMENTS: {
+    CREATE: "/comments",
+    GET_ONE: (id: string) => `/comments/${id}`,
+    GET_BY_BLOG: (blogId: string) => `/comments/blog/${blogId}`,
+    GET_REPLIES: (commentId: string) => `/comments/${commentId}/replies`,
+    UPDATE: (id: string) => `/comments/${id}`,
+    DELETE: (id: string) => `/comments/${id}`,
+    LIKE: (id: string) => `/comments/${id}/like`,
+  },
 };
 
 export const QUERY_KEYS = {
@@ -43,5 +52,8 @@ export const QUERY_KEYS = {
   BLOG: (id: string) => ["blogs", id],
   MY_BLOGS: ["blogs", "my-blogs"],
   API_KEYS: ["api-keys"],
+  COMMENTS: ["comments"],
+  COMMENTS_BY_BLOG: (blogId: string) => ["comments", "blog", blogId],
+  COMMENT_REPLIES: (commentId: string) => ["comments", commentId, "replies"],
 };
 
