@@ -24,7 +24,7 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   
   // Default allowed origins for development
-  const defaultOrigins = ["http://localhost:3000", "http://localhost:3002", "http://localhost:3001"];
+  const defaultOrigins = ["http://localhost:3000", "http://localhost:3002", "http://localhost:3001", "*"];
   
   // Get allowed origins from environment or use defaults
   const allowedOrigins = process.env.FRONTEND_URL
