@@ -1,5 +1,5 @@
 [build]
-  command = "cd frontend &&  yarn build"
+  command = "cd frontend && yarn install && yarn build"
   publish = "frontend/.next"
 
 [[plugins]]
