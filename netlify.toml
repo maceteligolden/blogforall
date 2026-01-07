@@ -1,13 +1,10 @@
 [build]
-  command = "yarn build"
-  publish = ".next"
+  command = "cd frontend &&  yarn build"
+  publish = "frontend/.next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
 [build.environment]
   NODE_VERSION = "18"
-  NPM_FLAGS = "--legacy-peer-deps"
-  # Use Node.js runtime instead of edge functions
-  NETLIFY_NEXT_PLUGIN_SKIP = "false"
 
