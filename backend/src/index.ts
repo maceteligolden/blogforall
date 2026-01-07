@@ -24,7 +24,7 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   
   // Default allowed origins for development
-  const defaultOrigins = ["http://localhost:3000", "http://localhost:3002", "http://localhost:3001", "*"];
+  const defaultOrigins = ["http://localhost:3000", "http://localhost:3002", "http://localhost:3001", "https://blogforall-ij6u.onrender.com"];
   
   // Get allowed origins from environment or use defaults
   const allowedOrigins = process.env.FRONTEND_URL
@@ -39,7 +39,7 @@ app.use((req, res, next) => {
     if (origin && (uniqueOrigins.includes(origin) || (origin.includes("localhost") && origin.match(/^http:\/\/localhost:\d+$/)))) {
       res.header("Access-Control-Allow-Origin", origin);
     } else if (origin) {
-      res.header("Access-Control-Allow-Origin", origin);
+      res.header("Access-Control-Allow-Origin", "*");
     }
   } else {
     // In production, only allow configured origins
