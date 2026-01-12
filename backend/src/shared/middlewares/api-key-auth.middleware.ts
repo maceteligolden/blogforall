@@ -17,22 +17,30 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
 
   try {
     // Log incoming API key request
-    logger.info("API key request received", {
-      method: req.method,
-      path: req.path,
-      accessKeyId,
-      ip: req.ip || req.socket.remoteAddress,
-      userAgent: req.headers["user-agent"],
-      query: req.query,
-    }, "ApiKeyAuthMiddleware");
-
-    if (!accessKeyId || !secretKey) {
-      logger.warn("API key auth failed: Missing credentials", {
+    logger.info(
+      "API key request received",
+      {
         method: req.method,
         path: req.path,
-        accessKeyId: accessKeyId || "missing",
+        accessKeyId,
         ip: req.ip || req.socket.remoteAddress,
-      }, "ApiKeyAuthMiddleware");
+        userAgent: req.headers["user-agent"],
+        query: req.query,
+      },
+      "ApiKeyAuthMiddleware"
+    );
+
+    if (!accessKeyId || !secretKey) {
+      logger.warn(
+        "API key auth failed: Missing credentials",
+        {
+          method: req.method,
+          path: req.path,
+          accessKeyId: accessKeyId || "missing",
+          ip: req.ip || req.socket.remoteAddress,
+        },
+        "ApiKeyAuthMiddleware"
+      );
       return next(new UnauthorizedError("Missing API credentials (x-access-key-id, x-secret-key)"));
     }
 
@@ -42,13 +50,17 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
     const authDuration = Date.now() - startTime;
 
     // Log successful authentication
-    logger.info("API key authentication successful", {
-      accessKeyId,
-      userId,
-      method: req.method,
-      path: req.path,
-      authDuration: `${authDuration}ms`,
-    }, "ApiKeyAuthMiddleware");
+    logger.info(
+      "API key authentication successful",
+      {
+        accessKeyId,
+        userId,
+        method: req.method,
+        path: req.path,
+        authDuration: `${authDuration}ms`,
+      },
+      "ApiKeyAuthMiddleware"
+    );
 
     // Attach user info to request
     // For API key auth, we only need userId (email not required)
@@ -62,14 +74,18 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
     next();
   } catch (error) {
     const authDuration = Date.now() - startTime;
-    logger.error("API key auth failed", error as Error, {
-      accessKeyId,
-      method: req.method,
-      path: req.path,
-      ip: req.ip || req.socket.remoteAddress,
-      authDuration: `${authDuration}ms`,
-    }, "ApiKeyAuthMiddleware");
+    logger.error(
+      "API key auth failed",
+      error as Error,
+      {
+        accessKeyId,
+        method: req.method,
+        path: req.path,
+        ip: req.ip || req.socket.remoteAddress,
+        authDuration: `${authDuration}ms`,
+      },
+      "ApiKeyAuthMiddleware"
+    );
     next(new UnauthorizedError("Invalid API credentials"));
   }
 };
-

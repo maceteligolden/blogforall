@@ -74,4 +74,3 @@ categorySchema.index({ user: 1, parent: 1 });
 categorySchema.index({ user: 1, is_active: 1 });
 
 export default model<Category>("Category", categorySchema);
-

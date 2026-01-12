@@ -13,7 +13,7 @@ const stripe = require("stripe")(process.env.STRIPE_API_KEY);
 export class BillingWebhook {
   constructor(
     private subscriptionRepository: SubscriptionRepository,
-    private planRepository: PlanRepository,
+    private planRepository: PlanRepository
   ) {}
 
   async handleWebhook(req: Request, res: Response): Promise<void> {
@@ -95,9 +95,7 @@ export class BillingWebhook {
 
     // Set to past_due and add grace period
     const now = new Date();
-    const gracePeriodEndsAt = new Date(
-      now.getTime() + SUBSCRIPTION_CONSTANTS.GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000
-    );
+    const gracePeriodEndsAt = new Date(now.getTime() + SUBSCRIPTION_CONSTANTS.GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
 
     await this.subscriptionRepository.update(subscription._id!, {
       status: SubscriptionStatus.PAST_DUE,

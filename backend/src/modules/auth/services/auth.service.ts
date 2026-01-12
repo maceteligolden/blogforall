@@ -14,12 +14,14 @@ import {
 } from "../interfaces/auth.interface";
 import { User } from "../../../shared/schemas/user.schema";
 import { StripeFacade } from "../../../shared/facade/stripe.facade";
+import { SubscriptionService } from "../../subscription/services/subscription.service";
 
 @injectable()
 export class AuthService {
   constructor(
     private userRepository: UserRepository,
     private stripeFacade: StripeFacade,
+    private subscriptionService: SubscriptionService
   ) {}
 
   async signup(input: SignupInput): Promise<User> {
@@ -38,10 +40,7 @@ export class AuthService {
     // Create Stripe customer
     let stripeCustomerId: string | undefined;
     try {
-      const customer = await this.stripeFacade.createCustomer(
-        email.toLowerCase(),
-        `${first_name} ${last_name}`.trim(),
-      );
+      const customer = await this.stripeFacade.createCustomer(email.toLowerCase(), `${first_name} ${last_name}`.trim());
       stripeCustomerId = customer.id;
     } catch (error) {
       logger.error("Failed to create Stripe customer", error as Error, { email }, "AuthService");
@@ -58,6 +57,14 @@ export class AuthService {
       plan: UserPlan.FREE,
       stripe_customer_id: stripeCustomerId,
     });
+
+    // Create free subscription for new user
+    try {
+      await this.subscriptionService.createFreeSubscription(user._id!.toString());
+    } catch (error) {
+      logger.error("Failed to create free subscription on signup", error as Error, { userId: user._id }, "AuthService");
+      // Continue even if subscription creation fails - can be created later
+    }
 
     logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");
     return user;

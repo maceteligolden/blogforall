@@ -7,10 +7,8 @@ const router = Router();
 const billingWebhook = container.resolve(BillingWebhook);
 
 // Stripe webhook endpoint (must use raw body for signature verification)
-router.post(
-  "/stripe",
-  express.raw({ type: "application/json" }),
-  (req: Request, res: Response) => billingWebhook.handleWebhook(req, res)
+router.post("/stripe", express.raw({ type: "application/json" }), (req: Request, res: Response) =>
+  billingWebhook.handleWebhook(req, res)
 );
 
 export default router;

@@ -30,4 +30,3 @@ router.get("/slug/:slug", blogController.getBySlug);
 router.post("/:id/like", blogController.toggleLike);
 
 export default router;
-

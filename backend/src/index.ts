@@ -7,6 +7,7 @@ import { logger } from "./shared/utils/logger";
 import { errorHandler } from "./shared/middlewares/error-handler.middleware";
 import { requestLogger } from "./shared/middlewares/request-logger.middleware";
 import { routes } from "./routes";
+import { seedPlansIfNeeded } from "./shared/utils/seed-plans.util";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,10 +29,15 @@ app.use(express.urlencoded({ extended: true }));
 // CORS
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  
+
   // Default allowed origins for development
-  const defaultOrigins = ["http://localhost:3000", "http://localhost:3002", "http://localhost:3001", "https://blogforall-ij6u.onrender.com"];
-  
+  const defaultOrigins = [
+    "http://localhost:3000",
+    "http://localhost:3002",
+    "http://localhost:3001",
+    "https://blogforall-ij6u.onrender.com",
+  ];
+
   // Get allowed origins from environment or use defaults
   const allowedOrigins = process.env.FRONTEND_URL
     ? [...process.env.FRONTEND_URL.split(",").map((url) => url.trim()), ...defaultOrigins]
@@ -42,7 +48,10 @@ app.use((req, res, next) => {
 
   // In development, allow any localhost origin or configured origins
   if (process.env.NODE_ENV === "development") {
-    if (origin && (uniqueOrigins.includes(origin) || (origin.includes("localhost") && origin.match(/^http:\/\/localhost:\d+$/)))) {
+    if (
+      origin &&
+      (uniqueOrigins.includes(origin) || (origin.includes("localhost") && origin.match(/^http:\/\/localhost:\d+$/)))
+    ) {
       res.header("Access-Control-Allow-Origin", origin);
     } else if (origin) {
       res.header("Access-Control-Allow-Origin", "*");
@@ -78,6 +87,10 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDatabase();
+    
+    // Seed plans if none exist
+    await seedPlansIfNeeded();
+    
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {}, "Server");
     });

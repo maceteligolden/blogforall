@@ -22,6 +22,7 @@ export interface User extends BaseEntity {
     isActive: boolean;
   }>;
   stripe_customer_id?: string; // Stripe customer ID for payment processing
+  onboarding_completed: boolean; // Whether user has completed onboarding (card + plan)
 }
 
 const userSchema = new Schema<User>(
@@ -102,6 +103,11 @@ const userSchema = new Schema<User>(
     ],
     stripe_customer_id: {
       type: String,
+      index: true,
+    },
+    onboarding_completed: {
+      type: Boolean,
+      default: false,
       index: true,
     },
     created_at: {

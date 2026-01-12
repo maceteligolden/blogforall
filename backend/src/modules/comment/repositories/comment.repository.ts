@@ -13,7 +13,10 @@ export class CommentRepository {
     return Comment.findById(id);
   }
 
-  async findByBlog(blogId: string, filters?: { is_approved?: boolean; page?: number; limit?: number }): Promise<PaginatedResponse<CommentType>> {
+  async findByBlog(
+    blogId: string,
+    filters?: { is_approved?: boolean; page?: number; limit?: number }
+  ): Promise<PaginatedResponse<CommentType>> {
     const page = filters?.page || 1;
     const limit = filters?.limit || 10;
     const skip = (page - 1) * limit;
@@ -93,4 +96,3 @@ export class CommentRepository {
     return Comment.countDocuments({ blog: blogId, is_approved: true });
   }
 }
-

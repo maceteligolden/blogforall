@@ -124,4 +124,3 @@ export class BlogRepository {
     // This method is kept for consistency but doesn't modify blog document
   }
 }
-

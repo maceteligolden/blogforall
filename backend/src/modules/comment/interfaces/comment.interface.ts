@@ -18,4 +18,3 @@ export interface CommentQueryFilters {
   page?: number;
   limit?: number;
 }
-

@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "../store/auth.store";
 import { AuthService, LoginRequest, SignupRequest, ChangePasswordRequest } from "../api/services/auth.service";
+import { OnboardingService } from "../api/services/onboarding.service";
 
 export function useAuth() {
   const router = useRouter();
@@ -9,11 +10,23 @@ export function useAuth() {
 
   const loginMutation = useMutation({
     mutationFn: (data: LoginRequest) => AuthService.login(data),
-    onSuccess: (response) => {
+    onSuccess: async (response) => {
       const { tokens, user: userData } = response.data.data;
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
-      router.push("/dashboard");
+      
+      // Check onboarding status
+      try {
+        const onboardingStatus = await OnboardingService.getStatus();
+        if (onboardingStatus.requiresOnboarding) {
+          router.push("/onboarding");
+        } else {
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        // If check fails, redirect to onboarding to be safe
+        router.push("/onboarding");
+      }
     },
     onError: (error: unknown) => {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Invalid email or password";
@@ -24,7 +37,8 @@ export function useAuth() {
   const signupMutation = useMutation({
     mutationFn: (data: SignupRequest) => AuthService.signup(data),
     onSuccess: () => {
-      router.push("/auth/login");
+      // Redirect to login - user will be redirected to onboarding after login
+      router.push("/auth/login?message=Account created successfully. Please sign in to continue.");
     },
     onError: (error: unknown) => {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";

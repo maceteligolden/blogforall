@@ -9,7 +9,11 @@ export const createCommentSchema = z.object({
 });
 
 export const updateCommentSchema = z.object({
-  content: z.string().min(1, "Comment content is required").max(2000, "Comment must not exceed 2000 characters").optional(),
+  content: z
+    .string()
+    .min(1, "Comment content is required")
+    .max(2000, "Comment must not exceed 2000 characters")
+    .optional(),
   is_approved: z.boolean().optional(),
 });
 
@@ -20,4 +24,3 @@ export const commentQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
 });
-

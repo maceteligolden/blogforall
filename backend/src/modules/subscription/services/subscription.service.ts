@@ -13,7 +13,7 @@ export class SubscriptionService {
   constructor(
     private subscriptionRepository: SubscriptionRepository,
     private planRepository: PlanRepository,
-    private stripeFacade: StripeFacade,
+    private stripeFacade: StripeFacade
   ) {}
 
   /**
@@ -136,7 +136,7 @@ export class SubscriptionService {
     }
 
     // If current plan is free, need to create Stripe subscription
-    if (subscription.status === SubscriptionStatus.FREE) {
+    if (subscription.status === SubscriptionStatus.FREE || !subscription.providerSubscriptionId) {
       if (!user.stripe_customer_id) {
         throw new BadRequestError("No payment method found. Please add a payment method first.");
       }
@@ -148,12 +148,12 @@ export class SubscriptionService {
       // Create Stripe subscription
       const stripeSubscription = await this.stripeFacade.createSubscription(
         user.stripe_customer_id,
-        newPlan.stripe_price_id,
+        newPlan.stripe_price_id
       );
 
       // Update subscription
       const now = new Date();
-      return await this.subscriptionRepository.update(subscription._id!, {
+      const updated = await this.subscriptionRepository.update(subscription._id!, {
         planId: newPlanId,
         status: SubscriptionStatus.ACTIVE,
         currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
@@ -162,6 +162,10 @@ export class SubscriptionService {
         paymentProvider: "stripe",
         cancelAtPeriodEnd: false,
       });
+      if (!updated) {
+        throw new NotFoundError("Subscription not found");
+      }
+      return updated;
     }
 
     // Upgrading/downgrading existing paid subscription
@@ -177,10 +181,14 @@ export class SubscriptionService {
     await this.stripeFacade.updateSubscription(subscription.providerSubscriptionId, newPlan.stripe_price_id);
 
     // Update local subscription (plan change takes effect at next billing cycle)
-    return await this.subscriptionRepository.update(subscription._id!, {
+    const updated = await this.subscriptionRepository.update(subscription._id!, {
       planId: newPlanId,
       cancelAtPeriodEnd: false,
     });
+    if (!updated) {
+      throw new NotFoundError("Subscription not found");
+    }
+    return updated;
   }
 
   /**
@@ -202,10 +210,14 @@ export class SubscriptionService {
     }
 
     // Update to cancel at period end
-    return await this.subscriptionRepository.update(subscription._id!, {
+    const updated = await this.subscriptionRepository.update(subscription._id!, {
       cancelAtPeriodEnd: true,
       status: SubscriptionStatus.CANCELLED,
     });
+    if (!updated) {
+      throw new NotFoundError("Subscription not found");
+    }
+    return updated;
   }
 
   /**
@@ -229,7 +241,7 @@ export class SubscriptionService {
     const now = new Date();
     const TIME_IN_MS = SUBSCRIPTION_CONSTANTS.FREE_PLAN_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
-    return await this.subscriptionRepository.update(subscriptionId, {
+    const updated = await this.subscriptionRepository.update(subscriptionId, {
       planId: freePlan._id!,
       status: SubscriptionStatus.FREE,
       currentPeriodStart: now,
@@ -238,5 +250,9 @@ export class SubscriptionService {
       providerSubscriptionId: undefined,
       paymentProvider: undefined,
     });
+    if (!updated) {
+      throw new NotFoundError("Subscription not found");
+    }
+    return updated;
   }
 }

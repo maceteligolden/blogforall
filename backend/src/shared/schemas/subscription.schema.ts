@@ -28,13 +28,13 @@ const subscriptionSchema = new Schema<Subscription>(
       ref: "User",
       required: true,
       index: true,
-    },
+    } as any,
     planId: {
       type: Schema.Types.ObjectId,
       ref: "Plan",
       required: true,
       index: true,
-    },
+    } as any,
     status: {
       type: String,
       enum: Object.values(SubscriptionStatus),
@@ -84,7 +84,7 @@ subscriptionSchema.index({ userId: 1, status: 1 });
 
 // Update updated_at before saving
 subscriptionSchema.pre("save", function (next) {
-  this.updated_at = new Date();
+  (this as any).updated_at = new Date();
   next();
 });
 

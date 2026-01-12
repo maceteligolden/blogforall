@@ -55,4 +55,3 @@ export class CategoryService {
     logger.info("Category deleted", { categoryId, userId }, "CategoryService");
   }
 }
-

@@ -166,4 +166,3 @@ export class CategoryRepository {
     return rootCategories;
   }
 }
-

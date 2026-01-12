@@ -25,4 +25,3 @@ export interface CategoryTreeItem {
   created_at?: Date;
   updated_at?: Date;
 }
-

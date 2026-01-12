@@ -14,4 +14,3 @@ router.get("/:id", apiKeyAuthMiddleware, publicBlogController.getPublishedBlogBy
 router.get("/slug/:slug", apiKeyAuthMiddleware, publicBlogController.getPublishedBlogBySlug);
 
 export default router;
-

@@ -44,4 +44,3 @@ export const uploadSingle = upload.single("image");
 
 // Middleware for multiple image uploads
 export const uploadMultiple = upload.array("images", 10);
-

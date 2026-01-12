@@ -64,6 +64,10 @@ export const API_ENDPOINTS = {
     DELETE_CARD: (id: string) => `/billing/cards/${id}`,
     SET_DEFAULT_CARD: (id: string) => `/billing/cards/${id}/default`,
   },
+  ONBOARDING: {
+    STATUS: "/onboarding/status",
+    COMPLETE: "/onboarding/complete",
+  },
 };
 
 export const QUERY_KEYS = {

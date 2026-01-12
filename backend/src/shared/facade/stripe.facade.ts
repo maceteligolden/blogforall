@@ -156,9 +156,7 @@ export class StripeFacade {
    */
   async findOrCreateProduct(name: string, description?: string) {
     const products = await stripe.products.list({ limit: 100 });
-    const existingProduct = products.data.find(
-      (p: { name: string; active: boolean }) => p.name === name && p.active
-    );
+    const existingProduct = products.data.find((p: { name: string; active: boolean }) => p.name === name && p.active);
 
     if (existingProduct) {
       return existingProduct;

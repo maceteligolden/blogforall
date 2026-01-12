@@ -12,4 +12,3 @@ router.get("/", authMiddleware, apiKeyController.list);
 router.delete("/:accessKeyId", authMiddleware, apiKeyController.delete);
 
 export default router;
-

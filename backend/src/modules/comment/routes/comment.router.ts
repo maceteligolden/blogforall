@@ -18,4 +18,3 @@ router.put("/:id", authMiddleware, commentController.update);
 router.delete("/:id", authMiddleware, commentController.delete);
 
 export default router;
-

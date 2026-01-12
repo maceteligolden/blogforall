@@ -8,6 +8,7 @@ import categoryRouter from "./modules/category/routes/category.router";
 import subscriptionRouter from "./modules/subscription/routes/subscription.router";
 import billingRouter from "./modules/billing/routes/billing.router";
 import webhookRouter from "./modules/billing/routes/webhook.router";
+import onboardingRouter from "./modules/onboarding/routes/onboarding.router";
 
 const router = Router();
 
@@ -37,5 +38,8 @@ router.use("/billing", billingRouter);
 
 // Webhook routes (no auth required, uses Stripe signature verification)
 router.use("/webhooks", webhookRouter);
+
+// Onboarding routes (protected with JWT)
+router.use("/onboarding", onboardingRouter);
 
 export { router as routes };

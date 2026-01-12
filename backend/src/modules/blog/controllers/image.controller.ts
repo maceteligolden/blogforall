@@ -16,7 +16,7 @@ export class ImageController {
       // Return full URL for the uploaded image
       const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
       const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
-      
+
       logger.info("Image uploaded successfully", { filename: req.file.filename, url: imageUrl }, "ImageController");
       sendCreated(res, "Image uploaded successfully", { url: imageUrl, filename: req.file.filename });
     } catch (error) {
@@ -47,4 +47,3 @@ export class ImageController {
     }
   };
 }
-

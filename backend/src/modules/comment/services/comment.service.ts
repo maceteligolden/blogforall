@@ -107,4 +107,3 @@ export class CommentService {
     return this.commentRepository.toggleLike(commentId, userIdOrIp);
   }
 }
-

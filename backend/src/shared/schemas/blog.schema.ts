@@ -136,4 +136,3 @@ blogSchema.index({ slug: 1 });
 blogSchema.index({ category: 1, status: 1 });
 
 export default model<Blog>("Blog", blogSchema);
-

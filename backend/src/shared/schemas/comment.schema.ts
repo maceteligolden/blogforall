@@ -84,4 +84,3 @@ commentSchema.index({ blog: 1, created_at: -1 });
 commentSchema.index({ parent_comment: 1 });
 
 export default model<Comment>("Comment", commentSchema);
-

@@ -4,9 +4,12 @@ import { generateApiKey } from "../../../shared/utils/api-key";
 
 @injectable()
 export class ApiKeyRepository {
-  async createApiKey(userId: string, name: string): Promise<{ accessKeyId: string; secretKey: string; hashedSecret: string }> {
+  async createApiKey(
+    userId: string,
+    name: string
+  ): Promise<{ accessKeyId: string; secretKey: string; hashedSecret: string }> {
     const keyPair = generateApiKey();
-    
+
     await User.findByIdAndUpdate(userId, {
       $push: {
         apiKeys: {
@@ -27,28 +30,27 @@ export class ApiKeyRepository {
     };
   }
 
-  async getUserApiKeys(userId: string): Promise<Array<{
-    _id?: string;
-    name: string;
-    accessKeyId: string;
-    createdAt: Date;
-    lastUsed?: Date;
-    isActive: boolean;
-  }>> {
+  async getUserApiKeys(userId: string): Promise<
+    Array<{
+      _id?: string;
+      name: string;
+      accessKeyId: string;
+      createdAt: Date;
+      lastUsed?: Date;
+      isActive: boolean;
+    }>
+  > {
     const user = await User.findById(userId).select("apiKeys");
     return user?.apiKeys || [];
   }
 
   async deleteApiKey(userId: string, accessKeyId: string): Promise<void> {
-    await User.findByIdAndUpdate(
-      userId,
-      {
-        $pull: {
-          apiKeys: { accessKeyId },
-        },
-        $set: { updated_at: new Date() },
-      }
-    );
+    await User.findByIdAndUpdate(userId, {
+      $pull: {
+        apiKeys: { accessKeyId },
+      },
+      $set: { updated_at: new Date() },
+    });
   }
 
   async deactivateApiKey(userId: string, accessKeyId: string): Promise<void> {
@@ -105,4 +107,3 @@ export class ApiKeyRepository {
     );
   }
 }
-

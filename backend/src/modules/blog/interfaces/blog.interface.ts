@@ -39,4 +39,3 @@ export interface BlogQueryFilters {
   page?: number;
   limit?: number;
 }
-

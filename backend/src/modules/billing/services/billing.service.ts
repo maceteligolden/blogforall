@@ -8,7 +8,7 @@ import { BadRequestError, NotFoundError } from "../../../shared/errors";
 export class BillingService {
   constructor(
     private stripeFacade: StripeFacade,
-    private cardRepository: CardRepository,
+    private cardRepository: CardRepository
   ) {}
 
   /**
@@ -24,12 +24,16 @@ export class BillingService {
     if (!user.stripe_customer_id) {
       const customer = await this.stripeFacade.createCustomer(
         user.email,
-        `${user.first_name} ${user.last_name}`.trim(),
+        `${user.first_name} ${user.last_name}`.trim()
       );
       await User.findByIdAndUpdate(userId, {
         stripe_customer_id: customer.id,
       });
       user.stripe_customer_id = customer.id;
+    }
+
+    if (!user.stripe_customer_id) {
+      throw new BadRequestError("Stripe customer ID is required");
     }
 
     const setupIntent = await this.stripeFacade.createSetupIntent(user.stripe_customer_id);

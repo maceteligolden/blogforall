@@ -14,15 +14,15 @@ export const sendResponse = (options: ResponseOptions): void => {
   const responseBody: Record<string, unknown> = {
     message,
   };
-  
+
   if (data !== undefined) {
     responseBody.data = data;
   }
-  
+
   if (error !== undefined) {
     responseBody.error = error;
   }
-  
+
   res.status(code).json(responseBody);
 };
 
