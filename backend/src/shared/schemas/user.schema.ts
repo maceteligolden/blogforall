@@ -21,6 +21,7 @@ export interface User extends BaseEntity {
     lastUsed?: Date;
     isActive: boolean;
   }>;
+  stripe_customer_id?: string; // Stripe customer ID for payment processing
 }
 
 const userSchema = new Schema<User>(
@@ -99,6 +100,10 @@ const userSchema = new Schema<User>(
         },
       },
     ],
+    stripe_customer_id: {
+      type: String,
+      index: true,
+    },
     created_at: {
       type: Date,
       default: Date.now,

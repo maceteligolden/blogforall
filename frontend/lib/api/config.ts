@@ -51,6 +51,12 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/categories/${id}`,
     DELETE: (id: string) => `/categories/${id}`,
   },
+  SUBSCRIPTION: {
+    GET: "/subscriptions",
+    PLANS: "/subscriptions/plans",
+    CHANGE_PLAN: "/subscriptions/change-plan",
+    CANCEL: "/subscriptions/cancel",
+  },
 };
 
 export const QUERY_KEYS = {
@@ -63,5 +69,7 @@ export const QUERY_KEYS = {
   COMMENTS_BY_BLOG: (blogId: string) => ["comments", "blog", blogId],
   COMMENT_REPLIES: (commentId: string) => ["comments", commentId, "replies"],
   CATEGORIES: ["categories"],
+  SUBSCRIPTION: ["subscription"],
+  PLANS: ["subscription", "plans"],
 };
 
