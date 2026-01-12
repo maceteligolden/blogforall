@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { LandingHeader } from "@/components/layout/landing-header";
+import { LandingFooter } from "@/components/layout/landing-footer";
 
 export default function DocsPage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -1030,12 +1031,7 @@ function BlogList() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800 py-12 px-6 lg:px-8 mt-20">
-        <div className="max-w-7xl mx-auto text-center">
-          <p className="text-gray-400 text-sm">© 2024 BlogForAll. All rights reserved.</p>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   );
 }
