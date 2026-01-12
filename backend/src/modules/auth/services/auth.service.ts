@@ -13,10 +13,14 @@ import {
   LoginResponse,
 } from "../interfaces/auth.interface";
 import { User } from "../../../shared/schemas/user.schema";
+import { StripeFacade } from "../../../shared/facade/stripe.facade";
 
 @injectable()
 export class AuthService {
-  constructor(private userRepository: UserRepository) {}
+  constructor(
+    private userRepository: UserRepository,
+    private stripeFacade: StripeFacade,
+  ) {}
 
   async signup(input: SignupInput): Promise<User> {
     const { email, password, first_name, last_name, phone_number } = input;
@@ -31,6 +35,19 @@ export class AuthService {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
+    // Create Stripe customer
+    let stripeCustomerId: string | undefined;
+    try {
+      const customer = await this.stripeFacade.createCustomer(
+        email.toLowerCase(),
+        `${first_name} ${last_name}`.trim(),
+      );
+      stripeCustomerId = customer.id;
+    } catch (error) {
+      logger.error("Failed to create Stripe customer", error as Error, { email }, "AuthService");
+      // Continue without Stripe customer - can be created later
+    }
+
     // Create user with default free plan
     const user = await this.userRepository.create({
       email: email.toLowerCase(),
@@ -39,9 +56,10 @@ export class AuthService {
       last_name,
       phone_number,
       plan: UserPlan.FREE,
+      stripe_customer_id: stripeCustomerId,
     });
 
-    logger.info("User signed up successfully", { userId: user._id, email }, "AuthService");
+    logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");
     return user;
   }
 

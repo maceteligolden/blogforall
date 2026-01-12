@@ -114,6 +114,13 @@ export class StripeFacade {
   }
 
   /**
+   * Retrieve a payment method
+   */
+  async retrievePaymentMethod(paymentMethodId: string) {
+    return await stripe.paymentMethods.retrieve(paymentMethodId);
+  }
+
+  /**
    * Delete a payment method
    */
   async deletePaymentMethod(paymentMethodId: string) {

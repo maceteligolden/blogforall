@@ -16,6 +16,12 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Middlewares
 app.use(requestLogger);
+
+// Webhook routes need raw body for Stripe signature verification
+// Must be before JSON body parser - handle webhooks first
+app.use("/api/v1/webhooks", express.raw({ type: "application/json" }));
+
+// JSON body parser for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

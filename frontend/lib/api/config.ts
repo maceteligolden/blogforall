@@ -57,6 +57,13 @@ export const API_ENDPOINTS = {
     CHANGE_PLAN: "/subscriptions/change-plan",
     CANCEL: "/subscriptions/cancel",
   },
+  BILLING: {
+    INITIALIZE_CARD: "/billing/cards/initialize",
+    CONFIRM_CARD: "/billing/cards/confirm",
+    GET_CARDS: "/billing/cards",
+    DELETE_CARD: (id: string) => `/billing/cards/${id}`,
+    SET_DEFAULT_CARD: (id: string) => `/billing/cards/${id}/default`,
+  },
 };
 
 export const QUERY_KEYS = {

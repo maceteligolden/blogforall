@@ -6,6 +6,8 @@ import publicBlogRouter from "./modules/blog/routes/public-blog.router";
 import commentRouter from "./modules/comment/routes/comment.router";
 import categoryRouter from "./modules/category/routes/category.router";
 import subscriptionRouter from "./modules/subscription/routes/subscription.router";
+import billingRouter from "./modules/billing/routes/billing.router";
+import webhookRouter from "./modules/billing/routes/webhook.router";
 
 const router = Router();
 
@@ -29,5 +31,11 @@ router.use("/comments", commentRouter);
 
 // Subscription routes (protected with JWT)
 router.use("/subscriptions", subscriptionRouter);
+
+// Billing routes (protected with JWT)
+router.use("/billing", billingRouter);
+
+// Webhook routes (no auth required, uses Stripe signature verification)
+router.use("/webhooks", webhookRouter);
 
 export { router as routes };
