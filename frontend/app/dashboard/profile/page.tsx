@@ -6,6 +6,8 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
+import { validatePassword } from "@/lib/utils/password-validation";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 
@@ -25,6 +27,7 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
+  const [isNewPasswordValid, setIsNewPasswordValid] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -79,13 +82,14 @@ export default function ProfilePage() {
       return;
     }
 
-    if (passwordForm.new_password !== passwordForm.confirm_password) {
-      setError("New passwords do not match");
+    const passwordValidation = validatePassword(passwordForm.new_password);
+    if (!passwordValidation.isValid) {
+      setError("New password does not meet the requirements. Please check the password criteria.");
       return;
     }
 
-    if (passwordForm.new_password.length < 6) {
-      setError("New password must be at least 6 characters");
+    if (passwordForm.new_password !== passwordForm.confirm_password) {
+      setError("New passwords do not match");
       return;
     }
 
@@ -245,9 +249,8 @@ export default function ProfilePage() {
                 <Label htmlFor="old_password" className="text-gray-300">
                   Current Password *
                 </Label>
-                <Input
+                <PasswordInput
                   id="old_password"
-                  type="password"
                   value={passwordForm.old_password}
                   onChange={(e) => setPasswordForm({ ...passwordForm, old_password: e.target.value })}
                   className="mt-1 bg-black border-gray-700 text-white"
@@ -258,36 +261,42 @@ export default function ProfilePage() {
                 <Label htmlFor="new_password" className="text-gray-300">
                   New Password *
                 </Label>
-                <Input
+                <PasswordInput
                   id="new_password"
-                  type="password"
                   value={passwordForm.new_password}
                   onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
                   className="mt-1 bg-black border-gray-700 text-white"
                   required
-                  minLength={6}
+                  showValidation={true}
+                  onValidationChange={setIsNewPasswordValid}
                 />
-                <p className="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Password must contain: 1 lowercase, 1 uppercase, 1 number, 1 symbol, and at least 8 characters
+                </p>
               </div>
               <div>
                 <Label htmlFor="confirm_password" className="text-gray-300">
                   Confirm New Password *
                 </Label>
-                <Input
+                <PasswordInput
                   id="confirm_password"
-                  type="password"
                   value={passwordForm.confirm_password}
                   onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
                   className="mt-1 bg-black border-gray-700 text-white"
                   required
-                  minLength={6}
                 />
+                {passwordForm.confirm_password && passwordForm.new_password !== passwordForm.confirm_password && (
+                  <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
+                )}
+                {passwordForm.confirm_password && passwordForm.new_password === passwordForm.confirm_password && (
+                  <p className="mt-1 text-xs text-green-500">Passwords match</p>
+                )}
               </div>
               <div className="flex space-x-4">
                 <Button
                   type="submit"
                   className="bg-primary hover:bg-primary/90 text-white"
-                  disabled={isChangingPassword}
+                  disabled={isChangingPassword || !isNewPasswordValid}
                 >
                   {isChangingPassword ? "Changing..." : "Change Password"}
                 </Button>
