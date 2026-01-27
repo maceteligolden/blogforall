@@ -83,5 +83,6 @@ export const QUERY_KEYS = {
   CATEGORIES: ["categories"],
   SUBSCRIPTION: ["subscription"],
   PLANS: ["subscription", "plans"],
+  BILLING_CARDS: ["billing", "cards"],
 };
 

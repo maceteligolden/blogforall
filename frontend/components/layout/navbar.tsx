@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { User } from "lucide-react";
+import { User, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 
@@ -93,10 +93,19 @@ export function Navbar({ showNotifications = true }: NavbarProps) {
                 <div className="absolute right-0 mt-2 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-lg py-2">
                   <Link
                     href="/dashboard/profile"
-                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
                     onClick={() => setShowUserMenu(false)}
                   >
+                    <User className="w-4 h-4" />
                     Profile
+                  </Link>
+                  <Link
+                    href="/dashboard/billing"
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Billing
                   </Link>
                   <Link
                     href="/"

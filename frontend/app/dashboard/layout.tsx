@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Navbar } from "@/components/layout/navbar";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
+import { ToastProvider } from "@/components/ui/toast";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { useQuery } from "@tanstack/react-query";
 
@@ -43,10 +44,12 @@ export default function DashboardLayout({
   return (
     <ProtectedRoute>
       <NotificationProvider>
-        <Navbar />
-        <div className="min-h-screen bg-black text-white">
-          {children}
-        </div>
+        <ToastProvider>
+          <Navbar />
+          <div className="min-h-screen bg-black text-white">
+            {children}
+          </div>
+        </ToastProvider>
       </NotificationProvider>
     </ProtectedRoute>
   );

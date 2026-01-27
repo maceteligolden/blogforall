@@ -1,14 +1,24 @@
 import { injectable } from "tsyringe";
-
-const stripe = require("stripe")(process.env.STRIPE_API_KEY);
+import Stripe from "stripe";
 
 @injectable()
 export class StripeFacade {
+  private stripe: Stripe;
+
+  constructor() {
+    const apiKey = process.env.STRIPE_API_KEY;
+    if (!apiKey) {
+      throw new Error("STRIPE_API_KEY environment variable is not set");
+    }
+    this.stripe = new Stripe(apiKey, {
+      apiVersion: "2023-10-16",
+    });
+  }
   /**
    * Create a customer in Stripe
    */
   async createCustomer(email: string, name: string) {
-    return await stripe.customers.create({
+    return await this.stripe.customers.create({
       email,
       name,
     });
@@ -18,7 +28,7 @@ export class StripeFacade {
    * Create a subscription
    */
   async createSubscription(customerId: string, priceId: string) {
-    return await stripe.subscriptions.create({
+    return await this.stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
       expand: ["latest_invoice.payment_intent"],
@@ -29,21 +39,21 @@ export class StripeFacade {
    * Cancel a subscription
    */
   async cancelSubscription(subscriptionId: string) {
-    return await stripe.subscriptions.del(subscriptionId);
+    return await this.stripe.subscriptions.cancel(subscriptionId);
   }
 
   /**
    * Update subscription (change plan)
    */
   async updateSubscription(subscriptionId: string, newPriceId: string) {
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+    const subscription = await this.stripe.subscriptions.retrieve(subscriptionId);
     const subscriptionItemId = subscription.items.data[0]?.id;
 
     if (!subscriptionItemId) {
       throw new Error("Subscription has no items");
     }
 
-    return await stripe.subscriptions.update(subscriptionId, {
+    return await this.stripe.subscriptions.update(subscriptionId, {
       cancel_at_period_end: false,
       items: [
         {
@@ -59,7 +69,7 @@ export class StripeFacade {
    * Retrieve a subscription
    */
   async retrieveSubscription(subscriptionId: string) {
-    return await stripe.subscriptions.retrieve(subscriptionId, {
+    return await this.stripe.subscriptions.retrieve(subscriptionId, {
       expand: ["items.data.price"],
     });
   }
@@ -68,7 +78,7 @@ export class StripeFacade {
    * Create a setup intent for adding payment methods
    */
   async createSetupIntent(customerId: string) {
-    return await stripe.setupIntents.create({
+    return await this.stripe.setupIntents.create({
       customer: customerId,
       payment_method_types: ["card"],
     });
@@ -78,7 +88,7 @@ export class StripeFacade {
    * Attach payment method to customer
    */
   async attachPaymentMethod(customerId: string, paymentMethodId: string) {
-    return await stripe.paymentMethods.attach(paymentMethodId, {
+    return await this.stripe.paymentMethods.attach(paymentMethodId, {
       customer: customerId,
     });
   }
@@ -87,7 +97,7 @@ export class StripeFacade {
    * Set default payment method for customer
    */
   async setDefaultPaymentMethod(customerId: string, paymentMethodId: string) {
-    return await stripe.customers.update(customerId, {
+    return await this.stripe.customers.update(customerId, {
       invoice_settings: {
         default_payment_method: paymentMethodId,
       },
@@ -98,7 +108,7 @@ export class StripeFacade {
    * Update subscription payment method
    */
   async updateSubscriptionPaymentMethod(subscriptionId: string, paymentMethodId: string) {
-    return await stripe.subscriptions.update(subscriptionId, {
+    return await this.stripe.subscriptions.update(subscriptionId, {
       default_payment_method: paymentMethodId,
     });
   }
@@ -107,7 +117,7 @@ export class StripeFacade {
    * List payment methods for a customer
    */
   async listPaymentMethods(customerId: string) {
-    return await stripe.paymentMethods.list({
+    return await this.stripe.paymentMethods.list({
       customer: customerId,
       type: "card",
     });
@@ -117,21 +127,21 @@ export class StripeFacade {
    * Retrieve a payment method
    */
   async retrievePaymentMethod(paymentMethodId: string) {
-    return await stripe.paymentMethods.retrieve(paymentMethodId);
+    return await this.stripe.paymentMethods.retrieve(paymentMethodId);
   }
 
   /**
    * Delete a payment method
    */
   async deletePaymentMethod(paymentMethodId: string) {
-    return await stripe.paymentMethods.detach(paymentMethodId);
+    return await this.stripe.paymentMethods.detach(paymentMethodId);
   }
 
   /**
    * Create a product in Stripe
    */
   async createProduct(name: string, description?: string) {
-    return await stripe.products.create({
+    return await this.stripe.products.create({
       name,
       description,
     });
@@ -141,7 +151,7 @@ export class StripeFacade {
    * Create a price in Stripe
    */
   async createPrice(productId: string, amount: number, currency: string = "usd", interval: "month" | "year" = "month") {
-    return await stripe.prices.create({
+    return await this.stripe.prices.create({
       product: productId,
       unit_amount: Math.round(amount * 100), // Convert to cents
       currency,
@@ -155,7 +165,7 @@ export class StripeFacade {
    * Find or create a product by name
    */
   async findOrCreateProduct(name: string, description?: string) {
-    const products = await stripe.products.list({ limit: 100 });
+    const products = await this.stripe.products.list({ limit: 100 });
     const existingProduct = products.data.find((p: { name: string; active: boolean }) => p.name === name && p.active);
 
     if (existingProduct) {
@@ -169,7 +179,7 @@ export class StripeFacade {
    * List invoices for a customer
    */
   async listInvoices(customerId: string, limit: number = 10) {
-    return await stripe.invoices.list({
+    return await this.stripe.invoices.list({
       customer: customerId,
       limit,
       expand: ["data.payment_intent", "data.subscription"],
@@ -180,7 +190,7 @@ export class StripeFacade {
    * Get invoice details
    */
   async getInvoice(invoiceId: string) {
-    return await stripe.invoices.retrieve(invoiceId, {
+    return await this.stripe.invoices.retrieve(invoiceId, {
       expand: ["payment_intent", "subscription"],
     });
   }

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { injectable, container } from "tsyringe";
+import Stripe from "stripe";
 import { SubscriptionRepository } from "../../subscription/repositories/subscription.repository";
 import { PlanRepository } from "../../subscription/repositories/plan.repository";
 import { SubscriptionStatus } from "../../../shared/schemas/subscription.schema";
@@ -7,24 +8,44 @@ import { SUBSCRIPTION_CONSTANTS } from "../../../shared/constants/subscription.c
 import User from "../../../shared/schemas/user.schema";
 import { logger } from "../../../shared/utils/logger";
 
-const stripe = require("stripe")(process.env.STRIPE_API_KEY);
-
 @injectable()
 export class BillingWebhook {
+  private stripe: Stripe;
+
   constructor(
     private subscriptionRepository: SubscriptionRepository,
     private planRepository: PlanRepository
-  ) {}
+  ) {
+    const apiKey = process.env.STRIPE_API_KEY;
+    if (!apiKey) {
+      throw new Error("STRIPE_API_KEY environment variable is not set");
+    }
+    this.stripe = new Stripe(apiKey, {
+      apiVersion: "2023-10-16",
+    });
+  }
 
   async handleWebhook(req: Request, res: Response): Promise<void> {
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     const sig = req.headers["stripe-signature"];
 
+    if (!endpointSecret) {
+      logger.error("STRIPE_WEBHOOK_SECRET is not set", new Error("Missing webhook secret"), {}, "BillingWebhook");
+      res.status(500).send("Webhook secret not configured");
+      return;
+    }
+
+    if (!sig) {
+      logger.error("Stripe signature header is missing", new Error("Missing signature"), {}, "BillingWebhook");
+      res.status(400).send("Missing stripe-signature header");
+      return;
+    }
+
     let event;
 
     try {
       const rawBody = req.body;
-      event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
+      event = this.stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
     } catch (err: any) {
       logger.error("Webhook signature verification failed", err, {}, "BillingWebhook");
       res.status(400).send(`Webhook Error: ${err.message}`);
