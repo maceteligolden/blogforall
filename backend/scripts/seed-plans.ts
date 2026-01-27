@@ -12,6 +12,23 @@ async function seedPlans() {
 
     const plans = [
       {
+        name: "Basic",
+        price: 3,
+        interval: "month" as const,
+        limits: {
+          blogPosts: 5,
+          apiCallsPerMonth: 5000,
+          storageGB: 0.5,
+        },
+        features: [
+          "Up to 5 blog posts",
+          "5,000 API calls/month",
+          "0.5 GB storage",
+          "Email support",
+        ],
+        isActive: true,
+      },
+      {
         name: "Starter",
         price: 5,
         interval: "month" as const,
@@ -44,6 +61,27 @@ async function seedPlans() {
           "Advanced analytics",
           "Priority support",
           "Custom categories",
+        ],
+        isActive: true,
+      },
+      {
+        name: "Business",
+        price: 15,
+        interval: "month" as const,
+        limits: {
+          blogPosts: 200,
+          apiCallsPerMonth: 500000,
+          storageGB: 50,
+        },
+        features: [
+          "Up to 200 blog posts",
+          "500,000 API calls/month",
+          "50 GB storage",
+          "Advanced analytics",
+          "Priority support",
+          "Custom categories",
+          "API access",
+          "Custom branding",
         ],
         isActive: true,
       },

@@ -5,18 +5,31 @@ import { logger } from "./logger";
 
 export async function seedPlansIfNeeded(): Promise<void> {
   try {
-    // Check if any plans exist
+    // Check if we have at least 3 plans
     const existingPlansCount = await PlanModel.countDocuments();
+    const MIN_REQUIRED_PLANS = 3;
 
-    if (existingPlansCount > 0) {
-      logger.info(`Plans already exist (${existingPlansCount} plans found), skipping seed`, {}, "PlanSeeder");
+    if (existingPlansCount >= MIN_REQUIRED_PLANS) {
+      logger.info(`Sufficient plans exist (${existingPlansCount} plans found, minimum required: ${MIN_REQUIRED_PLANS}), skipping seed`, {}, "PlanSeeder");
       return;
     }
 
-    logger.info("No plans found, seeding plans...", {}, "PlanSeeder");
+    logger.info(`Insufficient plans found (${existingPlansCount} found, minimum required: ${MIN_REQUIRED_PLANS}), seeding plans...`, {}, "PlanSeeder");
     const stripeFacade = container.resolve(StripeFacade);
 
     const plans = [
+      {
+        name: "Basic",
+        price: 3,
+        interval: "month" as const,
+        limits: {
+          blogPosts: 5,
+          apiCallsPerMonth: 5000,
+          storageGB: 0.5,
+        },
+        features: ["Up to 5 blog posts", "5,000 API calls/month", "0.5 GB storage", "Email support"],
+        isActive: true,
+      },
       {
         name: "Starter",
         price: 5,
@@ -49,6 +62,27 @@ export async function seedPlansIfNeeded(): Promise<void> {
         isActive: true,
       },
       {
+        name: "Business",
+        price: 15,
+        interval: "month" as const,
+        limits: {
+          blogPosts: 200,
+          apiCallsPerMonth: 500000,
+          storageGB: 50,
+        },
+        features: [
+          "Up to 200 blog posts",
+          "500,000 API calls/month",
+          "50 GB storage",
+          "Advanced analytics",
+          "Priority support",
+          "Custom categories",
+          "API access",
+          "Custom branding",
+        ],
+        isActive: true,
+      },
+      {
         name: "Enterprise",
         price: 20,
         interval: "month" as const,
@@ -76,6 +110,13 @@ export async function seedPlansIfNeeded(): Promise<void> {
 
     for (const planData of plans) {
       try {
+        // Check if plan already exists
+        const existingPlan = await PlanModel.findOne({ name: planData.name });
+        if (existingPlan) {
+          logger.info(`Plan "${planData.name}" already exists, skipping...`, {}, "PlanSeeder");
+          continue;
+        }
+
         let stripePriceId: string | undefined;
 
         if (hasStripeKey) {
@@ -139,9 +180,15 @@ export async function seedPlansIfNeeded(): Promise<void> {
     };
 
     try {
-      const freePlan = new PlanModel(freePlanData);
-      await freePlan.save();
-      logger.info(`✓ Created plan: ${freePlanData.name}`, {}, "PlanSeeder");
+      // Check if free plan already exists
+      const existingFreePlan = await PlanModel.findOne({ name: freePlanData.name });
+      if (!existingFreePlan) {
+        const freePlan = new PlanModel(freePlanData);
+        await freePlan.save();
+        logger.info(`✓ Created plan: ${freePlanData.name}`, {}, "PlanSeeder");
+      } else {
+        logger.info(`Plan "${freePlanData.name}" already exists, skipping...`, {}, "PlanSeeder");
+      }
     } catch (error) {
       logger.error(`Failed to create free plan`, error as Error, {}, "PlanSeeder");
     }
