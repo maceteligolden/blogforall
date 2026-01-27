@@ -36,10 +36,19 @@ export class StripeFacade {
   }
 
   /**
-   * Cancel a subscription
+   * Cancel a subscription (immediate cancellation)
    */
   async cancelSubscription(subscriptionId: string) {
     return await this.stripe.subscriptions.cancel(subscriptionId);
+  }
+
+  /**
+   * Set cancel_at_period_end flag on subscription
+   */
+  async setCancelAtPeriodEnd(subscriptionId: string, cancelAtPeriodEnd: boolean) {
+    return await this.stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: cancelAtPeriodEnd,
+    });
   }
 
   /**

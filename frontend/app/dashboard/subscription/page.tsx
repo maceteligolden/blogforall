@@ -5,10 +5,17 @@ import { SubscriptionService, Plan, SubscriptionResponse } from "@/lib/api/servi
 import { Button } from "@/components/ui/button";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useState } from "react";
+import { useToast } from "@/components/ui/toast";
+import { ConfirmModal } from "@/components/ui/modal";
+import { Loader2 } from "lucide-react";
 
 export default function SubscriptionPage() {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [isChangePlanDialogOpen, setIsChangePlanDialogOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [pendingPlanChangeId, setPendingPlanChangeId] = useState<string | null>(null);
 
   const { data: subscriptionData, isLoading: subscriptionLoading } = useQuery<SubscriptionResponse>({
     queryKey: QUERY_KEYS.SUBSCRIPTION,
@@ -23,36 +30,75 @@ export default function SubscriptionPage() {
   const changePlanMutation = useMutation({
     mutationFn: (planId: string) => SubscriptionService.changePlan(planId),
     onSuccess: () => {
+      toast({
+        title: "Plan changed successfully",
+        description: "Your plan has been updated. Changes will take effect immediately.",
+        variant: "success",
+      });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUBSCRIPTION });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PLANS });
       setSelectedPlanId(null);
+      setIsChangePlanDialogOpen(false);
+      setPendingPlanChangeId(null);
+    },
+    onError: (error: any) => {
+      const errorMessage = error.response?.data?.message || "Failed to change plan";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "error",
+      });
+      setIsChangePlanDialogOpen(false);
     },
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => SubscriptionService.cancelSubscription(),
     onSuccess: () => {
+      toast({
+        title: "Cancellation requested",
+        description: "Your subscription will be cancelled at the end of your current billing period.",
+        variant: "success",
+      });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUBSCRIPTION });
+      setIsCancelDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to cancel subscription",
+        variant: "error",
+      });
+      setIsCancelDialogOpen(false);
     },
   });
 
   const handleChangePlan = (planId: string) => {
-    if (window.confirm("Are you sure you want to change your plan?")) {
-      changePlanMutation.mutate(planId);
+    setSelectedPlanId(planId);
+    setIsChangePlanDialogOpen(true);
+  };
+
+  const confirmChangePlan = () => {
+    if (selectedPlanId) {
+      changePlanMutation.mutate(selectedPlanId);
     }
   };
 
   const handleCancel = () => {
-    if (window.confirm("Are you sure you want to cancel your subscription? It will remain active until the end of the billing period.")) {
-      cancelMutation.mutate();
-    }
+    setIsCancelDialogOpen(true);
+  };
+
+  const confirmCancel = () => {
+    cancelMutation.mutate();
   };
 
   if (subscriptionLoading || plansLoading) {
     return (
       <div className="min-h-screen bg-black text-white p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse">Loading...</div>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
         </div>
       </div>
     );
@@ -92,7 +138,14 @@ export default function SubscriptionPage() {
                     disabled={cancelMutation.isPending}
                     className="bg-red-600 hover:bg-red-700 text-white"
                   >
-                    {cancelMutation.isPending ? "Cancelling..." : "Cancel Subscription"}
+                    {cancelMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Cancelling...
+                      </>
+                    ) : (
+                      "Cancel Subscription"
+                    )}
                   </Button>
                 )}
               </div>
@@ -207,11 +260,16 @@ export default function SubscriptionPage() {
                             : "bg-primary hover:bg-primary/90 text-white"
                         }`}
                       >
-                        {changePlanMutation.isPending && selectedPlanId === plan._id
-                          ? "Processing..."
-                          : isCurrentPlan
-                          ? "Current Plan"
-                          : "Select Plan"}
+                        {changePlanMutation.isPending && selectedPlanId === plan._id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : isCurrentPlan ? (
+                          "Current Plan"
+                        ) : (
+                          "Select Plan"
+                        )}
                       </Button>
                     )}
                   </div>
@@ -220,6 +278,37 @@ export default function SubscriptionPage() {
             </div>
           </div>
         )}
+
+        {/* Change Plan Confirmation Dialog */}
+        <ConfirmModal
+          isOpen={isChangePlanDialogOpen}
+          onClose={() => {
+            setIsChangePlanDialogOpen(false);
+            setSelectedPlanId(null);
+          }}
+          onConfirm={confirmChangePlan}
+          title="Change Plan"
+          message={
+            selectedPlanId
+              ? `Are you sure you want to change to the ${plans?.find((p) => p._id === selectedPlanId)?.name} plan?`
+              : "Are you sure you want to change your plan?"
+          }
+          confirmText="Change Plan"
+          cancelText="Cancel"
+          variant="default"
+        />
+
+        {/* Cancel Subscription Confirmation Dialog */}
+        <ConfirmModal
+          isOpen={isCancelDialogOpen}
+          onClose={() => setIsCancelDialogOpen(false)}
+          onConfirm={confirmCancel}
+          title="Cancel Subscription"
+          message="Are you sure you want to cancel your subscription? It will remain active until the end of your current billing period. You can reactivate it anytime before then."
+          confirmText="Cancel Subscription"
+          cancelText="Keep Subscription"
+          variant="danger"
+        />
       </div>
     </div>
   );

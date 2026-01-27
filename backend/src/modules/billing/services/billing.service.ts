@@ -148,5 +148,8 @@ export class BillingService {
 
     // Update Stripe customer default payment method
     await this.stripeFacade.setDefaultPaymentMethod(card.stripe_customer_id, card.stripe_card_token);
+
+    // Note: Subscription payment method update is handled separately to avoid circular dependency
+    // The subscription service will check for default card when needed
   }
 }

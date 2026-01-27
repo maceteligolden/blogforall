@@ -1,6 +1,7 @@
-import { injectable } from "tsyringe";
+import { injectable, container } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { BillingService } from "../services/billing.service";
+import { SubscriptionService } from "../../subscription/services/subscription.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
 
@@ -79,6 +80,16 @@ export class BillingController {
 
       const { id: cardId } = req.params;
       await this.billingService.setDefaultCard(cardId, userId);
+
+      // Update subscription payment method if user has an active paid subscription
+      try {
+        const subscriptionService = container.resolve(SubscriptionService);
+        await subscriptionService.updateSubscriptionPaymentMethod(userId);
+      } catch (error) {
+        // Log error but don't fail the operation - subscription update is best effort
+        console.error("Failed to update subscription payment method:", error);
+      }
+
       sendSuccess(res, "Default card updated successfully", { success: true });
     } catch (error) {
       next(error);

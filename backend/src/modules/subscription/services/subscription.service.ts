@@ -7,13 +7,16 @@ import { NotFoundError, BadRequestError } from "../../../shared/errors";
 import { StripeFacade } from "../../../shared/facade/stripe.facade";
 import { SUBSCRIPTION_CONSTANTS } from "../../../shared/constants/subscription.constant";
 import User from "../../../shared/schemas/user.schema";
+import { CardRepository } from "../../billing/repositories/card.repository";
+import { isCardExpired } from "../../../shared/utils/card.util";
 
 @injectable()
 export class SubscriptionService {
   constructor(
     private subscriptionRepository: SubscriptionRepository,
     private planRepository: PlanRepository,
-    private stripeFacade: StripeFacade
+    private stripeFacade: StripeFacade,
+    private cardRepository: CardRepository
   ) {}
 
   /**
@@ -141,14 +144,69 @@ export class SubscriptionService {
         throw new BadRequestError("No payment method found. Please add a payment method first.");
       }
 
-      if (!newPlan.stripe_price_id) {
+      // If plan doesn't have Stripe price ID, create it
+      let stripePriceId = newPlan.stripe_price_id;
+      if (!stripePriceId && newPlan.price > 0 && (newPlan.interval === "month" || newPlan.interval === "year")) {
+        try {
+          // Create product in Stripe
+          const product = await this.stripeFacade.findOrCreateProduct(
+            `BlogForAll ${newPlan.name}`,
+            `BlogForAll ${newPlan.name} Plan`
+          );
+
+          // Create price in Stripe
+          const price = await this.stripeFacade.createPrice(
+            product.id,
+            newPlan.price,
+            newPlan.currency || "usd",
+            newPlan.interval
+          );
+
+          stripePriceId = price.id;
+
+          // Update plan with Stripe price ID
+          await this.planRepository.update(newPlanId, { stripe_price_id: stripePriceId });
+        } catch (error: any) {
+          throw new BadRequestError(
+            `Failed to configure plan for billing: ${error.message || "Please contact support"}`
+          );
+        }
+      }
+
+      if (!stripePriceId) {
         throw new BadRequestError("Plan is not configured for billing");
       }
 
-      // Create Stripe subscription
+      // Get user's default card and ensure it's set as default payment method
+      const defaultCard = await this.cardRepository.findDefaultCard(user.stripe_customer_id);
+      if (!defaultCard || !defaultCard.stripe_card_token) {
+        throw new BadRequestError("No payment method found. Please add a payment method first.");
+      }
+
+      // Check if card is expired
+      if (defaultCard.expire_date && isCardExpired(defaultCard.expire_date)) {
+        throw new BadRequestError(
+          "Your default payment method has expired. Please update your payment method before changing plans."
+        );
+      }
+
+      // Ensure payment method is attached to customer
+      try {
+        await this.stripeFacade.attachPaymentMethod(user.stripe_customer_id, defaultCard.stripe_card_token);
+      } catch (error: any) {
+        // Payment method might already be attached, continue
+        if (!error.message?.includes("already been attached")) {
+          throw error;
+        }
+      }
+
+      // Set as default payment method on customer
+      await this.stripeFacade.setDefaultPaymentMethod(user.stripe_customer_id, defaultCard.stripe_card_token);
+
+      // Create Stripe subscription with default payment method
       const stripeSubscription = await this.stripeFacade.createSubscription(
         user.stripe_customer_id,
-        newPlan.stripe_price_id
+        stripePriceId
       );
 
       // Update subscription
@@ -173,12 +231,41 @@ export class SubscriptionService {
       throw new BadRequestError("Cannot change plan for this subscription");
     }
 
-    if (!newPlan.stripe_price_id) {
+    // If plan doesn't have Stripe price ID, create it
+    let stripePriceId = newPlan.stripe_price_id;
+    if (!stripePriceId && newPlan.price > 0 && (newPlan.interval === "month" || newPlan.interval === "year")) {
+      try {
+        // Create product in Stripe
+        const product = await this.stripeFacade.findOrCreateProduct(
+          `BlogForAll ${newPlan.name}`,
+          `BlogForAll ${newPlan.name} Plan`
+        );
+
+        // Create price in Stripe
+        const price = await this.stripeFacade.createPrice(
+          product.id,
+          newPlan.price,
+          newPlan.currency || "usd",
+          newPlan.interval
+        );
+
+        stripePriceId = price.id;
+
+        // Update plan with Stripe price ID
+        await this.planRepository.update(newPlanId, { stripe_price_id: stripePriceId });
+      } catch (error: any) {
+        throw new BadRequestError(
+          `Failed to configure plan for billing: ${error.message || "Please contact support"}`
+        );
+      }
+    }
+
+    if (!stripePriceId) {
       throw new BadRequestError("Plan is not configured for billing");
     }
 
     // Update Stripe subscription
-    await this.stripeFacade.updateSubscription(subscription.providerSubscriptionId, newPlan.stripe_price_id);
+    await this.stripeFacade.updateSubscription(subscription.providerSubscriptionId, stripePriceId);
 
     // Update local subscription (plan change takes effect at next billing cycle)
     const updated = await this.subscriptionRepository.update(subscription._id!, {
@@ -205,19 +292,47 @@ export class SubscriptionService {
     }
 
     if (subscription.providerSubscriptionId) {
-      // Cancel in Stripe
-      await this.stripeFacade.cancelSubscription(subscription.providerSubscriptionId);
+      // Set cancel_at_period_end in Stripe (don't cancel immediately)
+      await this.stripeFacade.setCancelAtPeriodEnd(subscription.providerSubscriptionId, true);
     }
 
     // Update to cancel at period end
     const updated = await this.subscriptionRepository.update(subscription._id!, {
       cancelAtPeriodEnd: true,
-      status: SubscriptionStatus.CANCELLED,
+      // Don't change status to CANCELLED yet - it's still active until period end
     });
     if (!updated) {
       throw new NotFoundError("Subscription not found");
     }
     return updated;
+  }
+
+  /**
+   * Update subscription payment method (called when default card changes)
+   */
+  async updateSubscriptionPaymentMethod(userId: string): Promise<void> {
+    const subscription = await this.subscriptionRepository.findByUserId(userId);
+    if (!subscription || !subscription.providerSubscriptionId) {
+      // No active paid subscription, nothing to update
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user || !user.stripe_customer_id) {
+      return;
+    }
+
+    // Get default card
+    const defaultCard = await this.cardRepository.findDefaultCard(user.stripe_customer_id);
+    if (!defaultCard || !defaultCard.stripe_card_token) {
+      return;
+    }
+
+    // Update subscription's default payment method
+    await this.stripeFacade.updateSubscriptionPaymentMethod(
+      subscription.providerSubscriptionId,
+      defaultCard.stripe_card_token
+    );
   }
 
   /**
