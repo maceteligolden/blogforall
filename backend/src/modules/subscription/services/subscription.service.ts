@@ -264,12 +264,13 @@ export class SubscriptionService {
       throw new BadRequestError("Plan is not configured for billing");
     }
 
-    // Update Stripe subscription
+    // Update Stripe subscription (change takes effect at next billing cycle)
     await this.stripeFacade.updateSubscription(subscription.providerSubscriptionId, stripePriceId);
 
-    // Update local subscription (plan change takes effect at next billing cycle)
+    // Update local subscription with pending plan change
+    // Don't change planId immediately - it will be updated by webhook when the new billing cycle starts
     const updated = await this.subscriptionRepository.update(subscription._id!, {
-      planId: newPlanId,
+      pendingPlanId: newPlanId,
       cancelAtPeriodEnd: false,
     });
     if (!updated) {

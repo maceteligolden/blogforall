@@ -93,13 +93,22 @@ export class BillingWebhook {
       return;
     }
 
-    // Update subscription status to active
-    await this.subscriptionRepository.update(subscription._id!, {
+    // Apply pending plan change if exists (new billing cycle started)
+    const updateData: any = {
       status: SubscriptionStatus.ACTIVE,
       currentPeriodStart: new Date(invoice.period_start * 1000),
       currentPeriodEnd: new Date(invoice.period_end * 1000),
       cancelAtPeriodEnd: false,
-    });
+    };
+
+    if (subscription.pendingPlanId) {
+      // Apply the pending plan change
+      updateData.planId = subscription.pendingPlanId;
+      updateData.pendingPlanId = undefined; // Clear pending plan
+      logger.info(`Applied pending plan change for subscription ${subscriptionId}`, {}, "BillingWebhook");
+    }
+
+    await this.subscriptionRepository.update(subscription._id!, updateData);
 
     logger.info(`Payment succeeded for subscription ${subscriptionId}`, {}, "BillingWebhook");
   }
@@ -133,17 +142,29 @@ export class BillingWebhook {
       return;
     }
 
+    const newPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
+    const newPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
+    const periodChanged = 
+      subscription.currentPeriodStart.getTime() !== newPeriodStart.getTime() ||
+      subscription.currentPeriodEnd.getTime() !== newPeriodEnd.getTime();
+
     // Get the price ID from Stripe subscription
     const priceId = stripeSubscription.items.data[0]?.price?.id;
-    if (priceId) {
+    const updateData: any = {
+      currentPeriodStart: newPeriodStart,
+      currentPeriodEnd: newPeriodEnd,
+    };
+
+    // If billing period changed and there's a pending plan, apply it
+    if (periodChanged && subscription.pendingPlanId) {
+      updateData.planId = subscription.pendingPlanId;
+      updateData.pendingPlanId = undefined; // Clear pending plan
+      logger.info(`Applied pending plan change for subscription ${stripeSubscription.id}`, {}, "BillingWebhook");
+    } else if (priceId) {
+      // If no pending plan but price changed, update plan (fallback for edge cases)
       const plan = await this.planRepository.findByStripePriceId(priceId);
-      if (plan && plan._id !== subscription.planId) {
-        // Plan changed - update subscription
-        await this.subscriptionRepository.update(subscription._id!, {
-          planId: plan._id!,
-          currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-          currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-        });
+      if (plan && plan._id !== subscription.planId && !subscription.pendingPlanId) {
+        updateData.planId = plan._id!;
       }
     }
 
@@ -157,12 +178,10 @@ export class BillingWebhook {
       status = SubscriptionStatus.TRIALING;
     }
 
-    await this.subscriptionRepository.update(subscription._id!, {
-      status,
-      cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end || false,
-      currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-    });
+    updateData.status = status;
+    updateData.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end || false;
+
+    await this.subscriptionRepository.update(subscription._id!, updateData);
 
     logger.info(`Subscription updated: ${stripeSubscription.id}`, {}, "BillingWebhook");
   }

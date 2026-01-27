@@ -31,8 +31,8 @@ export default function SubscriptionPage() {
     mutationFn: (planId: string) => SubscriptionService.changePlan(planId),
     onSuccess: () => {
       toast({
-        title: "Plan changed successfully",
-        description: "Your plan has been updated. Changes will take effect immediately.",
+        title: "Plan change scheduled",
+        description: "Your plan change has been scheduled and will take effect at the start of your next billing cycle.",
         variant: "success",
       });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SUBSCRIPTION });
@@ -106,6 +106,11 @@ export default function SubscriptionPage() {
 
   const currentPlan = subscriptionData?.plan;
   const currentSubscription = subscriptionData?.subscription;
+  
+  // Get pending plan if exists
+  const pendingPlan = currentSubscription?.pendingPlanId 
+    ? plans?.find((p) => p._id === currentSubscription.pendingPlanId)
+    : null;
 
   return (
     <div className="min-h-screen bg-black text-white p-8">
@@ -131,6 +136,17 @@ export default function SubscriptionPage() {
                 </p>
                 {currentSubscription.cancelAtPeriodEnd && (
                   <p className="text-yellow-400 mb-4">⚠️ Subscription will be cancelled at the end of the billing period</p>
+                )}
+                {pendingPlan && (
+                  <div className="bg-blue-900/30 border border-blue-800 rounded-lg p-4 mb-4">
+                    <p className="text-blue-300 font-semibold mb-2">📅 Plan Change Scheduled</p>
+                    <p className="text-blue-200 text-sm mb-1">
+                      Your plan will change to <span className="font-bold">{pendingPlan.name}</span> at the start of your next billing cycle.
+                    </p>
+                    <p className="text-blue-300 text-xs">
+                      Effective: {new Date(currentSubscription.currentPeriodEnd).toLocaleDateString()}
+                    </p>
+                  </div>
                 )}
                 {currentSubscription.status !== "free" && !currentSubscription.cancelAtPeriodEnd && (
                   <Button
@@ -251,26 +267,34 @@ export default function SubscriptionPage() {
                     )}
 
                     {!isCurrentPlan && (
-                      <Button
-                        onClick={() => handleChangePlan(plan._id)}
-                        disabled={changePlanMutation.isPending || plan.interval === "free"}
-                        className={`w-full ${
-                          plan.interval === "free"
-                            ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                            : "bg-primary hover:bg-primary/90 text-white"
-                        }`}
-                      >
-                        {changePlanMutation.isPending && selectedPlanId === plan._id ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Processing...
-                          </>
-                        ) : isCurrentPlan ? (
-                          "Current Plan"
+                      <>
+                        {pendingPlan?._id === plan._id ? (
+                          <div className="w-full bg-blue-900/30 border border-blue-800 rounded-md px-4 py-2 text-center">
+                            <p className="text-blue-300 text-sm font-semibold">Scheduled for Next Cycle</p>
+                          </div>
                         ) : (
-                          "Select Plan"
+                          <Button
+                            onClick={() => handleChangePlan(plan._id)}
+                            disabled={changePlanMutation.isPending || plan.interval === "free"}
+                            className={`w-full ${
+                              plan.interval === "free"
+                                ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                                : "bg-primary hover:bg-primary/90 text-white"
+                            }`}
+                          >
+                            {changePlanMutation.isPending && selectedPlanId === plan._id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Processing...
+                              </>
+                            ) : isCurrentPlan ? (
+                              "Current Plan"
+                            ) : (
+                              "Select Plan"
+                            )}
+                          </Button>
                         )}
-                      </Button>
+                      </>
                     )}
                   </div>
                 );
@@ -290,8 +314,8 @@ export default function SubscriptionPage() {
           title="Change Plan"
           message={
             selectedPlanId
-              ? `Are you sure you want to change to the ${plans?.find((p) => p._id === selectedPlanId)?.name} plan?`
-              : "Are you sure you want to change your plan?"
+              ? `Are you sure you want to change to the ${plans?.find((p) => p._id === selectedPlanId)?.name} plan? This change will take effect at the start of your next billing cycle (${currentSubscription ? new Date(currentSubscription.currentPeriodEnd).toLocaleDateString() : "next billing date"}). You can change your plan again before then if needed.`
+              : "Are you sure you want to change your plan? This change will take effect at the start of your next billing cycle."
           }
           confirmText="Change Plan"
           cancelText="Cancel"

@@ -12,6 +12,7 @@ export enum SubscriptionStatus {
 export interface Subscription extends BaseEntity {
   userId: string;
   planId: string;
+  pendingPlanId?: string; // Plan that will be active at next billing cycle
   status: SubscriptionStatus;
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
@@ -33,6 +34,11 @@ const subscriptionSchema = new Schema<Subscription>(
       type: Schema.Types.ObjectId,
       ref: "Plan",
       required: true,
+      index: true,
+    } as any,
+    pendingPlanId: {
+      type: Schema.Types.ObjectId,
+      ref: "Plan",
       index: true,
     } as any,
     status: {

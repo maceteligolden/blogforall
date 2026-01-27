@@ -6,6 +6,7 @@ export interface SubscriptionResponse {
     _id: string;
     userId: string;
     planId: string;
+    pendingPlanId?: string;
     status: "active" | "trialing" | "past_due" | "cancelled" | "free";
     currentPeriodStart: string;
     currentPeriodEnd: string;
