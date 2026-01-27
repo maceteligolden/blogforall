@@ -69,9 +69,21 @@ function OnboardingForm() {
     },
   });
 
+  const skipOnboardingMutation = useMutation({
+    mutationFn: () => OnboardingService.skip(),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      router.push("/dashboard");
+    },
+  });
+
   const handlePlanSelect = (planId: string) => {
     setSelectedPlanId(planId);
     initializeCardMutation.mutate();
+  };
+
+  const handleSkip = () => {
+    skipOnboardingMutation.mutate();
   };
 
   const handleCardSubmit = async (e: React.FormEvent) => {
@@ -158,30 +170,18 @@ function OnboardingForm() {
 
         {step === "plan" && (
           <div>
-            {(() => {
-              const paidPlans = plans.filter((plan) => plan.price > 0 && plan.interval !== "free");
-              console.log("Total plans:", plans.length, "Paid plans:", paidPlans.length);
-              
-              if (paidPlans.length === 0) {
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {plans.map((plan) => {
+                const isFree = plan.price === 0 || plan.interval === "free";
                 return (
-                  <div className="text-center py-12">
-                    <p className="text-gray-400 mb-4">No paid plans available at the moment.</p>
-                    <p className="text-sm text-gray-500">Please contact support or try again later.</p>
-                  </div>
-                );
-              }
-              
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  {paidPlans.map((plan) => (
                   <div
                     key={plan._id}
                     className={`bg-gray-900 rounded-xl border p-6 cursor-pointer transition-all ${
                       selectedPlanId === plan._id
                         ? "border-primary scale-105"
                         : "border-gray-800 hover:border-primary/50"
-                    }`}
-                    onClick={() => handlePlanSelect(plan._id)}
+                    } ${isFree ? "ring-2 ring-primary/30" : ""}`}
+                    onClick={() => !isFree && handlePlanSelect(plan._id)}
                   >
                     {selectedPlanId === plan._id && (
                       <div className="mb-4">
@@ -190,10 +190,23 @@ function OnboardingForm() {
                         </span>
                       </div>
                     )}
+                    {isFree && (
+                      <div className="mb-4">
+                        <span className="px-3 py-1 bg-green-900/30 text-green-400 text-xs font-semibold rounded-full border border-green-800">
+                          Free Plan
+                        </span>
+                      </div>
+                    )}
                     <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
                     <div className="mb-4">
-                      <span className="text-4xl font-bold">${plan.price}</span>
-                      <span className="text-gray-400 ml-2">/month</span>
+                      {isFree ? (
+                        <span className="text-4xl font-bold">Free</span>
+                      ) : (
+                        <>
+                          <span className="text-4xl font-bold">${plan.price}</span>
+                          <span className="text-gray-400 ml-2">/month</span>
+                        </>
+                      )}
                     </div>
                     <div className="space-y-2 mb-4">
                       <p className="text-sm text-gray-400">
@@ -221,16 +234,30 @@ function OnboardingForm() {
                         ))}
                       </ul>
                     )}
+                    {isFree && (
+                      <div className="mt-4 pt-4 border-t border-gray-800">
+                        <p className="text-xs text-gray-400 text-center">Default plan - No payment required</p>
+                      </div>
+                    )}
                   </div>
-                  ))}
-                </div>
-              );
-            })()}
+                );
+              })}
+            </div>
             {selectedPlanId && initializeCardMutation.isPending && (
-              <div className="text-center">
+              <div className="text-center mb-6">
                 <div className="animate-pulse text-gray-400">Preparing payment form...</div>
               </div>
             )}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
+              <Button
+                onClick={handleSkip}
+                disabled={skipOnboardingMutation.isPending}
+                variant="outline"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 px-8"
+              >
+                {skipOnboardingMutation.isPending ? "Skipping..." : "Skip for now (Use Free Plan)"}
+              </Button>
+            </div>
           </div>
         )}
 

@@ -25,4 +25,11 @@ export class OnboardingService {
       paymentMethodId,
     });
   }
+
+  /**
+   * Skip onboarding and use free plan
+   */
+  static async skip(): Promise<void> {
+    await apiClient.post(API_ENDPOINTS.ONBOARDING.SKIP);
+  }
 }

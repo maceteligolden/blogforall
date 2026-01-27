@@ -67,6 +67,7 @@ export const API_ENDPOINTS = {
   ONBOARDING: {
     STATUS: "/onboarding/status",
     COMPLETE: "/onboarding/complete",
+    SKIP: "/onboarding/skip",
   },
 };
 

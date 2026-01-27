@@ -87,4 +87,48 @@ export class OnboardingService {
 
     logger.info("User completed onboarding", { userId, planId }, "OnboardingService");
   }
+
+  async skipOnboarding(userId: string): Promise<void> {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    // 1. Ensure user has a subscription (create free one if doesn't exist)
+    let hasSubscription = false;
+    try {
+      await this.subscriptionService.getActiveSubscription(userId);
+      hasSubscription = true;
+    } catch (error) {
+      // No subscription exists, create a free one
+      await this.subscriptionService.createFreeSubscription(userId);
+      hasSubscription = true;
+    }
+
+    // 2. Ensure user is on free plan (if not already)
+    if (hasSubscription) {
+      try {
+        const { subscription, plan } = await this.subscriptionService.getActiveSubscription(userId);
+        if (plan.price > 0 || plan.interval !== "free") {
+          // User is on a paid plan, downgrade to free
+          const plans = await this.subscriptionService.getActivePlans();
+          const freePlan = plans.find(p => p.price === 0 || p.interval === "free");
+          if (freePlan) {
+            await this.subscriptionService.changePlan(userId, freePlan._id!);
+          }
+        }
+      } catch (error) {
+        // Error getting subscription, but we already created one above
+        logger.error("Error ensuring free plan", error as Error, { userId }, "OnboardingService");
+      }
+    }
+
+    // 3. Mark onboarding as completed
+    await User.findByIdAndUpdate(userId, {
+      onboarding_completed: true,
+      updated_at: new Date(),
+    });
+
+    logger.info("User skipped onboarding", { userId }, "OnboardingService");
+  }
 }

@@ -87,10 +87,10 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDatabase();
-    
+
     // Seed plans if none exist
     await seedPlansIfNeeded();
-    
+
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {}, "Server");
     });

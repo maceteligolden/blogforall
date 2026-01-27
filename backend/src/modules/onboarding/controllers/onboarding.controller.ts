@@ -45,4 +45,18 @@ export class OnboardingController {
       next(error);
     }
   }
+
+  async skipOnboarding(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+
+      await this.onboardingService.skipOnboarding(userId);
+      sendSuccess(res, "Onboarding skipped successfully", { completed: true });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

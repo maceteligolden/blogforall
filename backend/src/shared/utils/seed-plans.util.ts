@@ -7,7 +7,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
   try {
     // Check if any plans exist
     const existingPlansCount = await PlanModel.countDocuments();
-    
+
     if (existingPlansCount > 0) {
       logger.info(`Plans already exist (${existingPlansCount} plans found), skipping seed`, {}, "PlanSeeder");
       return;
@@ -26,12 +26,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
           apiCallsPerMonth: 10000,
           storageGB: 1,
         },
-        features: [
-          "Up to 10 blog posts",
-          "10,000 API calls/month",
-          "1 GB storage",
-          "Basic support",
-        ],
+        features: ["Up to 10 blog posts", "10,000 API calls/month", "1 GB storage", "Basic support"],
         isActive: true,
       },
       {
@@ -78,11 +73,11 @@ export async function seedPlansIfNeeded(): Promise<void> {
     // Create paid plans with Stripe integration
     // Only create Stripe products/prices if Stripe API key is configured
     const hasStripeKey = !!process.env.STRIPE_API_KEY;
-    
+
     for (const planData of plans) {
       try {
         let stripePriceId: string | undefined;
-        
+
         if (hasStripeKey) {
           try {
             // Create product in Stripe
@@ -92,13 +87,8 @@ export async function seedPlansIfNeeded(): Promise<void> {
             );
 
             // Create price in Stripe
-            const price = await stripeFacade.createPrice(
-              product.id,
-              planData.price,
-              "usd",
-              planData.interval
-            );
-            
+            const price = await stripeFacade.createPrice(product.id, planData.price, "usd", planData.interval);
+
             stripePriceId = price.id;
           } catch (stripeError) {
             logger.warn(
@@ -144,12 +134,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
         apiCallsPerMonth: 1000,
         storageGB: 0.5,
       },
-      features: [
-        "Up to 3 blog posts",
-        "1,000 API calls/month",
-        "0.5 GB storage",
-        "Basic features",
-      ],
+      features: ["Up to 3 blog posts", "1,000 API calls/month", "0.5 GB storage", "Basic features"],
       isActive: true,
     };
 
