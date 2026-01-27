@@ -81,6 +81,7 @@ export class StripeFacade {
     return await this.stripe.setupIntents.create({
       customer: customerId,
       payment_method_types: ["card"],
+      usage: "off_session", // For saving cards for future use, not immediate payment
     });
   }
 

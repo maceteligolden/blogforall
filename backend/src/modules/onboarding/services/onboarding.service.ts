@@ -112,7 +112,7 @@ export class OnboardingService {
         if (plan.price > 0 || plan.interval !== "free") {
           // User is on a paid plan, downgrade to free
           const plans = await this.subscriptionService.getActivePlans();
-          const freePlan = plans.find(p => p.price === 0 || p.interval === "free");
+          const freePlan = plans.find((p) => p.price === 0 || p.interval === "free");
           if (freePlan) {
             await this.subscriptionService.changePlan(userId, freePlan._id!);
           }

@@ -10,11 +10,19 @@ export async function seedPlansIfNeeded(): Promise<void> {
     const MIN_REQUIRED_PLANS = 3;
 
     if (existingPlansCount >= MIN_REQUIRED_PLANS) {
-      logger.info(`Sufficient plans exist (${existingPlansCount} plans found, minimum required: ${MIN_REQUIRED_PLANS}), skipping seed`, {}, "PlanSeeder");
+      logger.info(
+        `Sufficient plans exist (${existingPlansCount} plans found, minimum required: ${MIN_REQUIRED_PLANS}), skipping seed`,
+        {},
+        "PlanSeeder"
+      );
       return;
     }
 
-    logger.info(`Insufficient plans found (${existingPlansCount} found, minimum required: ${MIN_REQUIRED_PLANS}), seeding plans...`, {}, "PlanSeeder");
+    logger.info(
+      `Insufficient plans found (${existingPlansCount} found, minimum required: ${MIN_REQUIRED_PLANS}), seeding plans...`,
+      {},
+      "PlanSeeder"
+    );
     const stripeFacade = container.resolve(StripeFacade);
 
     const plans = [
