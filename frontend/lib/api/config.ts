@@ -63,6 +63,8 @@ export const API_ENDPOINTS = {
     GET_CARDS: "/billing/cards",
     DELETE_CARD: (id: string) => `/billing/cards/${id}`,
     SET_DEFAULT_CARD: (id: string) => `/billing/cards/${id}/default`,
+    GET_INVOICES: "/billing/invoices",
+    GET_INVOICE: (id: string) => `/billing/invoices/${id}`,
   },
   ONBOARDING: {
     STATUS: "/onboarding/status",
@@ -84,5 +86,6 @@ export const QUERY_KEYS = {
   SUBSCRIPTION: ["subscription"],
   PLANS: ["subscription", "plans"],
   BILLING_CARDS: ["billing", "cards"],
+  BILLING_INVOICES: ["billing", "invoices"],
 };
 

@@ -95,4 +95,38 @@ export class BillingController {
       next(error);
     }
   }
+
+  async getInvoiceHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+
+      const limit = parseInt(req.query.limit as string) || 10;
+      const invoices = await this.billingService.getInvoiceHistory(userId, limit);
+      sendSuccess(res, "Invoice history retrieved successfully", invoices);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getInvoiceDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+
+      const { id: invoiceId } = req.params;
+      if (!invoiceId) {
+        return next(new BadRequestError("Invoice ID is required"));
+      }
+
+      const invoice = await this.billingService.getInvoiceDetails(userId, invoiceId);
+      sendSuccess(res, "Invoice details retrieved successfully", invoice);
+    } catch (error) {
+      next(error);
+    }
+  }
 }

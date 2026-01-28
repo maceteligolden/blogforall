@@ -13,5 +13,7 @@ router.post("/cards/confirm", authMiddleware, (req, res, next) => billingControl
 router.get("/cards", authMiddleware, (req, res, next) => billingController.fetchCards(req, res, next));
 router.delete("/cards/:id", authMiddleware, (req, res, next) => billingController.deleteCard(req, res, next));
 router.put("/cards/:id/default", authMiddleware, (req, res, next) => billingController.setDefaultCard(req, res, next));
+router.get("/invoices", authMiddleware, (req, res, next) => billingController.getInvoiceHistory(req, res, next));
+router.get("/invoices/:id", authMiddleware, (req, res, next) => billingController.getInvoiceDetails(req, res, next));
 
 export default router;
