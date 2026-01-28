@@ -136,7 +136,7 @@ export default function DocsPage() {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Create New API Key</h4>
-                    <p className="text-gray-400 mb-4">Click "Create New API Key" and provide a name for your key (e.g., "Production", "Development").</p>
+                    <p className="text-gray-400 mb-4">Click &quot;Create New API Key&quot; and provide a name for your key (e.g., &quot;Production&quot;, &quot;Development&quot;).</p>
                     <CodeBlock
                       code={`POST /api/v1/api-keys
 Content-Type: application/json

@@ -33,6 +33,9 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
     
     // Prevent duplicate initialization
     if (quillRef.current) return;
+
+    // Capture editorRef.current at the start of the effect for cleanup
+    const editorElement = editorRef.current;
     
     // Clear any existing Quill toolbars and content
     if (editorRef.current) {
@@ -219,7 +222,6 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
 
     return () => {
       const quillInstance = quillRef.current;
-      const editorElement = editorRef.current;
       
       if (quillInstance) {
         quillRef.current = null;
@@ -229,6 +231,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
         editorElement.innerHTML = "";
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleChange, placeholder]);
 
   // Update content when value prop changes (but not from internal changes)

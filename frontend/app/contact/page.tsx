@@ -50,8 +50,8 @@ export default function ContactPage() {
             Get in <span className="text-primary">Touch</span>
           </h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            Have a question, suggestion, or need help? We'd love to hear from you. 
-            Send us a message and we'll respond as soon as possible.
+            Have a question, suggestion, or need help? We&apos;d love to hear from you. 
+            Send us a message and we&apos;ll respond as soon as possible.
           </p>
         </div>
 
@@ -67,7 +67,7 @@ export default function ContactPage() {
                     <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    <p className="text-green-400">Thank you! Your message has been sent. We'll get back to you soon.</p>
+                    <p className="text-green-400">Thank you! Your message has been sent. We&apos;ll get back to you soon.</p>
                   </div>
                 </div>)}
 
@@ -258,7 +258,7 @@ export default function ContactPage() {
               <h3 className="text-lg font-semibold mb-2 text-primary">Can I use my own domain?</h3>
               <p className="text-gray-400">
                 Yes! BlogForAll provides API access so you can build your own frontend and use your own domain. 
-                Your content is yours, and you have full control over how it's displayed.
+                Your content is yours, and you have full control over how it&apos;s displayed.
               </p>
             </div>
 

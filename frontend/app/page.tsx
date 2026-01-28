@@ -244,8 +244,8 @@ export default function Home() {
               </div>
               <h3 className="text-2xl font-semibold mb-4">Categories & Organization</h3>
               <p className="text-gray-400 leading-relaxed">
-                Organize your content with categories. Create a structured blog that's easy to navigate 
-                and helps readers find the content they're looking for quickly.
+                Organize your content with categories. Create a structured blog that&apos;s easy to navigate 
+                and helps readers find the content they&apos;re looking for quickly.
               </p>
             </div>
           </div>

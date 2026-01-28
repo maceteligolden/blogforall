@@ -33,8 +33,8 @@ export default function AboutPage() {
               while making it easy to integrate with any frontend or application.
             </p>
             <p className="text-lg text-gray-300 leading-relaxed">
-              Whether you're a solo creator, a growing business, or an enterprise, BlogForAll adapts to your 
-              needs and scales with you. We're committed to building tools that make content management 
+              Whether you&apos;re a solo creator, a growing business, or an enterprise, BlogForAll adapts to your 
+              needs and scales with you. We&apos;re committed to building tools that make content management 
               effortless, so you can focus on what matters most: creating amazing content.
             </p>
           </div>
@@ -92,7 +92,7 @@ export default function AboutPage() {
               <h3 className="text-xl font-semibold mb-3">Secure & Reliable</h3>
               <p className="text-gray-400">
                 Your content and data are protected with industry-standard security practices. 
-                We're committed to keeping your information safe and your blog running smoothly.
+                We&apos;re committed to keeping your information safe and your blog running smoothly.
               </p>
             </div>
           </div>
@@ -106,7 +106,7 @@ export default function AboutPage() {
               <h3 className="text-xl font-semibold mb-3 text-primary">Simplicity</h3>
               <p className="text-gray-400">
                 We believe in making complex things simple. BlogForAll is designed to be intuitive 
-                and easy to use, whether you're a beginner or an experienced developer.
+                and easy to use, whether you&apos;re a beginner or an experienced developer.
               </p>
             </div>
 
@@ -121,7 +121,7 @@ export default function AboutPage() {
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
               <h3 className="text-xl font-semibold mb-3 text-primary">Innovation</h3>
               <p className="text-gray-400">
-                We're constantly improving and adding new features based on user feedback. 
+                We&apos;re constantly improving and adding new features based on user feedback. 
                 BlogForAll evolves with your needs.
               </p>
             </div>
