@@ -6,13 +6,8 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { User, CreditCard } from "lucide-react";
 import { useState } from "react";
-import { NotificationBell } from "@/components/notifications/notification-bell";
 
-interface NavbarProps {
-  showNotifications?: boolean;
-}
-
-export function Navbar({ showNotifications = true }: NavbarProps) {
+export function Navbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -61,8 +56,6 @@ export function Navbar({ showNotifications = true }: NavbarProps) {
 
           {/* Right Side */}
           <div className="flex items-center space-x-4">
-            {showNotifications && <NotificationBell />}
-
             {/* User Menu */}
             <div className="relative">
               <div className="flex items-center space-x-2">
