@@ -144,7 +144,7 @@ export class BillingWebhook {
 
     const newPeriodStart = new Date(stripeSubscription.current_period_start * 1000);
     const newPeriodEnd = new Date(stripeSubscription.current_period_end * 1000);
-    const periodChanged = 
+    const periodChanged =
       subscription.currentPeriodStart.getTime() !== newPeriodStart.getTime() ||
       subscription.currentPeriodEnd.getTime() !== newPeriodEnd.getTime();
 

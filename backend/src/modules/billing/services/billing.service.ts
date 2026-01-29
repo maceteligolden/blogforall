@@ -163,7 +163,7 @@ export class BillingService {
     }
 
     const invoices = await this.stripeFacade.listInvoices(user.stripe_customer_id, limit);
-    
+
     return invoices.data.map((invoice: any) => ({
       id: invoice.id,
       number: invoice.number,
@@ -190,7 +190,7 @@ export class BillingService {
     }
 
     const invoice = await this.stripeFacade.getInvoice(invoiceId);
-    
+
     // Verify invoice belongs to user
     if (invoice.customer !== user.stripe_customer_id) {
       throw new BadRequestError("Invoice not found");
@@ -211,15 +211,18 @@ export class BillingService {
       invoice_pdf: invoice.invoice_pdf,
       hosted_invoice_url: invoice.hosted_invoice_url,
       description: invoice.description || `Invoice ${invoice.number || invoice.id}`,
-      lines: invoice.lines?.data?.map((line: any) => ({
-        description: line.description,
-        amount: line.amount / 100,
-        quantity: line.quantity,
-        period: line.period ? {
-          start: new Date(line.period.start * 1000),
-          end: new Date(line.period.end * 1000),
-        } : null,
-      })) || [],
+      lines:
+        invoice.lines?.data?.map((line: any) => ({
+          description: line.description,
+          amount: line.amount / 100,
+          quantity: line.quantity,
+          period: line.period
+            ? {
+                start: new Date(line.period.start * 1000),
+                end: new Date(line.period.end * 1000),
+              }
+            : null,
+        })) || [],
     };
   }
 }

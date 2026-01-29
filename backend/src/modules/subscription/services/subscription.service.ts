@@ -204,10 +204,7 @@ export class SubscriptionService {
       await this.stripeFacade.setDefaultPaymentMethod(user.stripe_customer_id, defaultCard.stripe_card_token);
 
       // Create Stripe subscription with default payment method
-      const stripeSubscription = await this.stripeFacade.createSubscription(
-        user.stripe_customer_id,
-        stripePriceId
-      );
+      const stripeSubscription = await this.stripeFacade.createSubscription(user.stripe_customer_id, stripePriceId);
 
       // Update subscription
       const now = new Date();
@@ -254,9 +251,7 @@ export class SubscriptionService {
         // Update plan with Stripe price ID
         await this.planRepository.update(newPlanId, { stripe_price_id: stripePriceId });
       } catch (error: any) {
-        throw new BadRequestError(
-          `Failed to configure plan for billing: ${error.message || "Please contact support"}`
-        );
+        throw new BadRequestError(`Failed to configure plan for billing: ${error.message || "Please contact support"}`);
       }
     }
 
