@@ -9,7 +9,8 @@
     "start": "node dist/src/index.js",
     "test": "jest ./src --passWithNoTests",
     "lint": "eslint src/**/*.ts",
-    "format": "prettier --write src --ignore-unknown"
+    "format": "prettier --write src --ignore-unknown",
+    "migrate:multi-site": "ts-node scripts/migrate-to-multi-site.ts"
   },
   "keywords": [],
   "author": "",
