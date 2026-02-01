@@ -73,5 +73,21 @@ export class CategoryService {
     // Backend will filter by currentSiteId from token
     return apiClient.delete(API_ENDPOINTS.CATEGORIES.DELETE(id));
   }
+
+  /**
+   * Import categories from one site to another
+   */
+  static async importCategories(
+    sourceSiteId: string,
+    targetSiteId: string,
+    categoryIds: string[]
+  ) {
+    const response = await apiClient.post(API_ENDPOINTS.CATEGORIES.IMPORT, {
+      source_site_id: sourceSiteId,
+      target_site_id: targetSiteId,
+      category_ids: categoryIds,
+    });
+    return response.data?.data || response.data;
+  }
 }
 

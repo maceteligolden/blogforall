@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { ConfirmModal } from "@/components/ui/modal";
+import { ImportCategoriesDialog } from "@/components/categories/import-categories-dialog";
+import { Download } from "lucide-react";
 
 export default function CategoriesPage() {
   const router = useRouter();
@@ -26,6 +28,7 @@ export default function CategoriesPage() {
   const [error, setError] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,12 +160,22 @@ export default function CategoriesPage() {
         <Breadcrumb items={[{ label: "Categories" }]} />
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-display text-white">Categories</h1>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => setShowCreateForm(true)}
-          >
-            Create Category
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              onClick={() => setShowImportDialog(true)}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Import Categories
+            </Button>
+            <Button
+              className="bg-primary hover:bg-primary/90 text-white"
+              onClick={() => setShowCreateForm(true)}
+            >
+              Create Category
+            </Button>
+          </div>
         </div>
 
         <main className="max-w-4xl mx-auto">
@@ -308,6 +321,11 @@ export default function CategoriesPage() {
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+      />
+
+      <ImportCategoriesDialog
+        isOpen={showImportDialog}
+        onClose={() => setShowImportDialog(false)}
       />
     </div>
   );

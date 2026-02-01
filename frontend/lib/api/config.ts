@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
     GET_ONE: (id: string) => `/categories/${id}`,
     UPDATE: (id: string) => `/categories/${id}`,
     DELETE: (id: string) => `/categories/${id}`,
+    IMPORT: "/categories/import",
   },
   SUBSCRIPTION: {
     GET: "/subscriptions",
