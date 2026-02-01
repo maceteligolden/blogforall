@@ -1,5 +1,6 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
+import { useAuthStore } from "../../store/auth.store";
 
 export interface CreateBlogRequest {
   title: string;
@@ -15,9 +16,12 @@ export interface CreateBlogRequest {
     description?: string;
     keywords?: string[];
   };
+  site_id?: string; // Optional, will use currentSiteId from token if not provided
 }
 
-export interface UpdateBlogRequest extends Partial<CreateBlogRequest> {}
+export interface UpdateBlogRequest extends Partial<CreateBlogRequest> {
+  site_id?: string; // Optional, will use currentSiteId from token if not provided
+}
 
 export interface BlogQueryParams {
   status?: "draft" | "published" | "unpublished";
@@ -27,8 +31,19 @@ export interface BlogQueryParams {
 }
 
 export class BlogService {
+  /**
+   * Get current site ID from auth store
+   */
+  private static getCurrentSiteId(): string | undefined {
+    if (typeof window === "undefined") return undefined;
+    return useAuthStore.getState().currentSiteId || undefined;
+  }
+
   static async createBlog(data: CreateBlogRequest) {
-    return apiClient.post(API_ENDPOINTS.BLOGS.CREATE, data);
+    // Include site_id if not already provided
+    const siteId = data.site_id || this.getCurrentSiteId();
+    const requestData = siteId ? { ...data, site_id: siteId } : data;
+    return apiClient.post(API_ENDPOINTS.BLOGS.CREATE, requestData);
   }
 
   static async getBlogById(id: string) {
@@ -36,19 +51,25 @@ export class BlogService {
   }
 
   static async getUserBlogs(params?: BlogQueryParams) {
+    // Backend will filter by currentSiteId from token
     return apiClient.get(API_ENDPOINTS.BLOGS.MY_BLOGS, { params });
   }
 
   static async getAllBlogs(params?: BlogQueryParams) {
+    // Backend will filter by currentSiteId from token
     return apiClient.get(API_ENDPOINTS.BLOGS.LIST, { params });
   }
 
   static async getBlogBySlug(slug: string) {
+    // Backend will filter by currentSiteId from token
     return apiClient.get(API_ENDPOINTS.BLOGS.GET_BY_SLUG(slug));
   }
 
   static async updateBlog(id: string, data: UpdateBlogRequest) {
-    return apiClient.put(API_ENDPOINTS.BLOGS.UPDATE(id), data);
+    // Include site_id if not already provided
+    const siteId = data.site_id || this.getCurrentSiteId();
+    const requestData = siteId ? { ...data, site_id: siteId } : data;
+    return apiClient.put(API_ENDPOINTS.BLOGS.UPDATE(id), requestData);
   }
 
   static async deleteBlog(id: string) {
