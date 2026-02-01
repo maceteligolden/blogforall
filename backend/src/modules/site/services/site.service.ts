@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import { SiteRepository } from "../repositories/site.repository";
 import { SiteMemberRepository } from "../repositories/site-member.repository";
+import { SubscriptionService } from "../../subscription/services/subscription.service";
 import { NotFoundError, ForbiddenError, BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
 import { CreateSiteInput, UpdateSiteInput, SiteWithMembers } from "../interfaces/site.interface";
@@ -12,13 +13,17 @@ import Blog from "../../../shared/schemas/blog.schema";
 export class SiteService {
   constructor(
     private siteRepository: SiteRepository,
-    private siteMemberRepository: SiteMemberRepository
+    private siteMemberRepository: SiteMemberRepository,
+    private subscriptionService: SubscriptionService
   ) {}
 
   /**
    * Create a new site
    */
   async createSite(ownerId: string, input: CreateSiteInput): Promise<Site> {
+    // Check plan limits before creating site
+    await this.validateSiteCreationLimit(ownerId);
+
     const site = await this.siteRepository.create({
       name: input.name,
       description: input.description,
@@ -34,6 +39,49 @@ export class SiteService {
 
     logger.info("Site created", { siteId: site._id, ownerId }, "SiteService");
     return site;
+  }
+
+  /**
+   * Validate that user hasn't exceeded their plan's site limit
+   */
+  private async validateSiteCreationLimit(userId: string): Promise<void> {
+    try {
+      // Get user's active subscription and plan
+      const { plan } = await this.subscriptionService.getActiveSubscription(userId);
+      
+      // Get max sites allowed from plan limits
+      const maxSitesAllowed = plan.limits.maxSitesAllowed ?? 1;
+
+      // If unlimited (-1), allow creation
+      if (maxSitesAllowed === -1) {
+        return;
+      }
+
+      // Count sites owned by user
+      const userSites = await this.siteRepository.findByOwner(userId);
+      const currentSiteCount = userSites.length;
+
+      // Check if limit is reached
+      if (currentSiteCount >= maxSitesAllowed) {
+        throw new BadRequestError(
+          `You have reached the maximum number of sites allowed for your plan (${maxSitesAllowed}). Please upgrade your plan to create more sites.`
+        );
+      }
+    } catch (error) {
+      // If it's already a BadRequestError, rethrow it
+      if (error instanceof BadRequestError) {
+        throw error;
+      }
+      // If subscription/plan lookup fails, log but allow site creation
+      // This prevents blocking users if there's a temporary issue with subscription service
+      logger.error(
+        "Failed to validate site creation limit",
+        error as Error,
+        { userId },
+        "SiteService"
+      );
+      // Allow creation to proceed - this is a safety measure
+    }
   }
 
   /**
