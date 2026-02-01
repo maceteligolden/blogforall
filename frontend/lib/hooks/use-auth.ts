@@ -22,6 +22,14 @@ export function useAuth() {
         const onboardingStatus = await OnboardingService.getStatus();
         if (onboardingStatus.requiresOnboarding) {
           router.push("/onboarding");
+          return;
+        }
+        
+        // Check if user has sites
+        const { SiteService } = await import("../api/services/site.service");
+        const sites = await SiteService.getSites();
+        if (sites.length === 0) {
+          router.push("/onboarding/create-site");
         } else {
           router.push("/dashboard");
         }

@@ -63,17 +63,41 @@ function OnboardingForm() {
   const completeOnboardingMutation = useMutation({
     mutationFn: ({ planId, paymentMethodId }: { planId: string; paymentMethodId: string }) =>
       OnboardingService.complete(planId, paymentMethodId),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries();
-      router.push("/dashboard");
+      // Check if user has sites, if not redirect to site creation
+      try {
+        const { SiteService } = await import("@/lib/api/services/site.service");
+        const sites = await SiteService.getSites();
+        if (sites.length === 0) {
+          router.push("/onboarding/create-site");
+        } else {
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        // If check fails, redirect to site creation to be safe
+        router.push("/onboarding/create-site");
+      }
     },
   });
 
   const skipOnboardingMutation = useMutation({
     mutationFn: () => OnboardingService.skip(),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries();
-      router.push("/dashboard");
+      // Check if user has sites, if not redirect to site creation
+      try {
+        const { SiteService } = await import("@/lib/api/services/site.service");
+        const sites = await SiteService.getSites();
+        if (sites.length === 0) {
+          router.push("/onboarding/create-site");
+        } else {
+          router.push("/dashboard");
+        }
+      } catch (error) {
+        // If check fails, redirect to site creation to be safe
+        router.push("/onboarding/create-site");
+      }
     },
   });
 
