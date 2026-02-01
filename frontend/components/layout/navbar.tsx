@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { User, CreditCard } from "lucide-react";
 import { useState } from "react";
+import { SiteSwitcher } from "@/components/sites/site-switcher";
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -28,6 +29,7 @@ export function Navbar() {
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center space-x-8">
+            <SiteSwitcher />
             <Link
               href="/dashboard"
               className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
