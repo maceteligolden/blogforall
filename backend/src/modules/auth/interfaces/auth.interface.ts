@@ -36,4 +36,5 @@ export interface LoginResponse {
     last_name: string;
     plan: string;
   };
+  requiresSiteCreation?: boolean; // True if user needs to create a site (for first-time login after migration)
 }

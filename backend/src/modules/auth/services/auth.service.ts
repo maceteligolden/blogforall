@@ -15,13 +15,15 @@ import {
 import { User } from "../../../shared/schemas/user.schema";
 import { StripeFacade } from "../../../shared/facade/stripe.facade";
 import { SubscriptionService } from "../../subscription/services/subscription.service";
+import { SiteService } from "../../site/services/site.service";
 
 @injectable()
 export class AuthService {
   constructor(
     private userRepository: UserRepository,
     private stripeFacade: StripeFacade,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    private siteService: SiteService
   ) {}
 
   async signup(input: SignupInput): Promise<User> {
@@ -66,6 +68,19 @@ export class AuthService {
       // Continue even if subscription creation fails - can be created later
     }
 
+    // Create default site for new user
+    try {
+      const siteName = `${first_name}'s Site`;
+      await this.siteService.createSite(user._id!.toString(), {
+        name: siteName,
+        description: "Default site",
+      });
+      logger.info("Default site created for new user", { userId: user._id, email }, "AuthService");
+    } catch (error) {
+      logger.error("Failed to create default site on signup", error as Error, { userId: user._id }, "AuthService");
+      // Continue even if site creation fails - user can create one later
+    }
+
     logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");
     return user;
   }
@@ -100,7 +115,26 @@ export class AuthService {
     // Update session token
     await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
 
-    logger.info("User logged in successfully", { userId: user._id, email }, "AuthService");
+    // Check if user has any sites (for first-time login after migration)
+    const userSites = await this.siteService.getSitesByUser(user._id!.toString());
+    const hasSites = userSites.length > 0;
+
+    // If user doesn't have sites, create a default site
+    if (!hasSites) {
+      try {
+        const siteName = `${user.first_name}'s Site`;
+        await this.siteService.createSite(user._id!.toString(), {
+          name: siteName,
+          description: "Default site",
+        });
+        logger.info("Default site created for existing user on first login", { userId: user._id, email }, "AuthService");
+      } catch (error) {
+        logger.error("Failed to create default site on login", error as Error, { userId: user._id }, "AuthService");
+        // Continue even if site creation fails - user can create one later
+      }
+    }
+
+    logger.info("User logged in successfully", { userId: user._id, email, hasSites }, "AuthService");
 
     return {
       tokens: {
@@ -114,6 +148,7 @@ export class AuthService {
         last_name: user.last_name,
         plan: user.plan,
       },
+      requiresSiteCreation: !hasSites,
     };
   }
 
