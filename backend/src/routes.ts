@@ -9,6 +9,7 @@ import subscriptionRouter from "./modules/subscription/routes/subscription.route
 import billingRouter from "./modules/billing/routes/billing.router";
 import webhookRouter from "./modules/billing/routes/webhook.router";
 import onboardingRouter from "./modules/onboarding/routes/onboarding.router";
+import siteRouter from "./modules/site/routes/site.router";
 
 const router = Router();
 
@@ -41,5 +42,8 @@ router.use("/webhooks", webhookRouter);
 
 // Onboarding routes (protected with JWT)
 router.use("/onboarding", onboardingRouter);
+
+// Site routes (protected with JWT)
+router.use("/sites", siteRouter);
 
 export { router as routes };
