@@ -71,6 +71,24 @@ export const API_ENDPOINTS = {
     COMPLETE: "/onboarding/complete",
     SKIP: "/onboarding/skip",
   },
+  SITES: {
+    CREATE: "/sites",
+    LIST: "/sites",
+    GET_ONE: (id: string) => `/sites/${id}`,
+    UPDATE: (id: string) => `/sites/${id}`,
+    DELETE: (id: string) => `/sites/${id}`,
+    GET_MEMBERS: (siteId: string) => `/sites/${siteId}/members`,
+    ADD_MEMBER: (siteId: string) => `/sites/${siteId}/members`,
+    UPDATE_MEMBER_ROLE: (siteId: string, userId: string) => `/sites/${siteId}/members/${userId}`,
+    REMOVE_MEMBER: (siteId: string, userId: string) => `/sites/${siteId}/members/${userId}`,
+    CREATE_INVITATION: (siteId: string) => `/sites/${siteId}/invitations`,
+    GET_INVITATIONS: (siteId: string) => `/sites/${siteId}/invitations`,
+  },
+  INVITATIONS: {
+    LIST: "/invitations",
+    ACCEPT: (token: string) => `/invitations/${token}/accept`,
+    REJECT: (token: string) => `/invitations/${token}/reject`,
+  },
 };
 
 export const QUERY_KEYS = {
@@ -87,5 +105,10 @@ export const QUERY_KEYS = {
   PLANS: ["subscription", "plans"],
   BILLING_CARDS: ["billing", "cards"],
   BILLING_INVOICES: ["billing", "invoices"],
+  SITES: ["sites"],
+  SITE: (id: string) => ["sites", id],
+  SITE_MEMBERS: (siteId: string) => ["sites", siteId, "members"],
+  SITE_INVITATIONS: (siteId: string) => ["sites", siteId, "invitations"],
+  USER_INVITATIONS: ["invitations"],
 };
 
