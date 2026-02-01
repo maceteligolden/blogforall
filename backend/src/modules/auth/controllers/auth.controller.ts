@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 import { AuthService } from "../services/auth.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
-import { signupSchema, loginSchema, updateProfileSchema, changePasswordSchema } from "../validations/auth.validation";
+import { signupSchema, loginSchema, updateProfileSchema, changePasswordSchema, updateSiteContextSchema } from "../validations/auth.validation";
 
 @injectable()
 export class AuthController {
@@ -104,6 +104,24 @@ export class AuthController {
       const validatedData = changePasswordSchema.parse(req.body);
       await this.authService.changePassword(userId, validatedData);
       sendNoContent(res, "Password changed successfully");
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+        return next(new BadRequestError(errorMessages));
+      }
+      next(error);
+    }
+  };
+
+  updateSiteContext = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+      const validatedData = updateSiteContextSchema.parse(req.body);
+      const result = await this.authService.updateSiteContext(userId, validatedData.site_id);
+      sendSuccess(res, "Site context updated successfully", result);
     } catch (error) {
       if (error instanceof ZodError) {
         const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");

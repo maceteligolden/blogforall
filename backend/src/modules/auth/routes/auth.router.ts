@@ -16,5 +16,6 @@ router.post("/logout", authMiddleware, authController.logout);
 router.get("/profile", authMiddleware, authController.getProfile);
 router.put("/profile", authMiddleware, authController.updateProfile);
 router.put("/change-password", authMiddleware, authController.changePassword);
+router.put("/site-context", authMiddleware, authController.updateSiteContext);
 
 export default router;

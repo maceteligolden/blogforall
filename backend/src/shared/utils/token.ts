@@ -1,8 +1,9 @@
 import jwt from "jsonwebtoken";
 
-interface TokenPayload {
+export interface TokenPayload {
   userId: string;
   email: string;
+  currentSiteId?: string; // Optional site context
 }
 
 export const generateAccessToken = (payload: TokenPayload): string => {

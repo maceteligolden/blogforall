@@ -102,19 +102,6 @@ export class AuthService {
       throw new UnauthorizedError("Invalid credentials");
     }
 
-    // Generate tokens
-    const accessToken = generateAccessToken({
-      userId: user._id!.toString(),
-      email: user.email,
-    });
-    const refreshToken = generateRefreshToken({
-      userId: user._id!.toString(),
-      email: user.email,
-    });
-
-    // Update session token
-    await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
-
     // Check if user has any sites (for first-time login after migration)
     const userSites = await this.siteService.getSitesByUser(user._id!.toString());
     const hasSites = userSites.length > 0;
@@ -128,11 +115,32 @@ export class AuthService {
           description: "Default site",
         });
         logger.info("Default site created for existing user on first login", { userId: user._id, email }, "AuthService");
+        // Refresh user sites after creating default site
+        const updatedUserSites = await this.siteService.getSitesByUser(user._id!.toString());
+        userSites.push(...updatedUserSites);
       } catch (error) {
         logger.error("Failed to create default site on login", error as Error, { userId: user._id }, "AuthService");
         // Continue even if site creation fails - user can create one later
       }
     }
+
+    // Get user's default site (first site) for token context
+    const defaultSiteId = userSites.length > 0 ? userSites[0]._id!.toString() : undefined;
+
+    // Generate tokens with site context
+    const accessToken = generateAccessToken({
+      userId: user._id!.toString(),
+      email: user.email,
+      currentSiteId: defaultSiteId,
+    });
+    const refreshToken = generateRefreshToken({
+      userId: user._id!.toString(),
+      email: user.email,
+      currentSiteId: defaultSiteId,
+    });
+
+    // Update session token
+    await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
 
     logger.info("User logged in successfully", { userId: user._id, email, hasSites }, "AuthService");
 
@@ -166,15 +174,47 @@ export class AuthService {
         throw new UnauthorizedError("Invalid refresh token");
       }
 
+      // Get user's default site for token context (or use existing from token)
+      const userSites = await this.siteService.getSitesByUser(user._id!.toString());
+      const defaultSiteId = userSites.length > 0 ? userSites[0]._id!.toString() : decoded.currentSiteId;
+
       const accessToken = generateAccessToken({
         userId: user._id!.toString(),
         email: user.email,
+        currentSiteId: defaultSiteId,
       });
 
       return { access_token: accessToken };
     } catch (error) {
       throw new UnauthorizedError("Invalid or expired refresh token");
     }
+  }
+
+  /**
+   * Update the current site context in the user's session
+   * This generates a new access token with the updated site context
+   */
+  async updateSiteContext(userId: string, siteId: string): Promise<{ access_token: string }> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    // Verify user has access to the site
+    const hasAccess = await this.siteService.hasSiteAccess(siteId, userId);
+    if (!hasAccess) {
+      throw new BadRequestError("You do not have access to this site");
+    }
+
+    // Generate new access token with updated site context
+    const accessToken = generateAccessToken({
+      userId: user._id!.toString(),
+      email: user.email,
+      currentSiteId: siteId,
+    });
+
+    logger.info("Site context updated", { userId, siteId }, "AuthService");
+    return { access_token: accessToken };
   }
 
   async getProfile(userId: string): Promise<{

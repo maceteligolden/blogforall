@@ -8,6 +8,7 @@ declare global {
       user?: {
         userId: string;
         email?: string;
+        currentSiteId?: string; // Site context from JWT token
       };
       site?: {
         id: string;
@@ -31,6 +32,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
+      currentSiteId: decoded.currentSiteId,
     };
 
     next();
