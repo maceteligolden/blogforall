@@ -4,10 +4,11 @@ import { BaseEntity } from "../interfaces";
 
 export interface Blog extends BaseEntity {
   author: string; // User ID
+  site_id: string; // Site ID - blogs belong to a site
   title: string;
   content: string; // HTML or Markdown content
   content_type: "html" | "markdown";
-  slug: string; // URL-friendly version of title
+  slug: string; // URL-friendly version of title (unique within a site)
   excerpt?: string; // Short description
   featured_image?: string; // Path to featured image
   images?: string[]; // Array of image paths
@@ -31,6 +32,11 @@ const blogSchema = new Schema<Blog>(
       required: true,
       index: true,
     },
+    site_id: {
+      type: String,
+      required: true,
+      index: true,
+    },
     title: {
       type: String,
       required: true,
@@ -49,7 +55,6 @@ const blogSchema = new Schema<Blog>(
     slug: {
       type: String,
       required: true,
-      unique: true,
       index: true,
       lowercase: true,
       trim: true,
@@ -130,9 +135,10 @@ blogSchema.pre("save", function (next) {
 });
 
 // Index for efficient queries
-blogSchema.index({ author: 1, status: 1 });
-blogSchema.index({ status: 1, published_at: -1 });
-blogSchema.index({ slug: 1 });
-blogSchema.index({ category: 1, status: 1 });
+blogSchema.index({ site_id: 1, author: 1, status: 1 });
+blogSchema.index({ site_id: 1, status: 1, published_at: -1 });
+blogSchema.index({ site_id: 1, slug: 1 }, { unique: true }); // Slug unique within a site
+blogSchema.index({ site_id: 1, category: 1, status: 1 });
+blogSchema.index({ site_id: 1 }); // General site filtering
 
 export default model<Blog>("Blog", blogSchema);

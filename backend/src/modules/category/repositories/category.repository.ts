@@ -13,13 +13,13 @@ export class CategoryRepository {
       .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
   }
 
-  private async ensureUniqueSlug(slug: string, userId: string, excludeId?: string): Promise<string> {
+  private async ensureUniqueSlug(slug: string, siteId: string, excludeId?: string): Promise<string> {
     let uniqueSlug = slug;
     let counter = 1;
 
     while (true) {
       const existingCategory = await Category.findOne({
-        user: userId,
+        site_id: siteId,
         slug: uniqueSlug,
         ...(excludeId ? { _id: { $ne: excludeId } } : {}),
       });
@@ -35,16 +35,16 @@ export class CategoryRepository {
   }
 
   async create(categoryData: Partial<CategoryType>): Promise<CategoryType> {
-    const userId = categoryData.user as string;
+    const siteId = categoryData.site_id as string;
     const name = categoryData.name as string;
 
     // Generate slug
     const baseSlug = this.generateSlug(name);
-    const slug = await this.ensureUniqueSlug(baseSlug, userId);
+    const slug = await this.ensureUniqueSlug(baseSlug, siteId);
 
     // Validate parent exists if provided
     if (categoryData.parent) {
-      const parent = await Category.findOne({ _id: categoryData.parent, user: userId });
+      const parent = await Category.findOne({ _id: categoryData.parent, site_id: siteId });
       if (!parent) {
         throw new NotFoundError("Parent category not found");
       }
@@ -57,31 +57,31 @@ export class CategoryRepository {
     return category.save();
   }
 
-  async findById(id: string, userId: string): Promise<CategoryType | null> {
-    return Category.findOne({ _id: id, user: userId });
+  async findById(id: string, siteId: string): Promise<CategoryType | null> {
+    return Category.findOne({ _id: id, site_id: siteId });
   }
 
-  async findByUser(userId: string, filters?: { is_active?: boolean }): Promise<CategoryType[]> {
-    const query: Record<string, unknown> = { user: userId };
+  async findBySite(siteId: string, filters?: { is_active?: boolean }): Promise<CategoryType[]> {
+    const query: Record<string, unknown> = { site_id: siteId };
     if (filters?.is_active !== undefined) {
       query.is_active = filters.is_active;
     }
     return Category.find(query).sort({ name: 1 });
   }
 
-  async findBySlug(slug: string, userId: string): Promise<CategoryType | null> {
-    return Category.findOne({ slug, user: userId });
+  async findBySlug(slug: string, siteId: string): Promise<CategoryType | null> {
+    return Category.findOne({ slug, site_id: siteId });
   }
 
-  async findChildren(parentId: string, userId: string): Promise<CategoryType[]> {
-    return Category.find({ parent: parentId, user: userId }).sort({ name: 1 });
+  async findChildren(parentId: string, siteId: string): Promise<CategoryType[]> {
+    return Category.find({ parent: parentId, site_id: siteId }).sort({ name: 1 });
   }
 
-  async update(id: string, userId: string, updateData: Partial<CategoryType>): Promise<CategoryType | null> {
+  async update(id: string, siteId: string, updateData: Partial<CategoryType>): Promise<CategoryType | null> {
     // If name is being updated, regenerate slug
     if (updateData.name) {
       const baseSlug = this.generateSlug(updateData.name);
-      updateData.slug = await this.ensureUniqueSlug(baseSlug, userId, id);
+      updateData.slug = await this.ensureUniqueSlug(baseSlug, siteId, id);
     }
 
     // Validate parent exists if provided
@@ -89,33 +89,33 @@ export class CategoryRepository {
       if (updateData.parent === id) {
         throw new BadRequestError("Category cannot be its own parent");
       }
-      const parent = await Category.findOne({ _id: updateData.parent, user: userId });
+      const parent = await Category.findOne({ _id: updateData.parent, site_id: siteId });
       if (!parent) {
         throw new NotFoundError("Parent category not found");
       }
 
       // Check for circular references
-      const wouldCreateCycle = await this.wouldCreateCycle(id, updateData.parent, userId);
+      const wouldCreateCycle = await this.wouldCreateCycle(id, updateData.parent, siteId);
       if (wouldCreateCycle) {
         throw new BadRequestError("Cannot create circular category reference");
       }
     }
 
     updateData.updated_at = new Date();
-    return Category.findOneAndUpdate({ _id: id, user: userId }, updateData, { new: true });
+    return Category.findOneAndUpdate({ _id: id, site_id: siteId }, updateData, { new: true });
   }
 
-  async delete(id: string, userId: string): Promise<void> {
+  async delete(id: string, siteId: string): Promise<void> {
     // Check if category has children
-    const children = await this.findChildren(id, userId);
+    const children = await this.findChildren(id, siteId);
     if (children.length > 0) {
       throw new BadRequestError("Cannot delete category with child categories");
     }
 
-    await Category.findOneAndDelete({ _id: id, user: userId });
+    await Category.findOneAndDelete({ _id: id, site_id: siteId });
   }
 
-  private async wouldCreateCycle(categoryId: string, newParentId: string, userId: string): Promise<boolean> {
+  private async wouldCreateCycle(categoryId: string, newParentId: string, siteId: string): Promise<boolean> {
     let currentParentId: string | null | undefined = newParentId;
     const visited = new Set<string>([categoryId]);
 
@@ -125,7 +125,7 @@ export class CategoryRepository {
       }
       visited.add(currentParentId);
 
-      const parent = await Category.findOne({ _id: currentParentId, user: userId });
+      const parent = await Category.findOne({ _id: currentParentId, site_id: siteId });
       if (!parent || !parent.parent) {
         break;
       }

@@ -9,49 +9,49 @@ import { Category } from "../../../shared/schemas/category.schema";
 export class CategoryService {
   constructor(private categoryRepository: CategoryRepository) {}
 
-  async createCategory(userId: string, input: CreateCategoryInput): Promise<Category> {
+  async createCategory(siteId: string, input: CreateCategoryInput): Promise<Category> {
     const category = await this.categoryRepository.create({
       ...input,
-      user: userId,
+      site_id: siteId,
       is_active: true,
     });
 
-    logger.info("Category created", { categoryId: category._id, userId }, "CategoryService");
+    logger.info("Category created", { categoryId: category._id, siteId }, "CategoryService");
     return category;
   }
 
-  async getCategoryById(categoryId: string, userId: string): Promise<Category> {
-    const category = await this.categoryRepository.findById(categoryId, userId);
+  async getCategoryById(categoryId: string, siteId: string): Promise<Category> {
+    const category = await this.categoryRepository.findById(categoryId, siteId);
     if (!category) {
       throw new NotFoundError("Category not found");
     }
     return category;
   }
 
-  async getUserCategories(userId: string, includeInactive = false): Promise<Category[]> {
-    return this.categoryRepository.findByUser(userId, {
+  async getSiteCategories(siteId: string, includeInactive = false): Promise<Category[]> {
+    return this.categoryRepository.findBySite(siteId, {
       is_active: includeInactive ? undefined : true,
     });
   }
 
-  async getUserCategoriesTree(userId: string, includeInactive = false): Promise<CategoryTreeItem[]> {
-    const categories = await this.getUserCategories(userId, includeInactive);
+  async getSiteCategoriesTree(siteId: string, includeInactive = false): Promise<CategoryTreeItem[]> {
+    const categories = await this.getSiteCategories(siteId, includeInactive);
     const tree = await this.categoryRepository.buildTree(categories);
     return tree as CategoryTreeItem[];
   }
 
-  async updateCategory(categoryId: string, userId: string, input: UpdateCategoryInput): Promise<Category> {
-    const updatedCategory = await this.categoryRepository.update(categoryId, userId, input);
+  async updateCategory(categoryId: string, siteId: string, input: UpdateCategoryInput): Promise<Category> {
+    const updatedCategory = await this.categoryRepository.update(categoryId, siteId, input);
     if (!updatedCategory) {
       throw new NotFoundError("Category not found");
     }
 
-    logger.info("Category updated", { categoryId, userId }, "CategoryService");
+    logger.info("Category updated", { categoryId, siteId }, "CategoryService");
     return updatedCategory;
   }
 
-  async deleteCategory(categoryId: string, userId: string): Promise<void> {
-    await this.categoryRepository.delete(categoryId, userId);
-    logger.info("Category deleted", { categoryId, userId }, "CategoryService");
+  async deleteCategory(categoryId: string, siteId: string): Promise<void> {
+    await this.categoryRepository.delete(categoryId, siteId);
+    logger.info("Category deleted", { categoryId, siteId }, "CategoryService");
   }
 }

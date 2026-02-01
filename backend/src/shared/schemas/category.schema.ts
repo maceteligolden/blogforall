@@ -2,9 +2,9 @@ import { Schema, model } from "mongoose";
 import { BaseEntity } from "../interfaces";
 
 export interface Category extends BaseEntity {
-  user: string; // User ID - categories are user-specific
+  site_id: string; // Site ID - categories are site-specific
   name: string;
-  slug: string; // URL-friendly version of name
+  slug: string; // URL-friendly version of name (unique within a site)
   description?: string;
   parent?: string; // Parent category ID for nesting
   color?: string; // Optional color for UI
@@ -13,7 +13,7 @@ export interface Category extends BaseEntity {
 
 const categorySchema = new Schema<Category>(
   {
-    user: {
+    site_id: {
       type: String,
       required: true,
       index: true,
@@ -69,8 +69,9 @@ categorySchema.pre("save", function (next) {
 });
 
 // Indexes for efficient queries
-categorySchema.index({ user: 1, slug: 1 }, { unique: true });
-categorySchema.index({ user: 1, parent: 1 });
-categorySchema.index({ user: 1, is_active: 1 });
+categorySchema.index({ site_id: 1, slug: 1 }, { unique: true }); // Slug unique within a site
+categorySchema.index({ site_id: 1, parent: 1 });
+categorySchema.index({ site_id: 1, is_active: 1 });
+categorySchema.index({ site_id: 1 }); // General site filtering
 
 export default model<Category>("Category", categorySchema);

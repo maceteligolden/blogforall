@@ -121,11 +121,13 @@ export class PublicBlogController {
         "PublicBlogController"
       );
 
+      // TODO: Update to use siteId from request context (task 15)
+      const siteId = userId; // Temporary - will be replaced with actual siteId
       let categories;
       if (tree) {
-        categories = await categoryService.getUserCategoriesTree(userId, includeInactive);
+        categories = await categoryService.getSiteCategoriesTree(siteId, includeInactive);
       } else {
-        categories = await categoryService.getUserCategories(userId, includeInactive);
+        categories = await categoryService.getSiteCategories(siteId, includeInactive);
       }
 
       const duration = Date.now() - startTime;

@@ -13,6 +13,20 @@ export enum BlogStatus {
   UNPUBLISHED = "unpublished",
 }
 
+export enum SiteMemberRole {
+  OWNER = "owner",
+  ADMIN = "admin",
+  EDITOR = "editor",
+  VIEWER = "viewer",
+}
+
+export enum InvitationStatus {
+  PENDING = "pending",
+  ACCEPTED = "accepted",
+  REJECTED = "rejected",
+  EXPIRED = "expired",
+}
+
 export enum HttpStatus {
   OK = 200,
   CREATED = 201,

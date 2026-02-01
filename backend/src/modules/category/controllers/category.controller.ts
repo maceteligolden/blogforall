@@ -18,7 +18,9 @@ export class CategoryController {
       }
 
       const validatedData = createCategorySchema.parse(req.body);
-      const category = await this.categoryService.createCategory(userId, validatedData);
+      // TODO: Update to use siteId from request context (task 15)
+      const siteId = userId; // Temporary - will be replaced with actual siteId
+      const category = await this.categoryService.createCategory(siteId, validatedData);
       sendCreated(res, "Category created successfully", category);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -39,11 +41,14 @@ export class CategoryController {
       const tree = req.query.tree === "true";
       const includeInactive = req.query.include_inactive === "true";
 
+      // TODO: Update to use siteId from request context (task 15)
+      // For now, using userId as placeholder - will be replaced with siteId
+      const siteId = userId; // Temporary - will be replaced with actual siteId
       if (tree) {
-        const categories = await this.categoryService.getUserCategoriesTree(userId, includeInactive);
+        const categories = await this.categoryService.getSiteCategoriesTree(siteId, includeInactive);
         sendSuccess(res, "Categories retrieved successfully", categories);
       } else {
-        const categories = await this.categoryService.getUserCategories(userId, includeInactive);
+        const categories = await this.categoryService.getSiteCategories(siteId, includeInactive);
         sendSuccess(res, "Categories retrieved successfully", categories);
       }
     } catch (error) {
@@ -59,7 +64,9 @@ export class CategoryController {
       }
 
       const { id } = req.params;
-      const category = await this.categoryService.getCategoryById(id, userId);
+      // TODO: Update to use siteId from request context (task 15)
+      const siteId = userId; // Temporary - will be replaced with actual siteId
+      const category = await this.categoryService.getCategoryById(id, siteId);
       sendSuccess(res, "Category retrieved successfully", category);
     } catch (error) {
       next(error);
@@ -75,7 +82,9 @@ export class CategoryController {
 
       const { id } = req.params;
       const validatedData = updateCategorySchema.parse(req.body);
-      const category = await this.categoryService.updateCategory(id, userId, validatedData);
+      // TODO: Update to use siteId from request context (task 15)
+      const siteId = userId; // Temporary - will be replaced with actual siteId
+      const category = await this.categoryService.updateCategory(id, siteId, validatedData);
       sendSuccess(res, "Category updated successfully", category);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -94,7 +103,9 @@ export class CategoryController {
       }
 
       const { id } = req.params;
-      await this.categoryService.deleteCategory(id, userId);
+      // TODO: Update to use siteId from request context (task 15)
+      const siteId = userId; // Temporary - will be replaced with actual siteId
+      await this.categoryService.deleteCategory(id, siteId);
       sendNoContent(res, "Category deleted successfully");
     } catch (error) {
       next(error);
