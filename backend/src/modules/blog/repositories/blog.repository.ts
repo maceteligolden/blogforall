@@ -10,23 +10,27 @@ export class BlogRepository {
     return blog.save();
   }
 
-  async findById(id: string): Promise<BlogType | null> {
-    return Blog.findById(id);
+  async findById(id: string, siteId?: string): Promise<BlogType | null> {
+    const query: Record<string, unknown> = { _id: id };
+    if (siteId) {
+      query.site_id = siteId;
+    }
+    return Blog.findOne(query);
   }
 
-  async findBySlug(slug: string): Promise<BlogType | null> {
-    return Blog.findOne({ slug });
+  async findBySlug(slug: string, siteId: string): Promise<BlogType | null> {
+    return Blog.findOne({ slug, site_id: siteId });
   }
 
-  async findByAuthor(authorId: string, filters?: { status?: BlogStatus }): Promise<BlogType[]> {
-    const query: { author: string; status?: BlogStatus } = { author: authorId };
+  async findByAuthor(authorId: string, siteId: string, filters?: { status?: BlogStatus }): Promise<BlogType[]> {
+    const query: Record<string, unknown> = { author: authorId, site_id: siteId };
     if (filters?.status) {
       query.status = filters.status;
     }
     return Blog.find(query).sort({ created_at: -1 });
   }
 
-  async findAll(filters?: {
+  async findAll(siteId: string, filters?: {
     status?: BlogStatus;
     search?: string;
     category?: string;
@@ -37,7 +41,7 @@ export class BlogRepository {
     const limit = filters?.limit || 10;
     const skip = (page - 1) * limit;
 
-    const query: Record<string, unknown> = {};
+    const query: Record<string, unknown> = { site_id: siteId };
     if (filters?.status) {
       query.status = filters.status;
     }
@@ -68,33 +72,33 @@ export class BlogRepository {
     };
   }
 
-  async findPublished(filters?: {
+  async findPublished(siteId: string, filters?: {
     search?: string;
     category?: string;
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<BlogType>> {
-    return this.findAll({
+    return this.findAll(siteId, {
       ...filters,
       status: BlogStatus.PUBLISHED,
     });
   }
 
-  async update(id: string, updateData: Partial<BlogType>): Promise<BlogType | null> {
+  async update(id: string, siteId: string, updateData: Partial<BlogType>): Promise<BlogType | null> {
     updateData.updated_at = new Date();
-    return Blog.findByIdAndUpdate(id, updateData, { new: true });
+    return Blog.findOneAndUpdate({ _id: id, site_id: siteId }, updateData, { new: true });
   }
 
-  async delete(id: string): Promise<void> {
-    await Blog.findByIdAndDelete(id);
+  async delete(id: string, siteId: string): Promise<void> {
+    await Blog.findOneAndDelete({ _id: id, site_id: siteId });
   }
 
-  async incrementViews(id: string): Promise<void> {
-    await Blog.findByIdAndUpdate(id, { $inc: { views: 1 } });
+  async incrementViews(id: string, siteId: string): Promise<void> {
+    await Blog.findOneAndUpdate({ _id: id, site_id: siteId }, { $inc: { views: 1 } });
   }
 
-  async toggleLike(id: string, userIdOrIp: string): Promise<{ likes: number; isLiked: boolean }> {
-    const blog = await Blog.findById(id);
+  async toggleLike(id: string, siteId: string, userIdOrIp: string): Promise<{ likes: number; isLiked: boolean }> {
+    const blog = await Blog.findOne({ _id: id, site_id: siteId });
     if (!blog) {
       throw new Error("Blog not found");
     }

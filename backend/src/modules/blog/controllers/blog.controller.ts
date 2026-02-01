@@ -17,8 +17,15 @@ export class BlogController {
         return next(new BadRequestError("User not authenticated"));
       }
 
+      // TODO: Get siteId from request context (task 20)
+      // For now, getting from body or query - will be replaced with site context middleware
+      const siteId = req.body.site_id || req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
       const validatedData = createBlogSchema.parse(req.body);
-      const blog = await this.blogService.createBlog(userId, validatedData);
+      const blog = await this.blogService.createBlog(userId, siteId, validatedData);
       sendCreated(res, "Blog created successfully", blog);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -33,7 +40,14 @@ export class BlogController {
     try {
       const { id } = req.params;
       const userId = req.user?.userId;
-      const blog = await this.blogService.getBlogById(id, userId);
+      
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
+      const blog = await this.blogService.getBlogById(id, siteId, userId);
       sendSuccess(res, "Blog retrieved successfully", blog);
     } catch (error) {
       next(error);
@@ -43,8 +57,15 @@ export class BlogController {
   getBySlug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { slug } = req.params;
-      const blog = await this.blogService.getBlogBySlug(slug);
-      await this.blogService.incrementViews(blog._id!.toString());
+      
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
+      const blog = await this.blogService.getBlogBySlug(slug, siteId);
+      await this.blogService.incrementViews(blog._id!.toString(), siteId);
       sendSuccess(res, "Blog retrieved successfully", blog);
     } catch (error) {
       next(error);
@@ -58,8 +79,14 @@ export class BlogController {
         return next(new BadRequestError("User not authenticated"));
       }
 
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
       const validatedFilters = blogQuerySchema.parse(req.query);
-      const blogs = await this.blogService.getUserBlogs(userId, validatedFilters);
+      const blogs = await this.blogService.getUserBlogs(userId, siteId, validatedFilters);
       sendSuccess(res, "Blogs retrieved successfully", blogs);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -72,8 +99,14 @@ export class BlogController {
 
   getAllBlogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
       const validatedFilters = blogQuerySchema.parse(req.query);
-      const result = await this.blogService.getAllBlogs(validatedFilters);
+      const result = await this.blogService.getAllBlogs(siteId, validatedFilters);
       sendSuccess(res, "Blogs retrieved successfully", result);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -92,8 +125,14 @@ export class BlogController {
         return next(new BadRequestError("User not authenticated"));
       }
 
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.body.site_id || req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
       const validatedData = updateBlogSchema.parse(req.body);
-      const blog = await this.blogService.updateBlog(id, userId, validatedData);
+      const blog = await this.blogService.updateBlog(id, siteId, userId, validatedData);
       sendSuccess(res, "Blog updated successfully", blog);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -112,7 +151,13 @@ export class BlogController {
         return next(new BadRequestError("User not authenticated"));
       }
 
-      await this.blogService.deleteBlog(id, userId);
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
+      await this.blogService.deleteBlog(id, siteId, userId);
       sendNoContent(res, "Blog deleted successfully");
     } catch (error) {
       next(error);
@@ -127,7 +172,13 @@ export class BlogController {
         return next(new BadRequestError("User not authenticated"));
       }
 
-      const blog = await this.blogService.publishBlog(id, userId);
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
+      const blog = await this.blogService.publishBlog(id, siteId, userId);
       sendSuccess(res, "Blog published successfully", blog);
     } catch (error) {
       next(error);
@@ -142,7 +193,13 @@ export class BlogController {
         return next(new BadRequestError("User not authenticated"));
       }
 
-      const blog = await this.blogService.unpublishBlog(id, userId);
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
+      const blog = await this.blogService.unpublishBlog(id, siteId, userId);
       sendSuccess(res, "Blog unpublished successfully", blog);
     } catch (error) {
       next(error);
@@ -155,7 +212,13 @@ export class BlogController {
       const userId = req.user?.userId;
       const userIdOrIp = userId || req.ip || req.socket.remoteAddress || "unknown";
 
-      const result = await this.blogService.toggleLike(id, userIdOrIp);
+      // TODO: Get siteId from request context (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
+      const result = await this.blogService.toggleLike(id, siteId, userIdOrIp);
       sendSuccess(res, "Like toggled successfully", result);
     } catch (error) {
       next(error);

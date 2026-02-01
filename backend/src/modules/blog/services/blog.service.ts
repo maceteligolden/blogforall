@@ -24,12 +24,12 @@ export class BlogService {
       .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
   }
 
-  private async ensureUniqueSlug(slug: string, excludeId?: string): Promise<string> {
+  private async ensureUniqueSlug(slug: string, siteId: string, excludeId?: string): Promise<string> {
     let uniqueSlug = slug;
     let counter = 1;
 
     while (true) {
-      const existingBlog = await this.blogRepository.findBySlug(uniqueSlug);
+      const existingBlog = await this.blogRepository.findBySlug(uniqueSlug, siteId);
       if (!existingBlog || (excludeId && existingBlog._id?.toString() === excludeId)) {
         break;
       }
@@ -40,12 +40,12 @@ export class BlogService {
     return uniqueSlug;
   }
 
-  async createBlog(authorId: string, input: CreateBlogInput): Promise<Blog> {
-    const slug = await this.ensureUniqueSlug(this.generateSlug(input.title));
+  async createBlog(authorId: string, siteId: string, input: CreateBlogInput): Promise<Blog> {
+    const slug = await this.ensureUniqueSlug(this.generateSlug(input.title), siteId);
 
     // Validate category if provided
     if (input.category) {
-      const category = await this.categoryRepository.findById(input.category, authorId);
+      const category = await this.categoryRepository.findById(input.category, siteId);
       if (!category) {
         throw new NotFoundError("Category not found");
       }
@@ -57,16 +57,17 @@ export class BlogService {
     const blog = await this.blogRepository.create({
       ...input,
       author: authorId,
+      site_id: siteId,
       slug,
       status: input.status || BlogStatus.DRAFT,
     });
 
-    logger.info("Blog created", { blogId: blog._id, authorId }, "BlogService");
+    logger.info("Blog created", { blogId: blog._id, authorId, siteId }, "BlogService");
     return blog;
   }
 
-  async getBlogById(blogId: string, authorId?: string): Promise<Blog> {
-    const blog = await this.blogRepository.findById(blogId);
+  async getBlogById(blogId: string, siteId: string, authorId?: string): Promise<Blog> {
+    const blog = await this.blogRepository.findById(blogId, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");
     }
@@ -79,28 +80,28 @@ export class BlogService {
     return blog;
   }
 
-  async getBlogBySlug(slug: string): Promise<Blog> {
-    const blog = await this.blogRepository.findBySlug(slug);
+  async getBlogBySlug(slug: string, siteId: string): Promise<Blog> {
+    const blog = await this.blogRepository.findBySlug(slug, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");
     }
     return blog;
   }
 
-  async getUserBlogs(authorId: string, filters?: BlogQueryFilters): Promise<Blog[]> {
-    return this.blogRepository.findByAuthor(authorId, { status: filters?.status });
+  async getUserBlogs(authorId: string, siteId: string, filters?: BlogQueryFilters): Promise<Blog[]> {
+    return this.blogRepository.findByAuthor(authorId, siteId, { status: filters?.status });
   }
 
-  async getAllBlogs(filters?: BlogQueryFilters): Promise<PaginatedResponse<Blog>> {
-    return this.blogRepository.findAll(filters);
+  async getAllBlogs(siteId: string, filters?: BlogQueryFilters): Promise<PaginatedResponse<Blog>> {
+    return this.blogRepository.findAll(siteId, filters);
   }
 
-  async getPublishedBlogs(filters?: BlogQueryFilters): Promise<PaginatedResponse<Blog>> {
-    return this.blogRepository.findPublished(filters);
+  async getPublishedBlogs(siteId: string, filters?: BlogQueryFilters): Promise<PaginatedResponse<Blog>> {
+    return this.blogRepository.findPublished(siteId, filters);
   }
 
-  async updateBlog(blogId: string, authorId: string, input: UpdateBlogInput): Promise<Blog> {
-    const blog = await this.blogRepository.findById(blogId);
+  async updateBlog(blogId: string, siteId: string, authorId: string, input: UpdateBlogInput): Promise<Blog> {
+    const blog = await this.blogRepository.findById(blogId, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");
     }
@@ -113,7 +114,7 @@ export class BlogService {
 
     // Validate category if provided
     if (input.category) {
-      const category = await this.categoryRepository.findById(input.category, authorId);
+      const category = await this.categoryRepository.findById(input.category, siteId);
       if (!category) {
         throw new NotFoundError("Category not found");
       }
@@ -124,7 +125,7 @@ export class BlogService {
 
     // If title is updated, regenerate slug
     if (input.title && input.title !== blog.title) {
-      const newSlug = await this.ensureUniqueSlug(this.generateSlug(input.title), blogId);
+      const newSlug = await this.ensureUniqueSlug(this.generateSlug(input.title), siteId, blogId);
       updateData.slug = newSlug;
     }
 
@@ -136,17 +137,17 @@ export class BlogService {
       updateData.status = input.status;
     }
 
-    const updatedBlog = await this.blogRepository.update(blogId, updateData);
+    const updatedBlog = await this.blogRepository.update(blogId, siteId, updateData);
     if (!updatedBlog) {
       throw new NotFoundError("Blog not found");
     }
 
-    logger.info("Blog updated", { blogId, authorId }, "BlogService");
+    logger.info("Blog updated", { blogId, authorId, siteId }, "BlogService");
     return updatedBlog;
   }
 
-  async deleteBlog(blogId: string, authorId: string): Promise<void> {
-    const blog = await this.blogRepository.findById(blogId);
+  async deleteBlog(blogId: string, siteId: string, authorId: string): Promise<void> {
+    const blog = await this.blogRepository.findById(blogId, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");
     }
@@ -155,27 +156,27 @@ export class BlogService {
       throw new ForbiddenError("You don't have permission to delete this blog");
     }
 
-    await this.blogRepository.delete(blogId);
-    logger.info("Blog deleted", { blogId, authorId }, "BlogService");
+    await this.blogRepository.delete(blogId, siteId);
+    logger.info("Blog deleted", { blogId, authorId, siteId }, "BlogService");
   }
 
-  async publishBlog(blogId: string, authorId: string): Promise<Blog> {
-    return this.updateBlog(blogId, authorId, {
+  async publishBlog(blogId: string, siteId: string, authorId: string): Promise<Blog> {
+    return this.updateBlog(blogId, siteId, authorId, {
       status: BlogStatus.PUBLISHED,
     });
   }
 
-  async unpublishBlog(blogId: string, authorId: string): Promise<Blog> {
-    return this.updateBlog(blogId, authorId, {
+  async unpublishBlog(blogId: string, siteId: string, authorId: string): Promise<Blog> {
+    return this.updateBlog(blogId, siteId, authorId, {
       status: BlogStatus.UNPUBLISHED,
     });
   }
 
-  async incrementViews(blogId: string): Promise<void> {
-    await this.blogRepository.incrementViews(blogId);
+  async incrementViews(blogId: string, siteId: string): Promise<void> {
+    await this.blogRepository.incrementViews(blogId, siteId);
   }
 
-  async toggleLike(blogId: string, userIdOrIp: string): Promise<{ likes: number; isLiked: boolean }> {
-    return this.blogRepository.toggleLike(blogId, userIdOrIp);
+  async toggleLike(blogId: string, siteId: string, userIdOrIp: string): Promise<{ likes: number; isLiked: boolean }> {
+    return this.blogRepository.toggleLike(blogId, siteId, userIdOrIp);
   }
 }

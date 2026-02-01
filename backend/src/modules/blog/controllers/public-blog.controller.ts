@@ -24,6 +24,12 @@ export class PublicBlogController {
         return next(new BadRequestError("API key authentication required"));
       }
 
+      // TODO: Get siteId from API key context or request (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
       const validatedFilters = blogQuerySchema.parse(req.query);
 
       // Log service call
@@ -32,6 +38,7 @@ export class PublicBlogController {
         {
           accessKeyId,
           userId,
+          siteId,
           filters: validatedFilters,
           method: req.method,
           path: req.path,
@@ -39,7 +46,7 @@ export class PublicBlogController {
         "PublicBlogController"
       );
 
-      const result = await this.blogService.getPublishedBlogs(validatedFilters);
+      const result = await this.blogService.getPublishedBlogs(siteId, validatedFilters);
 
       const duration = Date.now() - startTime;
 
@@ -175,6 +182,12 @@ export class PublicBlogController {
         return next(new BadRequestError("API key authentication required"));
       }
 
+      // TODO: Get siteId from API key context or request (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
       const { categoryId } = req.params;
       const validatedFilters = blogQuerySchema.parse(req.query);
 
@@ -184,6 +197,7 @@ export class PublicBlogController {
         {
           accessKeyId,
           userId,
+          siteId,
           categoryId,
           filters: validatedFilters,
           method: req.method,
@@ -192,7 +206,7 @@ export class PublicBlogController {
         "PublicBlogController"
       );
 
-      const result = await this.blogService.getPublishedBlogs({
+      const result = await this.blogService.getPublishedBlogs(siteId, {
         ...validatedFilters,
         category: categoryId,
       });
@@ -259,6 +273,12 @@ export class PublicBlogController {
         return next(new BadRequestError("API key authentication required"));
       }
 
+      // TODO: Get siteId from API key context or request (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
       const { id } = req.params;
 
       // Log service call
@@ -267,6 +287,7 @@ export class PublicBlogController {
         {
           accessKeyId,
           userId,
+          siteId,
           blogId: id,
           method: req.method,
           path: req.path,
@@ -274,7 +295,7 @@ export class PublicBlogController {
         "PublicBlogController"
       );
 
-      const blog = await this.blogService.getBlogById(id);
+      const blog = await this.blogService.getBlogById(id, siteId);
 
       // Only return published blogs
       if (blog.status !== "published") {
@@ -283,6 +304,7 @@ export class PublicBlogController {
           {
             accessKeyId,
             userId,
+            siteId,
             blogId: id,
             status: blog.status,
           },
@@ -292,7 +314,7 @@ export class PublicBlogController {
       }
 
       // Increment views
-      await this.blogService.incrementViews(blog._id!.toString());
+      await this.blogService.incrementViews(blog._id!.toString(), siteId);
 
       const duration = Date.now() - startTime;
 
@@ -341,6 +363,12 @@ export class PublicBlogController {
         return next(new BadRequestError("API key authentication required"));
       }
 
+      // TODO: Get siteId from API key context or request (task 20)
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+
       const { slug } = req.params;
 
       // Log service call
@@ -349,6 +377,7 @@ export class PublicBlogController {
         {
           accessKeyId,
           userId,
+          siteId,
           slug,
           method: req.method,
           path: req.path,
@@ -356,7 +385,7 @@ export class PublicBlogController {
         "PublicBlogController"
       );
 
-      const blog = await this.blogService.getBlogBySlug(slug);
+      const blog = await this.blogService.getBlogBySlug(slug, siteId);
 
       // Only return published blogs
       if (blog.status !== "published") {
@@ -365,6 +394,7 @@ export class PublicBlogController {
           {
             accessKeyId,
             userId,
+            siteId,
             slug,
             status: blog.status,
           },
@@ -374,7 +404,7 @@ export class PublicBlogController {
       }
 
       // Increment views
-      await this.blogService.incrementViews(blog._id!.toString());
+      await this.blogService.incrementViews(blog._id!.toString(), siteId);
 
       const duration = Date.now() - startTime;
 
