@@ -20,3 +20,9 @@ export const updateCategorySchema = z.object({
     .optional(),
   is_active: z.boolean().optional(),
 });
+
+export const importCategoriesSchema = z.object({
+  source_site_id: z.string().min(1, "Source site ID is required"),
+  target_site_id: z.string().min(1, "Target site ID is required"),
+  category_ids: z.array(z.string().min(1)).min(1, "At least one category ID is required"),
+});

@@ -4,7 +4,7 @@ import { CategoryService } from "../services/category.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
 import { ZodError } from "zod";
-import { createCategorySchema, updateCategorySchema } from "../validations/category.validation";
+import { createCategorySchema, updateCategorySchema, importCategoriesSchema } from "../validations/category.validation";
 
 @injectable()
 export class CategoryController {
@@ -108,6 +108,30 @@ export class CategoryController {
       await this.categoryService.deleteCategory(id, siteId);
       sendNoContent(res, "Category deleted successfully");
     } catch (error) {
+      next(error);
+    }
+  };
+
+  importCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+
+      const validatedData = importCategoriesSchema.parse(req.body);
+      const importedCategories = await this.categoryService.importCategories(
+        validatedData.source_site_id,
+        validatedData.target_site_id,
+        validatedData.category_ids,
+        userId
+      );
+      sendCreated(res, "Categories imported successfully", importedCategories);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+        return next(new BadRequestError(errorMessages));
+      }
       next(error);
     }
   };

@@ -8,6 +8,7 @@ const categoryController = container.resolve(CategoryController);
 
 // All routes require authentication
 router.post("/", authMiddleware, categoryController.create);
+router.post("/import", authMiddleware, categoryController.importCategories);
 router.get("/", authMiddleware, categoryController.list);
 router.get("/:id", authMiddleware, categoryController.getById);
 router.put("/:id", authMiddleware, categoryController.update);
