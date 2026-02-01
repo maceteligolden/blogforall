@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { CreateSiteDialog } from "./create-site-dialog";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function SiteSwitcher() {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -15,6 +16,7 @@ export function SiteSwitcher() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { currentSiteId, updateSiteContext } = useAuth();
   const { isAuthenticated } = useAuthStore();
+  const queryClient = useQueryClient();
 
   // Fetch sites
   const { data: sites = [], isLoading } = useQuery({
@@ -45,6 +47,9 @@ export function SiteSwitcher() {
 
   const handleSiteSelect = (siteId: string) => {
     if (siteId !== currentSiteId) {
+      // Invalidate all blog and category queries when switching sites
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOGS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CATEGORIES });
       updateSiteContext(siteId);
     }
     setShowDropdown(false);
