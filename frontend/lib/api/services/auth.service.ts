@@ -53,5 +53,9 @@ export class AuthService {
   static async changePassword(data: ChangePasswordRequest) {
     return apiClient.put(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, data);
   }
+
+  static async updateSiteContext(siteId: string) {
+    return apiClient.put(API_ENDPOINTS.AUTH.UPDATE_SITE_CONTEXT, { site_id: siteId });
+  }
 }
 

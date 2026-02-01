@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { getCurrentSiteIdFromToken } from "../utils/jwt";
 
 interface User {
   id: string;
@@ -14,10 +15,12 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   user: User | null;
+  currentSiteId: string | null;
   isAuthenticated: boolean;
 
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
+  setCurrentSiteId: (siteId: string | null) => void;
   clearAuth: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -28,12 +31,20 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       user: null,
+      currentSiteId: null,
       isAuthenticated: false,
 
       setTokens: (accessToken: string, refreshToken: string) => {
+        // Extract currentSiteId from token
+        const currentSiteId = getCurrentSiteIdFromToken(accessToken) || null;
+
         if (typeof window !== "undefined") {
           localStorage.setItem("access_token", accessToken);
           localStorage.setItem("refresh_token", refreshToken);
+          
+          if (currentSiteId) {
+            localStorage.setItem("current_site_id", currentSiteId);
+          }
           
           // Set cookie for Next.js Middleware
           const expires = new Date();
@@ -44,6 +55,7 @@ export const useAuthStore = create<AuthState>()(
         set({
           accessToken,
           refreshToken,
+          currentSiteId,
           isAuthenticated: true,
         });
       },
@@ -56,11 +68,24 @@ export const useAuthStore = create<AuthState>()(
         set({ user, isAuthenticated: true });
       },
 
+      setCurrentSiteId: (siteId: string | null) => {
+        if (typeof window !== "undefined") {
+          if (siteId) {
+            localStorage.setItem("current_site_id", siteId);
+          } else {
+            localStorage.removeItem("current_site_id");
+          }
+        }
+
+        set({ currentSiteId: siteId });
+      },
+
       clearAuth: () => {
         if (typeof window !== "undefined") {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
           localStorage.removeItem("user_email");
+          localStorage.removeItem("current_site_id");
           
           // Clear cookie
           document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
@@ -70,6 +95,7 @@ export const useAuthStore = create<AuthState>()(
           accessToken: null,
           refreshToken: null,
           user: null,
+          currentSiteId: null,
           isAuthenticated: false,
         });
       },
@@ -87,6 +113,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         user: state.user,
+        currentSiteId: state.currentSiteId,
         isAuthenticated: state.isAuthenticated,
       }),
     }

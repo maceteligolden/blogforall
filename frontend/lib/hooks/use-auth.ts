@@ -6,7 +6,7 @@ import { OnboardingService } from "../api/services/onboarding.service";
 
 export function useAuth() {
   const router = useRouter();
-  const { setTokens, setUser, clearAuth, user, isAuthenticated } = useAuthStore();
+  const { setTokens, setUser, setCurrentSiteId, clearAuth, user, isAuthenticated, currentSiteId } = useAuthStore();
 
   const loginMutation = useMutation({
     mutationFn: (data: LoginRequest) => AuthService.login(data),
@@ -14,6 +14,8 @@ export function useAuth() {
       const { tokens, user: userData } = response.data.data;
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
+      
+      // currentSiteId is automatically extracted from token in setTokens
       
       // Check onboarding status
       try {
@@ -80,6 +82,25 @@ export function useAuth() {
     mutationFn: (data: ChangePasswordRequest) => AuthService.changePassword(data),
   });
 
+  /**
+   * Update site context (switch active site)
+   */
+  const updateSiteContextMutation = useMutation({
+    mutationFn: (siteId: string) => AuthService.updateSiteContext(siteId),
+    onSuccess: async (response) => {
+      const { access_token } = response.data.data;
+      // Update token in store (which will extract and set currentSiteId)
+      const currentRefreshToken = useAuthStore.getState().refreshToken;
+      if (currentRefreshToken) {
+        setTokens(access_token, currentRefreshToken);
+      }
+    },
+    onError: (error: unknown) => {
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to update site context";
+      console.error("Update site context failed:", message);
+    },
+  });
+
   const profileQuery = useQuery({
     queryKey: ["auth", "profile"],
     queryFn: async () => {
@@ -96,13 +117,15 @@ export function useAuth() {
     logout: logoutMutation.mutate,
     updateProfile: updateProfileMutation.mutate,
     changePassword: changePasswordMutation.mutate,
+    updateSiteContext: updateSiteContextMutation.mutate,
     profile: profileQuery.data,
-    isLoading: loginMutation.isPending || signupMutation.isPending || logoutMutation.isPending,
+    isLoading: loginMutation.isPending || signupMutation.isPending || logoutMutation.isPending || updateSiteContextMutation.isPending,
     isUpdatingProfile: updateProfileMutation.isPending,
     isChangingPassword: changePasswordMutation.isPending,
     signupError: signupMutation.error,
     user,
     isAuthenticated,
+    currentSiteId,
     profileQuery,
   };
 }

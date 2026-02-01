@@ -15,6 +15,7 @@ export const API_ENDPOINTS = {
     PROFILE: "/auth/profile",
     UPDATE_PROFILE: "/auth/profile",
     CHANGE_PASSWORD: "/auth/change-password",
+    UPDATE_SITE_CONTEXT: "/auth/site-context",
   },
   BLOGS: {
     CREATE: "/blogs",
