@@ -19,6 +19,7 @@ async function seedPlans() {
           blogPosts: 5,
           apiCallsPerMonth: 5000,
           storageGB: 0.5,
+          maxSitesAllowed: 1,
         },
         features: [
           "Up to 5 blog posts",
@@ -36,6 +37,7 @@ async function seedPlans() {
           blogPosts: 10,
           apiCallsPerMonth: 10000,
           storageGB: 1,
+          maxSitesAllowed: 3,
         },
         features: [
           "Up to 10 blog posts",
@@ -53,6 +55,7 @@ async function seedPlans() {
           blogPosts: 50,
           apiCallsPerMonth: 100000,
           storageGB: 10,
+          maxSitesAllowed: 10,
         },
         features: [
           "Up to 50 blog posts",
@@ -72,6 +75,7 @@ async function seedPlans() {
           blogPosts: 200,
           apiCallsPerMonth: 500000,
           storageGB: 50,
+          maxSitesAllowed: 50,
         },
         features: [
           "Up to 200 blog posts",
@@ -93,6 +97,7 @@ async function seedPlans() {
           blogPosts: -1, // Unlimited
           apiCallsPerMonth: -1, // Unlimited
           storageGB: -1, // Unlimited
+          maxSitesAllowed: -1, // Unlimited
         },
         features: [
           "Unlimited blog posts",
@@ -151,6 +156,7 @@ async function seedPlans() {
         blogPosts: 3,
         apiCallsPerMonth: 1000,
         storageGB: 0.5,
+        maxSitesAllowed: 1,
       },
       features: [
         "Up to 3 blog posts",

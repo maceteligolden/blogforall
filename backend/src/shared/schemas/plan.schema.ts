@@ -12,6 +12,7 @@ export interface Plan extends BaseEntity {
     blogPosts: number; // Number of blog posts allowed
     apiCallsPerMonth: number; // Monthly API call limit
     storageGB: number; // Storage limit in GB
+    maxSitesAllowed: number; // Maximum number of sites allowed (-1 for unlimited)
     [key: string]: number; // Allow other limit types
   };
   features: string[]; // Array of feature flags like ["emailSupport", "apiAccess", "prioritySupport"]
@@ -30,6 +31,7 @@ const planSchema = new Schema<Plan>(
       blogPosts: { type: Number, required: true, default: 0 },
       apiCallsPerMonth: { type: Number, required: true, default: 0 },
       storageGB: { type: Number, required: true, default: 0 },
+      maxSitesAllowed: { type: Number, required: true, default: 1 },
     },
     features: [{ type: String }],
     isActive: { type: Boolean, default: true, index: true },
