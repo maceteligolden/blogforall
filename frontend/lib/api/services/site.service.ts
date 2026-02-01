@@ -29,6 +29,21 @@ export interface SiteMember {
   joined_at: Date;
   created_at: Date;
   updated_at: Date;
+  user?: {
+    _id: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+  };
+}
+
+export interface AddMemberRequest {
+  user_id: string;
+  role: "admin" | "editor" | "viewer";
+}
+
+export interface UpdateMemberRoleRequest {
+  role: "admin" | "editor" | "viewer";
 }
 
 export interface SiteWithMembers extends Site {
@@ -83,5 +98,34 @@ export class SiteService {
   static async getSiteMembers(siteId: string): Promise<SiteMember[]> {
     const response = await apiClient.get(API_ENDPOINTS.SITES.GET_MEMBERS(siteId));
     return response.data?.data || response.data || [];
+  }
+
+  /**
+   * Add a member to a site
+   */
+  static async addMember(siteId: string, data: AddMemberRequest): Promise<SiteMember> {
+    const response = await apiClient.post(API_ENDPOINTS.SITES.ADD_MEMBER(siteId), data);
+    return response.data?.data || response.data;
+  }
+
+  /**
+   * Update member role
+   */
+  static async updateMemberRole(
+    siteId: string,
+    userId: string,
+    role: "admin" | "editor" | "viewer"
+  ): Promise<SiteMember> {
+    const response = await apiClient.patch(API_ENDPOINTS.SITES.UPDATE_MEMBER_ROLE(siteId, userId), {
+      role,
+    });
+    return response.data?.data || response.data;
+  }
+
+  /**
+   * Remove a member from a site
+   */
+  static async removeMember(siteId: string, userId: string): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.SITES.REMOVE_MEMBER(siteId, userId));
   }
 }
