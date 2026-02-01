@@ -10,6 +10,9 @@ import billingRouter from "./modules/billing/routes/billing.router";
 import webhookRouter from "./modules/billing/routes/webhook.router";
 import onboardingRouter from "./modules/onboarding/routes/onboarding.router";
 import siteRouter from "./modules/site/routes/site.router";
+import { SiteInvitationController } from "./modules/site/controllers/site-invitation.controller";
+import { container } from "tsyringe";
+import { authMiddleware } from "./shared/middlewares/auth.middleware";
 
 const router = Router();
 
@@ -45,5 +48,12 @@ router.use("/onboarding", onboardingRouter);
 
 // Site routes (protected with JWT)
 router.use("/sites", siteRouter);
+
+// Invitation routes (protected with JWT)
+// These routes are for users to view and accept/reject their invitations
+const invitationController = container.resolve(SiteInvitationController);
+router.get("/invitations", authMiddleware, invitationController.getUserInvitations);
+router.post("/invitations/:token/accept", authMiddleware, invitationController.acceptInvitation);
+router.post("/invitations/:token/reject", authMiddleware, invitationController.rejectInvitation);
 
 export { router as routes };
