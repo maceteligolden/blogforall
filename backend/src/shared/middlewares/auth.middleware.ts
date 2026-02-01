@@ -9,6 +9,11 @@ declare global {
         userId: string;
         email?: string;
       };
+      site?: {
+        id: string;
+        userId: string;
+        role: import("../constants").SiteMemberRole | null;
+      };
     }
   }
 }
