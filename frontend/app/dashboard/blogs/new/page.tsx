@@ -14,6 +14,7 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { PromptInput } from "@/components/blog/prompt-input";
+import { PromptTemplates } from "@/components/blog/prompt-templates";
 import { PreGenerationConfirmation } from "@/components/blog/pre-generation-confirmation";
 import { GenerationProgress, GenerationStage } from "@/components/blog/generation-progress";
 import { useBlogGeneration } from "@/lib/hooks/use-blog-generation";
@@ -33,6 +34,7 @@ export default function NewBlogPage() {
   const [prompt, setPrompt] = useState("");
   const [promptAnalysis, setPromptAnalysis] = useState<PromptAnalysis | null>(null);
   const [promptError, setPromptError] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [generationStage, setGenerationStage] = useState<GenerationStage>("analyzing");
@@ -363,6 +365,17 @@ export default function NewBlogPage() {
             <div className="lg:col-span-2 space-y-6">
               {mode === "ai-generate" ? (
                 <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">AI Blog Generation</h3>
+                    <Button
+                      type="button"
+                      onClick={() => setShowTemplates(true)}
+                      className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Browse Templates
+                    </Button>
+                  </div>
                   <PromptInput
                     value={prompt}
                     onChange={setPrompt}
@@ -617,6 +630,17 @@ export default function NewBlogPage() {
             currentStage={generationStage}
             canCancel={generationStage !== "complete"}
           />
+
+          {/* Prompt Templates Modal */}
+          {showTemplates && (
+            <PromptTemplates
+              onSelectTemplate={(templatePrompt) => {
+                setPrompt(templatePrompt);
+                setShowTemplates(false);
+              }}
+              onClose={() => setShowTemplates(false)}
+            />
+          )}
         </div>
       </main>
     </div>
