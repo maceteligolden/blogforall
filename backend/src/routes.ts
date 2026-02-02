@@ -1,6 +1,7 @@
 import { Router } from "express";
 import authRouter from "./modules/auth/routes/auth.router";
 import blogRouter from "./modules/blog/routes/blog.router";
+import campaignRouter from "./modules/campaign/routes/campaign.router";
 import apiKeyRouter from "./modules/api-key/routes/api-key.router";
 import publicBlogRouter from "./modules/blog/routes/public-blog.router";
 import commentRouter from "./modules/comment/routes/comment.router";
@@ -48,6 +49,9 @@ router.use("/onboarding", onboardingRouter);
 
 // Site routes (protected with JWT)
 router.use("/sites", siteRouter);
+
+// Campaign routes (protected with JWT)
+router.use("/campaigns", campaignRouter);
 
 // Invitation routes (protected with JWT)
 // These routes are for users to view and accept/reject their invitations
