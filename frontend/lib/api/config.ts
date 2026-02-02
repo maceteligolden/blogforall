@@ -30,6 +30,9 @@ export const API_ENDPOINTS = {
     MY_BLOGS: "/blogs/my-blogs",
     UPLOAD_IMAGE: "/blogs/images/upload",
     UPLOAD_IMAGES: "/blogs/images/upload-multiple",
+    REVIEW: (blogId?: string) => blogId ? `/blogs/${blogId}/review` : "/blogs/review",
+    APPLY_REVIEW: (blogId: string) => `/blogs/${blogId}/review/apply`,
+    RESTORE_VERSION: (blogId: string, version: number) => `/blogs/${blogId}/restore/${version}`,
   },
   API_KEYS: {
     CREATE: "/api-keys",

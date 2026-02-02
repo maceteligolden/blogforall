@@ -30,6 +30,14 @@ export interface UpdateBlogInput {
     description?: string;
     keywords?: string[];
   };
+  version_history?: Array<{
+    version: number;
+    content: string;
+    title: string;
+    excerpt?: string;
+    created_at: Date;
+    review_id?: string;
+  }>;
 }
 
 export interface BlogQueryFilters {

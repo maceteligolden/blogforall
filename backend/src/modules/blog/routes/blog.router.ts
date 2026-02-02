@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { container } from "tsyringe";
 import { BlogController } from "../controllers/blog.controller";
+import { BlogReviewController } from "../controllers/blog-review.controller";
 import { ImageController } from "../controllers/image.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 import { uploadSingle, uploadMultiple } from "../../../shared/middlewares/upload.middleware";
 
 const router = Router();
 const blogController = container.resolve(BlogController);
+const blogReviewController = container.resolve(BlogReviewController);
 const imageController = container.resolve(ImageController);
 
 // Protected routes (require authentication)
@@ -17,6 +19,12 @@ router.put("/:id", authMiddleware, blogController.update);
 router.delete("/:id", authMiddleware, blogController.delete);
 router.post("/:id/publish", authMiddleware, blogController.publish);
 router.post("/:id/unpublish", authMiddleware, blogController.unpublish);
+
+// Blog review routes (protected)
+router.post("/:blogId/review", authMiddleware, blogReviewController.reviewBlog);
+router.post("/review", authMiddleware, blogReviewController.reviewBlog); // Review without blogId (for new posts)
+router.post("/:blogId/review/apply", authMiddleware, blogReviewController.applyReview);
+router.post("/:blogId/restore/:version", authMiddleware, blogReviewController.restoreVersion);
 
 // Image upload routes (protected)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

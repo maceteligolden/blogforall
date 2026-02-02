@@ -23,6 +23,14 @@ export interface Blog extends BaseEntity {
     description?: string;
     keywords?: string[];
   };
+  version_history?: Array<{
+    version: number;
+    content: string;
+    title: string;
+    excerpt?: string;
+    created_at: Date;
+    review_id?: string; // Reference to review that created this version
+  }>;
 }
 
 const blogSchema = new Schema<Blog>(
@@ -110,6 +118,35 @@ const blogSchema = new Schema<Blog>(
         type: [String],
         default: [],
       },
+    },
+    version_history: {
+      type: [
+        {
+          version: {
+            type: Number,
+            required: true,
+          },
+          content: {
+            type: String,
+            required: true,
+          },
+          title: {
+            type: String,
+            required: true,
+          },
+          excerpt: {
+            type: String,
+          },
+          created_at: {
+            type: Date,
+            default: Date.now,
+          },
+          review_id: {
+            type: String,
+          },
+        },
+      ],
+      default: [],
     },
     created_at: {
       type: Date,
