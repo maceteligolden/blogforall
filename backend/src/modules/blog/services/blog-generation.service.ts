@@ -73,19 +73,23 @@ export class BlogGenerationService {
         };
       }
 
-      // Analyze prompt using AI with timeout
+      // Analyze prompt using AI with timeout and retry
       const analysisPrompt = this.createAnalysisPrompt(prompt);
-      const analysisResponse = await this.withTimeout(
-        this.hf.textGeneration({
-          model: BlogGenerationConfig.ANALYSIS_MODEL,
-          inputs: analysisPrompt,
-          parameters: {
-            max_new_tokens: 500,
-            temperature: 0.3,
-            return_full_text: false,
-          },
-        } as any),
-        BlogGenerationConfig.API_TIMEOUT,
+      const analysisResponse = await this.withRetry(
+        () =>
+          this.withTimeout(
+            this.hf.textGeneration({
+              model: BlogGenerationConfig.ANALYSIS_MODEL,
+              inputs: analysisPrompt,
+              parameters: {
+                max_new_tokens: 500,
+                temperature: 0.3,
+                return_full_text: false,
+              },
+            } as any),
+            BlogGenerationConfig.API_TIMEOUT,
+            "Prompt analysis"
+          ),
         "Prompt analysis"
       );
 
@@ -155,17 +159,21 @@ export class BlogGenerationService {
 
     try {
       const generationPrompt = this.createGenerationPrompt(prompt, analysis);
-      const generationResponse = await this.withTimeout(
-        this.hf.textGeneration({
-          model: BlogGenerationConfig.GENERATION_MODEL,
-          inputs: generationPrompt,
-          parameters: {
-            max_new_tokens: 3000,
-            temperature: 0.7, // Higher temperature for more creative content
-            return_full_text: false,
-          },
-        } as any),
-        BlogGenerationConfig.API_TIMEOUT,
+      const generationResponse = await this.withRetry(
+        () =>
+          this.withTimeout(
+            this.hf.textGeneration({
+              model: BlogGenerationConfig.GENERATION_MODEL,
+              inputs: generationPrompt,
+              parameters: {
+                max_new_tokens: 3000,
+                temperature: 0.7, // Higher temperature for more creative content
+                return_full_text: false,
+              },
+            } as any),
+            BlogGenerationConfig.API_TIMEOUT,
+            "Blog content generation"
+          ),
         "Blog content generation"
       );
 
@@ -247,6 +255,7 @@ Text: ${content.substring(0, 500)}
 
 Response:`;
 
+      // Safety check doesn't need retry - if it fails, allow content (fail open)
       const safetyResponse = await this.withTimeout(
         this.hf.textGeneration({
           model: BlogGenerationConfig.ANALYSIS_MODEL,
@@ -259,7 +268,10 @@ Response:`;
         } as any),
         10000, // 10 seconds for safety check
         "Content safety check"
-      );
+      ).catch(() => {
+        // If safety check fails, return safe response (fail open)
+        return { generated_text: "SAFE" };
+      });
 
       const safetyText = typeof safetyResponse === "string" ? safetyResponse : safetyResponse.generated_text || "";
       return safetyText.trim().toUpperCase().includes("UNSAFE");
@@ -542,6 +554,68 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
       // Truncate meta description if too long
       content.meta.description = content.meta.description.substring(0, 157) + "...";
     }
+  }
+
+  /**
+   * Retry a promise with exponential backoff
+   */
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    maxRetries: number = BlogGenerationConfig.MAX_RETRIES
+  ): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error as Error;
+        const errorMessage = lastError.message.toLowerCase();
+
+        // Don't retry on certain errors
+        if (
+          errorMessage.includes("invalid") ||
+          errorMessage.includes("unauthorized") ||
+          errorMessage.includes("forbidden") ||
+          errorMessage.includes("bad request") ||
+          errorMessage.includes("too long") ||
+          errorMessage.includes("too short") ||
+          errorMessage.includes("inappropriate")
+        ) {
+          throw error;
+        }
+
+        // Don't retry on last attempt
+        if (attempt === maxRetries) {
+          break;
+        }
+
+        // Calculate delay with exponential backoff
+        const delay = Math.min(
+          BlogGenerationConfig.INITIAL_RETRY_DELAY * Math.pow(2, attempt),
+          BlogGenerationConfig.MAX_RETRY_DELAY
+        );
+
+        logger.warn(
+          `${operationName} failed, retrying... (attempt ${attempt + 1}/${maxRetries + 1})`,
+          { error: lastError.message, delay },
+          "BlogGenerationService"
+        );
+
+        // Wait before retrying
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+
+    // All retries exhausted
+    logger.error(
+      `${operationName} failed after ${maxRetries + 1} attempts`,
+      lastError as Error,
+      {},
+      "BlogGenerationService"
+    );
+    throw lastError;
   }
 
   /**

@@ -47,4 +47,11 @@ export const BlogGenerationConfig = {
    * Maximum content length (characters) - warn if exceeded
    */
   MAX_CONTENT_LENGTH: parseInt(process.env.BLOG_GENERATION_MAX_CONTENT_LENGTH || "50000", 10),
+
+  /**
+   * Retry configuration
+   */
+  MAX_RETRIES: parseInt(process.env.BLOG_GENERATION_MAX_RETRIES || "3", 10),
+  INITIAL_RETRY_DELAY: parseInt(process.env.BLOG_GENERATION_INITIAL_RETRY_DELAY || "1000", 10), // 1 second
+  MAX_RETRY_DELAY: parseInt(process.env.BLOG_GENERATION_MAX_RETRY_DELAY || "10000", 10), // 10 seconds
 };
