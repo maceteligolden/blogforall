@@ -69,14 +69,15 @@ export class SiteMemberService {
     }
 
     // Check if requester has access
-    const hasAccess = await this.siteRepository.isOwner(siteId, userId) || 
-                     await this.siteMemberRepository.findBySiteAndUser(siteId, userId);
+    const hasAccess =
+      (await this.siteRepository.isOwner(siteId, userId)) ||
+      (await this.siteMemberRepository.findBySiteAndUser(siteId, userId));
     if (!hasAccess) {
       throw new ForbiddenError("You do not have access to this site");
     }
 
     const members = await this.siteMemberRepository.findBySite(siteId);
-    
+
     // Populate user information
     const membersWithUser = await Promise.all(
       members.map(async (member) => {
@@ -84,12 +85,14 @@ export class SiteMemberService {
         const memberObj = (member as any).toObject ? (member as any).toObject() : { ...(member as any) };
         return {
           ...memberObj,
-          user: user ? {
-            _id: user._id!.toString(),
-            email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
-          } : undefined,
+          user: user
+            ? {
+                _id: user._id!.toString(),
+                email: user.email,
+                first_name: user.first_name,
+                last_name: user.last_name,
+              }
+            : undefined,
         } as SiteMemberWithUser;
       })
     );
@@ -143,7 +146,11 @@ export class SiteMemberService {
       throw new NotFoundError("Member not found");
     }
 
-    logger.info("Member role updated", { siteId, targetUserId, newRole: input.role, updatedBy: requesterUserId }, "SiteMemberService");
+    logger.info(
+      "Member role updated",
+      { siteId, targetUserId, newRole: input.role, updatedBy: requesterUserId },
+      "SiteMemberService"
+    );
     return updatedMember;
   }
 

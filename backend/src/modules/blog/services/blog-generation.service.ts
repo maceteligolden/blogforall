@@ -69,7 +69,8 @@ export class BlogGenerationService {
           target_audience: "",
           purpose: "",
           is_valid: false,
-          rejection_reason: "Your prompt contains content that doesn't meet our guidelines. Please provide a different topic or rephrase your request.",
+          rejection_reason:
+            "Your prompt contains content that doesn't meet our guidelines. Please provide a different topic or rephrase your request.",
         };
       }
 
@@ -99,7 +100,8 @@ export class BlogGenerationService {
         "Prompt analysis"
       );
 
-      const analysisText = typeof analysisResponse === "string" ? analysisResponse : analysisResponse.generated_text || "";
+      const analysisText =
+        typeof analysisResponse === "string" ? analysisResponse : analysisResponse.generated_text || "";
       const analysis = this.parseAnalysisResponse(analysisText, prompt);
 
       // Validate that we have a clear topic
@@ -107,7 +109,8 @@ export class BlogGenerationService {
         return {
           ...analysis,
           is_valid: false,
-          rejection_reason: "We couldn't identify a clear topic from your prompt. Please be more specific. For example: 'Write about React hooks' instead of 'write something'.",
+          rejection_reason:
+            "We couldn't identify a clear topic from your prompt. Please be more specific. For example: 'Write about React hooks' instead of 'write something'.",
         };
       }
 
@@ -117,14 +120,23 @@ export class BlogGenerationService {
         analysis.word_count = wordCount;
       }
 
-      logger.info("Prompt analyzed", { topic: analysis.topic, domain: analysis.domain, isValid: analysis.is_valid }, "BlogGenerationService");
+      logger.info(
+        "Prompt analyzed",
+        { topic: analysis.topic, domain: analysis.domain, isValid: analysis.is_valid },
+        "BlogGenerationService"
+      );
 
       return analysis;
     } catch (error) {
-      logger.error("Failed to analyze prompt", error as Error, { prompt: prompt.substring(0, 100) }, "BlogGenerationService");
-      
+      logger.error(
+        "Failed to analyze prompt",
+        error as Error,
+        { prompt: prompt.substring(0, 100) },
+        "BlogGenerationService"
+      );
+
       const errorMessage = (error as Error).message.toLowerCase();
-      
+
       // Provide user-friendly error messages based on error type
       if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
         throw new BadRequestError(
@@ -135,9 +147,7 @@ export class BlogGenerationService {
           "Unable to connect to the AI service. Please check your internet connection and try again."
         );
       } else if (errorMessage.includes("unauthorized") || errorMessage.includes("401")) {
-        throw new BadRequestError(
-          "AI service authentication failed. Please contact support if this issue persists."
-        );
+        throw new BadRequestError("AI service authentication failed. Please contact support if this issue persists.");
       } else {
         throw new BadRequestError(
           "We couldn't analyze your prompt. Please try rephrasing it or make it more specific about what you want to write about."
@@ -158,8 +168,8 @@ export class BlogGenerationService {
 
     if (!analysis.is_valid) {
       throw new BadRequestError(
-        analysis.rejection_reason || 
-        "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
+        analysis.rejection_reason ||
+          "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
       );
     }
 
@@ -189,7 +199,8 @@ export class BlogGenerationService {
         "Blog content generation"
       );
 
-      const generatedText = typeof generationResponse === "string" ? generationResponse : generationResponse.generated_text || "";
+      const generatedText =
+        typeof generationResponse === "string" ? generationResponse : generationResponse.generated_text || "";
       const blogContent = this.parseGeneratedContent(generatedText, analysis);
 
       // Validate generated content
@@ -203,19 +214,28 @@ export class BlogGenerationService {
         );
       }
 
-      logger.info("Blog content generated", { topic: analysis.topic, wordCount: blogContent.content.split(/\s+/).length }, "BlogGenerationService");
+      logger.info(
+        "Blog content generated",
+        { topic: analysis.topic, wordCount: blogContent.content.split(/\s+/).length },
+        "BlogGenerationService"
+      );
 
       return blogContent;
     } catch (error) {
-      logger.error("Failed to generate blog content", error as Error, { topic: analysis.topic }, "BlogGenerationService");
-      
+      logger.error(
+        "Failed to generate blog content",
+        error as Error,
+        { topic: analysis.topic },
+        "BlogGenerationService"
+      );
+
       // Don't re-throw BadRequestError (already user-friendly)
       if (error instanceof BadRequestError) {
         throw error;
       }
-      
+
       const errorMessage = (error as Error).message.toLowerCase();
-      
+
       // Provide user-friendly error messages based on error type
       if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
         throw new BadRequestError(
@@ -226,13 +246,9 @@ export class BlogGenerationService {
           "Unable to connect to the AI service. Please check your internet connection and try again."
         );
       } else if (errorMessage.includes("unauthorized") || errorMessage.includes("401")) {
-        throw new BadRequestError(
-          "AI service authentication failed. Please contact support if this issue persists."
-        );
+        throw new BadRequestError("AI service authentication failed. Please contact support if this issue persists.");
       } else if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
-        throw new BadRequestError(
-          "Too many requests. Please wait a moment and try again."
-        );
+        throw new BadRequestError("Too many requests. Please wait a moment and try again.");
       } else {
         throw new BadRequestError(
           "We couldn't generate your blog post. Please try again with a different prompt or contact support if the issue continues."
@@ -382,7 +398,10 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
   private parseAnalysisResponse(responseText: string, originalPrompt: string): PromptAnalysis {
     try {
       let jsonText = responseText.trim();
-      jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      jsonText = jsonText
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         jsonText = jsonMatch[0];
@@ -400,12 +419,18 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
         structure: parsed.structure || undefined,
         word_count: parsed.word_count,
         is_valid: hasClearTopic && !!parsed.topic,
-        rejection_reason: hasClearTopic === false 
-          ? "Your prompt doesn't contain a clear topic for a blog post. Please specify what you'd like to write about. For example: 'Write a guide about TypeScript basics' or 'Explain how to use React hooks'."
-          : undefined,
+        rejection_reason:
+          hasClearTopic === false
+            ? "Your prompt doesn't contain a clear topic for a blog post. Please specify what you'd like to write about. For example: 'Write a guide about TypeScript basics' or 'Explain how to use React hooks'."
+            : undefined,
       };
     } catch (error) {
-      logger.error("Failed to parse analysis response", error as Error, { responseText: responseText.substring(0, 200) }, "BlogGenerationService");
+      logger.error(
+        "Failed to parse analysis response",
+        error as Error,
+        { responseText: responseText.substring(0, 200) },
+        "BlogGenerationService"
+      );
       // Fallback: try to extract topic from original prompt
       return {
         topic: originalPrompt.substring(0, 100),
@@ -413,9 +438,10 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
         target_audience: "general public",
         purpose: "inform",
         is_valid: originalPrompt.trim().length > 10,
-        rejection_reason: originalPrompt.trim().length <= 10 
-          ? "Your prompt is too short. Please provide more details about what you'd like to write about. For example: 'Write a comprehensive guide about React hooks for beginners'."
-          : undefined,
+        rejection_reason:
+          originalPrompt.trim().length <= 10
+            ? "Your prompt is too short. Please provide more details about what you'd like to write about. For example: 'Write a comprehensive guide about React hooks for beginners'."
+            : undefined,
       };
     }
   }
@@ -426,7 +452,10 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
   private parseGeneratedContent(responseText: string, analysis: PromptAnalysis): GeneratedBlogContent {
     try {
       let jsonText = responseText.trim();
-      jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      jsonText = jsonText
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         jsonText = jsonMatch[0];
@@ -444,8 +473,13 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
         },
       };
     } catch (error) {
-      logger.error("Failed to parse generated content", error as Error, { responseText: responseText.substring(0, 200) }, "BlogGenerationService");
-      
+      logger.error(
+        "Failed to parse generated content",
+        error as Error,
+        { responseText: responseText.substring(0, 200) },
+        "BlogGenerationService"
+      );
+
       // Validate fallback content before returning
       if (!responseText || responseText.trim().length < BlogGenerationConfig.MIN_CONTENT_LENGTH) {
         throw new BadRequestError(
@@ -508,7 +542,7 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
       const wordCount = content.content.split(/\s+/).filter((w) => w.length > 0).length;
       throw new BadRequestError(
         `The generated content is too short (${wordCount} words, ${contentLength} characters). ` +
-        `Please try again with a more detailed prompt, specify a longer word count, or ask for more comprehensive coverage of the topic.`
+          `Please try again with a more detailed prompt, specify a longer word count, or ask for more comprehensive coverage of the topic.`
       );
     }
 
@@ -526,7 +560,7 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
       if (actualWordCount < requestedWordCount - tolerance) {
         throw new BadRequestError(
           `The generated content is shorter than requested. You asked for approximately ${requestedWordCount} words, ` +
-          `but got ${actualWordCount} words. Please try regenerating with a more detailed prompt or ask for more comprehensive coverage.`
+            `but got ${actualWordCount} words. Please try regenerating with a more detailed prompt or ask for more comprehensive coverage.`
         );
       }
 
@@ -543,7 +577,7 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
     // Validate HTML structure (basic check)
     const htmlTagCount = (content.content.match(/<[^>]+>/g) || []).length;
     const textContent = content.content.replace(/<[^>]+>/g, "").trim();
-    
+
     if (htmlTagCount > 0 && textContent.length < minLength * 0.5) {
       // If HTML is present but actual text content is very short, might be malformed
       logger.warn(
@@ -555,14 +589,22 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
 
     // Validate excerpt
     if (content.excerpt && content.excerpt.length > 500) {
-      logger.warn("Generated excerpt exceeds recommended length", { excerptLength: content.excerpt.length }, "BlogGenerationService");
+      logger.warn(
+        "Generated excerpt exceeds recommended length",
+        { excerptLength: content.excerpt.length },
+        "BlogGenerationService"
+      );
       // Truncate excerpt if too long
       content.excerpt = content.excerpt.substring(0, 497) + "...";
     }
 
     // Validate meta description if present
     if (content.meta?.description && content.meta.description.length > 160) {
-      logger.warn("Meta description exceeds recommended length", { descriptionLength: content.meta.description.length }, "BlogGenerationService");
+      logger.warn(
+        "Meta description exceeds recommended length",
+        { descriptionLength: content.meta.description.length },
+        "BlogGenerationService"
+      );
       // Truncate meta description if too long
       content.meta.description = content.meta.description.substring(0, 157) + "...";
     }
@@ -699,19 +741,15 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
   /**
    * Wrap a promise with timeout handling
    */
-  private async withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number,
-    operation: string
-  ): Promise<T> {
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
-        const operationName = operation.toLowerCase().includes("analysis") 
+        const operationName = operation.toLowerCase().includes("analysis")
           ? "analyzing your prompt"
           : operation.toLowerCase().includes("generation") || operation.toLowerCase().includes("generating")
-          ? "generating your blog post"
-          : operation.toLowerCase();
-        
+            ? "generating your blog post"
+            : operation.toLowerCase();
+
         reject(
           new BadRequestError(
             `The ${operationName} took too long (over ${timeoutMs / 1000} seconds). Please try again with a shorter prompt, reduce the word count, or try a different topic.`

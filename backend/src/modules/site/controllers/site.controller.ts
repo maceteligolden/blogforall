@@ -37,7 +37,7 @@ export class SiteController {
       }
 
       const includeMembers = req.query.include_members === "true";
-      
+
       if (includeMembers) {
         const sites = await this.siteService.getSitesWithMembers(userId);
         sendSuccess(res, "Sites retrieved successfully", sites);

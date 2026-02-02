@@ -48,7 +48,7 @@ export class SiteService {
     try {
       // Get user's active subscription and plan
       const { plan } = await this.subscriptionService.getActiveSubscription(userId);
-      
+
       // Get max sites allowed from plan limits
       const maxSitesAllowed = plan.limits.maxSitesAllowed ?? 1;
 
@@ -74,12 +74,7 @@ export class SiteService {
       }
       // If subscription/plan lookup fails, log but allow site creation
       // This prevents blocking users if there's a temporary issue with subscription service
-      logger.error(
-        "Failed to validate site creation limit",
-        error as Error,
-        { userId },
-        "SiteService"
-      );
+      logger.error("Failed to validate site creation limit", error as Error, { userId }, "SiteService");
       // Allow creation to proceed - this is a safety measure
     }
   }
@@ -114,7 +109,7 @@ export class SiteService {
    */
   async getSitesWithMembers(userId: string): Promise<SiteWithMembers[]> {
     const sites = await this.siteRepository.findByUser(userId);
-    
+
     const sitesWithMembers = await Promise.all(
       sites.map(async (site) => {
         const memberCount = await this.siteRepository.getMemberCount(site._id!.toString());

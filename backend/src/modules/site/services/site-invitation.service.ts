@@ -74,8 +74,12 @@ export class SiteInvitationService {
       expires_at: expiresAt,
     });
 
-    logger.info("Invitation created", { invitationId: invitation._id, siteId, email: input.email, invitedBy }, "SiteInvitationService");
-    
+    logger.info(
+      "Invitation created",
+      { invitationId: invitation._id, siteId, email: input.email, invitedBy },
+      "SiteInvitationService"
+    );
+
     // Send email notification
     await this.sendInvitationEmail(invitation, site, invitedBy);
 
@@ -128,7 +132,11 @@ export class SiteInvitationService {
     // Update invitation status
     await this.invitationRepository.updateStatus(token, InvitationStatus.ACCEPTED, new Date());
 
-    logger.info("Invitation accepted", { invitationId: invitation._id, siteId: invitation.site_id, userId }, "SiteInvitationService");
+    logger.info(
+      "Invitation accepted",
+      { invitationId: invitation._id, siteId: invitation.site_id, userId },
+      "SiteInvitationService"
+    );
   }
 
   /**
@@ -153,7 +161,11 @@ export class SiteInvitationService {
     // Update invitation status
     await this.invitationRepository.updateStatus(token, InvitationStatus.REJECTED);
 
-    logger.info("Invitation rejected", { invitationId: invitation._id, siteId: invitation.site_id, userId }, "SiteInvitationService");
+    logger.info(
+      "Invitation rejected",
+      { invitationId: invitation._id, siteId: invitation.site_id, userId },
+      "SiteInvitationService"
+    );
   }
 
   /**
@@ -193,11 +205,13 @@ export class SiteInvitationService {
         const invObj = (invitation as any).toObject ? (invitation as any).toObject() : { ...(invitation as any) };
         return {
           ...invObj,
-          site: site ? {
-            _id: site._id!.toString(),
-            name: site.name,
-            slug: site.slug,
-          } : undefined,
+          site: site
+            ? {
+                _id: site._id!.toString(),
+                name: site.name,
+                slug: site.slug,
+              }
+            : undefined,
         } as SiteInvitationWithSite;
       })
     );
@@ -226,7 +240,7 @@ export class SiteInvitationService {
       const inviter = await User.findById(invitedBy);
       const inviterName = inviter ? `${inviter.first_name} ${inviter.last_name}` : "A team member";
       const siteName = site.name || "a site";
-      
+
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       const acceptUrl = `${frontendUrl}/invitations/accept?token=${invitation.token}`;
       const roleLabel = invitation.role.charAt(0).toUpperCase() + invitation.role.slice(1);
@@ -300,7 +314,12 @@ If you didn't expect this invitation, you can safely ignore this email. The invi
         text,
       });
     } catch (error) {
-      logger.error("Failed to send invitation email", error as Error, { invitationId: invitation._id, email: invitation.email }, "SiteInvitationService");
+      logger.error(
+        "Failed to send invitation email",
+        error as Error,
+        { invitationId: invitation._id, email: invitation.email },
+        "SiteInvitationService"
+      );
       // Don't throw - email failure shouldn't prevent invitation creation
     }
   }

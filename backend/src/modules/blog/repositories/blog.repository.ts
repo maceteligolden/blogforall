@@ -30,13 +30,16 @@ export class BlogRepository {
     return Blog.find(query).sort({ created_at: -1 });
   }
 
-  async findAll(siteId: string, filters?: {
-    status?: BlogStatus;
-    search?: string;
-    category?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<PaginatedResponse<BlogType>> {
+  async findAll(
+    siteId: string,
+    filters?: {
+      status?: BlogStatus;
+      search?: string;
+      category?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<PaginatedResponse<BlogType>> {
     const page = filters?.page || 1;
     const limit = filters?.limit || 10;
     const skip = (page - 1) * limit;
@@ -72,12 +75,15 @@ export class BlogRepository {
     };
   }
 
-  async findPublished(siteId: string, filters?: {
-    search?: string;
-    category?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<PaginatedResponse<BlogType>> {
+  async findPublished(
+    siteId: string,
+    filters?: {
+      search?: string;
+      category?: string;
+      page?: number;
+      limit?: number;
+    }
+  ): Promise<PaginatedResponse<BlogType>> {
     return this.findAll(siteId, {
       ...filters,
       status: BlogStatus.PUBLISHED,

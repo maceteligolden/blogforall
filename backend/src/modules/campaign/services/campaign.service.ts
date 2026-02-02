@@ -3,7 +3,12 @@ import { CampaignRepository } from "../repositories/campaign.repository";
 import { ScheduledPostRepository } from "../repositories/scheduled-post.repository";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
-import { CreateCampaignInput, UpdateCampaignInput, CampaignQueryFilters, CampaignWithStats } from "../interfaces/campaign.interface";
+import {
+  CreateCampaignInput,
+  UpdateCampaignInput,
+  CampaignQueryFilters,
+  CampaignWithStats,
+} from "../interfaces/campaign.interface";
 import { Campaign, Campaign as CampaignType } from "../../../shared/schemas/campaign.schema";
 import { CampaignStatus, ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
@@ -65,7 +70,7 @@ export class CampaignService {
 
   async getCampaignWithStats(campaignId: string, siteId: string, userId?: string): Promise<CampaignWithStats> {
     const campaign = await this.getCampaignById(campaignId, siteId, userId);
-    
+
     const [postsScheduled, postsPending] = await Promise.all([
       this.scheduledPostRepository.countByCampaign(campaignId, ScheduledPostStatus.SCHEDULED),
       this.scheduledPostRepository.countByCampaign(campaignId, ScheduledPostStatus.PENDING),
@@ -103,15 +108,17 @@ export class CampaignService {
     if (input.start_date || input.end_date) {
       const startDate = input.start_date || campaign.start_date;
       const endDate = input.end_date || campaign.end_date;
-      
+
       if (startDate >= endDate) {
         throw new BadRequestError("End date must be after start date");
       }
     }
 
     // Prevent updating active/completed campaigns to draft
-    if (input.status === CampaignStatus.DRAFT && 
-        (campaign.status === CampaignStatus.ACTIVE || campaign.status === CampaignStatus.COMPLETED)) {
+    if (
+      input.status === CampaignStatus.DRAFT &&
+      (campaign.status === CampaignStatus.ACTIVE || campaign.status === CampaignStatus.COMPLETED)
+    ) {
       throw new BadRequestError("Cannot change active or completed campaign to draft");
     }
 
@@ -130,11 +137,13 @@ export class CampaignService {
     // Check if campaign has scheduled posts
     const scheduledPosts = await this.scheduledPostRepository.findByCampaign(campaignId, siteId);
     const hasActivePosts = scheduledPosts.some(
-      post => post.status === ScheduledPostStatus.PENDING || post.status === ScheduledPostStatus.SCHEDULED
+      (post) => post.status === ScheduledPostStatus.PENDING || post.status === ScheduledPostStatus.SCHEDULED
     );
 
     if (hasActivePosts) {
-      throw new BadRequestError("Cannot delete campaign with active scheduled posts. Please cancel or complete scheduled posts first.");
+      throw new BadRequestError(
+        "Cannot delete campaign with active scheduled posts. Please cancel or complete scheduled posts first."
+      );
     }
 
     // Cancel all scheduled posts

@@ -96,6 +96,36 @@ export const API_ENDPOINTS = {
     ACCEPT: (token: string) => `/invitations/${token}/accept`,
     REJECT: (token: string) => `/invitations/${token}/reject`,
   },
+  CAMPAIGNS: {
+    CREATE: "/campaigns",
+    LIST: "/campaigns",
+    MY_CAMPAIGNS: "/campaigns/my-campaigns",
+    GET_ONE: (id: string) => `/campaigns/${id}`,
+    GET_STATS: (id: string) => `/campaigns/${id}/stats`,
+    UPDATE: (id: string) => `/campaigns/${id}`,
+    DELETE: (id: string) => `/campaigns/${id}`,
+    ACTIVATE: (id: string) => `/campaigns/${id}/activate`,
+    PAUSE: (id: string) => `/campaigns/${id}/pause`,
+    CANCEL: (id: string) => `/campaigns/${id}/cancel`,
+    DATE_RANGE: "/campaigns/date-range",
+    SCHEDULED_POSTS: {
+      CREATE: "/campaigns/scheduled-posts",
+      LIST: "/campaigns/scheduled-posts",
+      MY_POSTS: "/campaigns/scheduled-posts/my-posts",
+      GET_ONE: (id: string) => `/campaigns/scheduled-posts/${id}`,
+      UPDATE: (id: string) => `/campaigns/scheduled-posts/${id}`,
+      DELETE: (id: string) => `/campaigns/scheduled-posts/${id}`,
+      CANCEL: (id: string) => `/campaigns/scheduled-posts/${id}/cancel`,
+      MOVE_TO_CAMPAIGN: (id: string) => `/campaigns/scheduled-posts/${id}/move-to-campaign`,
+      REMOVE_FROM_CAMPAIGN: (id: string) => `/campaigns/scheduled-posts/${id}/remove-from-campaign`,
+      DATE_RANGE: "/campaigns/scheduled-posts/date-range",
+    },
+    TEMPLATES: {
+      LIST: "/campaigns/templates",
+      GET_ONE: (id: string) => `/campaigns/templates/${id}`,
+      GET_BY_TYPE: (type: string) => `/campaigns/templates/type/${type}`,
+    },
+  },
 };
 
 export const QUERY_KEYS = {
@@ -117,5 +147,12 @@ export const QUERY_KEYS = {
   SITE_MEMBERS: (siteId: string) => ["sites", siteId, "members"],
   SITE_INVITATIONS: (siteId: string) => ["sites", siteId, "invitations"],
   USER_INVITATIONS: ["invitations"],
+  CAMPAIGNS: ["campaigns"],
+  CAMPAIGN: (id: string) => ["campaigns", id],
+  MY_CAMPAIGNS: ["campaigns", "my-campaigns"],
+  SCHEDULED_POSTS: ["scheduled-posts"],
+  SCHEDULED_POST: (id: string) => ["scheduled-posts", id],
+  MY_SCHEDULED_POSTS: ["scheduled-posts", "my-posts"],
+  CAMPAIGN_TEMPLATES: ["campaign-templates"],
 };
 

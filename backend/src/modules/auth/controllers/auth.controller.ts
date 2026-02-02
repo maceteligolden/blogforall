@@ -4,7 +4,13 @@ import { ZodError } from "zod";
 import { AuthService } from "../services/auth.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
-import { signupSchema, loginSchema, updateProfileSchema, changePasswordSchema, updateSiteContextSchema } from "../validations/auth.validation";
+import {
+  signupSchema,
+  loginSchema,
+  updateProfileSchema,
+  changePasswordSchema,
+  updateSiteContextSchema,
+} from "../validations/auth.validation";
 
 @injectable()
 export class AuthController {

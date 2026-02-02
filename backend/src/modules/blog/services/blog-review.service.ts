@@ -56,7 +56,9 @@ export class BlogReviewService {
     }
 
     if (content.length > BlogReviewConfig.MAX_CONTENT_LENGTH) {
-      throw new BadRequestError(`Content is too long. Maximum length is ${BlogReviewConfig.MAX_CONTENT_LENGTH} characters.`);
+      throw new BadRequestError(
+        `Content is too long. Maximum length is ${BlogReviewConfig.MAX_CONTENT_LENGTH} characters.`
+      );
     }
 
     try {
@@ -83,7 +85,11 @@ export class BlogReviewService {
       // Parse the review response
       const reviewResult = this.parseReviewResponse(reviewText, content, title, excerpt);
 
-      logger.info("Blog review completed", { title, wordCount, overallScore: reviewResult.overall_score }, "BlogReviewService");
+      logger.info(
+        "Blog review completed",
+        { title, wordCount, overallScore: reviewResult.overall_score },
+        "BlogReviewService"
+      );
 
       return reviewResult;
     } catch (error) {
@@ -125,7 +131,13 @@ export class BlogReviewService {
   /**
    * Create comprehensive review prompt
    */
-  private createReviewPrompt(title: string, content: string, excerpt?: string, category?: string, wordCount?: number): string {
+  private createReviewPrompt(
+    title: string,
+    content: string,
+    excerpt?: string,
+    category?: string,
+    wordCount?: number
+  ): string {
     return `You are an expert blog post reviewer. Analyze the following blog post and provide a comprehensive review.
 
 BLOG POST DETAILS:
@@ -179,13 +191,21 @@ Provide specific, actionable suggestions with line-by-line feedback where applic
   /**
    * Parse review response from AI model
    */
-  private parseReviewResponse(reviewText: string, originalContent: string, originalTitle: string, originalExcerpt?: string): BlogReviewResult {
+  private parseReviewResponse(
+    reviewText: string,
+    originalContent: string,
+    originalTitle: string,
+    originalExcerpt?: string
+  ): BlogReviewResult {
     try {
       // Try to extract JSON from the response
       let jsonText = reviewText.trim();
 
       // Remove markdown code blocks if present
-      jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      jsonText = jsonText
+        .replace(/```json\n?/g, "")
+        .replace(/```\n?/g, "")
+        .trim();
 
       // Try to find JSON object
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
@@ -215,7 +235,12 @@ Provide specific, actionable suggestions with line-by-line feedback where applic
 
       return result;
     } catch (error) {
-      logger.error("Failed to parse review response", error as Error, { reviewText: reviewText.substring(0, 200) }, "BlogReviewService");
+      logger.error(
+        "Failed to parse review response",
+        error as Error,
+        { reviewText: reviewText.substring(0, 200) },
+        "BlogReviewService"
+      );
 
       // Return a basic review result if parsing fails
       return {

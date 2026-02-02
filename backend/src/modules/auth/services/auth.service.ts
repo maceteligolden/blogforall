@@ -114,7 +114,11 @@ export class AuthService {
           name: siteName,
           description: "Default site",
         });
-        logger.info("Default site created for existing user on first login", { userId: user._id, email }, "AuthService");
+        logger.info(
+          "Default site created for existing user on first login",
+          { userId: user._id, email },
+          "AuthService"
+        );
         // Refresh user sites after creating default site
         const updatedUserSites = await this.siteService.getSitesByUser(user._id!.toString());
         userSites.push(...updatedUserSites);

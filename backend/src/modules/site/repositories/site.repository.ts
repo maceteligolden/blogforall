@@ -90,9 +90,7 @@ export class SiteRepository {
     const memberSiteIds = memberSites.map((m) => m.site_id);
 
     // Get all member sites
-    const sitesAsMember = memberSiteIds.length > 0 
-      ? await Site.find({ _id: { $in: memberSiteIds } })
-      : [];
+    const sitesAsMember = memberSiteIds.length > 0 ? await Site.find({ _id: { $in: memberSiteIds } }) : [];
 
     // Combine and deduplicate
     const allSiteIds = new Set([

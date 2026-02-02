@@ -26,9 +26,11 @@ export class BlogGenerationController {
       const { prompt } = req.body;
 
       if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-        return next(new BadRequestError(
-          "Please enter a prompt describing what you'd like to write about. For example: 'Write a guide about React hooks for beginners'."
-        ));
+        return next(
+          new BadRequestError(
+            "Please enter a prompt describing what you'd like to write about. For example: 'Write a guide about React hooks for beginners'."
+          )
+        );
       }
 
       const analysis = await this.blogGenerationService.analyzePrompt(prompt.trim());
@@ -51,9 +53,11 @@ export class BlogGenerationController {
       const { prompt, analysis } = req.body;
 
       if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-        return next(new BadRequestError(
-          "Please enter a prompt describing what you'd like to write about. For example: 'Write a guide about React hooks for beginners'."
-        ));
+        return next(
+          new BadRequestError(
+            "Please enter a prompt describing what you'd like to write about. For example: 'Write a guide about React hooks for beginners'."
+          )
+        );
       }
 
       // If analysis is provided, use it; otherwise analyze first
@@ -63,10 +67,12 @@ export class BlogGenerationController {
       }
 
       if (!promptAnalysis.is_valid) {
-        return next(new BadRequestError(
-          promptAnalysis.rejection_reason || 
-          "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
-        ));
+        return next(
+          new BadRequestError(
+            promptAnalysis.rejection_reason ||
+              "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
+          )
+        );
       }
 
       // Generate blog content
@@ -81,7 +87,11 @@ export class BlogGenerationController {
           generatedContent.content,
           generatedContent.excerpt
         );
-        logger.info("Auto-review completed successfully", { title: generatedContent.title }, "BlogGenerationController");
+        logger.info(
+          "Auto-review completed successfully",
+          { title: generatedContent.title },
+          "BlogGenerationController"
+        );
       } catch (error) {
         // Log review failure but don't fail the entire generation
         reviewError = error as Error;
@@ -103,7 +113,8 @@ export class BlogGenerationController {
         review: reviewResult,
         reviewError: reviewError
           ? {
-              message: "Content was generated successfully, but automatic review is temporarily unavailable. You can review it manually using the 'Review with AI' button.",
+              message:
+                "Content was generated successfully, but automatic review is temporarily unavailable. You can review it manually using the 'Review with AI' button.",
               type: "review_unavailable",
             }
           : undefined,

@@ -40,9 +40,4 @@ export enum HttpStatus {
 }
 
 // Re-export campaign constants
-export {
-  CampaignStatus,
-  PostFrequency,
-  ScheduledPostStatus,
-  CampaignTemplateType,
-} from "./campaign.constant";
+export { CampaignStatus, PostFrequency, ScheduledPostStatus, CampaignTemplateType } from "./campaign.constant";

@@ -30,22 +30,25 @@ class EmailService {
         { smtpHost: !!smtpHost, smtpPort: !!smtpPort, smtpUser: !!smtpUser, smtpPassword: !!smtpPassword },
         "EmailService"
       );
-      
+
       // Create a test account transporter for development
       if (process.env.NODE_ENV === "development") {
-        nodemailer.createTestAccount().then((testAccount: nodemailer.TestAccount) => {
-          this.transporter = nodemailer.createTransport({
-            host: "smtp.ethereal.email",
-            port: 587,
-            secure: false,
-            auth: {
-              user: testAccount.user,
-              pass: testAccount.pass,
-            },
+        nodemailer
+          .createTestAccount()
+          .then((testAccount: nodemailer.TestAccount) => {
+            this.transporter = nodemailer.createTransport({
+              host: "smtp.ethereal.email",
+              port: 587,
+              secure: false,
+              auth: {
+                user: testAccount.user,
+                pass: testAccount.pass,
+              },
+            });
+          })
+          .catch((error: Error) => {
+            logger.error("Failed to create test email account", error, {}, "EmailService");
           });
-        }).catch((error: Error) => {
-          logger.error("Failed to create test email account", error, {}, "EmailService");
-        });
       }
       return;
     }
@@ -99,9 +102,18 @@ class EmailService {
         }
       }
 
-      logger.info("Email sent successfully", { to: options.to, subject: options.subject, messageId: info.messageId }, "EmailService");
+      logger.info(
+        "Email sent successfully",
+        { to: options.to, subject: options.subject, messageId: info.messageId },
+        "EmailService"
+      );
     } catch (error) {
-      logger.error("Failed to send email", error as Error, { to: options.to, subject: options.subject }, "EmailService");
+      logger.error(
+        "Failed to send email",
+        error as Error,
+        { to: options.to, subject: options.subject },
+        "EmailService"
+      );
       // Don't throw error - email failure shouldn't break the invitation flow
     }
   }

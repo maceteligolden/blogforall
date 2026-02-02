@@ -50,9 +50,7 @@ export const siteAccessMiddleware = (options?: {
         const hasRequiredRole = options.requireRole.includes(role);
         if (!hasRequiredRole) {
           return next(
-            new ForbiddenError(
-              `This action requires one of the following roles: ${options.requireRole.join(", ")}`
-            )
+            new ForbiddenError(`This action requires one of the following roles: ${options.requireRole.join(", ")}`)
           );
         }
       }

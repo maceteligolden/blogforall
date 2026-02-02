@@ -18,7 +18,7 @@ export class CampaignController {
         return next(new BadRequestError("User not authenticated"));
       }
 
-      const siteId = req.body.site_id || req.query.site_id as string;
+      const siteId = req.body.site_id || (req.query.site_id as string);
       if (!siteId) {
         return next(new BadRequestError("Site ID is required"));
       }
@@ -39,7 +39,7 @@ export class CampaignController {
       const { id } = req.params;
       const userId = req.user?.userId;
       const siteId = req.query.site_id as string;
-      
+
       if (!siteId) {
         return next(new BadRequestError("Site ID is required"));
       }
@@ -56,7 +56,7 @@ export class CampaignController {
       const { id } = req.params;
       const userId = req.user?.userId;
       const siteId = req.query.site_id as string;
-      
+
       if (!siteId) {
         return next(new BadRequestError("Site ID is required"));
       }
@@ -125,7 +125,7 @@ export class CampaignController {
         return next(new BadRequestError("User not authenticated"));
       }
 
-      const siteId = req.body.site_id || req.query.site_id as string;
+      const siteId = req.body.site_id || (req.query.site_id as string);
       if (!siteId) {
         return next(new BadRequestError("Site ID is required"));
       }
@@ -232,7 +232,9 @@ export class CampaignController {
       const endDate = req.query.end_date ? new Date(req.query.end_date as string) : new Date();
 
       if (!startDate || !endDate || startDate >= endDate) {
-        return next(new BadRequestError("Valid start_date and end_date are required, and end_date must be after start_date"));
+        return next(
+          new BadRequestError("Valid start_date and end_date are required, and end_date must be after start_date")
+        );
       }
 
       const campaigns = await this.campaignService.getCampaignsByDateRange(siteId, startDate, endDate);

@@ -2,8 +2,15 @@ import { injectable } from "tsyringe";
 import { CampaignTemplateRepository } from "../repositories/campaign-template.repository";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
-import { CreateCampaignTemplateInput, UpdateCampaignTemplateInput, CampaignTemplateQueryFilters } from "../interfaces/campaign-template.interface";
-import { CampaignTemplate, CampaignTemplate as CampaignTemplateType } from "../../../shared/schemas/campaign-template.schema";
+import {
+  CreateCampaignTemplateInput,
+  UpdateCampaignTemplateInput,
+  CampaignTemplateQueryFilters,
+} from "../interfaces/campaign-template.interface";
+import {
+  CampaignTemplate,
+  CampaignTemplate as CampaignTemplateType,
+} from "../../../shared/schemas/campaign-template.schema";
 
 @injectable()
 export class CampaignTemplateService {
@@ -45,10 +52,7 @@ export class CampaignTemplateService {
     return this.templateRepository.findByType(type as any);
   }
 
-  async updateTemplate(
-    templateId: string,
-    input: UpdateCampaignTemplateInput
-  ): Promise<CampaignTemplate> {
+  async updateTemplate(templateId: string, input: UpdateCampaignTemplateInput): Promise<CampaignTemplate> {
     const template = await this.getTemplateById(templateId);
 
     // Validate duration if updating
@@ -76,7 +80,7 @@ export class CampaignTemplateService {
 
   async deleteTemplate(templateId: string): Promise<void> {
     const template = await this.getTemplateById(templateId);
-    
+
     // Soft delete by marking as inactive
     await this.templateRepository.update(templateId, { is_active: false });
 

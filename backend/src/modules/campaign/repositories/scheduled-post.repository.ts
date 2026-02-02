@@ -33,7 +33,7 @@ export class ScheduledPostRepository {
 
   async findByUser(userId: string, siteId: string, filters?: ScheduledPostQueryFilters): Promise<ScheduledPostType[]> {
     const query: Record<string, unknown> = { user_id: userId, site_id: siteId };
-    
+
     if (filters?.campaign_id) {
       query.campaign_id = filters.campaign_id;
     }
@@ -41,10 +41,16 @@ export class ScheduledPostRepository {
       query.status = filters.status;
     }
     if (filters?.scheduled_at_from) {
-      query.scheduled_at = { ...(query.scheduled_at as Record<string, unknown> || {}), $gte: filters.scheduled_at_from };
+      query.scheduled_at = {
+        ...((query.scheduled_at as Record<string, unknown>) || {}),
+        $gte: filters.scheduled_at_from,
+      };
     }
     if (filters?.scheduled_at_to) {
-      query.scheduled_at = { ...(query.scheduled_at as Record<string, unknown> || {}), $lte: filters.scheduled_at_to };
+      query.scheduled_at = {
+        ...((query.scheduled_at as Record<string, unknown>) || {}),
+        $lte: filters.scheduled_at_to,
+      };
     }
 
     return ScheduledPost.find(query).sort({ scheduled_at: 1 });
@@ -56,7 +62,7 @@ export class ScheduledPostRepository {
     const skip = (page - 1) * limit;
 
     const query: Record<string, unknown> = { site_id: siteId };
-    
+
     if (filters?.campaign_id) {
       query.campaign_id = filters.campaign_id;
     }
@@ -64,10 +70,16 @@ export class ScheduledPostRepository {
       query.status = filters.status;
     }
     if (filters?.scheduled_at_from) {
-      query.scheduled_at = { ...(query.scheduled_at as Record<string, unknown> || {}), $gte: filters.scheduled_at_from };
+      query.scheduled_at = {
+        ...((query.scheduled_at as Record<string, unknown>) || {}),
+        $gte: filters.scheduled_at_from,
+      };
     }
     if (filters?.scheduled_at_to) {
-      query.scheduled_at = { ...(query.scheduled_at as Record<string, unknown> || {}), $lte: filters.scheduled_at_to };
+      query.scheduled_at = {
+        ...((query.scheduled_at as Record<string, unknown>) || {}),
+        $lte: filters.scheduled_at_to,
+      };
     }
 
     const [data, total] = await Promise.all([
@@ -87,11 +99,7 @@ export class ScheduledPostRepository {
   }
 
   async update(id: string, siteId: string, updateData: Partial<ScheduledPostType>): Promise<ScheduledPostType | null> {
-    return ScheduledPost.findOneAndUpdate(
-      { _id: id, site_id: siteId },
-      { $set: updateData },
-      { new: true }
-    );
+    return ScheduledPost.findOneAndUpdate({ _id: id, site_id: siteId }, { $set: updateData }, { new: true });
   }
 
   async delete(id: string, siteId: string): Promise<boolean> {

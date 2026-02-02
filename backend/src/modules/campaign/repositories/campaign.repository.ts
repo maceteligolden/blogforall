@@ -21,15 +21,15 @@ export class CampaignRepository {
 
   async findByUser(userId: string, siteId: string, filters?: CampaignQueryFilters): Promise<CampaignType[]> {
     const query: Record<string, unknown> = { user_id: userId, site_id: siteId };
-    
+
     if (filters?.status) {
       query.status = filters.status;
     }
     if (filters?.start_date_from) {
-      query.start_date = { ...query.start_date as Record<string, unknown>, $gte: filters.start_date_from };
+      query.start_date = { ...(query.start_date as Record<string, unknown>), $gte: filters.start_date_from };
     }
     if (filters?.start_date_to) {
-      query.start_date = { ...query.start_date as Record<string, unknown>, $lte: filters.start_date_to };
+      query.start_date = { ...(query.start_date as Record<string, unknown>), $lte: filters.start_date_to };
     }
     if (filters?.search) {
       query.$or = [
@@ -48,15 +48,15 @@ export class CampaignRepository {
     const skip = (page - 1) * limit;
 
     const query: Record<string, unknown> = { site_id: siteId };
-    
+
     if (filters?.status) {
       query.status = filters.status;
     }
     if (filters?.start_date_from) {
-      query.start_date = { ...(query.start_date as Record<string, unknown> || {}), $gte: filters.start_date_from };
+      query.start_date = { ...((query.start_date as Record<string, unknown>) || {}), $gte: filters.start_date_from };
     }
     if (filters?.start_date_to) {
-      query.start_date = { ...(query.start_date as Record<string, unknown> || {}), $lte: filters.start_date_to };
+      query.start_date = { ...((query.start_date as Record<string, unknown>) || {}), $lte: filters.start_date_to };
     }
     if (filters?.search) {
       query.$or = [
@@ -83,11 +83,7 @@ export class CampaignRepository {
   }
 
   async update(id: string, siteId: string, updateData: Partial<CampaignType>): Promise<CampaignType | null> {
-    return Campaign.findOneAndUpdate(
-      { _id: id, site_id: siteId },
-      { $set: updateData },
-      { new: true }
-    );
+    return Campaign.findOneAndUpdate({ _id: id, site_id: siteId }, { $set: updateData }, { new: true });
   }
 
   async delete(id: string, siteId: string): Promise<boolean> {
@@ -108,18 +104,13 @@ export class CampaignRepository {
   }
 
   async updatePostsPublished(campaignId: string, increment: number = 1): Promise<void> {
-    await Campaign.updateOne(
-      { _id: campaignId },
-      { $inc: { posts_published: increment } }
-    );
+    await Campaign.updateOne({ _id: campaignId }, { $inc: { posts_published: increment } });
   }
 
   async findByDateRange(siteId: string, startDate: Date, endDate: Date): Promise<CampaignType[]> {
     return Campaign.find({
       site_id: siteId,
-      $or: [
-        { start_date: { $lte: endDate }, end_date: { $gte: startDate } },
-      ],
+      $or: [{ start_date: { $lte: endDate }, end_date: { $gte: startDate } }],
     }).sort({ start_date: 1 });
   }
 }

@@ -113,7 +113,7 @@ export class BlogReviewController {
       // Save current version to history before applying changes
       const currentVersion = (blog.version_history?.length || 0) + 1;
       const versionHistory = blog.version_history || [];
-      
+
       versionHistory.push({
         version: currentVersion,
         content: blog.content,

@@ -71,13 +71,13 @@ export class CategoryService {
 
     // Verify user has access to both sites
     // TODO: Add site access verification (task 17)
-    
+
     // Get all categories from source site
     const sourceCategories = await this.categoryRepository.findBySite(sourceSiteId);
-    
+
     // Filter to only selected categories and their descendants
     const categoriesToImport = this.getCategoriesWithDescendants(sourceCategories, categoryIds);
-    
+
     if (categoriesToImport.length === 0) {
       throw new NotFoundError("No valid categories found to import");
     }
@@ -111,9 +111,7 @@ export class CategoryService {
     );
 
     // Process categories level by level
-    let currentLevel = remainingCategories.filter(
-      (cat) => categoryIdMap.has(cat.parent!.toString())
-    );
+    let currentLevel = remainingCategories.filter((cat) => categoryIdMap.has(cat.parent!.toString()));
 
     while (currentLevel.length > 0) {
       const nextLevel: typeof remainingCategories = [];
@@ -137,17 +135,13 @@ export class CategoryService {
         importedCategories.push(newCategory);
 
         // Find children of this category for next level
-        const children = remainingCategories.filter(
-          (cat) => cat.parent?.toString() === sourceCategory._id!.toString()
-        );
+        const children = remainingCategories.filter((cat) => cat.parent?.toString() === sourceCategory._id!.toString());
         nextLevel.push(...children);
       }
 
       // Remove processed categories from remaining
       const processedIds = new Set(currentLevel.map((cat) => cat._id!.toString()));
-      const stillRemaining = remainingCategories.filter(
-        (cat) => !processedIds.has(cat._id!.toString())
-      );
+      const stillRemaining = remainingCategories.filter((cat) => !processedIds.has(cat._id!.toString()));
 
       // Get next level - categories whose parents are now in the map
       currentLevel = stillRemaining.filter((cat) => categoryIdMap.has(cat.parent!.toString()));
@@ -165,10 +159,7 @@ export class CategoryService {
   /**
    * Get categories and all their descendants
    */
-  private getCategoriesWithDescendants(
-    allCategories: Category[],
-    categoryIds: string[]
-  ): Category[] {
+  private getCategoriesWithDescendants(allCategories: Category[], categoryIds: string[]): Category[] {
     const result: Category[] = [];
     const processed = new Set<string>();
 
@@ -187,9 +178,7 @@ export class CategoryService {
       processed.add(categoryId);
 
       // Find and add all children
-      const children = allCategories.filter(
-        (cat) => cat.parent?.toString() === categoryId
-      );
+      const children = allCategories.filter((cat) => cat.parent?.toString() === categoryId);
       for (const child of children) {
         addCategoryAndChildren(child._id!.toString());
       }

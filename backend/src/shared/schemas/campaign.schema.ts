@@ -161,7 +161,7 @@ const campaignSchema = new Schema<Campaign>(
 // Update updated_at before saving
 campaignSchema.pre("save", function (next) {
   this.updated_at = new Date();
-  
+
   // Auto-update status based on dates
   const now = new Date();
   if (this.status === CampaignStatus.ACTIVE) {
@@ -169,7 +169,7 @@ campaignSchema.pre("save", function (next) {
       this.status = CampaignStatus.COMPLETED;
     }
   }
-  
+
   next();
 });
 

@@ -1,5 +1,7 @@
 import { injectable } from "tsyringe";
-import CampaignTemplate, { CampaignTemplate as CampaignTemplateType } from "../../../shared/schemas/campaign-template.schema";
+import CampaignTemplate, {
+  CampaignTemplate as CampaignTemplateType,
+} from "../../../shared/schemas/campaign-template.schema";
 import { CampaignTemplateType as TemplateType } from "../../../shared/constants/campaign.constant";
 import { CampaignTemplateQueryFilters } from "../interfaces/campaign-template.interface";
 
@@ -16,7 +18,7 @@ export class CampaignTemplateRepository {
 
   async findAll(filters?: CampaignTemplateQueryFilters): Promise<CampaignTemplateType[]> {
     const query: Record<string, unknown> = {};
-    
+
     if (filters?.type) {
       query.type = filters.type;
     }

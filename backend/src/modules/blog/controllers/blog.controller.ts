@@ -19,7 +19,7 @@ export class BlogController {
 
       // TODO: Get siteId from request context (task 20)
       // For now, getting from body or query - will be replaced with site context middleware
-      const siteId = req.body.site_id || req.query.site_id as string;
+      const siteId = req.body.site_id || (req.query.site_id as string);
       if (!siteId) {
         return next(new BadRequestError("Site ID is required"));
       }
@@ -40,7 +40,7 @@ export class BlogController {
     try {
       const { id } = req.params;
       const userId = req.user?.userId;
-      
+
       // TODO: Get siteId from request context (task 20)
       const siteId = req.query.site_id as string;
       if (!siteId) {
@@ -57,7 +57,7 @@ export class BlogController {
   getBySlug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { slug } = req.params;
-      
+
       // TODO: Get siteId from request context (task 20)
       const siteId = req.query.site_id as string;
       if (!siteId) {
@@ -126,7 +126,7 @@ export class BlogController {
       }
 
       // TODO: Get siteId from request context (task 20)
-      const siteId = req.body.site_id || req.query.site_id as string;
+      const siteId = req.body.site_id || (req.query.site_id as string);
       if (!siteId) {
         return next(new BadRequestError("Site ID is required"));
       }

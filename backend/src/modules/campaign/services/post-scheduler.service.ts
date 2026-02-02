@@ -82,15 +82,17 @@ export class PostSchedulerService {
    */
   async executeScheduledPost(scheduledPostId: string): Promise<void> {
     const scheduledPost = await this.scheduledPostRepository.findById(scheduledPostId);
-    
+
     if (!scheduledPost) {
       logger.error(`Scheduled post not found: ${scheduledPostId}`, {}, "PostSchedulerService");
       return;
     }
 
     // Skip if already published or cancelled
-    if (scheduledPost.status === ScheduledPostStatus.PUBLISHED || 
-        scheduledPost.status === ScheduledPostStatus.CANCELLED) {
+    if (
+      scheduledPost.status === ScheduledPostStatus.PUBLISHED ||
+      scheduledPost.status === ScheduledPostStatus.CANCELLED
+    ) {
       return;
     }
 
@@ -106,11 +108,7 @@ export class PostSchedulerService {
         scheduledPostId,
         `Failed after ${this.MAX_RETRY_ATTEMPTS} attempts`
       );
-      logger.error(
-        `Scheduled post ${scheduledPostId} exceeded max retry attempts`,
-        {},
-        "PostSchedulerService"
-      );
+      logger.error(`Scheduled post ${scheduledPostId} exceeded max retry attempts`, {}, "PostSchedulerService");
       return;
     }
 
@@ -124,7 +122,7 @@ export class PostSchedulerService {
         // Case 1: Blog already exists, just publish it
         blogId = scheduledPost.blog_id;
         const blog = await this.blogRepository.findById(blogId, scheduledPost.site_id);
-        
+
         if (!blog) {
           throw new NotFoundError(`Blog ${blogId} not found for scheduled post ${scheduledPostId}`);
         }
@@ -137,11 +135,11 @@ export class PostSchedulerService {
       } else if (scheduledPost.auto_generate && scheduledPost.generation_prompt) {
         // Case 2: Auto-generate blog content and then publish
         logger.info(`Generating content for scheduled post ${scheduledPostId}`, {}, "PostSchedulerService");
-        
+
         try {
           // Analyze prompt first
           const analysis = await this.blogGenerationService.analyzePrompt(scheduledPost.generation_prompt);
-          
+
           if (!analysis.is_valid) {
             throw new Error(`Invalid generation prompt: ${analysis.rejection_reason || "Unknown error"}`);
           }
@@ -191,7 +189,7 @@ export class PostSchedulerService {
       // Update campaign stats if part of a campaign
       if (scheduledPost.campaign_id) {
         await this.campaignRepository.updatePostsPublished(scheduledPost.campaign_id, 1);
-        
+
         // Check if campaign should be marked as completed
         const campaign = await this.campaignRepository.findById(scheduledPost.campaign_id, scheduledPost.site_id);
         if (campaign && campaign.end_date <= now && campaign.status === CampaignStatus.ACTIVE) {
@@ -213,10 +211,7 @@ export class PostSchedulerService {
 
       // Mark as failed if exceeded retry limit
       if (scheduledPost.publish_attempts + 1 >= this.MAX_RETRY_ATTEMPTS) {
-        await this.scheduledPostRepository.markAsFailed(
-          scheduledPostId,
-          (error as Error).message || "Unknown error"
-        );
+        await this.scheduledPostRepository.markAsFailed(scheduledPostId, (error as Error).message || "Unknown error");
       } else {
         // Just update error message for retry
         await this.scheduledPostRepository.update(scheduledPostId, scheduledPost.site_id, {

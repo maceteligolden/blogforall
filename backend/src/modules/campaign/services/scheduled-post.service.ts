@@ -4,7 +4,11 @@ import { CampaignRepository } from "../repositories/campaign.repository";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
-import { CreateScheduledPostInput, UpdateScheduledPostInput, ScheduledPostQueryFilters } from "../interfaces/scheduled-post.interface";
+import {
+  CreateScheduledPostInput,
+  UpdateScheduledPostInput,
+  ScheduledPostQueryFilters,
+} from "../interfaces/scheduled-post.interface";
 import { ScheduledPost, ScheduledPost as ScheduledPostType } from "../../../shared/schemas/scheduled-post.schema";
 import { ScheduledPostStatus, CampaignStatus } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
@@ -17,11 +21,7 @@ export class ScheduledPostService {
     private blogRepository: BlogRepository
   ) {}
 
-  async createScheduledPost(
-    userId: string,
-    siteId: string,
-    input: CreateScheduledPostInput
-  ): Promise<ScheduledPost> {
+  async createScheduledPost(userId: string, siteId: string, input: CreateScheduledPostInput): Promise<ScheduledPost> {
     // Validate scheduled date
     if (input.scheduled_at < new Date()) {
       throw new BadRequestError("Scheduled date cannot be in the past");
@@ -70,22 +70,22 @@ export class ScheduledPostService {
       auto_generate: input.auto_generate || false,
     });
 
-    logger.info("Scheduled post created", { 
-      scheduledPostId: scheduledPost._id, 
-      userId, 
-      siteId,
-      campaignId: input.campaign_id,
-      blogId: input.blog_id,
-    }, "ScheduledPostService");
+    logger.info(
+      "Scheduled post created",
+      {
+        scheduledPostId: scheduledPost._id,
+        userId,
+        siteId,
+        campaignId: input.campaign_id,
+        blogId: input.blog_id,
+      },
+      "ScheduledPostService"
+    );
 
     return scheduledPost;
   }
 
-  async getScheduledPostById(
-    scheduledPostId: string,
-    siteId: string,
-    userId?: string
-  ): Promise<ScheduledPost> {
+  async getScheduledPostById(scheduledPostId: string, siteId: string, userId?: string): Promise<ScheduledPost> {
     const post = await this.scheduledPostRepository.findById(scheduledPostId, siteId);
     if (!post) {
       throw new NotFoundError("Scheduled post not found");
@@ -113,11 +113,7 @@ export class ScheduledPostService {
     return this.scheduledPostRepository.findAll(siteId, filters);
   }
 
-  async getScheduledPostsByDateRange(
-    siteId: string,
-    startDate: Date,
-    endDate: Date
-  ): Promise<ScheduledPost[]> {
+  async getScheduledPostsByDateRange(siteId: string, startDate: Date, endDate: Date): Promise<ScheduledPost[]> {
     return this.scheduledPostRepository.findByDateRange(siteId, startDate, endDate);
   }
 
@@ -243,21 +239,21 @@ export class ScheduledPostService {
       throw new NotFoundError("Scheduled post not found");
     }
 
-    logger.info("Scheduled post moved to campaign", { 
-      scheduledPostId, 
-      campaignId, 
-      userId, 
-      siteId 
-    }, "ScheduledPostService");
+    logger.info(
+      "Scheduled post moved to campaign",
+      {
+        scheduledPostId,
+        campaignId,
+        userId,
+        siteId,
+      },
+      "ScheduledPostService"
+    );
 
     return updatedPost;
   }
 
-  async removeFromCampaign(
-    scheduledPostId: string,
-    siteId: string,
-    userId: string
-  ): Promise<ScheduledPost> {
+  async removeFromCampaign(scheduledPostId: string, siteId: string, userId: string): Promise<ScheduledPost> {
     const post = await this.getScheduledPostById(scheduledPostId, siteId, userId);
 
     if (!post.campaign_id) {
