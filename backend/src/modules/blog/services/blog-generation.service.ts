@@ -172,18 +172,14 @@ export class BlogGenerationService {
       const generatedText = typeof generationResponse === "string" ? generationResponse : generationResponse.generated_text || "";
       const blogContent = this.parseGeneratedContent(generatedText, analysis);
 
+      // Validate generated content
+      this.validateGeneratedContent(blogContent, analysis);
+
       // Validate generated content safety
       const isInappropriate = await this.checkContentSafety(blogContent.content);
       if (isInappropriate) {
         throw new BadRequestError(
           "The generated content doesn't meet our content guidelines. Please try a different prompt or topic."
-        );
-      }
-
-      // Validate content was actually generated
-      if (!blogContent.content || blogContent.content.trim().length < 100) {
-        throw new BadRequestError(
-          "The generated content is too short. Please try again with a more detailed prompt or specify a longer word count."
         );
       }
 
@@ -425,8 +421,16 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
       };
     } catch (error) {
       logger.error("Failed to parse generated content", error as Error, { responseText: responseText.substring(0, 200) }, "BlogGenerationService");
-      // Fallback: return basic structure
-      return {
+      
+      // Validate fallback content before returning
+      if (!responseText || responseText.trim().length < BlogGenerationConfig.MIN_CONTENT_LENGTH) {
+        throw new BadRequestError(
+          "The AI response couldn't be parsed and the content is too short. Please try regenerating with a different prompt."
+        );
+      }
+
+      // Fallback: return basic structure with validation
+      const fallbackContent = {
         title: `Blog Post About ${analysis.topic}`,
         content: responseText,
         excerpt: responseText.substring(0, 150),
@@ -435,6 +439,108 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
           keywords: [],
         },
       };
+
+      // Validate fallback content
+      try {
+        this.validateGeneratedContent(fallbackContent, analysis);
+      } catch (validationError) {
+        // If fallback also fails validation, throw the validation error
+        throw validationError;
+      }
+
+      return fallbackContent;
+    }
+  }
+
+  /**
+   * Validate generated content (length, structure, etc.)
+   */
+  private validateGeneratedContent(content: GeneratedBlogContent, analysis: PromptAnalysis): void {
+    // Validate title
+    if (!content.title || content.title.trim().length === 0) {
+      throw new BadRequestError(
+        "The generated blog post is missing a title. Please try regenerating or provide a more specific prompt."
+      );
+    }
+
+    if (content.title.length > 200) {
+      throw new BadRequestError(
+        `The generated title is too long (${content.title.length} characters). Please try regenerating with a different prompt.`
+      );
+    }
+
+    // Validate content length
+    if (!content.content || content.content.trim().length === 0) {
+      throw new BadRequestError(
+        "No content was generated. Please try again with a more detailed prompt or a different topic."
+      );
+    }
+
+    const contentLength = content.content.trim().length;
+    const minLength = BlogGenerationConfig.MIN_CONTENT_LENGTH;
+    const maxLength = BlogGenerationConfig.MAX_CONTENT_LENGTH;
+
+    if (contentLength < minLength) {
+      const wordCount = content.content.split(/\s+/).filter((w) => w.length > 0).length;
+      throw new BadRequestError(
+        `The generated content is too short (${wordCount} words, ${contentLength} characters). ` +
+        `Please try again with a more detailed prompt, specify a longer word count, or ask for more comprehensive coverage of the topic.`
+      );
+    }
+
+    if (contentLength > maxLength) {
+      logger.warn("Generated content exceeds maximum length", { contentLength, maxLength }, "BlogGenerationService");
+      // Don't throw error, just log warning - content is still usable
+    }
+
+    // Validate word count matches request (with tolerance)
+    if (analysis.word_count) {
+      const actualWordCount = content.content.split(/\s+/).filter((w) => w.length > 0).length;
+      const requestedWordCount = analysis.word_count;
+      const tolerance = Math.max(200, requestedWordCount * 0.3); // 30% tolerance or minimum 200 words
+
+      if (actualWordCount < requestedWordCount - tolerance) {
+        throw new BadRequestError(
+          `The generated content is shorter than requested. You asked for approximately ${requestedWordCount} words, ` +
+          `but got ${actualWordCount} words. Please try regenerating with a more detailed prompt or ask for more comprehensive coverage.`
+        );
+      }
+
+      if (actualWordCount > requestedWordCount + tolerance * 2) {
+        logger.warn(
+          "Generated content significantly exceeds requested word count",
+          { requestedWordCount, actualWordCount },
+          "BlogGenerationService"
+        );
+        // Don't throw error, just log warning - more content is usually fine
+      }
+    }
+
+    // Validate HTML structure (basic check)
+    const htmlTagCount = (content.content.match(/<[^>]+>/g) || []).length;
+    const textContent = content.content.replace(/<[^>]+>/g, "").trim();
+    
+    if (htmlTagCount > 0 && textContent.length < minLength * 0.5) {
+      // If HTML is present but actual text content is very short, might be malformed
+      logger.warn(
+        "Generated content may have HTML structure issues",
+        { htmlTagCount, textContentLength: textContent.length },
+        "BlogGenerationService"
+      );
+    }
+
+    // Validate excerpt
+    if (content.excerpt && content.excerpt.length > 500) {
+      logger.warn("Generated excerpt exceeds recommended length", { excerptLength: content.excerpt.length }, "BlogGenerationService");
+      // Truncate excerpt if too long
+      content.excerpt = content.excerpt.substring(0, 497) + "...";
+    }
+
+    // Validate meta description if present
+    if (content.meta?.description && content.meta.description.length > 160) {
+      logger.warn("Meta description exceeds recommended length", { descriptionLength: content.meta.description.length }, "BlogGenerationService");
+      // Truncate meta description if too long
+      content.meta.description = content.meta.description.substring(0, 157) + "...";
     }
   }
 

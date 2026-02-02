@@ -37,4 +37,14 @@ export const BlogGenerationConfig = {
    */
   DEFAULT_MIN_WORDS: parseInt(process.env.BLOG_GENERATION_MIN_WORDS || "1000", 10),
   DEFAULT_MAX_WORDS: parseInt(process.env.BLOG_GENERATION_MAX_WORDS || "2000", 10),
+
+  /**
+   * Minimum content length (characters) - reject if generated content is too short
+   */
+  MIN_CONTENT_LENGTH: parseInt(process.env.BLOG_GENERATION_MIN_CONTENT_LENGTH || "500", 10),
+
+  /**
+   * Maximum content length (characters) - warn if exceeded
+   */
+  MAX_CONTENT_LENGTH: parseInt(process.env.BLOG_GENERATION_MAX_CONTENT_LENGTH || "50000", 10),
 };
