@@ -248,6 +248,21 @@ export class CampaignService {
     });
   }
 
+  static async moveToCampaign(id: string, campaignId: string) {
+    const siteId = this.getCurrentSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.MOVE_TO_CAMPAIGN(id), {
+      campaign_id: campaignId,
+      site_id: siteId,
+    });
+  }
+
+  static async removeFromCampaign(id: string) {
+    const siteId = this.getCurrentSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.REMOVE_FROM_CAMPAIGN(id), {
+      site_id: siteId,
+    });
+  }
+
   // Template methods
   static async getTemplates(params?: { type?: string; is_active?: boolean; industry?: string }) {
     return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.LIST, { params });
