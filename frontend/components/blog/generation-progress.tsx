@@ -24,7 +24,7 @@ const stages: { key: GenerationStage; label: string; description: string }[] = [
   {
     key: "generating",
     label: "Generating Content",
-    description: "Creating your blog post with AI...",
+    description: "Creating your blog post with AI and reviewing quality...",
   },
   {
     key: "reviewing",

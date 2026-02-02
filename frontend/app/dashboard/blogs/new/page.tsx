@@ -76,14 +76,10 @@ export default function NewBlogPage() {
   const handleConfirmGeneration = async (confirmedAnalysis: PromptAnalysis) => {
     setShowConfirmation(false);
     setShowProgress(true);
-    setGenerationStage("analyzing");
+    setGenerationStage("generating"); // Skip analyzing stage since it's already done
 
     try {
-      // Stage 1: Analyzing (already done, but show progress)
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setGenerationStage("generating");
-
-      // Stage 2: Generate blog content
+      // Generate blog content (includes auto-review in backend)
       const generatedData = await generateBlog(prompt.trim(), confirmedAnalysis);
 
       // Update form data with generated content
@@ -94,11 +90,7 @@ export default function NewBlogPage() {
         excerpt: generatedData.content.excerpt,
       });
 
-      // Stage 3: Reviewing (auto-review happens in backend, but show progress)
-      setGenerationStage("reviewing");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Stage 4: Complete
+      // Stage: Complete (review happens automatically in backend)
       setGenerationStage("complete");
       
       // Store auto-review result if available (auto-review from backend)
@@ -107,17 +99,16 @@ export default function NewBlogPage() {
       }
 
       // Switch to write mode to show the generated content
-      setTimeout(() => {
-        setMode("write");
-        setShowProgress(false);
-        
-        // Auto-show review if available from generation
-        if (generatedData.review) {
-          setShowReview(true);
-        }
-      }, 2000);
+      setMode("write");
+      setShowProgress(false);
+      
+      // Auto-show review if available from generation
+      if (generatedData.review) {
+        setShowReview(true);
+      }
     } catch (err) {
       setShowProgress(false);
+      setGenerationStage("analyzing"); // Reset to initial stage on error
       setPromptError("Failed to generate blog content. Please try again.");
     }
   };
@@ -139,19 +130,21 @@ export default function NewBlogPage() {
     setGenerationStage("analyzing");
 
     try {
-      // Stage 1: Analyzing (re-analyze prompt)
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Stage 1: Re-analyze prompt
       const freshAnalysis = await analyzePrompt(prompt.trim());
       
       if (!freshAnalysis.is_valid) {
         setPromptError(freshAnalysis.rejection_reason || "Invalid prompt");
         setShowProgress(false);
+        setGenerationStage("analyzing"); // Reset stage
         return;
       }
 
-      setGenerationStage("generating");
+      // Update prompt analysis with fresh analysis
+      setPromptAnalysis(freshAnalysis);
 
       // Stage 2: Generate blog content with fresh analysis
+      setGenerationStage("generating");
       const generatedData = await generateBlog(prompt.trim(), freshAnalysis);
 
       // Update form data with new generated content
@@ -162,14 +155,7 @@ export default function NewBlogPage() {
         excerpt: generatedData.content.excerpt,
       });
 
-      // Update prompt analysis with fresh analysis
-      setPromptAnalysis(freshAnalysis);
-
-      // Stage 3: Reviewing (auto-review happens in backend)
-      setGenerationStage("reviewing");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Stage 4: Complete
+      // Stage 3: Complete (review happens automatically in backend)
       setGenerationStage("complete");
 
       // Store auto-review result if available
@@ -178,11 +164,13 @@ export default function NewBlogPage() {
         setShowReview(true);
       }
 
+      // Close progress modal after a brief moment to show completion
       setTimeout(() => {
         setShowProgress(false);
-      }, 2000);
+      }, 1000); // Short delay just to show completion state
     } catch (err) {
       setShowProgress(false);
+      setGenerationStage("analyzing"); // Reset to initial stage on error
       setPromptError("Failed to regenerate blog content. Please try again.");
     }
   };
