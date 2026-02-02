@@ -13,7 +13,14 @@ import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
-import { Sparkles } from "lucide-react";
+import { PromptInput } from "@/components/blog/prompt-input";
+import { PreGenerationConfirmation } from "@/components/blog/pre-generation-confirmation";
+import { GenerationProgress, GenerationStage } from "@/components/blog/generation-progress";
+import { useBlogGeneration } from "@/lib/hooks/use-blog-generation";
+import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
+import { Sparkles, PenTool } from "lucide-react";
+
+type BlogCreationMode = "write" | "ai-generate";
 
 export default function NewBlogPage() {
   const router = useRouter();
@@ -21,6 +28,15 @@ export default function NewBlogPage() {
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
   const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult, applyReviewAsync } = useBlogReview();
+  const { analyzePrompt, generateBlog, isAnalyzing, isGenerating, generationResult } = useBlogGeneration();
+  const [mode, setMode] = useState<BlogCreationMode>("write");
+  const [prompt, setPrompt] = useState("");
+  const [promptAnalysis, setPromptAnalysis] = useState<PromptAnalysis | null>(null);
+  const [promptError, setPromptError] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
+  const [generationStage, setGenerationStage] = useState<GenerationStage>("analyzing");
+  const [autoReviewResult, setAutoReviewResult] = useState<any>(null); // Review from auto-review after generation
   const [showReview, setShowReview] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [formData, setFormData] = useState({
@@ -33,6 +49,145 @@ export default function NewBlogPage() {
     status: "draft" as "draft" | "published" | "unpublished",
   });
   const [error, setError] = useState("");
+
+  const handleAnalyzePrompt = async () => {
+    if (!prompt.trim()) {
+      setPromptError("Please enter a prompt");
+      return;
+    }
+
+    setPromptError("");
+    try {
+      const response = await analyzePrompt(prompt.trim());
+      const analysis = response.data.data;
+      setPromptAnalysis(analysis);
+
+      if (!analysis.is_valid) {
+        setPromptError(analysis.rejection_reason || "Invalid prompt");
+      } else {
+        // Show confirmation modal after successful analysis
+        setShowConfirmation(true);
+      }
+    } catch (err) {
+      // Error handled by hook
+      setPromptError("Failed to analyze prompt. Please try again.");
+    }
+  };
+
+  const handleConfirmGeneration = async (confirmedAnalysis: PromptAnalysis) => {
+    setShowConfirmation(false);
+    setShowProgress(true);
+    setGenerationStage("analyzing");
+
+    try {
+      // Stage 1: Analyzing (already done, but show progress)
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setGenerationStage("generating");
+
+      // Stage 2: Generate blog content
+      const response = await generateBlog({ prompt: prompt.trim(), analysis: confirmedAnalysis });
+      const generatedData = response.data.data;
+
+      // Update form data with generated content
+      setFormData({
+        ...formData,
+        title: generatedData.content.title,
+        content: generatedData.content.content,
+        excerpt: generatedData.content.excerpt,
+      });
+
+      // Stage 3: Reviewing (auto-review happens in backend, but show progress)
+      setGenerationStage("reviewing");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Stage 4: Complete
+      setGenerationStage("complete");
+      
+      // Store auto-review result if available (auto-review from backend)
+      if (generatedData.review) {
+        setAutoReviewResult(generatedData.review);
+      }
+
+      // Switch to write mode to show the generated content
+      setTimeout(() => {
+        setMode("write");
+        setShowProgress(false);
+        
+        // Auto-show review if available from generation
+        if (generatedData.review) {
+          setShowReview(true);
+        }
+      }, 2000);
+    } catch (err) {
+      setShowProgress(false);
+      setPromptError("Failed to generate blog content. Please try again.");
+    }
+  };
+
+  const handleCancelGeneration = () => {
+    setShowProgress(false);
+    setGenerationStage("analyzing");
+  };
+
+  const handleRegenerate = async () => {
+    if (!prompt.trim() || !promptAnalysis) {
+      setPromptError("Cannot regenerate without a valid prompt and analysis");
+      return;
+    }
+
+    setShowProgress(true);
+    setGenerationStage("analyzing");
+
+    try {
+      // Stage 1: Analyzing (re-analyze prompt)
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const analysisResponse = await analyzePrompt(prompt.trim());
+      const freshAnalysis = analysisResponse.data.data;
+      
+      if (!freshAnalysis.is_valid) {
+        setPromptError(freshAnalysis.rejection_reason || "Invalid prompt");
+        setShowProgress(false);
+        return;
+      }
+
+      setGenerationStage("generating");
+
+      // Stage 2: Generate blog content with fresh analysis
+      const response = await generateBlog({ prompt: prompt.trim(), analysis: freshAnalysis });
+      const generatedData = response.data.data;
+
+      // Update form data with new generated content
+      setFormData({
+        ...formData,
+        title: generatedData.content.title,
+        content: generatedData.content.content,
+        excerpt: generatedData.content.excerpt,
+      });
+
+      // Update prompt analysis with fresh analysis
+      setPromptAnalysis(freshAnalysis);
+
+      // Stage 3: Reviewing (auto-review happens in backend)
+      setGenerationStage("reviewing");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Stage 4: Complete
+      setGenerationStage("complete");
+
+      // Store auto-review result if available
+      if (generatedData.review) {
+        setAutoReviewResult(generatedData.review);
+        setShowReview(true);
+      }
+
+      setTimeout(() => {
+        setShowProgress(false);
+      }, 2000);
+    } catch (err) {
+      setShowProgress(false);
+      setPromptError("Failed to regenerate blog content. Please try again.");
+    }
+  };
 
   const handleReview = async () => {
     if (!formData.title || !formData.content) {
@@ -133,6 +288,34 @@ export default function NewBlogPage() {
         />
           <div className="flex justify-between items-center">
           <h1 className="text-2xl font-display text-white">Create New Blog</h1>
+          
+          {/* Mode Toggle */}
+          <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-800">
+            <button
+              type="button"
+              onClick={() => setMode("write")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                mode === "write"
+                  ? "bg-purple-600 text-white"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <PenTool className="w-4 h-4" />
+              <span className="text-sm font-medium">Write</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("ai-generate")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                mode === "ai-generate"
+                  ? "bg-purple-600 text-white"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span className="text-sm font-medium">AI Generate</span>
+            </button>
+          </div>
           <div className="flex items-center space-x-4">
             <Button
               type="button"
@@ -173,36 +356,85 @@ export default function NewBlogPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <div>
-                <Label htmlFor="title" className="text-gray-300">
-                  Title *
-                </Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="mt-1 bg-black border-gray-700 text-white"
-                  required
-                  maxLength={200}
-                />
-              </div>
+              {mode === "ai-generate" ? (
+                <div className="space-y-6">
+                  <PromptInput
+                    value={prompt}
+                    onChange={setPrompt}
+                    onAnalyze={handleAnalyzePrompt}
+                    isAnalyzing={isAnalyzing}
+                    error={promptError}
+                  />
+                  {promptAnalysis && promptAnalysis.is_valid && (
+                    <div className="rounded-md bg-green-900/20 border border-green-800 p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <p className="text-sm text-green-400 font-medium">Prompt Analysis Complete</p>
+                        {formData.content && (
+                          <Button
+                            type="button"
+                            onClick={handleRegenerate}
+                            disabled={isGenerating}
+                            className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-auto"
+                          >
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            {isGenerating ? "Regenerating..." : "Regenerate"}
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-400">Topic:</span>
+                          <span className="text-white ml-2">{promptAnalysis.topic}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Domain:</span>
+                          <span className="text-white ml-2">{promptAnalysis.domain}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Audience:</span>
+                          <span className="text-white ml-2">{promptAnalysis.target_audience}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Purpose:</span>
+                          <span className="text-white ml-2">{promptAnalysis.purpose}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="title" className="text-gray-300">
+                      Title *
+                    </Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="mt-1 bg-black border-gray-700 text-white"
+                      required
+                      maxLength={200}
+                    />
+                  </div>
 
-          <div className="flex-1 min-h-0">
-            <Label htmlFor="content" className="text-gray-300 mb-2 block">
-              Content *
-            </Label>
-            <div className="h-[calc(100vh-500px)] min-h-[600px]">
-              <RichTextEditor
-                value={formData.content}
-                onChange={(value) => setFormData({ ...formData, content: value })}
-                placeholder="Start writing your blog post..."
-              />
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Use the toolbar to format your text, add headers, lists, images, and more.
-            </p>
-          </div>
-
+                  <div className="flex-1 min-h-0">
+                    <Label htmlFor="content" className="text-gray-300 mb-2 block">
+                      Content *
+                    </Label>
+                    <div className="h-[calc(100vh-500px)] min-h-[600px]">
+                      <RichTextEditor
+                        value={formData.content}
+                        onChange={(value) => setFormData({ ...formData, content: value })}
+                        placeholder="Start writing your blog post..."
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Use the toolbar to format your text, add headers, lists, images, and more.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="lg:col-span-1 space-y-6">
@@ -294,10 +526,10 @@ export default function NewBlogPage() {
           </form>
 
           {/* Review Results */}
-          {showReview && reviewResult && (
+          {showReview && (reviewResult || autoReviewResult) && (
             <div className="mt-6">
               <BlogReviewCard
-                reviewResult={reviewResult}
+                reviewResult={reviewResult || autoReviewResult}
                 originalContent={{
                   title: formData.title,
                   content: formData.content,
@@ -308,23 +540,24 @@ export default function NewBlogPage() {
                 onApplyReview={async (selectedSuggestions, applyAll) => {
                   // For new blogs, just update the form data directly
                   // The blog hasn't been created yet, so we can't call the API
+                  const result = reviewResult || autoReviewResult;
                   try {
                     if (applyAll) {
                       // Update form data with all improvements
                       setFormData({
                         ...formData,
-                        title: reviewResult.improved_title || formData.title,
-                        content: reviewResult.improved_content || formData.content,
-                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                        title: result.improved_title || formData.title,
+                        content: result.improved_content || formData.content,
+                        excerpt: result.improved_excerpt || formData.excerpt,
                       });
                     } else {
                       // Apply selected suggestions (for now, apply all improvements)
                       // TODO: Implement selective application based on selected suggestions
                       setFormData({
                         ...formData,
-                        title: reviewResult.improved_title || formData.title,
-                        content: reviewResult.improved_content || formData.content,
-                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                        title: result.improved_title || formData.title,
+                        content: result.improved_content || formData.content,
+                        excerpt: result.improved_excerpt || formData.excerpt,
                       });
                     }
                     setShowReview(false);
@@ -337,28 +570,48 @@ export default function NewBlogPage() {
           )}
 
           {/* Comparison Modal */}
-          {showComparison && reviewResult && (
+          {showComparison && (reviewResult || autoReviewResult) && (
             <BlogReviewComparison
               original={{
                 title: formData.title,
                 content: formData.content,
                 excerpt: formData.excerpt,
               }}
-              reviewResult={reviewResult}
+              reviewResult={reviewResult || autoReviewResult}
               onClose={() => setShowComparison(false)}
               onApplyAll={async () => {
                 // For new blogs, just update the form data directly
+                const result = reviewResult || autoReviewResult;
                 setFormData({
                   ...formData,
-                  title: reviewResult.improved_title || formData.title,
-                  content: reviewResult.improved_content || formData.content,
-                  excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                  title: result.improved_title || formData.title,
+                  content: result.improved_content || formData.content,
+                  excerpt: result.improved_excerpt || formData.excerpt,
                 });
                 setShowComparison(false);
                 setShowReview(false);
               }}
             />
           )}
+
+          {/* Pre-Generation Confirmation Modal */}
+          {promptAnalysis && (
+            <PreGenerationConfirmation
+              isOpen={showConfirmation}
+              onClose={() => setShowConfirmation(false)}
+              onConfirm={handleConfirmGeneration}
+              initialAnalysis={promptAnalysis}
+              isGenerating={isGenerating}
+            />
+          )}
+
+          {/* Generation Progress Modal */}
+          <GenerationProgress
+            isOpen={showProgress}
+            onCancel={handleCancelGeneration}
+            currentStage={generationStage}
+            canCancel={generationStage !== "complete"}
+          />
         </div>
       </main>
     </div>
