@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Sparkles } from "lucide-react";
+import { AlertCircle, Sparkles, HelpCircle, Info } from "lucide-react";
 
 interface PromptInputProps {
   value: string;
@@ -24,6 +24,7 @@ export function PromptInput({
   maxLength = 2000,
 }: PromptInputProps) {
   const [wordCount, setWordCount] = useState<number | null>(null);
+  const [showTips, setShowTips] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
@@ -88,14 +89,53 @@ export function PromptInput({
         </div>
       )}
 
-      <div className="text-xs text-gray-400 space-y-1">
-        <p className="font-medium">Tips for better results:</p>
-        <ul className="list-disc list-inside space-y-1 ml-2">
-          <li>Be specific about your topic (e.g., &quot;React hooks&quot; instead of &quot;programming&quot;)</li>
-          <li>Mention your target audience if relevant (e.g., &quot;for beginners&quot;, &quot;for developers&quot;)</li>
-          <li>Specify word count if desired (e.g., &quot;approximately 1500 words&quot;)</li>
-          <li>Include structure preference if any (e.g., &quot;tutorial format&quot;, &quot;listicle&quot;)</li>
-        </ul>
+      <div className="border border-gray-800 rounded-lg p-4 bg-gray-900/50">
+        <button
+          type="button"
+          onClick={() => setShowTips(!showTips)}
+          className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-300 transition-colors w-full"
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span className="font-medium">Tips for better results</span>
+          <span className="ml-auto">{showTips ? "−" : "+"}</span>
+        </button>
+        {showTips && (
+          <div className="mt-3 text-xs text-gray-400 space-y-2 pl-6">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-400" />
+              <div>
+                <p className="font-medium text-gray-300 mb-1">Be Specific</p>
+                <p>Use specific topics (e.g., &quot;React hooks&quot; instead of &quot;programming&quot;)</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-400" />
+              <div>
+                <p className="font-medium text-gray-300 mb-1">Define Your Audience</p>
+                <p>Mention target audience (e.g., &quot;for beginners&quot;, &quot;for developers&quot;)</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-400" />
+              <div>
+                <p className="font-medium text-gray-300 mb-1">Set Word Count</p>
+                <p>Specify desired length (e.g., &quot;approximately 1500 words&quot;)</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-400" />
+              <div>
+                <p className="font-medium text-gray-300 mb-1">Choose Structure</p>
+                <p>Include format preference (e.g., &quot;tutorial format&quot;, &quot;listicle&quot;)</p>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-800">
+              <p className="text-gray-500 italic">
+                💡 Tip: Use the &quot;Browse Templates&quot; button for pre-written prompt templates!
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
