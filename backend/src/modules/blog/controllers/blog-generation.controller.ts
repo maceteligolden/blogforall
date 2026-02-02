@@ -25,7 +25,9 @@ export class BlogGenerationController {
       const { prompt } = req.body;
 
       if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-        return next(new BadRequestError("Prompt is required"));
+        return next(new BadRequestError(
+          "Please enter a prompt describing what you'd like to write about. For example: 'Write a guide about React hooks for beginners'."
+        ));
       }
 
       const analysis = await this.blogGenerationService.analyzePrompt(prompt.trim());
@@ -48,7 +50,9 @@ export class BlogGenerationController {
       const { prompt, analysis } = req.body;
 
       if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-        return next(new BadRequestError("Prompt is required"));
+        return next(new BadRequestError(
+          "Please enter a prompt describing what you'd like to write about. For example: 'Write a guide about React hooks for beginners'."
+        ));
       }
 
       // If analysis is provided, use it; otherwise analyze first
@@ -58,7 +62,10 @@ export class BlogGenerationController {
       }
 
       if (!promptAnalysis.is_valid) {
-        return next(new BadRequestError(promptAnalysis.rejection_reason || "Invalid prompt"));
+        return next(new BadRequestError(
+          promptAnalysis.rejection_reason || 
+          "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
+        ));
       }
 
       // Generate blog content

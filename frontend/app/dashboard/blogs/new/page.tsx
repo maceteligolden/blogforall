@@ -67,9 +67,10 @@ export default function NewBlogPage() {
         // Show confirmation modal after successful analysis
         setShowConfirmation(true);
       }
-    } catch (err) {
-      // Error handled by hook
-      setPromptError("Failed to analyze prompt. Please try again.");
+    } catch (err: any) {
+      // Error message is already user-friendly from backend
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to analyze prompt. Please try again.";
+      setPromptError(errorMessage);
     }
   };
 
@@ -106,10 +107,12 @@ export default function NewBlogPage() {
       if (generatedData.review) {
         setShowReview(true);
       }
-    } catch (err) {
+    } catch (err: any) {
       setShowProgress(false);
       setGenerationStage("analyzing"); // Reset to initial stage on error
-      setPromptError("Failed to generate blog content. Please try again.");
+      // Error message is already user-friendly from backend
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to generate blog content. Please try again.";
+      setPromptError(errorMessage);
     }
   };
 
@@ -168,10 +171,12 @@ export default function NewBlogPage() {
       setTimeout(() => {
         setShowProgress(false);
       }, 1000); // Short delay just to show completion state
-    } catch (err) {
+    } catch (err: any) {
       setShowProgress(false);
       setGenerationStage("analyzing"); // Reset to initial stage on error
-      setPromptError("Failed to regenerate blog content. Please try again.");
+      // Error message is already user-friendly from backend
+      const errorMessage = err?.response?.data?.message || err?.message || "Failed to regenerate blog content. Please try again.";
+      setPromptError(errorMessage);
     }
   };
 
