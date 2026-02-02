@@ -5,11 +5,14 @@ import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { useBlog, useUpdateBlog, useUploadImage } from "@/lib/hooks/use-blog";
 import { useCategories } from "@/lib/hooks/use-category";
+import { useBlogReview } from "@/lib/hooks/use-blog-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { BlogReviewCard } from "@/components/blog/blog-review-card";
+import { Sparkles } from "lucide-react";
 
 export default function EditBlogPage() {
   const router = useRouter();
@@ -19,6 +22,8 @@ export default function EditBlogPage() {
   const updateBlog = useUpdateBlog();
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
+  const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult } = useBlogReview();
+  const [showReview, setShowReview] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     content: "",
@@ -55,6 +60,34 @@ export default function EditBlogPage() {
       });
     }
   }, [blog]);
+
+  const handleReview = async () => {
+    if (!formData.title || !formData.content) {
+      setError("Title and content are required for review");
+      return;
+    }
+
+    // Only allow review for draft posts
+    if (blog?.status !== "draft") {
+      setError("Only draft blog posts can be reviewed");
+      return;
+    }
+
+    try {
+      await reviewBlogAsync({
+        blogId: id,
+        data: {
+          title: formData.title,
+          content: formData.content,
+          excerpt: formData.excerpt || undefined,
+          category: formData.category || undefined,
+        },
+      });
+      setShowReview(true);
+    } catch (err) {
+      // Error handled by hook
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,6 +198,17 @@ export default function EditBlogPage() {
             >
               Cancel
             </Button>
+            {blog?.status === "draft" && (
+              <Button
+                type="button"
+                className="bg-purple-600 hover:bg-purple-700 text-white border-0"
+                onClick={handleReview}
+                disabled={isReviewing || !formData.title || !formData.content}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                {isReviewing ? "Reviewing..." : "Review with AI"}
+              </Button>
+            )}
             <Button
               type="submit"
               form="blog-form"
@@ -305,6 +349,20 @@ export default function EditBlogPage() {
             </div>
           </div>
           </form>
+
+          {/* Review Results */}
+          {showReview && reviewResult && (
+            <div className="mt-6">
+              <BlogReviewCard
+                reviewResult={reviewResult}
+                isLoading={false}
+                onViewComparison={() => {
+                  // TODO: Implement comparison view
+                  console.log("View comparison");
+                }}
+              />
+            </div>
+          )}
         </div>
       </main>
     </div>
