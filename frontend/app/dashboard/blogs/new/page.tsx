@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
+import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { Sparkles } from "lucide-react";
 
 export default function NewBlogPage() {
@@ -19,8 +20,9 @@ export default function NewBlogPage() {
   const createBlog = useCreateBlog();
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
-  const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult } = useBlogReview();
+  const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult, applyReviewAsync } = useBlogReview();
   const [showReview, setShowReview] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     content: "",
@@ -296,13 +298,66 @@ export default function NewBlogPage() {
             <div className="mt-6">
               <BlogReviewCard
                 reviewResult={reviewResult}
+                originalContent={{
+                  title: formData.title,
+                  content: formData.content,
+                  excerpt: formData.excerpt,
+                }}
                 isLoading={false}
-                onViewComparison={() => {
-                  // TODO: Implement comparison view
-                  console.log("View comparison");
+                onViewComparison={() => setShowComparison(true)}
+                onApplyReview={async (selectedSuggestions, applyAll) => {
+                  // For new blogs, just update the form data directly
+                  // The blog hasn't been created yet, so we can't call the API
+                  try {
+                    if (applyAll) {
+                      // Update form data with all improvements
+                      setFormData({
+                        ...formData,
+                        title: reviewResult.improved_title || formData.title,
+                        content: reviewResult.improved_content || formData.content,
+                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                      });
+                    } else {
+                      // Apply selected suggestions (for now, apply all improvements)
+                      // TODO: Implement selective application based on selected suggestions
+                      setFormData({
+                        ...formData,
+                        title: reviewResult.improved_title || formData.title,
+                        content: reviewResult.improved_content || formData.content,
+                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                      });
+                    }
+                    setShowReview(false);
+                  } catch (err) {
+                    // Error handled by hook
+                  }
                 }}
               />
             </div>
+          )}
+
+          {/* Comparison Modal */}
+          {showComparison && reviewResult && (
+            <BlogReviewComparison
+              original={{
+                title: formData.title,
+                content: formData.content,
+                excerpt: formData.excerpt,
+              }}
+              reviewResult={reviewResult}
+              onClose={() => setShowComparison(false)}
+              onApplyAll={async () => {
+                // For new blogs, just update the form data directly
+                setFormData({
+                  ...formData,
+                  title: reviewResult.improved_title || formData.title,
+                  content: reviewResult.improved_content || formData.content,
+                  excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                });
+                setShowComparison(false);
+                setShowReview(false);
+              }}
+            />
           )}
         </div>
       </main>

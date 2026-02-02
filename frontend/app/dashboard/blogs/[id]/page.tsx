@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
+import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { Sparkles } from "lucide-react";
 
 export default function EditBlogPage() {
@@ -22,8 +23,9 @@ export default function EditBlogPage() {
   const updateBlog = useUpdateBlog();
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
-  const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult } = useBlogReview();
+  const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult, applyReviewAsync } = useBlogReview();
   const [showReview, setShowReview] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     content: "",
@@ -355,13 +357,96 @@ export default function EditBlogPage() {
             <div className="mt-6">
               <BlogReviewCard
                 reviewResult={reviewResult}
+                originalContent={{
+                  title: formData.title,
+                  content: formData.content,
+                  excerpt: formData.excerpt,
+                }}
                 isLoading={false}
-                onViewComparison={() => {
-                  // TODO: Implement comparison view
-                  console.log("View comparison");
+                onViewComparison={() => setShowComparison(true)}
+                onApplyReview={async (selectedSuggestions, applyAll) => {
+                  try {
+                    if (applyAll) {
+                      // Apply all improvements
+                      await applyReviewAsync({
+                        blogId: id,
+                        data: {
+                          improved_content: reviewResult.improved_content,
+                          improved_title: reviewResult.improved_title,
+                          improved_excerpt: reviewResult.improved_excerpt,
+                        },
+                      });
+                      // Update form data with improvements
+                      setFormData({
+                        ...formData,
+                        title: reviewResult.improved_title || formData.title,
+                        content: reviewResult.improved_content || formData.content,
+                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                      });
+                    } else {
+                      // Apply selected suggestions (for now, apply all improvements)
+                      // TODO: Implement selective application based on selected suggestions
+                      await applyReviewAsync({
+                        blogId: id,
+                        data: {
+                          improved_content: reviewResult.improved_content,
+                          improved_title: reviewResult.improved_title,
+                          improved_excerpt: reviewResult.improved_excerpt,
+                        },
+                      });
+                      setFormData({
+                        ...formData,
+                        title: reviewResult.improved_title || formData.title,
+                        content: reviewResult.improved_content || formData.content,
+                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                      });
+                    }
+                    setShowReview(false);
+                    // Refresh blog data
+                    window.location.reload();
+                  } catch (err) {
+                    // Error handled by hook
+                  }
                 }}
               />
             </div>
+          )}
+
+          {/* Comparison Modal */}
+          {showComparison && reviewResult && (
+            <BlogReviewComparison
+              original={{
+                title: formData.title,
+                content: formData.content,
+                excerpt: formData.excerpt,
+              }}
+              reviewResult={reviewResult}
+              onClose={() => setShowComparison(false)}
+              onApplyAll={async () => {
+                try {
+                  await applyReviewAsync({
+                    blogId: id,
+                    data: {
+                      improved_content: reviewResult.improved_content,
+                      improved_title: reviewResult.improved_title,
+                      improved_excerpt: reviewResult.improved_excerpt,
+                    },
+                  });
+                  setFormData({
+                    ...formData,
+                    title: reviewResult.improved_title || formData.title,
+                    content: reviewResult.improved_content || formData.content,
+                    excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                  });
+                  setShowComparison(false);
+                  setShowReview(false);
+                  // Refresh blog data
+                  window.location.reload();
+                } catch (err) {
+                  // Error handled by hook
+                }
+              }}
+            />
           )}
         </div>
       </main>

@@ -56,7 +56,10 @@ export class BlogReviewService {
   /**
    * Apply review suggestions to a blog post
    */
-  static async applyReview(blogId: string, data: ApplyReviewRequest): Promise<{ data: { data: any } }> {
+  static async applyReview(blogId: string | undefined, data: ApplyReviewRequest): Promise<{ data: { data: any } }> {
+    if (!blogId) {
+      throw new Error("Blog ID is required to apply review");
+    }
     return apiClient.post(API_ENDPOINTS.BLOGS.APPLY_REVIEW(blogId), data);
   }
 

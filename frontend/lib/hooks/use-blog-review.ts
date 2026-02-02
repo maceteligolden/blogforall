@@ -18,8 +18,12 @@ export function useBlogReview() {
   });
 
   const applyReviewMutation = useMutation({
-    mutationFn: ({ blogId, data }: { blogId: string; data: ApplyReviewRequest }) =>
-      BlogReviewService.applyReview(blogId, data),
+    mutationFn: ({ blogId, data }: { blogId: string | undefined; data: ApplyReviewRequest }) => {
+      if (!blogId) {
+        throw new Error("Blog ID is required to apply review");
+      }
+      return BlogReviewService.applyReview(blogId, data);
+    },
     onSuccess: () => {
       toast({
         title: "Success",

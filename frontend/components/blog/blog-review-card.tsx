@@ -9,12 +9,23 @@ import { Progress } from "@/components/ui/progress";
 
 interface BlogReviewCardProps {
   reviewResult: BlogReviewResult;
-  onApplyReview?: (selectedSuggestions: string[]) => void;
+  originalContent?: {
+    title: string;
+    content: string;
+    excerpt?: string;
+  };
+  onApplyReview?: (selectedSuggestions: string[], applyAll?: boolean) => void;
   onViewComparison?: () => void;
   isLoading?: boolean;
 }
 
-export function BlogReviewCard({ reviewResult, onApplyReview, onViewComparison, isLoading }: BlogReviewCardProps) {
+export function BlogReviewCard({
+  reviewResult,
+  originalContent,
+  onApplyReview,
+  onViewComparison,
+  isLoading,
+}: BlogReviewCardProps) {
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
 
   const toggleSuggestion = (index: number) => {
@@ -29,7 +40,13 @@ export function BlogReviewCard({ reviewResult, onApplyReview, onViewComparison, 
 
   const handleApplySelected = () => {
     if (onApplyReview && selectedSuggestions.size > 0) {
-      onApplyReview(Array.from(selectedSuggestions).map(String));
+      onApplyReview(Array.from(selectedSuggestions).map(String), false);
+    }
+  };
+
+  const handleApplyAll = () => {
+    if (onApplyReview) {
+      onApplyReview([], true);
     }
   };
 
@@ -174,16 +191,28 @@ export function BlogReviewCard({ reviewResult, onApplyReview, onViewComparison, 
             ))}
           </div>
 
-          {/* Apply Selected Button */}
-          {selectedSuggestions.size > 0 && onApplyReview && (
-            <div className="pt-4 border-t border-gray-700">
-              <Button
-                onClick={handleApplySelected}
-                disabled={isLoading}
-                className="w-full bg-primary hover:bg-primary/90 text-white"
-              >
-                {isLoading ? "Applying..." : `Apply ${selectedSuggestions.size} Selected Suggestion(s)`}
-              </Button>
+          {/* Apply Buttons */}
+          {onApplyReview && (
+            <div className="pt-4 border-t border-gray-700 space-y-3">
+              {selectedSuggestions.size > 0 && (
+                <Button
+                  onClick={handleApplySelected}
+                  disabled={isLoading}
+                  className="w-full bg-primary hover:bg-primary/90 text-white"
+                >
+                  {isLoading ? "Applying..." : `Apply ${selectedSuggestions.size} Selected Suggestion(s)`}
+                </Button>
+              )}
+              {(reviewResult.improved_content || reviewResult.improved_title || reviewResult.improved_excerpt) && (
+                <Button
+                  onClick={handleApplyAll}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full border-gray-700 text-gray-300 hover:bg-gray-800"
+                >
+                  {isLoading ? "Applying..." : "Apply All AI Improvements"}
+                </Button>
+              )}
             </div>
           )}
         </div>
