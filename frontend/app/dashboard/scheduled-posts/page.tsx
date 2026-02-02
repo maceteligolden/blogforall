@@ -119,13 +119,23 @@ export default function ScheduledPostsPage() {
 
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-display text-white">Scheduled Posts</h1>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => router.push("/dashboard/campaigns")}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Schedule Post
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              onClick={() => router.push("/dashboard/scheduled-posts/calendar")}
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Calendar View
+            </Button>
+            <Button
+              className="bg-primary hover:bg-primary/90 text-white"
+              onClick={() => router.push("/dashboard/scheduled-posts/new")}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Schedule Post
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -172,18 +182,18 @@ export default function ScheduledPostsPage() {
               <div className="flex gap-3 justify-center">
                 <Button
                   className="bg-primary hover:bg-primary/90 text-white"
-                  onClick={() => router.push("/dashboard/campaigns")}
+                  onClick={() => router.push("/dashboard/scheduled-posts/new")}
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Create Campaign
+                  Schedule Post
                 </Button>
                 <Button
                   variant="outline"
                   className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                  onClick={() => router.push("/dashboard/scheduled-posts/new")}
+                  onClick={() => router.push("/dashboard/campaigns")}
                 >
                   <Calendar className="w-4 h-4 mr-2" />
-                  Schedule Post
+                  Create Campaign
                 </Button>
               </div>
             )}
