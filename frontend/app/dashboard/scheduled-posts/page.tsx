@@ -284,14 +284,7 @@ export default function ScheduledPostsPage() {
                           size="sm"
                           variant="outline"
                           className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                          onClick={() => {
-                            // TODO: Navigate to edit page
-                            toast({
-                              title: "Info",
-                              description: "Edit functionality coming soon",
-                              variant: "info",
-                            });
-                          }}
+                          onClick={() => router.push(`/dashboard/scheduled-posts/${post._id}/edit`)}
                         >
                           <Edit className="w-3 h-3 mr-1" />
                           Edit
