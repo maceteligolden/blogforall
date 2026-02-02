@@ -2,22 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { CampaignService, Campaign } from "@/lib/api/services/campaign.service";
+import { Campaign } from "@/lib/api/services/campaign.service";
+import { useCampaigns, useActivateCampaign, usePauseCampaign, useCancelCampaign } from "@/lib/hooks/use-campaign";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
-import { QUERY_KEYS } from "@/lib/api/config";
 import { Calendar, Plus, Play, Pause, X } from "lucide-react";
 
 export default function CampaignsPage() {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const activateCampaign = useActivateCampaign();
+  const pauseCampaign = usePauseCampaign();
+  const cancelCampaign = useCancelCampaign();
 
-  const { data: campaignsResponse, isLoading } = useQuery({
-    queryKey: QUERY_KEYS.MY_CAMPAIGNS,
-    queryFn: () => CampaignService.getCampaigns(),
-  });
-
+  const { data: campaignsResponse, isLoading } = useCampaigns();
   const campaigns: Campaign[] = campaignsResponse?.data?.data || [];
 
   const filteredCampaigns = campaigns.filter((campaign) => {
@@ -152,8 +150,9 @@ export default function CampaignsPage() {
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // TODO: Implement activate
+                        activateCampaign.mutate(campaign._id);
                       }}
+                      disabled={activateCampaign.isPending}
                     >
                       <Play className="w-3 h-3 mr-1" />
                       Activate
@@ -165,8 +164,9 @@ export default function CampaignsPage() {
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // TODO: Implement pause
+                        pauseCampaign.mutate(campaign._id);
                       }}
+                      disabled={pauseCampaign.isPending}
                     >
                       <Pause className="w-3 h-3 mr-1" />
                       Pause
@@ -179,8 +179,11 @@ export default function CampaignsPage() {
                       className="flex-1 border-red-600 text-red-400 hover:bg-red-900/20"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // TODO: Implement cancel
+                        if (confirm("Are you sure you want to cancel this campaign? This will cancel all scheduled posts.")) {
+                          cancelCampaign.mutate(campaign._id);
+                        }
                       }}
+                      disabled={cancelCampaign.isPending}
                     >
                       <X className="w-3 h-3 mr-1" />
                       Cancel
