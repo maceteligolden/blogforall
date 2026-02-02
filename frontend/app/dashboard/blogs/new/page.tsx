@@ -99,6 +99,13 @@ export default function NewBlogPage() {
         setAutoReviewResult(generatedData.review);
       }
 
+      // Show warning if review failed but generation succeeded
+      if (generatedData.reviewError) {
+        // Don't show error toast - generation was successful
+        // User can manually review using the "Review with AI" button
+        console.warn("Auto-review unavailable:", generatedData.reviewError.message);
+      }
+
       // Switch to write mode to show the generated content
       setMode("write");
       setShowProgress(false);
@@ -165,6 +172,13 @@ export default function NewBlogPage() {
       if (generatedData.review) {
         setAutoReviewResult(generatedData.review);
         setShowReview(true);
+      }
+
+      // Show warning if review failed but generation succeeded
+      if (generatedData.reviewError) {
+        // Don't show error toast - generation was successful
+        // User can manually review using the "Review with AI" button
+        console.warn("Auto-review unavailable:", generatedData.reviewError.message);
       }
 
       // Close progress modal after a brief moment to show completion

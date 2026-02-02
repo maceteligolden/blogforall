@@ -4,6 +4,7 @@ import { BlogGenerationService } from "../services/blog-generation.service";
 import { BlogReviewService } from "../services/blog-review.service";
 import { sendSuccess } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
+import { logger } from "../../../shared/utils/logger";
 
 @injectable()
 export class BlogGenerationController {
@@ -73,21 +74,39 @@ export class BlogGenerationController {
 
       // Auto-review the generated content
       let reviewResult = null;
+      let reviewError: Error | null = null;
       try {
         reviewResult = await this.blogReviewService.reviewBlog(
           generatedContent.title,
           generatedContent.content,
           generatedContent.excerpt
         );
-      } catch (reviewError) {
-        // Log but don't fail if review fails
-        console.error("Auto-review failed:", reviewError);
+        logger.info("Auto-review completed successfully", { title: generatedContent.title }, "BlogGenerationController");
+      } catch (error) {
+        // Log review failure but don't fail the entire generation
+        reviewError = error as Error;
+        logger.error(
+          "Auto-review failed - blog content still generated successfully",
+          reviewError,
+          {
+            title: generatedContent.title,
+            contentLength: generatedContent.content.length,
+          },
+          "BlogGenerationController"
+        );
+        // Continue without review - generation was successful
       }
 
       sendSuccess(res, "Blog content generated successfully", {
         content: generatedContent,
         analysis: promptAnalysis,
         review: reviewResult,
+        reviewError: reviewError
+          ? {
+              message: "Content was generated successfully, but automatic review is temporarily unavailable. You can review it manually using the 'Review with AI' button.",
+              type: "review_unavailable",
+            }
+          : undefined,
       });
     } catch (error) {
       next(error);

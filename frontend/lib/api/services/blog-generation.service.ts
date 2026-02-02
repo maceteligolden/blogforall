@@ -27,6 +27,10 @@ export interface GenerateBlogResponse {
   content: GeneratedBlogContent;
   analysis: PromptAnalysis;
   review?: any; // BlogReviewResult from review service
+  reviewError?: {
+    message: string;
+    type: string;
+  };
 }
 
 export interface AnalyzePromptRequest {
