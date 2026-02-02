@@ -16,9 +16,21 @@ export const BlogGenerationConfig = {
   GENERATION_MODEL: process.env.BLOG_GENERATION_MODEL || "mistralai/Mistral-7B-Instruct-v0.2",
 
   /**
+   * Fallback models for generation (tried in order if primary fails)
+   */
+  GENERATION_FALLBACK_MODELS: (process.env.BLOG_GENERATION_FALLBACK_MODELS || 
+    "mistralai/Mixtral-8x7B-Instruct-v0.1,meta-llama/Llama-2-7b-chat-hf").split(",").map(m => m.trim()),
+
+  /**
    * Model for prompt analysis (can be same as generation model)
    */
   ANALYSIS_MODEL: process.env.BLOG_ANALYSIS_MODEL || "mistralai/Mistral-7B-Instruct-v0.2",
+
+  /**
+   * Fallback models for analysis (tried in order if primary fails)
+   */
+  ANALYSIS_FALLBACK_MODELS: (process.env.BLOG_ANALYSIS_FALLBACK_MODELS || 
+    "mistralai/Mixtral-8x7B-Instruct-v0.1").split(",").map(m => m.trim()),
 
   /**
    * API Timeout - Request timeout in milliseconds

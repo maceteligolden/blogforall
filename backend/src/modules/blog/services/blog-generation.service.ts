@@ -73,21 +73,27 @@ export class BlogGenerationService {
         };
       }
 
-      // Analyze prompt using AI with timeout and retry
+      // Analyze prompt using AI with timeout, retry, and fallback models
       const analysisPrompt = this.createAnalysisPrompt(prompt);
       const analysisResponse = await this.withRetry(
         () =>
-          this.withTimeout(
-            this.hf.textGeneration({
-              model: BlogGenerationConfig.ANALYSIS_MODEL,
-              inputs: analysisPrompt,
-              parameters: {
-                max_new_tokens: 500,
-                temperature: 0.3,
-                return_full_text: false,
-              },
-            } as any),
-            BlogGenerationConfig.API_TIMEOUT,
+          this.withFallbackModels(
+            BlogGenerationConfig.ANALYSIS_MODEL,
+            BlogGenerationConfig.ANALYSIS_FALLBACK_MODELS,
+            (model) =>
+              this.withTimeout(
+                this.hf.textGeneration({
+                  model,
+                  inputs: analysisPrompt,
+                  parameters: {
+                    max_new_tokens: 500,
+                    temperature: 0.3,
+                    return_full_text: false,
+                  },
+                } as any),
+                BlogGenerationConfig.API_TIMEOUT,
+                "Prompt analysis"
+              ),
             "Prompt analysis"
           ),
         "Prompt analysis"
@@ -161,17 +167,23 @@ export class BlogGenerationService {
       const generationPrompt = this.createGenerationPrompt(prompt, analysis);
       const generationResponse = await this.withRetry(
         () =>
-          this.withTimeout(
-            this.hf.textGeneration({
-              model: BlogGenerationConfig.GENERATION_MODEL,
-              inputs: generationPrompt,
-              parameters: {
-                max_new_tokens: 3000,
-                temperature: 0.7, // Higher temperature for more creative content
-                return_full_text: false,
-              },
-            } as any),
-            BlogGenerationConfig.API_TIMEOUT,
+          this.withFallbackModels(
+            BlogGenerationConfig.GENERATION_MODEL,
+            BlogGenerationConfig.GENERATION_FALLBACK_MODELS,
+            (model) =>
+              this.withTimeout(
+                this.hf.textGeneration({
+                  model,
+                  inputs: generationPrompt,
+                  parameters: {
+                    max_new_tokens: 3000,
+                    temperature: 0.7, // Higher temperature for more creative content
+                    return_full_text: false,
+                  },
+                } as any),
+                BlogGenerationConfig.API_TIMEOUT,
+                "Blog content generation"
+              ),
             "Blog content generation"
           ),
         "Blog content generation"
@@ -554,6 +566,72 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
       // Truncate meta description if too long
       content.meta.description = content.meta.description.substring(0, 157) + "...";
     }
+  }
+
+  /**
+   * Try multiple models in sequence (fallback if primary fails)
+   */
+  private async withFallbackModels<T>(
+    primaryModel: string,
+    fallbackModels: string[],
+    operation: (model: string) => Promise<T>,
+    operationName: string
+  ): Promise<T> {
+    const allModels = [primaryModel, ...fallbackModels];
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < allModels.length; i++) {
+      const model = allModels[i];
+      const isPrimary = i === 0;
+
+      try {
+        if (!isPrimary) {
+          logger.info(
+            `Trying fallback model for ${operationName}`,
+            { model, previousModel: allModels[i - 1] },
+            "BlogGenerationService"
+          );
+        }
+        return await operation(model);
+      } catch (error) {
+        lastError = error as Error;
+        const errorMessage = lastError.message.toLowerCase();
+
+        // Don't try fallback for certain errors (validation, auth, etc.)
+        if (
+          errorMessage.includes("invalid") ||
+          errorMessage.includes("unauthorized") ||
+          errorMessage.includes("forbidden") ||
+          errorMessage.includes("bad request") ||
+          errorMessage.includes("too long") ||
+          errorMessage.includes("too short") ||
+          errorMessage.includes("inappropriate")
+        ) {
+          throw error;
+        }
+
+        // If this is the last model, throw the error
+        if (i === allModels.length - 1) {
+          logger.error(
+            `All models failed for ${operationName}`,
+            lastError,
+            { models: allModels },
+            "BlogGenerationService"
+          );
+          throw lastError;
+        }
+
+        // Log fallback attempt
+        logger.warn(
+          `Model ${model} failed for ${operationName}, trying next model...`,
+          { error: lastError.message, nextModel: allModels[i + 1] },
+          "BlogGenerationService"
+        );
+      }
+    }
+
+    // Should never reach here, but TypeScript needs it
+    throw lastError || new Error(`All models failed for ${operationName}`);
   }
 
   /**
