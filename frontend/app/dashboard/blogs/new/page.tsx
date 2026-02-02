@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useCreateBlog, useUploadImage } from "@/lib/hooks/use-blog";
@@ -21,7 +21,7 @@ import { ConfirmModal } from "@/components/ui/modal";
 import { useBlogGeneration } from "@/lib/hooks/use-blog-generation";
 import { useBlogDraft } from "@/lib/hooks/use-blog-draft";
 import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
-import { Sparkles, PenTool, Save, Trash2, RotateCcw, Undo2 } from "lucide-react";
+import { Sparkles, PenTool, Save, Trash2, RotateCcw, Undo2, Keyboard } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 type BlogCreationMode = "write" | "ai-generate";
@@ -63,7 +63,7 @@ export default function NewBlogPage() {
   });
   const [error, setError] = useState("");
 
-  const handleAnalyzePrompt = async () => {
+  const handleAnalyzePrompt = useCallback(async () => {
     if (!prompt.trim()) {
       setPromptError("Please enter a prompt");
       return;
@@ -85,7 +85,7 @@ export default function NewBlogPage() {
       const errorMessage = err?.response?.data?.message || err?.message || "Failed to analyze prompt. Please try again.";
       setPromptError(errorMessage);
     }
-  };
+  }, [prompt, analyzePrompt]);
 
   const handleConfirmGeneration = async (confirmedAnalysis: PromptAnalysis) => {
     setShowConfirmation(false);
@@ -352,6 +352,94 @@ export default function NewBlogPage() {
 
     return () => clearTimeout(timer);
   }, [mode, prompt, promptAnalysis, formData, draftRestored, saveDraft, clearDraft]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + S: Save draft manually
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        const hasContent = 
+          (mode === "write" && (formData.title || formData.content)) ||
+          (mode === "ai-generate" && prompt.trim());
+        
+        if (hasContent) {
+          saveDraft({
+            mode,
+            prompt,
+            promptAnalysis,
+            formData,
+          });
+          toast({
+            title: "Draft Saved",
+            description: "Your work has been saved.",
+            variant: "success",
+          });
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + Enter: Analyze prompt (AI mode) or Submit form (Write mode)
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (mode === "ai-generate" && prompt.trim() && !isAnalyzing) {
+          handleAnalyzePrompt();
+        } else if (mode === "write" && formData.title && formData.content) {
+          const form = document.getElementById("blog-form") as HTMLFormElement;
+          if (form) {
+            form.requestSubmit();
+          }
+        }
+        return;
+      }
+
+      // Cmd/Ctrl + K: Open templates
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (mode === "ai-generate") {
+          setShowTemplates(true);
+        }
+        return;
+      }
+
+      // Escape: Close modals
+      if (e.key === "Escape") {
+        if (showTemplates) {
+          setShowTemplates(false);
+        }
+        if (showConfirmation) {
+          setShowConfirmation(false);
+        }
+        if (showRegenerateConfirm) {
+          setShowRegenerateConfirm(false);
+        }
+        if (showReview) {
+          setShowReview(false);
+        }
+        if (showComparison) {
+          setShowComparison(false);
+        }
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    mode,
+    prompt,
+    formData,
+    isAnalyzing,
+    showTemplates,
+    showConfirmation,
+    showRegenerateConfirm,
+    showReview,
+    showComparison,
+    saveDraft,
+    promptAnalysis,
+    handleAnalyzePrompt,
+    toast,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
