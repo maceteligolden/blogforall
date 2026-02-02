@@ -8,6 +8,8 @@ import { errorHandler } from "./shared/middlewares/error-handler.middleware";
 import { requestLogger } from "./shared/middlewares/request-logger.middleware";
 import { routes } from "./routes";
 import { seedPlansIfNeeded } from "./shared/utils/seed-plans.util";
+import { container } from "tsyringe";
+import { PostSchedulerService } from "./modules/campaign/services/post-scheduler.service";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -90,6 +92,10 @@ const startServer = async () => {
 
     // Seed plans if none exist
     await seedPlansIfNeeded();
+
+    // Start the post scheduler
+    const scheduler = container.resolve(PostSchedulerService);
+    scheduler.start();
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {}, "Server");
