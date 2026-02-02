@@ -18,13 +18,17 @@ import { PromptTemplates } from "@/components/blog/prompt-templates";
 import { PreGenerationConfirmation } from "@/components/blog/pre-generation-confirmation";
 import { GenerationProgress, GenerationStage } from "@/components/blog/generation-progress";
 import { useBlogGeneration } from "@/lib/hooks/use-blog-generation";
+import { useBlogDraft } from "@/lib/hooks/use-blog-draft";
 import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
-import { Sparkles, PenTool } from "lucide-react";
+import { Sparkles, PenTool, Save, Trash2 } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
 
 type BlogCreationMode = "write" | "ai-generate";
 
 export default function NewBlogPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const { hasDraft, draftRestored, setDraftRestored, loadDraft, saveDraft, clearDraft } = useBlogDraft();
   const createBlog = useCreateBlog();
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
@@ -217,6 +221,64 @@ export default function NewBlogPage() {
     }
   };
 
+  // Load draft on mount
+  useEffect(() => {
+    const draft = loadDraft();
+    if (draft && !draftRestored) {
+      // Ask user if they want to restore draft
+      const shouldRestore = window.confirm(
+        "You have a saved draft. Would you like to restore it?"
+      );
+      
+      if (shouldRestore) {
+        setMode(draft.mode);
+        setPrompt(draft.prompt);
+        setPromptAnalysis(draft.promptAnalysis);
+        setFormData(draft.formData);
+        setDraftRestored(true);
+        toast({
+          title: "Draft Restored",
+          description: "Your draft has been restored successfully.",
+          variant: "success",
+        });
+      } else {
+        // User chose not to restore, clear the draft
+        clearDraft();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
+
+  // Auto-save draft (debounced)
+  useEffect(() => {
+    // Don't save if draft was just restored (to avoid immediate overwrite)
+    if (draftRestored) {
+      const timer = setTimeout(() => {
+        setDraftRestored(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+
+    // Debounce draft saving
+    const timer = setTimeout(() => {
+      // Only save if there's meaningful content
+      const hasContent = 
+        (mode === "write" && (formData.title || formData.content)) ||
+        (mode === "ai-generate" && prompt.trim());
+      
+      if (hasContent) {
+        saveDraft({
+          mode,
+          prompt,
+          promptAnalysis,
+          formData,
+        });
+      }
+    }, 2000); // Save after 2 seconds of inactivity
+
+    return () => clearTimeout(timer);
+  }, [mode, prompt, promptAnalysis, formData, draftRestored, saveDraft, clearDraft]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -225,6 +287,9 @@ export default function NewBlogPage() {
       setError("Title and content are required");
       return;
     }
+
+    // Clear draft before submitting
+    clearDraft();
 
     try {
       const submitData = {
