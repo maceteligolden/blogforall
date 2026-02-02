@@ -2,6 +2,7 @@ import { Router } from "express";
 import { container } from "tsyringe";
 import { BlogController } from "../controllers/blog.controller";
 import { BlogReviewController } from "../controllers/blog-review.controller";
+import { BlogGenerationController } from "../controllers/blog-generation.controller";
 import { ImageController } from "../controllers/image.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 import { uploadSingle, uploadMultiple } from "../../../shared/middlewares/upload.middleware";
@@ -9,6 +10,7 @@ import { uploadSingle, uploadMultiple } from "../../../shared/middlewares/upload
 const router = Router();
 const blogController = container.resolve(BlogController);
 const blogReviewController = container.resolve(BlogReviewController);
+const blogGenerationController = container.resolve(BlogGenerationController);
 const imageController = container.resolve(ImageController);
 
 // Protected routes (require authentication)
@@ -25,6 +27,10 @@ router.post("/:blogId/review", authMiddleware, blogReviewController.reviewBlog);
 router.post("/review", authMiddleware, blogReviewController.reviewBlog); // Review without blogId (for new posts)
 router.post("/:blogId/review/apply", authMiddleware, blogReviewController.applyReview);
 router.post("/:blogId/restore/:version", authMiddleware, blogReviewController.restoreVersion);
+
+// Blog generation routes (protected)
+router.post("/generate/analyze", authMiddleware, blogGenerationController.analyzePrompt);
+router.post("/generate", authMiddleware, blogGenerationController.generateBlog);
 
 // Image upload routes (protected)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
