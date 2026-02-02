@@ -17,10 +17,11 @@ import { PromptInput } from "@/components/blog/prompt-input";
 import { PromptTemplates } from "@/components/blog/prompt-templates";
 import { PreGenerationConfirmation } from "@/components/blog/pre-generation-confirmation";
 import { GenerationProgress, GenerationStage } from "@/components/blog/generation-progress";
+import { ConfirmModal } from "@/components/ui/modal";
 import { useBlogGeneration } from "@/lib/hooks/use-blog-generation";
 import { useBlogDraft } from "@/lib/hooks/use-blog-draft";
 import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
-import { Sparkles, PenTool, Save, Trash2 } from "lucide-react";
+import { Sparkles, PenTool, Save, Trash2, RotateCcw, Undo2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 type BlogCreationMode = "write" | "ai-generate";
@@ -45,6 +46,12 @@ export default function NewBlogPage() {
   const [autoReviewResult, setAutoReviewResult] = useState<any>(null); // Review from auto-review after generation
   const [showReview, setShowReview] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [previousContent, setPreviousContent] = useState<{
+    title: string;
+    content: string;
+    excerpt: string;
+  } | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     content: "",
@@ -136,14 +143,49 @@ export default function NewBlogPage() {
     setPromptError("Generation cancelled by user");
   };
 
-  const handleRegenerate = async () => {
+  const handleRegenerateClick = () => {
     if (!prompt.trim() || !promptAnalysis) {
       setPromptError("Cannot regenerate without a valid prompt and analysis");
       return;
     }
 
+    // Store current content as backup before regenerating
+    if (formData.title || formData.content || formData.excerpt) {
+      setPreviousContent({
+        title: formData.title,
+        content: formData.content,
+        excerpt: formData.excerpt,
+      });
+    }
+
+    setShowRegenerateConfirm(true);
+  };
+
+  const handleRegenerate = async () => {
+    setShowRegenerateConfirm(false);
+
+    if (!prompt.trim() || !promptAnalysis) {
+      setPromptError("Cannot regenerate without a valid prompt and analysis");
+      return;
+    }
+
+    // Store current content as backup before regenerating
+    if (formData.title || formData.content || formData.excerpt) {
+      setPreviousContent({
+        title: formData.title,
+        content: formData.content,
+        excerpt: formData.excerpt,
+      });
+    }
+
     setShowProgress(true);
     setGenerationStage("analyzing");
+
+    toast({
+      title: "Regenerating Content",
+      description: "Creating new content based on your prompt...",
+      variant: "info",
+    });
 
     try {
       // Stage 1: Re-analyze prompt
@@ -153,6 +195,11 @@ export default function NewBlogPage() {
         setPromptError(freshAnalysis.rejection_reason || "Invalid prompt");
         setShowProgress(false);
         setGenerationStage("analyzing"); // Reset stage
+        toast({
+          title: "Regeneration Failed",
+          description: freshAnalysis.rejection_reason || "Invalid prompt",
+          variant: "error",
+        });
         return;
       }
 
@@ -190,6 +237,11 @@ export default function NewBlogPage() {
       // Close progress modal after a brief moment to show completion
       setTimeout(() => {
         setShowProgress(false);
+        toast({
+          title: "Content Regenerated",
+          description: "New content has been generated successfully. You can revert if needed.",
+          variant: "success",
+        });
       }, 1000); // Short delay just to show completion state
     } catch (err: any) {
       setShowProgress(false);
@@ -197,6 +249,28 @@ export default function NewBlogPage() {
       // Error message is already user-friendly from backend
       const errorMessage = err?.response?.data?.message || err?.message || "Failed to regenerate blog content. Please try again.";
       setPromptError(errorMessage);
+      toast({
+        title: "Regeneration Failed",
+        description: errorMessage,
+        variant: "error",
+      });
+    }
+  };
+
+  const handleRevertContent = () => {
+    if (previousContent) {
+      setFormData({
+        ...formData,
+        title: previousContent.title,
+        content: previousContent.content,
+        excerpt: previousContent.excerpt,
+      });
+      setPreviousContent(null);
+      toast({
+        title: "Content Reverted",
+        description: "Previous content has been restored.",
+        variant: "success",
+      });
     }
   };
 
@@ -452,17 +526,32 @@ export default function NewBlogPage() {
                     <div className="rounded-md bg-green-900/20 border border-green-800 p-4">
                       <div className="flex items-start justify-between mb-2">
                         <p className="text-sm text-green-400 font-medium">Prompt Analysis Complete</p>
-                        {formData.content && (
-                          <Button
-                            type="button"
-                            onClick={handleRegenerate}
-                            disabled={isGenerating}
-                            className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-auto"
-                          >
-                            <Sparkles className="w-3 h-3 mr-1" />
-                            {isGenerating ? "Regenerating..." : "Regenerate"}
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {formData.content && (
+                            <>
+                              <Button
+                                type="button"
+                                onClick={handleRegenerateClick}
+                                disabled={isGenerating || isAnalyzing}
+                                className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-auto"
+                              >
+                                <RotateCcw className="w-3 h-3 mr-1" />
+                                {isGenerating || isAnalyzing ? "Regenerating..." : "Regenerate"}
+                              </Button>
+                              {previousContent && (
+                                <Button
+                                  type="button"
+                                  onClick={handleRevertContent}
+                                  className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1 h-auto"
+                                  title="Revert to previous content"
+                                >
+                                  <Undo2 className="w-3 h-3 mr-1" />
+                                  Revert
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -706,6 +795,18 @@ export default function NewBlogPage() {
               onClose={() => setShowTemplates(false)}
             />
           )}
+
+          {/* Regenerate Confirmation Modal */}
+          <ConfirmModal
+            isOpen={showRegenerateConfirm}
+            onClose={() => setShowRegenerateConfirm(false)}
+            onConfirm={handleRegenerate}
+            title="Regenerate Content?"
+            message="This will replace your current content with newly generated content. Your current content will be saved so you can revert if needed. Continue?"
+            confirmText="Regenerate"
+            cancelText="Cancel"
+            variant="default"
+          />
         </div>
       </main>
     </div>
