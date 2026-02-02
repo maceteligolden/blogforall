@@ -69,6 +69,30 @@ export interface CampaignWithStats extends Campaign {
   posts_pending: number;
 }
 
+export interface CampaignTemplate {
+  _id: string;
+  name: string;
+  type: string;
+  description: string;
+  default_goal: string;
+  default_duration_days: number;
+  default_frequency: string;
+  default_posts_count: number;
+  suggested_topics?: string[];
+  content_themes?: string[];
+  ai_prompts?: {
+    campaign_strategy?: string;
+    post_generation?: string;
+  };
+  metadata?: {
+    best_for?: string[];
+    industries?: string[];
+  };
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CreateScheduledPostRequest {
   blog_id?: string;
   campaign_id?: string;
@@ -264,15 +288,15 @@ export class CampaignService {
   }
 
   // Template methods
-  static async getTemplates(params?: { type?: string; is_active?: boolean; industry?: string }) {
+  static async getCampaignTemplates(params?: { type?: string; is_active?: boolean; industry?: string }) {
     return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.LIST, { params });
   }
 
-  static async getTemplateById(id: string) {
+  static async getCampaignTemplateById(id: string) {
     return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.GET_ONE(id));
   }
 
-  static async getTemplatesByType(type: string) {
+  static async getCampaignTemplatesByType(type: string) {
     return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.GET_BY_TYPE(type));
   }
 }

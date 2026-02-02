@@ -1,18 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { CreateCampaignRequest } from "@/lib/api/services/campaign.service";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { CreateCampaignRequest, CampaignService, CampaignTemplate } from "@/lib/api/services/campaign.service";
 import { useCreateCampaign } from "@/lib/hooks/use-campaign";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
-import { ArrowLeft } from "lucide-react";
+import { QUERY_KEYS } from "@/lib/api/config";
+import { ArrowLeft, Sparkles } from "lucide-react";
+import { addDays } from "date-fns";
 
 export default function NewCampaignPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const templateId = searchParams.get("template");
   const createCampaign = useCreateCampaign();
+
+  const { data: template } = useQuery({
+    queryKey: ["campaign-template", templateId],
+    queryFn: async () => {
+      if (!templateId) return null;
+      const response = await CampaignService.getCampaignTemplateById(templateId);
+      return response.data?.data;
+    },
+    enabled: !!templateId,
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -36,6 +51,35 @@ export default function NewCampaignPage() {
 
   const [error, setError] = useState("");
   const [isCustomFrequency, setIsCustomFrequency] = useState(false);
+
+  // Pre-fill form with template data if template is provided
+  useEffect(() => {
+    if (template) {
+      const startDate = new Date();
+      const endDate = addDays(startDate, template.default_duration_days);
+      
+      setFormData({
+        name: "",
+        description: "",
+        goal: template.default_goal,
+        target_audience: "",
+        start_date: startDate.toISOString().slice(0, 16),
+        end_date: endDate.toISOString().slice(0, 16),
+        posting_frequency: template.default_frequency as "daily" | "weekly" | "biweekly" | "monthly" | "custom",
+        custom_schedule: "",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        total_posts_planned: template.default_posts_count,
+        budget: undefined,
+        success_metrics: {
+          target_views: undefined,
+          target_engagement: undefined,
+          target_conversions: undefined,
+          kpis: [],
+        },
+      });
+      setIsCustomFrequency(template.default_frequency === "custom");
+    }
+  }, [template]);
 
 
   const handleSubmit = (e: React.FormEvent) => {
