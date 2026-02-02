@@ -1,5 +1,6 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
+import { AxiosRequestConfig } from "axios";
 
 export interface PromptAnalysis {
   topic: string;
@@ -41,8 +42,15 @@ export class BlogGenerationService {
   /**
    * Analyze a prompt to extract topic, domain, audience, purpose
    */
-  static async analyzePrompt(prompt: string): Promise<{ data: { data: PromptAnalysis } }> {
-    return apiClient.post(API_ENDPOINTS.BLOGS.GENERATE_ANALYZE, { prompt });
+  static async analyzePrompt(
+    prompt: string,
+    signal?: AbortSignal
+  ): Promise<{ data: { data: PromptAnalysis } }> {
+    const config: AxiosRequestConfig = {
+      timeout: 120000, // 120 seconds for analysis
+      signal, // Support request cancellation
+    };
+    return apiClient.post(API_ENDPOINTS.BLOGS.GENERATE_ANALYZE, { prompt }, config);
   }
 
   /**
@@ -50,11 +58,20 @@ export class BlogGenerationService {
    */
   static async generateBlog(
     prompt: string,
-    analysis?: PromptAnalysis
+    analysis?: PromptAnalysis,
+    signal?: AbortSignal
   ): Promise<{ data: { data: GenerateBlogResponse } }> {
-    return apiClient.post(API_ENDPOINTS.BLOGS.GENERATE, {
-      prompt,
-      analysis,
-    });
+    const config: AxiosRequestConfig = {
+      timeout: 180000, // 180 seconds for generation (longer timeout)
+      signal, // Support request cancellation
+    };
+    return apiClient.post(
+      API_ENDPOINTS.BLOGS.GENERATE,
+      {
+        prompt,
+        analysis,
+      },
+      config
+    );
   }
 }

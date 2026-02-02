@@ -67,17 +67,21 @@ export class BlogGenerationService {
         };
       }
 
-      // Analyze prompt using AI
+      // Analyze prompt using AI with timeout
       const analysisPrompt = this.createAnalysisPrompt(prompt);
-      const analysisResponse = await this.hf.textGeneration({
-        model: BlogGenerationConfig.ANALYSIS_MODEL,
-        inputs: analysisPrompt,
-        parameters: {
-          max_new_tokens: 500,
-          temperature: 0.3,
-          return_full_text: false,
-        },
-      } as any);
+      const analysisResponse = await this.withTimeout(
+        this.hf.textGeneration({
+          model: BlogGenerationConfig.ANALYSIS_MODEL,
+          inputs: analysisPrompt,
+          parameters: {
+            max_new_tokens: 500,
+            temperature: 0.3,
+            return_full_text: false,
+          },
+        } as any),
+        BlogGenerationConfig.API_TIMEOUT,
+        "Prompt analysis"
+      );
 
       const analysisText = typeof analysisResponse === "string" ? analysisResponse : analysisResponse.generated_text || "";
       const analysis = this.parseAnalysisResponse(analysisText, prompt);
@@ -120,15 +124,19 @@ export class BlogGenerationService {
 
     try {
       const generationPrompt = this.createGenerationPrompt(prompt, analysis);
-      const generationResponse = await this.hf.textGeneration({
-        model: BlogGenerationConfig.GENERATION_MODEL,
-        inputs: generationPrompt,
-        parameters: {
-          max_new_tokens: 3000,
-          temperature: 0.7, // Higher temperature for more creative content
-          return_full_text: false,
-        },
-      } as any);
+      const generationResponse = await this.withTimeout(
+        this.hf.textGeneration({
+          model: BlogGenerationConfig.GENERATION_MODEL,
+          inputs: generationPrompt,
+          parameters: {
+            max_new_tokens: 3000,
+            temperature: 0.7, // Higher temperature for more creative content
+            return_full_text: false,
+          },
+        } as any),
+        BlogGenerationConfig.API_TIMEOUT,
+        "Blog content generation"
+      );
 
       const generatedText = typeof generationResponse === "string" ? generationResponse : generationResponse.generated_text || "";
       const blogContent = this.parseGeneratedContent(generatedText, analysis);
@@ -174,15 +182,19 @@ Text: ${content.substring(0, 500)}
 
 Response:`;
 
-      const safetyResponse = await this.hf.textGeneration({
-        model: BlogGenerationConfig.ANALYSIS_MODEL,
-        inputs: safetyPrompt,
-        parameters: {
-          max_new_tokens: 10,
-          temperature: 0.1,
-          return_full_text: false,
-        },
-      } as any);
+      const safetyResponse = await this.withTimeout(
+        this.hf.textGeneration({
+          model: BlogGenerationConfig.ANALYSIS_MODEL,
+          inputs: safetyPrompt,
+          parameters: {
+            max_new_tokens: 10,
+            temperature: 0.1,
+            return_full_text: false,
+          },
+        } as any),
+        10000, // 10 seconds for safety check
+        "Content safety check"
+      );
 
       const safetyText = typeof safetyResponse === "string" ? safetyResponse : safetyResponse.generated_text || "";
       return safetyText.trim().toUpperCase().includes("UNSAFE");
@@ -351,6 +363,27 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
         },
       };
     }
+  }
+
+  /**
+   * Wrap a promise with timeout handling
+   */
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    operation: string
+  ): Promise<T> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(
+          new BadRequestError(
+            `${operation} timed out after ${timeoutMs / 1000} seconds. Please try again with a shorter prompt or different parameters.`
+          )
+        );
+      }, timeoutMs);
+    });
+
+    return Promise.race([promise, timeoutPromise]);
   }
 
   /**

@@ -28,7 +28,7 @@ export default function NewBlogPage() {
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
   const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult, applyReviewAsync } = useBlogReview();
-  const { analyzePrompt, generateBlog, isAnalyzing, isGenerating, generationResult } = useBlogGeneration();
+  const { analyzePrompt, generateBlog, cancelRequest, isAnalyzing, isGenerating, generationResult } = useBlogGeneration();
   const [mode, setMode] = useState<BlogCreationMode>("write");
   const [prompt, setPrompt] = useState("");
   const [promptAnalysis, setPromptAnalysis] = useState<PromptAnalysis | null>(null);
@@ -58,8 +58,7 @@ export default function NewBlogPage() {
 
     setPromptError("");
     try {
-      const response = await analyzePrompt(prompt.trim());
-      const analysis = response.data.data;
+      const analysis = await analyzePrompt(prompt.trim());
       setPromptAnalysis(analysis);
 
       if (!analysis.is_valid) {
@@ -85,8 +84,7 @@ export default function NewBlogPage() {
       setGenerationStage("generating");
 
       // Stage 2: Generate blog content
-      const response = await generateBlog({ prompt: prompt.trim(), analysis: confirmedAnalysis });
-      const generatedData = response.data.data;
+      const generatedData = await generateBlog(prompt.trim(), confirmedAnalysis);
 
       // Update form data with generated content
       setFormData({
@@ -125,8 +123,10 @@ export default function NewBlogPage() {
   };
 
   const handleCancelGeneration = () => {
+    cancelRequest(); // Cancel the actual API request
     setShowProgress(false);
     setGenerationStage("analyzing");
+    setPromptError("Generation cancelled by user");
   };
 
   const handleRegenerate = async () => {
@@ -141,8 +141,7 @@ export default function NewBlogPage() {
     try {
       // Stage 1: Analyzing (re-analyze prompt)
       await new Promise((resolve) => setTimeout(resolve, 500));
-      const analysisResponse = await analyzePrompt(prompt.trim());
-      const freshAnalysis = analysisResponse.data.data;
+      const freshAnalysis = await analyzePrompt(prompt.trim());
       
       if (!freshAnalysis.is_valid) {
         setPromptError(freshAnalysis.rejection_reason || "Invalid prompt");
@@ -153,8 +152,7 @@ export default function NewBlogPage() {
       setGenerationStage("generating");
 
       // Stage 2: Generate blog content with fresh analysis
-      const response = await generateBlog({ prompt: prompt.trim(), analysis: freshAnalysis });
-      const generatedData = response.data.data;
+      const generatedData = await generateBlog(prompt.trim(), freshAnalysis);
 
       // Update form data with new generated content
       setFormData({
