@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import { BlogRepository } from "../repositories/blog.repository";
 import { CategoryRepository } from "../../category/repositories/category.repository";
+import { ScheduledPostRepository } from "../../campaign/repositories/scheduled-post.repository";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { BlogStatus } from "../../../shared/constants";
 import { logger } from "../../../shared/utils/logger";
@@ -12,7 +13,8 @@ import { PaginatedResponse } from "../../../shared/interfaces";
 export class BlogService {
   constructor(
     private blogRepository: BlogRepository,
-    private categoryRepository: CategoryRepository
+    private categoryRepository: CategoryRepository,
+    private scheduledPostRepository: ScheduledPostRepository
   ) {}
 
   private generateSlug(title: string): string {
@@ -154,6 +156,12 @@ export class BlogService {
 
     if (blog.author !== authorId) {
       throw new ForbiddenError("You don't have permission to delete this blog");
+    }
+
+    // Check if blog is scheduled
+    const isScheduled = await this.scheduledPostRepository.isBlogScheduled(blogId);
+    if (isScheduled) {
+      throw new BadRequestError("Cannot delete blog that is scheduled. Please unschedule it first.");
     }
 
     await this.blogRepository.delete(blogId, siteId);
