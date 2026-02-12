@@ -1,0 +1,25 @@
+# Backend Dockerfile (Development)
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install nodemon and ts-node globally for hot-reload
+RUN npm install -g nodemon ts-node
+
+# Copy package files
+COPY package.json yarn.lock* package-lock.json* ./
+
+# Install all dependencies (including dev dependencies)
+RUN if [ -f yarn.lock ]; then yarn install; else npm install; fi
+
+# Copy source code
+COPY . .
+
+# Create uploads directory if it doesn't exist
+RUN mkdir -p uploads
+
+# Expose port
+EXPOSE 3001
+
+# Start the application in development mode with hot-reload
+CMD ["yarn", "dev"]
