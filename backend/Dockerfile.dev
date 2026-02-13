@@ -19,7 +19,7 @@ COPY . .
 RUN mkdir -p uploads
 
 # Expose port
-EXPOSE 3001
+EXPOSE 3006
 
 # Start the application in development mode with hot-reload
 CMD ["yarn", "dev"]
