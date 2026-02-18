@@ -3,6 +3,10 @@ import { BadRequestError } from "../errors";
 
 const BLOB_URL_PREFIX = "blob:";
 
+function generateBlockId(): string {
+  return `block-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
 /**
  * Validates content_blocks for save/publish:
  * - No blob URLs (all images must be uploaded)
@@ -107,4 +111,121 @@ export function blocksToHtml(blocks: ContentBlock[]): string {
   }
 
   return parts.join("\n");
+}
+
+/**
+ * Strips HTML tags and decodes common entities (for text content from HTML).
+ */
+function stripHtml(html: string): string {
+  return String(html)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .trim();
+}
+
+/**
+ * Converts legacy HTML content to content_blocks (for first-edit migration).
+ * Handles p, h1-h3, ul/ol+li, figure (img+figcaption), blockquote, pre+code.
+ * Parses in document order by repeatedly matching the next block-level element.
+ */
+export function htmlToBlocks(html: string): ContentBlock[] {
+  if (!html || typeof html !== "string" || html.trim() === "") {
+    return [{ id: generateBlockId(), type: "paragraph", data: { text: "" } }];
+  }
+
+  const blocks: ContentBlock[] = [];
+  let str = html.trim();
+
+  const figureRegex =
+    /<figure[^>]*class="[^"]*ql-image-with-caption[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?(?:<figcaption[^>]*>([\s\S]*?)<\/figcaption>)?[\s\S]*?<\/figure>/i;
+  const blockRegexes: { regex: RegExp; type: ContentBlockType; parse: (m: RegExpExecArray) => ContentBlock }[] = [
+    {
+      regex: /<figure[^>]*class="[^"]*ql-image-with-caption[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?(?:<figcaption[^>]*>([\s\S]*?)<\/figcaption>)?[\s\S]*?<\/figure>/i,
+      type: "image",
+      parse: (m) => ({ id: generateBlockId(), type: "image", data: { url: m[1] ?? "", caption: stripHtml(m[2] ?? "") } }),
+    },
+    {
+      regex: /<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/i,
+      type: "heading",
+      parse: (m) => ({ id: generateBlockId(), type: "heading", data: { level: parseInt(m[1], 10), text: stripHtml(m[2]) } }),
+    },
+    {
+      regex: /<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i,
+      type: "blockquote",
+      parse: (m) => ({ id: generateBlockId(), type: "blockquote", data: { text: stripHtml(m[1]) } }),
+    },
+    {
+      regex: /<pre[^>]*>\s*<code[^>]*>([\s\S]*?)<\/code>\s*<\/pre>/i,
+      type: "code",
+      parse: (m) => ({
+        id: generateBlockId(),
+        type: "code",
+        data: { text: (m[1] ?? "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") },
+      }),
+    },
+    {
+      regex: /<ul[^>]*>([\s\S]*?)<\/ul>/i,
+      type: "list",
+      parse: (m) => {
+        const items: string[] = [];
+        const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+        let liMatch: RegExpExecArray | null;
+        while ((liMatch = liRegex.exec(m[1] ?? "")) !== null) items.push(stripHtml(liMatch[1]));
+        return { id: generateBlockId(), type: "list", data: { listType: "bullet", items } };
+      },
+    },
+    {
+      regex: /<ol[^>]*>([\s\S]*?)<\/ol>/i,
+      type: "list",
+      parse: (m) => {
+        const items: string[] = [];
+        const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+        let liMatch: RegExpExecArray | null;
+        while ((liMatch = liRegex.exec(m[1] ?? "")) !== null) items.push(stripHtml(liMatch[1]));
+        return { id: generateBlockId(), type: "list", data: { listType: "ordered", items } };
+      },
+    },
+    {
+      regex: /<p[^>]*>([\s\S]*?)<\/p>/i,
+      type: "paragraph",
+      parse: (m) => ({ id: generateBlockId(), type: "paragraph", data: { text: stripHtml(m[1] ?? "") } }),
+    },
+  ];
+
+  while (str.length > 0) {
+    let bestMatch: { index: number; length: number; block: ContentBlock } | null = null;
+
+    for (const { regex, parse } of blockRegexes) {
+      regex.lastIndex = 0;
+      const m = regex.exec(str);
+      if (m && m.index !== undefined && m[0] && (bestMatch === null || m.index < bestMatch.index)) {
+        bestMatch = { index: m.index, length: m[0].length, block: parse(m) };
+      }
+    }
+
+    if (bestMatch) {
+      if (bestMatch.index > 0) {
+        const text = stripHtml(str.slice(0, bestMatch.index));
+        if (text.length > 0) {
+          blocks.push({ id: generateBlockId(), type: "paragraph", data: { text } });
+        }
+      }
+      blocks.push(bestMatch.block);
+      str = str.slice(bestMatch.index + bestMatch.length).replace(/^\s*/, "");
+    } else {
+      const text = stripHtml(str);
+      if (text.length > 0) blocks.push({ id: generateBlockId(), type: "paragraph", data: { text } });
+      break;
+    }
+  }
+
+  if (blocks.length === 0) {
+    blocks.push({ id: generateBlockId(), type: "paragraph", data: { text: "" } });
+  }
+  return blocks;
 }
