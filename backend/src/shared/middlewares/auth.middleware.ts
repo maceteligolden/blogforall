@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import { UnauthorizedError } from "../errors";
 import { verifyAccessToken } from "../utils/token";
 
@@ -37,6 +38,12 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
 
     next();
   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      return next(new UnauthorizedError("Token expired"));
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      return next(new UnauthorizedError("Invalid token"));
+    }
     next(new UnauthorizedError("Invalid or expired token"));
   }
 };

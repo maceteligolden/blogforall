@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import { CampaignAgentService, type AgentChatResponse, type AgentProposal } from "@/lib/api/services/campaign-agent.service";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,56 @@ import { useToast } from "@/components/ui/toast";
 import { Send, Calendar, Target, List } from "lucide-react";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+
+/** Strip unfenced JSON object that looks like { "campaign": ..., "scheduled_posts": ... } so it never shows in the chat. */
+function stripUnfencedProposalJson(content: string): string {
+  const startMatch = content.match(/\{\s*"campaign"\s*:/);
+  if (!startMatch || startMatch.index === undefined) return content;
+  const start = startMatch.index;
+  let depth = 0;
+  for (let i = start; i < content.length; i++) {
+    if (content[i] === "{") depth++;
+    else if (content[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        const before = content.slice(0, start).trimEnd();
+        const after = content.slice(i + 1).trimStart();
+        return (before + (before && after ? "\n" : "") + after).trim();
+      }
+    }
+  }
+  return content.slice(0, start).trimEnd();
+}
+
+/** Remove only fenced blocks that contain JSON (start with {). Keep other code blocks (e.g. lists of details). */
+function stripFencedJsonOnly(content: string): string {
+  return content.replace(/\s*```(?:json)?\s*([\s\S]*?)```\s*/g, (match, inner) => {
+    if (/^\s*\{/.test(inner)) return "";
+    return match;
+  }).replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** Show only the actual response: strip JSON (fenced or raw), <think> tags; keep other content and code blocks. */
+function displayReply(content: string): string {
+  let out = stripFencedJsonOnly(content);
+  out = out.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  out = stripUnfencedProposalJson(out);
+  if (!out) {
+    return "I've prepared a campaign proposal for you — review it below and click **Create campaign** when ready.";
+  }
+  return out;
+}
+
+const markdownComponents = {
+  p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0">{children}</p>,
+  strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-semibold text-white">{children}</strong>,
+  ul: ({ children }: { children?: React.ReactNode }) => <ul className="my-2 list-disc list-inside space-y-0.5">{children}</ul>,
+  ol: ({ children }: { children?: React.ReactNode }) => <ol className="my-2 list-decimal list-inside space-y-0.5">{children}</ol>,
+  li: ({ children }: { children?: React.ReactNode }) => <li className="ml-0">{children}</li>,
+  h1: ({ children }: { children?: React.ReactNode }) => <h3 className="mt-2 mb-1 font-semibold text-white text-sm">{children}</h3>,
+  h2: ({ children }: { children?: React.ReactNode }) => <h3 className="mt-2 mb-1 font-semibold text-white text-sm">{children}</h3>,
+  h3: ({ children }: { children?: React.ReactNode }) => <h3 className="mt-2 mb-1 font-medium text-white text-sm">{children}</h3>,
+};
 
 export default function CampaignAgentPage() {
   const router = useRouter();
@@ -46,12 +97,13 @@ export default function CampaignAgentPage() {
         session_id: sessionId ?? undefined,
         message: text,
       });
-      const data = (res as { data?: AgentChatResponse }).data;
-      if (!data) throw new Error("No response data");
+      // API returns { message, data: { reply, session_id, proposal? } }; axios puts it in res.data
+      const payload = (res as { data?: { data?: AgentChatResponse } }).data?.data;
+      if (!payload) throw new Error("No response data");
 
-      if (data.session_id) setSessionId(data.session_id);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-      if (data.proposal) setProposal(data.proposal);
+      if (payload.session_id) setSessionId(payload.session_id);
+      setMessages((prev) => [...prev, { role: "assistant", content: payload.reply ?? "" }]);
+      if (payload.proposal) setProposal(payload.proposal);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
       setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${message}` }]);
@@ -126,7 +178,15 @@ export default function CampaignAgentPage() {
                       : "bg-gray-800 text-gray-100 border border-gray-700"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+                  {m.role === "assistant" ? (
+                    <div className="text-sm prose prose-invert prose-p:my-1 prose-ul:my-1 prose-ol:my-1 max-w-none">
+                      <ReactMarkdown components={markdownComponents}>
+                        {displayReply(m.content)}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+                  )}
                 </div>
               </div>
             ))}

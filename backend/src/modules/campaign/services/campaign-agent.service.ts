@@ -25,7 +25,8 @@ Rules:
 - When you have enough information to propose a full campaign, output a single JSON object in a markdown code block with the exact structure below. Use \`\`\`json and \`\`\` as fences. Do not add any other code blocks.
 - The JSON must have: "campaign" (object with name, goal, target_audience?, start_date, end_date, posting_frequency, timezone?, total_posts_planned?) and "scheduled_posts" (array of objects with title, scheduled_at, timezone?, generation_prompt, content_theme?).
 - Dates in ISO 8601 format (YYYY-MM-DD). posting_frequency must be one of: daily, weekly, biweekly, monthly, custom.
-- For each scheduled post, generation_prompt should describe the blog topic and align with the campaign goal and audience so that auto-generation later produces on-brand content.`;
+- For each scheduled post, generation_prompt should describe the blog topic and align with the campaign goal and audience so that auto-generation later produces on-brand content.
+- Do not use <think> or </think> tags in your replies. Output only your final answer to the user.`;
 
 /** In-memory session: messages and last activity. */
 interface AgentSession {
@@ -84,6 +85,10 @@ export class CampaignAgentService {
     if (c.total_posts_planned != null) campaignInput.total_posts_planned = c.total_posts_planned;
 
     const campaign = await this.campaignService.createCampaign(userId, siteId, campaignInput);
+    const campaignId = campaign._id?.toString();
+    if (!campaignId) {
+      throw new Error("Campaign was created but has no id");
+    }
     const timezone = c.timezone ?? "UTC";
     const scheduled_posts: unknown[] = [];
 
@@ -98,7 +103,7 @@ export class CampaignAgentService {
         continue;
       }
       const created = await this.scheduledPostService.createScheduledPost(userId, siteId, {
-        campaign_id: campaign._id.toString(),
+        campaign_id: campaignId,
         title: p.title,
         scheduled_at: scheduledAt,
         timezone: p.timezone ?? timezone,
@@ -115,7 +120,7 @@ export class CampaignAgentService {
 
     logger.info(
       "Campaign and scheduled posts created from agent proposal",
-      { campaignId: campaign._id, postCount: scheduled_posts.length, userId, siteId },
+      { campaignId, postCount: scheduled_posts.length, userId, siteId },
       "CampaignAgentService"
     );
     return { campaign, scheduled_posts };
@@ -147,18 +152,19 @@ export class CampaignAgentService {
 
     const session = this.getOrCreateSession(sessionId);
     const modelMessages = this.buildMessages(session.messages, message);
-    const reply = await this.hfChatCompletion(
+    const rawReply = await this.hfChatCompletion(
       CampaignAgentConfig.AGENT_MODEL,
       modelMessages,
       CampaignAgentConfig.MAX_TOKENS,
       CampaignAgentConfig.TEMPERATURE
     );
 
+    const proposal = this.parseProposalFromMessage(rawReply);
+    const reply = this.replyForDisplay(rawReply);
+
     session.messages.push({ role: "user", content: message.trim() });
     session.messages.push({ role: "assistant", content: reply });
     session.updatedAt = Date.now();
-
-    const proposal = this.parseProposalFromMessage(reply);
 
     return {
       reply,
@@ -239,17 +245,61 @@ export class CampaignAgentService {
       throw err;
     }
     const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return data.choices?.[0]?.message?.content?.trim() ?? "";
+    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+    return this.stripThinkBlocks(raw);
+  }
+
+  /** Remove <think>...</think> blocks from model output so they are not shown to the user. */
+  private stripThinkBlocks(content: string): string {
+    return content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  }
+
+  /** Return only the part of the reply that should be shown to the user (no code/JSON blocks). */
+  private replyForDisplay(content: string): string {
+    let out = this.stripFencedJsonOnly(content);
+    out = this.stripUnfencedProposalJson(out);
+    return out.trim() || "I've prepared a campaign proposal for you — review it below and click Create campaign when ready.";
+  }
+
+  /** Remove only fenced blocks that contain JSON (start with {). Keep other code blocks (e.g. lists of details). */
+  private stripFencedJsonOnly(content: string): string {
+    return content.replace(/\s*```(?:json)?\s*([\s\S]*?)```\s*/g, (match, inner) => {
+      if (/^\s*\{/.test(inner)) return "";
+      return match;
+    }).replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  /** Remove raw/unfenced JSON object that looks like { "campaign": ..., "scheduled_posts": ... } from text. */
+  private stripUnfencedProposalJson(content: string): string {
+    const startMatch = content.match(/\{\s*"campaign"\s*:/);
+    if (!startMatch || startMatch.index === undefined) return content;
+    const start = startMatch.index;
+    let depth = 0;
+    for (let i = start; i < content.length; i++) {
+      if (content[i] === "{") depth++;
+      else if (content[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          const before = content.slice(0, start).trimEnd();
+          const after = content.slice(i + 1).trimStart();
+          return (before + (before && after ? "\n" : "") + after).trim();
+        }
+      }
+    }
+    return content.slice(0, start).trimEnd();
   }
 
   /**
-   * Extract and validate a proposal from assistant message (fenced JSON block).
+   * Extract and validate a proposal from assistant message (fenced or unfenced JSON).
    */
   private parseProposalFromMessage(content: string): AgentProposal | undefined {
-    const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (!match) return undefined;
+    const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const jsonStr = fenced
+      ? fenced[1].trim()
+      : this.extractUnfencedProposalJson(content);
+    if (!jsonStr) return undefined;
     try {
-      const parsed = JSON.parse(match[1].trim()) as unknown;
+      const parsed = JSON.parse(jsonStr) as unknown;
       if (
         parsed &&
         typeof parsed === "object" &&
@@ -263,6 +313,22 @@ export class CampaignAgentService {
       // ignore
     }
     return undefined;
+  }
+
+  /** Extract raw JSON string for proposal from unfenced content (for parsing only). */
+  private extractUnfencedProposalJson(content: string): string | null {
+    const startMatch = content.match(/\{\s*"campaign"\s*:/);
+    if (!startMatch || startMatch.index === undefined) return null;
+    const start = startMatch.index;
+    let depth = 0;
+    for (let i = start; i < content.length; i++) {
+      if (content[i] === "{") depth++;
+      else if (content[i] === "}") {
+        depth--;
+        if (depth === 0) return content.slice(start, i + 1);
+      }
+    }
+    return null;
   }
 
   /** Validate proposal shape and required fields; return proposal if valid. */
