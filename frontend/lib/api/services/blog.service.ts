@@ -49,22 +49,27 @@ export class BlogService {
   }
 
   static async getBlogById(id: string) {
-    return apiClient.get(API_ENDPOINTS.BLOGS.GET_ONE(id));
+    const siteId = this.getCurrentSiteId();
+    const params = siteId ? { site_id: siteId } : {};
+    return apiClient.get(API_ENDPOINTS.BLOGS.GET_ONE(id), { params });
   }
 
   static async getUserBlogs(params?: BlogQueryParams) {
-    // Backend will filter by currentSiteId from token
-    return apiClient.get(API_ENDPOINTS.BLOGS.MY_BLOGS, { params });
+    const siteId = this.getCurrentSiteId();
+    const queryParams = siteId ? { ...params, site_id: siteId } : params;
+    return apiClient.get(API_ENDPOINTS.BLOGS.MY_BLOGS, { params: queryParams });
   }
 
   static async getAllBlogs(params?: BlogQueryParams) {
-    // Backend will filter by currentSiteId from token
-    return apiClient.get(API_ENDPOINTS.BLOGS.LIST, { params });
+    const siteId = this.getCurrentSiteId();
+    const queryParams = siteId ? { ...params, site_id: siteId } : params;
+    return apiClient.get(API_ENDPOINTS.BLOGS.LIST, { params: queryParams });
   }
 
   static async getBlogBySlug(slug: string) {
-    // Backend will filter by currentSiteId from token
-    return apiClient.get(API_ENDPOINTS.BLOGS.GET_BY_SLUG(slug));
+    const siteId = this.getCurrentSiteId();
+    const params = siteId ? { site_id: siteId } : {};
+    return apiClient.get(API_ENDPOINTS.BLOGS.GET_BY_SLUG(slug), { params });
   }
 
   static async updateBlog(id: string, data: UpdateBlogRequest) {

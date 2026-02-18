@@ -1,14 +1,39 @@
 import { injectable } from "tsyringe";
-import { HfInference } from "@huggingface/inference";
 import { BlogReviewConfig } from "../../../shared/constants/blog-review.constant";
 import { logger } from "../../../shared/utils/logger";
 import { BadRequestError } from "../../../shared/errors";
+import type { ContentBlock } from "../../../shared/schemas/blog.schema";
+
+/** OpenAI-compatible chat endpoint; model is sent in the request body and the router selects the provider. */
+const HF_ROUTER_CHAT_URL = "https://router.huggingface.co/v1/chat/completions";
+
+export type SuggestionType =
+  | "readability"
+  | "seo"
+  | "grammar"
+  | "structure"
+  | "fact-check"
+  | "style"
+  | "engagement"
+  | "other";
+
+export type SuggestionTarget = "title" | "excerpt" | "content";
 
 export interface ReviewSuggestion {
-  type: "readability" | "seo" | "grammar" | "structure" | "fact-check" | "style" | "other";
+  id?: string;
+  type: SuggestionType;
   priority: "critical" | "important" | "nice-to-have";
   line?: number;
   section?: string;
+  /** For in-context placement: title, excerpt, or content (block) */
+  target?: SuggestionTarget;
+  /** Block id when target is content and content_blocks were sent */
+  blockId?: string;
+  /** Zero-based block index when target is content */
+  blockIndex?: number;
+  /** Character offset within block (optional) */
+  startOffset?: number;
+  endOffset?: number;
   original: string;
   suggestion: string;
   explanation: string;
@@ -23,6 +48,7 @@ export interface BlogReviewResult {
     structure: number;
     fact_check: number;
     style: number;
+    engagement: number;
   };
   suggestions: ReviewSuggestion[];
   improved_content?: string;
@@ -33,20 +59,75 @@ export interface BlogReviewResult {
 
 @injectable()
 export class BlogReviewService {
-  private hf: HfInference;
-
   constructor() {
     const token = BlogReviewConfig.HUGGINGFACE_API_TOKEN;
     if (!token) {
       logger.warn("HUGGINGFACE_API_TOKEN not set. Blog review will not work.", {}, "BlogReviewService");
     }
-    this.hf = new HfInference(token);
   }
 
   /**
-   * Review a blog post using AI
+   * Call Hugging Face router chat completions (OpenAI-compatible).
+   * We request provider "hf-inference" via model suffix so the router uses your HF token (not e.g. Together AI).
    */
-  async reviewBlog(title: string, content: string, excerpt?: string, category?: string): Promise<BlogReviewResult> {
+  private async hfChatCompletion(
+    model: string,
+    messages: { role: string; content: string }[],
+    maxTokens: number,
+    temperature: number
+  ): Promise<string> {
+    const token = BlogReviewConfig.HUGGINGFACE_API_TOKEN;
+    // Force hf-inference so the request is served by Hugging Face and your HF token is used (router otherwise may send to Together AI etc.).
+    const modelWithProvider = model.includes(":") ? model : `${model}:hf-inference`;
+    const res = await fetch(HF_ROUTER_CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        model: modelWithProvider,
+        messages,
+        max_tokens: maxTokens,
+        temperature,
+      }),
+    });
+    if (!res.ok) {
+      const contentType = res.headers.get("Content-Type");
+      let body: unknown;
+      try {
+        body = contentType?.includes("application/json") ? await res.json() : await res.text();
+      } catch {
+        body = "";
+      }
+      const err = new Error(
+        typeof body === "object" &&
+          body !== null &&
+          "error" in (body as object) &&
+          typeof (body as { error: unknown }).error === "object" &&
+          (body as { error: { message?: string } }).error?.message
+          ? (body as { error: { message: string } }).error.message
+          : `HTTP ${res.status}`
+      ) as Error & { httpResponse?: { status: number; body: unknown } };
+      (err as Error & { httpResponse?: { status: number; body: unknown } }).httpResponse = { status: res.status, body };
+      throw err;
+    }
+    const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = data.choices?.[0]?.message?.content?.trim() ?? "";
+    return content;
+  }
+
+  /**
+   * Review a blog post using AI.
+   * When content_blocks is provided, suggestions can include blockIndex/blockId for in-context placement.
+   */
+  async reviewBlog(
+    title: string,
+    content: string,
+    excerpt?: string,
+    category?: string,
+    content_blocks?: ContentBlock[]
+  ): Promise<BlogReviewResult> {
     if (!BlogReviewConfig.HUGGINGFACE_API_TOKEN) {
       throw new BadRequestError("AI review service is not configured. Please set HUGGINGFACE_API_TOKEN.");
     }
@@ -62,28 +143,20 @@ export class BlogReviewService {
     }
 
     try {
-      // Strip HTML tags for analysis (keep structure info)
+      // Use HTML from content (or generate from blocks if that was the source)
       const textContent = this.stripHtmlTags(content);
       const wordCount = textContent.split(/\s+/).filter((w) => w.length > 0).length;
 
-      // Create comprehensive review prompt
-      const reviewPrompt = this.createReviewPrompt(title, textContent, excerpt, category, wordCount);
+      const reviewPrompt = this.createReviewPrompt(title, textContent, excerpt, category, wordCount, content_blocks);
 
-      // Call HuggingFace model for review
-      const reviewResponse = await this.hf.textGeneration({
-        model: BlogReviewConfig.REVIEW_MODEL,
-        inputs: reviewPrompt,
-        parameters: {
-          max_new_tokens: 2000,
-          temperature: 0.3, // Lower temperature for more consistent, factual output
-          return_full_text: false,
-        },
-      });
-
-      const reviewText = typeof reviewResponse === "string" ? reviewResponse : reviewResponse.generated_text || "";
-
-      // Parse the review response
-      const reviewResult = this.parseReviewResponse(reviewText, content, title, excerpt);
+      // Call HF Inference API directly so HUGGINGFACE_API_TOKEN is used (SDK provider mapping often omits hf-inference for this model).
+      const reviewText = await this.hfChatCompletion(
+        BlogReviewConfig.REVIEW_MODEL,
+        [{ role: "user", content: reviewPrompt }],
+        2000,
+        0.3
+      );
+      const reviewResult = this.parseReviewResponse(reviewText, content, title, excerpt, content_blocks);
 
       logger.info(
         "Blog review completed",
@@ -93,8 +166,31 @@ export class BlogReviewService {
 
       return reviewResult;
     } catch (error) {
-      logger.error("Failed to review blog", error as Error, { title }, "BlogReviewService");
-      throw new BadRequestError(`Failed to review blog: ${(error as Error).message}`);
+      const err = error as Error & { httpResponse?: { status?: number; body?: unknown } };
+      const status = err.httpResponse?.status;
+      const body = err.httpResponse?.body as Record<string, unknown> | undefined;
+      const bodyError = body?.error;
+      const errorMessage =
+        typeof bodyError === "string"
+          ? bodyError
+          : bodyError &&
+              typeof bodyError === "object" &&
+              "message" in bodyError &&
+              typeof (bodyError as { message: unknown }).message === "string"
+            ? (bodyError as { message: string }).message
+            : typeof body?.message === "string"
+              ? body.message
+              : undefined;
+      const detail = status !== undefined ? (errorMessage ? ` (${status}: ${errorMessage})` : ` (HTTP ${status})`) : "";
+      const isTogether = typeof errorMessage === "string" && errorMessage.toLowerCase().includes("together");
+      const hint =
+        status === 401
+          ? isTogether
+            ? " The router sent this request to Together AI, which requires its own API key. We request :hf-inference so your HF token is used; if the model is not on hf-inference, try another model or add a Together API key in your HF Inference Provider settings."
+            : " Check that HUGGINGFACE_API_TOKEN (or HF_TOKEN) is set in .env, is valid, and has Inference permission at https://huggingface.co/settings/tokens."
+          : "";
+      logger.error("Failed to review blog", err, { title, status, body }, "BlogReviewService");
+      throw new BadRequestError(`Failed to review blog: ${err.message}${detail}.${hint}`);
     }
   }
 
@@ -129,15 +225,73 @@ export class BlogReviewService {
   }
 
   /**
-   * Create comprehensive review prompt
+   * Build a block list summary for the prompt when content_blocks is provided (for block-aware suggestions).
+   */
+  private buildBlocksSummary(blocks: ContentBlock[]): string {
+    return blocks
+      .map((b, i) => {
+        const text =
+          b.type === "paragraph" || b.type === "heading"
+            ? (b.data.text ?? "")
+            : b.type === "list"
+              ? (b.data.items ?? []).join("\n")
+              : b.type === "image"
+                ? `[Image: ${b.data.caption ?? "no caption"}]`
+                : b.type === "blockquote"
+                  ? (b.data.text ?? "")
+                  : b.type === "code"
+                    ? (b.data.text ?? "")
+                    : "";
+        return `Block ${i} (id: ${b.id}, type: ${b.type}): ${text.slice(0, 500)}${text.length > 500 ? "..." : ""}`;
+      })
+      .join("\n\n");
+  }
+
+  /**
+   * Create comprehensive review prompt (with optional block list for block-aware suggestions and engagement score).
    */
   private createReviewPrompt(
     title: string,
     content: string,
     excerpt?: string,
     category?: string,
-    wordCount?: number
+    wordCount?: number,
+    content_blocks?: ContentBlock[]
   ): string {
+    const blocksSection =
+      content_blocks && content_blocks.length > 0
+        ? `
+CONTENT AS BLOCKS (use block_index 0-based for suggestions that apply to content):
+${this.buildBlocksSummary(content_blocks)}
+
+FLAT CONTENT (for reference):
+`
+        : "";
+
+    const suggestionFormat =
+      content_blocks && content_blocks.length > 0
+        ? `{
+      "type": "readability" | "seo" | "grammar" | "structure" | "fact-check" | "style" | "engagement" | "other",
+      "priority": "critical" | "important" | "nice-to-have",
+      "target": "title" | "excerpt" | "content",
+      "block_index": <optional, 0-based index when target is content>,
+      "block_id": "<optional, block id when target is content>",
+      "line": <optional>,
+      "section": <optional>,
+      "original": "<exact original text>",
+      "suggestion": "<improved text>",
+      "explanation": "<why this change improves the blog>"
+    }`
+        : `{
+      "type": "readability" | "seo" | "grammar" | "structure" | "fact-check" | "style" | "engagement" | "other",
+      "priority": "critical" | "important" | "nice-to-have",
+      "line": <optional>,
+      "section": <optional>,
+      "original": "<original text>",
+      "suggestion": "<improved text>",
+      "explanation": "<why this change improves the blog>"
+    }`;
+
     return `You are an expert blog post reviewer. Analyze the following blog post and provide a comprehensive review.
 
 BLOG POST DETAILS:
@@ -145,11 +299,11 @@ Title: ${title}
 ${excerpt ? `Excerpt: ${excerpt}` : ""}
 ${category ? `Category: ${category}` : ""}
 ${wordCount ? `Word Count: ${wordCount}` : ""}
-
+${blocksSection}
 CONTENT:
 ${content}
 
-Please provide a detailed review in the following JSON format:
+Respond with ONLY valid JSON in this exact format:
 {
   "overall_score": <number 0-100>,
   "scores": {
@@ -158,18 +312,11 @@ Please provide a detailed review in the following JSON format:
     "grammar": <number 0-100>,
     "structure": <number 0-100>,
     "fact_check": <number 0-100>,
-    "style": <number 0-100>
+    "style": <number 0-100>,
+    "engagement": <number 0-100>
   },
   "suggestions": [
-    {
-      "type": "readability" | "seo" | "grammar" | "structure" | "fact-check" | "style" | "other",
-      "priority": "critical" | "important" | "nice-to-have",
-      "line": <optional line number>,
-      "section": <optional section name>,
-      "original": "<original text>",
-      "suggestion": "<improved text>",
-      "explanation": "<why this change improves the blog>"
-    }
+    ${suggestionFormat}
   ],
   "improved_content": "<complete improved version of the content>",
   "improved_title": "<improved title if needed>",
@@ -178,59 +325,82 @@ Please provide a detailed review in the following JSON format:
 }
 
 REVIEW CRITERIA:
-1. Readability: Check sentence length, paragraph structure, clarity, and flow
-2. SEO: Analyze keyword usage, meta descriptions, headings structure, internal/external linking opportunities
-3. Grammar: Check for spelling, grammar, punctuation errors
-4. Structure: Evaluate heading hierarchy, paragraph organization, use of lists, images
-5. Fact-check: Verify factual claims based on the context (flag potential inaccuracies)
-6. Style: Assess tone, voice consistency, engagement level
+1. Readability: Sentence length, paragraph structure, clarity, flow
+2. SEO: Keyword usage, title 50-60 chars, excerpt 150-160 chars, heading hierarchy (H1 then H2/H3), image alt/captions
+3. Grammar: Spelling, punctuation, tense, subject-verb agreement
+4. Structure: Heading hierarchy, paragraph organization, lists, logical flow
+5. Fact-check: Flag unsupported or potentially inaccurate claims
+6. Style: Tone, voice consistency, engagement level
+7. Engagement (winning post): Strong opening hook, clear audience/goal, scannability (subheadings, short paras), clear takeaway or CTA, completeness
 
-Provide specific, actionable suggestions with line-by-line feedback where applicable. Return ONLY valid JSON, no additional text.`;
+Return ONLY valid JSON, no markdown or extra text.`;
   }
 
   /**
-   * Parse review response from AI model
+   * Parse review response from AI model; normalise suggestions with id, target, blockId, blockIndex.
    */
   private parseReviewResponse(
     reviewText: string,
     originalContent: string,
     originalTitle: string,
-    originalExcerpt?: string
+    originalExcerpt?: string,
+    content_blocks?: ContentBlock[]
   ): BlogReviewResult {
     try {
-      // Try to extract JSON from the response
       let jsonText = reviewText.trim();
-
-      // Remove markdown code blocks if present
       jsonText = jsonText
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
         .trim();
-
-      // Try to find JSON object
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         jsonText = jsonMatch[0];
       }
 
-      const parsed = JSON.parse(jsonText) as Partial<BlogReviewResult>;
+      const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+      const rawSuggestions = (parsed.suggestions as Record<string, unknown>[]) ?? [];
 
-      // Validate and set defaults
+      const suggestions: ReviewSuggestion[] = rawSuggestions.map((s, index) => {
+        const sug: ReviewSuggestion = {
+          id: String(index),
+          type: (s.type as SuggestionType) ?? "other",
+          priority: (s.priority as ReviewSuggestion["priority"]) ?? "nice-to-have",
+          original: String(s.original ?? ""),
+          suggestion: String(s.suggestion ?? ""),
+          explanation: String(s.explanation ?? ""),
+        };
+        if (s.line != null) sug.line = Number(s.line);
+        if (s.section != null) sug.section = String(s.section);
+        if (s.target != null) sug.target = s.target as SuggestionTarget;
+        if (s.block_index != null) {
+          sug.blockIndex = Number(s.block_index);
+          if (content_blocks?.[sug.blockIndex]) {
+            sug.blockId = content_blocks[sug.blockIndex].id;
+          }
+        }
+        if (s.block_id != null) sug.blockId = String(s.block_id);
+        if (s.start_offset != null) sug.startOffset = Number(s.start_offset);
+        if (s.end_offset != null) sug.endOffset = Number(s.end_offset);
+        return sug;
+      });
+
+      const scores = (parsed.scores as Record<string, number>) ?? {};
       const result: BlogReviewResult = {
-        overall_score: parsed.overall_score ?? 70,
+        overall_score: Number(parsed.overall_score) || 70,
         scores: {
-          readability: parsed.scores?.readability ?? 70,
-          seo: parsed.scores?.seo ?? 70,
-          grammar: parsed.scores?.grammar ?? 70,
-          structure: parsed.scores?.structure ?? 70,
-          fact_check: parsed.scores?.fact_check ?? 70,
-          style: parsed.scores?.style ?? 70,
+          readability: scores.readability ?? 70,
+          seo: scores.seo ?? 70,
+          grammar: scores.grammar ?? 70,
+          structure: scores.structure ?? 70,
+          fact_check: scores.fact_check ?? 70,
+          style: scores.style ?? 70,
+          engagement: scores.engagement ?? 70,
         },
-        suggestions: parsed.suggestions ?? [],
-        improved_content: parsed.improved_content || originalContent,
-        improved_title: parsed.improved_title || originalTitle,
-        improved_excerpt: parsed.improved_excerpt || originalExcerpt,
-        summary: parsed.summary || "Review completed. Please check suggestions for improvements.",
+        suggestions,
+        improved_content: (parsed.improved_content as string) || originalContent,
+        improved_title: (parsed.improved_title as string) || originalTitle,
+        improved_excerpt: (parsed.improved_excerpt as string) ?? originalExcerpt,
+        summary: (parsed.summary as string) || "Review completed. Please check suggestions for improvements.",
       };
 
       return result;
@@ -241,8 +411,6 @@ Provide specific, actionable suggestions with line-by-line feedback where applic
         { reviewText: reviewText.substring(0, 200) },
         "BlogReviewService"
       );
-
-      // Return a basic review result if parsing fails
       return {
         overall_score: 70,
         scores: {
@@ -252,6 +420,7 @@ Provide specific, actionable suggestions with line-by-line feedback where applic
           structure: 70,
           fact_check: 70,
           style: 70,
+          engagement: 70,
         },
         suggestions: [],
         improved_content: originalContent,

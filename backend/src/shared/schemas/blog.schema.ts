@@ -3,13 +3,7 @@ import { BlogStatus } from "../constants";
 import { BaseEntity } from "../interfaces";
 
 /** Block types for block-based editor (headless / structured content) */
-export type ContentBlockType =
-  | "paragraph"
-  | "heading"
-  | "list"
-  | "image"
-  | "blockquote"
-  | "code";
+export type ContentBlockType = "paragraph" | "heading" | "list" | "image" | "blockquote" | "code";
 
 export interface ContentBlockData {
   text?: string;

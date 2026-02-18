@@ -11,11 +11,12 @@ import { useAuthStore } from "../store/auth.store";
 
 export function useBlogs(params?: BlogQueryParams) {
   const { currentSiteId } = useAuthStore();
-  
+  const queryParams = currentSiteId ? { ...params, site_id: currentSiteId } : params;
+
   return useQuery({
     queryKey: [...QUERY_KEYS.BLOGS, currentSiteId, params],
     queryFn: async () => {
-      const response = await BlogService.getUserBlogs(params);
+      const response = await BlogService.getUserBlogs(queryParams);
       return response.data.data;
     },
     enabled: !!currentSiteId,

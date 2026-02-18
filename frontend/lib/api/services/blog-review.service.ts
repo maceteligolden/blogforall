@@ -1,18 +1,26 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
 
+export type SuggestionTarget = "title" | "excerpt" | "content";
+
 export interface ReviewSuggestion {
-  type: "readability" | "seo" | "grammar" | "structure" | "fact-check" | "style" | "other";
+  id?: string;
+  type: "readability" | "seo" | "grammar" | "structure" | "fact-check" | "style" | "engagement" | "other";
   priority: "critical" | "important" | "nice-to-have";
   line?: number;
   section?: string;
+  target?: SuggestionTarget;
+  blockId?: string;
+  blockIndex?: number;
+  startOffset?: number;
+  endOffset?: number;
   original: string;
   suggestion: string;
   explanation: string;
 }
 
 export interface BlogReviewResult {
-  overall_score: number; // 0-100
+  overall_score: number;
   scores: {
     readability: number;
     seo: number;
@@ -20,6 +28,7 @@ export interface BlogReviewResult {
     structure: number;
     fact_check: number;
     style: number;
+    engagement: number;
   };
   suggestions: ReviewSuggestion[];
   improved_content?: string;
@@ -33,13 +42,23 @@ export interface ReviewBlogRequest {
   content: string;
   excerpt?: string;
   category?: string;
+  content_blocks?: { id: string; type: string; data: Record<string, unknown> }[];
 }
 
 export interface ApplyReviewRequest {
-  suggestions?: string[]; // IDs or indices of suggestions to apply
+  suggestions?: string[];
   improved_content?: string;
   improved_title?: string;
   improved_excerpt?: string;
+}
+
+export interface ApplyOneRequest {
+  suggestion_id: string;
+  target: SuggestionTarget;
+  original: string;
+  suggestion: string;
+  blockId?: string;
+  blockIndex?: number;
 }
 
 export class BlogReviewService {
@@ -64,9 +83,16 @@ export class BlogReviewService {
   }
 
   /**
+   * Apply a single suggestion (auto-save; undo via restore version).
+   */
+  static async applyOne(blogId: string, data: ApplyOneRequest): Promise<{ data: { data: unknown } }> {
+    return apiClient.post(API_ENDPOINTS.BLOGS.APPLY_ONE(blogId), data);
+  }
+
+  /**
    * Restore a previous version of a blog post
    */
-  static async restoreVersion(blogId: string, version: number): Promise<{ data: { data: any } }> {
+  static async restoreVersion(blogId: string, version: number): Promise<{ data: { data: unknown } }> {
     return apiClient.post(API_ENDPOINTS.BLOGS.RESTORE_VERSION(blogId, version));
   }
 }

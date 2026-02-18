@@ -32,7 +32,12 @@ export default function CreateSitePage() {
       router.push("/dashboard");
     },
     onError: (err: any) => {
-      const message = err?.response?.data?.message || "Failed to create site";
+      const apiMessage = err?.response?.data?.message;
+      const message =
+        apiMessage ||
+        (err?.code === "ECONNREFUSED" || err?.message?.includes("Network")
+          ? "Cannot reach server. Please check that the backend is running."
+          : "Failed to create site");
       setError(message);
     },
   });

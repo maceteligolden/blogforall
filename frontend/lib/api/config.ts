@@ -32,6 +32,7 @@ export const API_ENDPOINTS = {
     UPLOAD_IMAGES: "/blogs/images/upload-multiple",
     REVIEW: (blogId?: string) => blogId ? `/blogs/${blogId}/review` : "/blogs/review",
     APPLY_REVIEW: (blogId: string) => `/blogs/${blogId}/review/apply`,
+    APPLY_ONE: (blogId: string) => `/blogs/${blogId}/review/apply-one`,
     RESTORE_VERSION: (blogId: string, version: number) => `/blogs/${blogId}/restore/${version}`,
     GENERATE_ANALYZE: "/blogs/generate/analyze",
     GENERATE: "/blogs/generate",

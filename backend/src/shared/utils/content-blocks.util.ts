@@ -145,14 +145,23 @@ export function htmlToBlocks(html: string): ContentBlock[] {
     /<figure[^>]*class="[^"]*ql-image-with-caption[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?(?:<figcaption[^>]*>([\s\S]*?)<\/figcaption>)?[\s\S]*?<\/figure>/i;
   const blockRegexes: { regex: RegExp; type: ContentBlockType; parse: (m: RegExpExecArray) => ContentBlock }[] = [
     {
-      regex: /<figure[^>]*class="[^"]*ql-image-with-caption[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?(?:<figcaption[^>]*>([\s\S]*?)<\/figcaption>)?[\s\S]*?<\/figure>/i,
+      regex:
+        /<figure[^>]*class="[^"]*ql-image-with-caption[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?(?:<figcaption[^>]*>([\s\S]*?)<\/figcaption>)?[\s\S]*?<\/figure>/i,
       type: "image",
-      parse: (m) => ({ id: generateBlockId(), type: "image", data: { url: m[1] ?? "", caption: stripHtml(m[2] ?? "") } }),
+      parse: (m) => ({
+        id: generateBlockId(),
+        type: "image",
+        data: { url: m[1] ?? "", caption: stripHtml(m[2] ?? "") },
+      }),
     },
     {
       regex: /<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/i,
       type: "heading",
-      parse: (m) => ({ id: generateBlockId(), type: "heading", data: { level: parseInt(m[1], 10), text: stripHtml(m[2]) } }),
+      parse: (m) => ({
+        id: generateBlockId(),
+        type: "heading",
+        data: { level: parseInt(m[1], 10), text: stripHtml(m[2]) },
+      }),
     },
     {
       regex: /<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i,

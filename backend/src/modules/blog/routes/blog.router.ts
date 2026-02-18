@@ -22,11 +22,16 @@ router.delete("/:id", authMiddleware, blogController.delete);
 router.post("/:id/publish", authMiddleware, blogController.publish);
 router.post("/:id/unpublish", authMiddleware, blogController.unpublish);
 
-// Blog review routes (protected)
-router.post("/:blogId/review", authMiddleware, blogReviewController.reviewBlog);
-router.post("/review", authMiddleware, blogReviewController.reviewBlog); // Review without blogId (for new posts)
-router.post("/:blogId/review/apply", authMiddleware, blogReviewController.applyReview);
-router.post("/:blogId/restore/:version", authMiddleware, blogReviewController.restoreVersion);
+// Blog review routes (protected) — bind so controller methods keep 'this'
+router.post("/:blogId/review", authMiddleware, blogReviewController.reviewBlog.bind(blogReviewController));
+router.post("/review", authMiddleware, blogReviewController.reviewBlog.bind(blogReviewController));
+router.post("/:blogId/review/apply", authMiddleware, blogReviewController.applyReview.bind(blogReviewController));
+router.post("/:blogId/review/apply-one", authMiddleware, blogReviewController.applyOne.bind(blogReviewController));
+router.post(
+  "/:blogId/restore/:version",
+  authMiddleware,
+  blogReviewController.restoreVersion.bind(blogReviewController)
+);
 
 // Blog generation routes (protected)
 router.post("/generate/analyze", authMiddleware, blogGenerationController.analyzePrompt);

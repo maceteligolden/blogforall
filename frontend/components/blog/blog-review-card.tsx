@@ -77,6 +77,7 @@ export function BlogReviewCard({
       structure: "Structure",
       "fact-check": "Fact Check",
       style: "Style",
+      engagement: "Engagement",
       other: "Other",
     };
     return labels[type] || type;

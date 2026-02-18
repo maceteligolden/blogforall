@@ -16,7 +16,9 @@ import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
+import { ReviewModeView } from "@/components/blog/review-mode-view";
 import { Sparkles } from "lucide-react";
+import type { ReviewSuggestion } from "@/lib/api/services/blog-review.service";
 
 export default function EditBlogPage() {
   const router = useRouter();
@@ -26,9 +28,21 @@ export default function EditBlogPage() {
   const updateBlog = useUpdateBlog();
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
-  const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult, applyReviewAsync } = useBlogReview();
+  const {
+    reviewBlog,
+    reviewBlogAsync,
+    isReviewing,
+    reviewResult,
+    applyReviewAsync,
+    applyOneAsync,
+    isApplyingOne,
+    restoreVersionAsync,
+    isRestoring,
+  } = useBlogReview();
   const [showReview, setShowReview] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState<{
     title: string;
     content: string;
@@ -94,6 +108,7 @@ export default function EditBlogPage() {
     }
 
     try {
+      setAppliedSuggestionIds(new Set());
       await reviewBlogAsync({
         blogId: id,
         data: {
@@ -101,6 +116,7 @@ export default function EditBlogPage() {
           content: contentForReview,
           excerpt: formData.excerpt || undefined,
           category: formData.category || undefined,
+          content_blocks: useBlocks ? formData.content_blocks : undefined,
         },
       });
       setShowReview(true);
@@ -268,6 +284,39 @@ export default function EditBlogPage() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+          {reviewMode && reviewResult ? (
+            <ReviewModeView
+              title={formData.title}
+              excerpt={formData.excerpt}
+              content={formData.content}
+              content_blocks={formData.content_blocks}
+              reviewResult={reviewResult}
+              appliedSuggestionIds={appliedSuggestionIds}
+              onApplySuggestion={async (suggestion: ReviewSuggestion) => {
+                const sid = suggestion.id ?? String(reviewResult.suggestions.indexOf(suggestion));
+                const target = suggestion.target ?? (formData.title.includes(suggestion.original) ? "title" : formData.excerpt.includes(suggestion.original) ? "excerpt" : "content");
+                try {
+                  await applyOneAsync({
+                    blogId: id,
+                    data: {
+                      suggestion_id: sid,
+                      target,
+                      original: suggestion.original,
+                      suggestion: suggestion.suggestion,
+                      blockId: suggestion.blockId,
+                      blockIndex: suggestion.blockIndex,
+                    },
+                  });
+                  setAppliedSuggestionIds((prev) => new Set(prev).add(sid));
+                } catch (_) {
+                  // Handled by hook
+                }
+              }}
+              onExitReviewMode={() => setReviewMode(false)}
+              isApplyingOne={isApplyingOne}
+            />
+          ) : (
+          <>
           <form id="blog-form" onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
@@ -391,14 +440,78 @@ export default function EditBlogPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Version history - undo after apply-one or apply all */}
+                {((blog as { version_history?: { version: number; created_at: Date }[] })?.version_history?.length ??
+                  0) > 0 && (
+                  <div className="border-t border-gray-800 pt-4">
+                    <Label className="text-gray-300">Version history</Label>
+                    <p className="text-xs text-gray-500 mt-0.5 mb-2">
+                      Restore a previous version (e.g. undo after applying review)
+                    </p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {[
+                        ...(blog as { version_history?: { version: number; created_at: Date }[] }).version_history!,
+                      ]
+                        .sort((a, b) => b.version - a.version)
+                        .map((v) => (
+                          <div
+                            key={v.version}
+                            className="flex items-center justify-between gap-2 rounded border border-gray-700 bg-gray-800/50 px-2 py-1.5 text-sm"
+                          >
+                            <span className="text-gray-400 truncate">
+                              Version {v.version}
+                              {v.created_at &&
+                                ` · ${new Date(v.created_at).toLocaleDateString(undefined, {
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}`}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 border-gray-600 text-gray-300 hover:bg-gray-700 h-7 text-xs"
+                              disabled={isRestoring}
+                              onClick={async () => {
+                                try {
+                                  await restoreVersionAsync({ blogId: id, version: v.version });
+                                } catch (_) {
+                                  // Handled by hook
+                                }
+                              }}
+                            >
+                              {isRestoring ? "Restoring…" : "Restore"}
+                            </Button>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
           </form>
 
           {/* Review Results */}
-          {showReview && reviewResult && (
+
+          {showReview && reviewResult && !reviewMode && (
             <div className="mt-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReviewMode(true)}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                >
+                  Enter review mode
+                </Button>
+                <span className="text-sm text-gray-500">
+                  Apply suggestions in context and use version history to undo
+                </span>
+              </div>
               <BlogReviewCard
                 reviewResult={reviewResult}
                 originalContent={{
@@ -449,8 +562,6 @@ export default function EditBlogPage() {
                       });
                     }
                     setShowReview(false);
-                    // Refresh blog data
-                    window.location.reload();
                   } catch (err) {
                     // Error handled by hook
                   }
@@ -489,13 +600,13 @@ export default function EditBlogPage() {
                   });
                   setShowComparison(false);
                   setShowReview(false);
-                  // Refresh blog data
-                  window.location.reload();
                 } catch (err) {
                   // Error handled by hook
                 }
               }}
             />
+          )}
+          </>
           )}
         </div>
       </main>

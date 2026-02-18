@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { BlogService } from "../services/blog.service";
+import { SiteService } from "../../site/services/site.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
 import { ZodError } from "zod";
@@ -8,7 +9,10 @@ import { createBlogSchema, updateBlogSchema, blogQuerySchema } from "../validati
 
 @injectable()
 export class BlogController {
-  constructor(private blogService: BlogService) {}
+  constructor(
+    private blogService: BlogService,
+    private siteService: SiteService
+  ) {}
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -79,10 +83,14 @@ export class BlogController {
         return next(new BadRequestError("User not authenticated"));
       }
 
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.query.site_id as string;
+      // Use site_id from query, or fall back to user's first site when missing (e.g. frontend before store rehydration)
+      let siteId = req.query.site_id as string;
       if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
+        const userSites = await this.siteService.getSitesByUser(userId);
+        siteId = userSites.length > 0 ? userSites[0]._id!.toString() : "";
+        if (!siteId) {
+          return next(new BadRequestError("No site found. Create a site first."));
+        }
       }
 
       const validatedFilters = blogQuerySchema.parse(req.query);

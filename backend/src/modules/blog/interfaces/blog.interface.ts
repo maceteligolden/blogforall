@@ -3,7 +3,8 @@ import { ContentBlock } from "../../../shared/schemas/blog.schema";
 
 export interface CreateBlogInput {
   title: string;
-  content: string;
+  /** Required when content_blocks is not provided; ignored when content_blocks is provided */
+  content?: string;
   content_type?: "html" | "markdown";
   /** When provided, content (HTML) is generated from blocks on save */
   content_blocks?: ContentBlock[];

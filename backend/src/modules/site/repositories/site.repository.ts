@@ -46,8 +46,11 @@ export class SiteRepository {
   async create(siteData: Partial<SiteType>): Promise<SiteType> {
     const name = siteData.name as string;
 
-    // Generate slug
-    const baseSlug = this.generateSlug(name);
+    // Generate slug; fallback if name yields empty (e.g. only special chars)
+    let baseSlug = this.generateSlug(name);
+    if (!baseSlug || !/^[a-z0-9-]+$/.test(baseSlug)) {
+      baseSlug = "site";
+    }
     const slug = await this.ensureUniqueSlug(baseSlug);
 
     const site = new Site({

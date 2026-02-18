@@ -5,15 +5,17 @@
 
 export const BlogReviewConfig = {
   /**
-   * HuggingFace API Token - Required for accessing HuggingFace Inference API
+   * HuggingFace API Token - Required for Inference API / Inference Providers.
+   * Read from HUGGINGFACE_API_TOKEN or HF_TOKEN. Use a token with "Inference" permission
+   * (e.g. fine-grained: "Inference > Make calls to the serverless Inference API" or "Inference Providers").
    */
-  HUGGINGFACE_API_TOKEN: (process.env.HUGGINGFACE_API_TOKEN || "").trim(),
+  HUGGINGFACE_API_TOKEN: (process.env.HUGGINGFACE_API_TOKEN || process.env.HF_TOKEN || "").trim(),
 
   /**
-   * Model for text generation and review
-   * Using a model that can handle instruction following and text analysis
+   * Model for chat completion and review. We request provider :hf-inference so your HF token is used.
+   * Default is an hf-inference–supported chat model. Override with BLOG_REVIEW_MODEL (e.g. "model:id" or "model:id:provider").
    */
-  REVIEW_MODEL: process.env.BLOG_REVIEW_MODEL || "mistralai/Mistral-7B-Instruct-v0.2",
+  REVIEW_MODEL: process.env.BLOG_REVIEW_MODEL || "HuggingFaceTB/SmolLM3-3B",
 
   /**
    * API Timeout - Request timeout in milliseconds

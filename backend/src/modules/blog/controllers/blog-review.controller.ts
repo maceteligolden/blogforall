@@ -5,6 +5,8 @@ import { BlogService } from "../services/blog.service";
 import { sendSuccess } from "../../../shared/helper/response.helper";
 import { BadRequestError, NotFoundError, ForbiddenError } from "../../../shared/errors";
 import { BlogStatus } from "../../../shared/constants";
+import { blocksToHtml } from "../../../shared/utils/content-blocks.util";
+import type { ContentBlock } from "../../../shared/schemas/blog.schema";
 
 @injectable()
 export class BlogReviewController {
@@ -24,7 +26,7 @@ export class BlogReviewController {
       }
 
       const { blogId } = req.params;
-      const { title, content, excerpt, category } = req.body;
+      const { title, content, excerpt, category, content_blocks: bodyContentBlocks } = req.body;
 
       // If blogId is provided, fetch the blog
       const siteId = req.user?.currentSiteId;
@@ -50,21 +52,32 @@ export class BlogReviewController {
         }
       }
 
-      // Use blog data or provided data
+      // Use blog data or provided data; content can come from body or from content_blocks
       const reviewTitle = title || blog?.title || "";
-      const reviewContent = content || blog?.content || "";
+      let reviewContent = content ?? blog?.content ?? "";
       const reviewExcerpt = excerpt !== undefined ? excerpt : blog?.excerpt;
       const reviewCategory = category || blog?.category;
+      const content_blocks =
+        bodyContentBlocks && Array.isArray(bodyContentBlocks) && bodyContentBlocks.length > 0
+          ? bodyContentBlocks
+          : (blog as { content_blocks?: unknown[] })?.content_blocks;
 
-      if (!reviewTitle || !reviewContent) {
-        return next(new BadRequestError("Title and content are required"));
+      if (!reviewTitle) {
+        return next(new BadRequestError("Title is required"));
+      }
+      if (!reviewContent && (!content_blocks || content_blocks.length === 0)) {
+        return next(new BadRequestError("Content or content_blocks is required"));
+      }
+      if (content_blocks?.length && !reviewContent) {
+        reviewContent = blocksToHtml(content_blocks);
       }
 
       const reviewResult = await this.blogReviewService.reviewBlog(
         reviewTitle,
         reviewContent,
         reviewExcerpt,
-        reviewCategory
+        reviewCategory,
+        content_blocks
       );
 
       sendSuccess(res, "Blog review completed", reviewResult);
@@ -139,6 +152,105 @@ export class BlogReviewController {
       const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, updateData);
 
       sendSuccess(res, "Review suggestions applied successfully", updatedBlog);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Apply a single review suggestion (auto-save). Pushes current state to version_history so user can undo via restore.
+   */
+  async applyOne(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+
+      const { blogId } = req.params;
+      const { suggestion_id, target, original, suggestion, blockId, blockIndex } = req.body;
+
+      if (!blogId) {
+        return next(new BadRequestError("Blog ID is required"));
+      }
+      if (!target || !original || suggestion === undefined) {
+        return next(new BadRequestError("target, original, and suggestion are required"));
+      }
+
+      const siteId = req.user?.currentSiteId;
+      if (!siteId) {
+        return next(new BadRequestError("Site context is required"));
+      }
+
+      const blog = await this.blogService.getBlogById(blogId, siteId, userId);
+      if (!blog) {
+        return next(new NotFoundError("Blog not found"));
+      }
+      if (blog.status !== BlogStatus.DRAFT) {
+        return next(new ForbiddenError("Only draft blog posts can be updated with review suggestions"));
+      }
+      if (blog.author !== userId) {
+        return next(new ForbiddenError("You can only update your own blog posts"));
+      }
+
+      const versionHistory = blog.version_history || [];
+      versionHistory.push({
+        version: versionHistory.length + 1,
+        content: blog.content,
+        title: blog.title,
+        excerpt: blog.excerpt,
+        created_at: new Date(),
+      });
+
+      let newTitle = blog.title;
+      let newExcerpt = blog.excerpt;
+      let newContent = blog.content;
+      let newContentBlocks: ContentBlock[] | undefined = (blog as { content_blocks?: ContentBlock[] }).content_blocks;
+
+      if (target === "title") {
+        newTitle = suggestion;
+      } else if (target === "excerpt") {
+        newExcerpt = suggestion;
+      } else if (target === "content") {
+        const blocks = newContentBlocks && newContentBlocks.length > 0 ? newContentBlocks : null;
+        if (blocks) {
+          const idx =
+            blockIndex !== undefined && blockIndex >= 0 && blockIndex < blocks.length
+              ? blockIndex
+              : blockId != null
+                ? blocks.findIndex((b) => b.id === blockId)
+                : -1;
+          if (idx >= 0) {
+            const block = blocks[idx];
+            if (block.data.text != null && block.data.text.includes(original)) {
+              block.data.text = block.data.text.replace(original, suggestion);
+            } else if (block.data.items && block.data.items.some((item) => item.includes(original))) {
+              block.data.items = block.data.items.map((item) =>
+                item.includes(original) ? item.replace(original, suggestion) : item
+              );
+            }
+            newContentBlocks = [...blocks];
+            newContent = blocksToHtml(newContentBlocks);
+          } else {
+            newContent = newContent.replace(original, suggestion);
+          }
+        } else {
+          newContent = newContent.replace(original, suggestion);
+        }
+      }
+
+      const updateData: Record<string, unknown> = {
+        version_history: versionHistory,
+        title: newTitle,
+        excerpt: newExcerpt,
+        content: newContent,
+      };
+      if (newContentBlocks) {
+        updateData.content_blocks = newContentBlocks;
+      }
+
+      const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, updateData);
+      sendSuccess(res, "Suggestion applied", updatedBlog);
     } catch (error) {
       next(error);
     }

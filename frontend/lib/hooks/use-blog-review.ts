@@ -1,9 +1,18 @@
-import { useMutation } from "@tanstack/react-query";
-import { BlogReviewService, ReviewBlogRequest, ApplyReviewRequest } from "@/lib/api/services/blog-review.service";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  BlogReviewService,
+  ReviewBlogRequest,
+  ApplyReviewRequest,
+  ApplyOneRequest,
+} from "@/lib/api/services/blog-review.service";
 import { useToast } from "@/components/ui/toast";
+import { QUERY_KEYS } from "@/lib/api/config";
+import { useAuthStore } from "@/lib/store/auth.store";
 
 export function useBlogReview() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const currentSiteId = useAuthStore((s) => s.currentSiteId);
 
   const reviewMutation = useMutation({
     mutationFn: ({ blogId, data }: { blogId?: string; data?: ReviewBlogRequest }) =>
@@ -24,7 +33,12 @@ export function useBlogReview() {
       }
       return BlogReviewService.applyReview(blogId, data);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      if (variables.blogId) {
+        queryClient.invalidateQueries({
+          queryKey: [...QUERY_KEYS.BLOG(variables.blogId), currentSiteId ?? ""],
+        });
+      }
       toast({
         title: "Success",
         description: "Review suggestions applied successfully",
@@ -40,20 +54,47 @@ export function useBlogReview() {
     },
   });
 
+  const applyOneMutation = useMutation({
+    mutationFn: ({ blogId, data }: { blogId: string; data: ApplyOneRequest }) =>
+      BlogReviewService.applyOne(blogId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [...QUERY_KEYS.BLOG(variables.blogId), currentSiteId ?? ""],
+      });
+      toast({
+        title: "Applied",
+        description: "Suggestion applied. Use version history to undo.",
+        variant: "success",
+      });
+    },
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast({
+        title: "Apply Failed",
+        description: err.response?.data?.message || "Failed to apply suggestion",
+        variant: "error",
+      });
+    },
+  });
+
   const restoreVersionMutation = useMutation({
     mutationFn: ({ blogId, version }: { blogId: string; version: number }) =>
       BlogReviewService.restoreVersion(blogId, version),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: [...QUERY_KEYS.BLOG(variables.blogId), currentSiteId ?? ""],
+      });
       toast({
         title: "Success",
         description: "Version restored successfully",
         variant: "success",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: "Restore Failed",
-        description: error.response?.data?.message || "Failed to restore version",
+        description: err.response?.data?.message || "Failed to restore version",
         variant: "error",
       });
     },
@@ -67,6 +108,9 @@ export function useBlogReview() {
     applyReview: applyReviewMutation.mutate,
     applyReviewAsync: applyReviewMutation.mutateAsync,
     isApplying: applyReviewMutation.isPending,
+    applyOne: applyOneMutation.mutate,
+    applyOneAsync: applyOneMutation.mutateAsync,
+    isApplyingOne: applyOneMutation.isPending,
     restoreVersion: restoreVersionMutation.mutate,
     restoreVersionAsync: restoreVersionMutation.mutateAsync,
     isRestoring: restoreVersionMutation.isPending,
