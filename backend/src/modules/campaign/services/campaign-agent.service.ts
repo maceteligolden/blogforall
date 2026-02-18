@@ -2,10 +2,13 @@ import { injectable } from "tsyringe";
 import { randomUUID } from "crypto";
 import { CampaignAgentConfig } from "../../../shared/constants/campaign-agent.constant";
 import { logger } from "../../../shared/utils/logger";
+import { PostFrequency } from "../../../shared/constants/campaign.constant";
 import type {
   AgentChatMessage,
   AgentChatResponse,
   AgentProposal,
+  AgentProposalCampaign,
+  AgentProposalScheduledPost,
 } from "../interfaces/campaign-agent.interface";
 
 const HF_ROUTER_CHAT_URL = "https://router.huggingface.co/v1/chat/completions";
@@ -175,8 +178,7 @@ export class CampaignAgentService {
   }
 
   /**
-   * Extract a proposal from assistant message if it contains a fenced JSON block.
-   * Validation of shape is done in a separate step (subtask 3).
+   * Extract and validate a proposal from assistant message (fenced JSON block).
    */
   private parseProposalFromMessage(content: string): AgentProposal | undefined {
     const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -190,12 +192,82 @@ export class CampaignAgentService {
         "scheduled_posts" in parsed &&
         Array.isArray((parsed as AgentProposal).scheduled_posts)
       ) {
-        return parsed as AgentProposal;
+        return this.validateProposal(parsed as AgentProposal) ?? undefined;
       }
     } catch {
       // ignore
     }
     return undefined;
+  }
+
+  /** Validate proposal shape and required fields; return proposal if valid. */
+  private validateProposal(parsed: AgentProposal): AgentProposal | undefined {
+    const campaign = parsed.campaign as unknown as Record<string, unknown>;
+    const posts = parsed.scheduled_posts as unknown[];
+    if (!campaign || typeof campaign !== "object") return undefined;
+    const name = campaign.name;
+    const goal = campaign.goal;
+    const start_date = campaign.start_date;
+    const end_date = campaign.end_date;
+    const posting_frequency = campaign.posting_frequency;
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof goal !== "string" ||
+      !goal.trim() ||
+      typeof start_date !== "string" ||
+      !this.isIsoDate(start_date) ||
+      typeof end_date !== "string" ||
+      !this.isIsoDate(end_date) ||
+      typeof posting_frequency !== "string" ||
+      !Object.values(PostFrequency).includes(posting_frequency as PostFrequency)
+    ) {
+      return undefined;
+    }
+    const validCampaign: AgentProposalCampaign = {
+      name: (name as string).trim(),
+      goal: (goal as string).trim(),
+      start_date: start_date as string,
+      end_date: end_date as string,
+      posting_frequency: posting_frequency as PostFrequency,
+    };
+    if (typeof campaign.description === "string") validCampaign.description = campaign.description;
+    if (typeof campaign.target_audience === "string") validCampaign.target_audience = campaign.target_audience;
+    if (typeof campaign.timezone === "string") validCampaign.timezone = campaign.timezone;
+    if (typeof campaign.total_posts_planned === "number") validCampaign.total_posts_planned = campaign.total_posts_planned;
+
+    const validPosts: AgentProposalScheduledPost[] = [];
+    for (const p of posts) {
+      const row = p as Record<string, unknown>;
+      if (!row || typeof row !== "object") continue;
+      const title = row.title;
+      const scheduled_at = row.scheduled_at;
+      const generation_prompt = row.generation_prompt;
+      if (
+        typeof title !== "string" ||
+        !title.trim() ||
+        typeof scheduled_at !== "string" ||
+        !this.isIsoDate(scheduled_at) ||
+        typeof generation_prompt !== "string" ||
+        !generation_prompt.trim()
+      ) {
+        continue;
+      }
+      const sp: AgentProposalScheduledPost = {
+        title: (title as string).trim(),
+        scheduled_at: scheduled_at as string,
+        generation_prompt: (generation_prompt as string).trim(),
+      };
+      if (typeof row.timezone === "string") sp.timezone = row.timezone;
+      if (typeof row.content_theme === "string") sp.content_theme = row.content_theme;
+      validPosts.push(sp);
+    }
+    if (validPosts.length === 0) return undefined;
+    return { campaign: validCampaign, scheduled_posts: validPosts };
+  }
+
+  private isIsoDate(s: string): boolean {
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
   }
 
   private cleanupSessions(ttlMs: number): void {
