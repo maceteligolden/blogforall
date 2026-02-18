@@ -69,3 +69,8 @@ export const blogQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
 });
+
+export const scheduleBlogSchema = z.object({
+  scheduled_at: z.coerce.date().refine((d) => d > new Date(), { message: "Scheduled time must be in the future" }),
+  timezone: z.string().max(64).optional().default("UTC"),
+});

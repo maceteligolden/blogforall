@@ -5,7 +5,7 @@ import { SiteService } from "../../site/services/site.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
 import { ZodError } from "zod";
-import { createBlogSchema, updateBlogSchema, blogQuerySchema } from "../validations/blog.validation";
+import { createBlogSchema, updateBlogSchema, blogQuerySchema, scheduleBlogSchema } from "../validations/blog.validation";
 
 @injectable()
 export class BlogController {
@@ -228,6 +228,68 @@ export class BlogController {
 
       const result = await this.blogService.toggleLike(id, siteId, userIdOrIp);
       sendSuccess(res, "Like toggled successfully", result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  schedulePublish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+      const siteId = req.body.site_id || (req.query.site_id as string);
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+      const validated = scheduleBlogSchema.parse(req.body);
+      const scheduled = await this.blogService.scheduleBlogPublish(id, siteId, userId, {
+        scheduled_at: validated.scheduled_at,
+        timezone: validated.timezone,
+      });
+      sendCreated(res, "Blog scheduled for publish", scheduled);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+        return next(new BadRequestError(errorMessages));
+      }
+      next(error);
+    }
+  };
+
+  getSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+      const schedule = await this.blogService.getBlogSchedule(id, siteId, userId);
+      sendSuccess(res, schedule ? "Schedule retrieved" : "No schedule", schedule);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  unschedulePublish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.userId;
+      if (!userId) {
+        return next(new BadRequestError("User not authenticated"));
+      }
+      const siteId = req.query.site_id as string;
+      if (!siteId) {
+        return next(new BadRequestError("Site ID is required"));
+      }
+      await this.blogService.unscheduleBlogPublish(id, siteId, userId);
+      sendNoContent(res, "Blog unscheduled");
     } catch (error) {
       next(error);
     }

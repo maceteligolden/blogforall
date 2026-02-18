@@ -4,11 +4,13 @@ import { CategoryRepository } from "../../category/repositories/category.reposit
 import { ScheduledPostRepository } from "../../campaign/repositories/scheduled-post.repository";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { BlogStatus } from "../../../shared/constants";
+import { ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
 import { logger } from "../../../shared/utils/logger";
 import { validateContentBlocks, blocksToHtml } from "../../../shared/utils/content-blocks.util";
 import { CreateBlogInput, UpdateBlogInput, BlogQueryFilters } from "../interfaces/blog.interface";
 import { Blog } from "../../../shared/schemas/blog.schema";
 import { PaginatedResponse } from "../../../shared/interfaces";
+import type { ScheduledPost } from "../../../shared/schemas/scheduled-post.schema";
 
 @injectable()
 export class BlogService {
@@ -205,5 +207,84 @@ export class BlogService {
 
   async toggleLike(blogId: string, siteId: string, userIdOrIp: string): Promise<{ likes: number; isLiked: boolean }> {
     return this.blogRepository.toggleLike(blogId, siteId, userIdOrIp);
+  }
+
+  /** Schedule this blog to be published at a future time. Cron will set status to published when due. */
+  async scheduleBlogPublish(
+    blogId: string,
+    siteId: string,
+    authorId: string,
+    input: { scheduled_at: Date; timezone?: string }
+  ): Promise<ScheduledPost> {
+    const blog = await this.blogRepository.findById(blogId, siteId);
+    if (!blog) {
+      throw new NotFoundError("Blog not found");
+    }
+    if (blog.author !== authorId) {
+      throw new ForbiddenError("You don't have permission to schedule this blog");
+    }
+    if (blog.status === BlogStatus.PUBLISHED) {
+      throw new BadRequestError("Blog is already published");
+    }
+    const isScheduled = await this.scheduledPostRepository.isBlogScheduled(blogId);
+    if (isScheduled) {
+      throw new BadRequestError("This blog is already scheduled. Unschedule it first to change the date.");
+    }
+    if (input.scheduled_at <= new Date()) {
+      throw new BadRequestError("Scheduled time must be in the future");
+    }
+    const scheduledPost = await this.scheduledPostRepository.create({
+      blog_id: blogId,
+      user_id: authorId,
+      site_id: siteId,
+      title: blog.title,
+      scheduled_at: input.scheduled_at,
+      timezone: input.timezone || "UTC",
+      status: ScheduledPostStatus.PENDING,
+      publish_attempts: 0,
+      auto_generate: false,
+    });
+    logger.info(
+      "Blog scheduled for publish",
+      { blogId, scheduledPostId: scheduledPost._id, scheduled_at: input.scheduled_at },
+      "BlogService"
+    );
+    return scheduledPost;
+  }
+
+  /** Get the active schedule for this blog (if any). */
+  async getBlogSchedule(blogId: string, siteId: string, authorId: string): Promise<ScheduledPost | null> {
+    const blog = await this.blogRepository.findById(blogId, siteId);
+    if (!blog) {
+      throw new NotFoundError("Blog not found");
+    }
+    if (blog.author !== authorId) {
+      throw new ForbiddenError("You don't have permission to access this blog");
+    }
+    const posts = await this.scheduledPostRepository.findByBlog(blogId);
+    const pending = posts.find(
+      (p) => p.status === ScheduledPostStatus.PENDING || p.status === ScheduledPostStatus.SCHEDULED
+    );
+    return pending ?? null;
+  }
+
+  /** Remove the schedule so this blog will not be auto-published. */
+  async unscheduleBlogPublish(blogId: string, siteId: string, authorId: string): Promise<void> {
+    const blog = await this.blogRepository.findById(blogId, siteId);
+    if (!blog) {
+      throw new NotFoundError("Blog not found");
+    }
+    if (blog.author !== authorId) {
+      throw new ForbiddenError("You don't have permission to unschedule this blog");
+    }
+    const posts = await this.scheduledPostRepository.findByBlog(blogId);
+    const pending = posts.find(
+      (p) => p.status === ScheduledPostStatus.PENDING || p.status === ScheduledPostStatus.SCHEDULED
+    );
+    if (!pending) {
+      throw new BadRequestError("This blog is not scheduled");
+    }
+    await this.scheduledPostRepository.delete(pending._id!.toString(), siteId);
+    logger.info("Blog unscheduled", { blogId, scheduledPostId: pending._id }, "BlogService");
   }
 }

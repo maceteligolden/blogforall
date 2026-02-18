@@ -21,6 +21,9 @@ router.put("/:id", authMiddleware, blogController.update);
 router.delete("/:id", authMiddleware, blogController.delete);
 router.post("/:id/publish", authMiddleware, blogController.publish);
 router.post("/:id/unpublish", authMiddleware, blogController.unpublish);
+router.post("/:id/schedule", authMiddleware, blogController.schedulePublish);
+router.get("/:id/schedule", authMiddleware, blogController.getSchedule);
+router.delete("/:id/schedule", authMiddleware, blogController.unschedulePublish);
 
 // Blog review routes (protected) — bind so controller methods keep 'this'
 router.post("/:blogId/review", authMiddleware, blogReviewController.reviewBlog.bind(blogReviewController));

@@ -29,9 +29,13 @@ export function useAllScheduledPosts(params?: {
     queryKey: [...QUERY_KEYS.SCHEDULED_POSTS, params],
     queryFn: async () => {
       const response = await CampaignService.getAllScheduledPosts(params);
-      // Handle paginated response
-      if (response.data?.data) {
-        return Array.isArray(response.data.data) ? response.data.data : [];
+      // Backend returns { data: { data: [...], pagination } } for list
+      const payload = response.data?.data;
+      if (payload && typeof payload === "object" && "data" in payload && Array.isArray((payload as { data: unknown[] }).data)) {
+        return (payload as { data: unknown[] }).data;
+      }
+      if (Array.isArray(payload)) {
+        return payload;
       }
       if (Array.isArray(response.data)) {
         return response.data;
