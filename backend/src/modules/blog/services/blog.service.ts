@@ -5,6 +5,7 @@ import { ScheduledPostRepository } from "../../campaign/repositories/scheduled-p
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { BlogStatus } from "../../../shared/constants";
 import { logger } from "../../../shared/utils/logger";
+import { validateContentBlocks, blocksToHtml } from "../../../shared/utils/content-blocks.util";
 import { CreateBlogInput, UpdateBlogInput, BlogQueryFilters } from "../interfaces/blog.interface";
 import { Blog } from "../../../shared/schemas/blog.schema";
 import { PaginatedResponse } from "../../../shared/interfaces";
@@ -56,8 +57,20 @@ export class BlogService {
       }
     }
 
+    let content = input.content ?? "";
+    let content_blocks = input.content_blocks;
+
+    if (content_blocks != null && content_blocks.length > 0) {
+      validateContentBlocks(content_blocks);
+      content = blocksToHtml(content_blocks);
+    } else if (!content || content.trim() === "") {
+      throw new BadRequestError("Content is required");
+    }
+
     const blog = await this.blogRepository.create({
       ...input,
+      content,
+      content_blocks,
       author: authorId,
       site_id: siteId,
       slug,
@@ -113,6 +126,12 @@ export class BlogService {
     }
 
     const updateData: Partial<Blog> = { ...input };
+
+    if (input.content_blocks != null && input.content_blocks.length > 0) {
+      validateContentBlocks(input.content_blocks);
+      updateData.content = blocksToHtml(input.content_blocks);
+      updateData.content_blocks = input.content_blocks;
+    }
 
     // Validate category if provided
     if (input.category) {
