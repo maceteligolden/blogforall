@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ContentBlock, ContentBlockType } from "@/lib/types/blog";
 import {
   ParagraphBlock,
@@ -10,6 +10,7 @@ import {
   CodeBlock,
   ImageBlock,
 } from "./blocks";
+import { BlockMenu } from "./BlockMenu";
 
 function generateBlockId(): string {
   return `block-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -31,6 +32,7 @@ interface BlockEditorProps {
 export function BlockEditor({ value, onChange, placeholder, className = "" }: BlockEditorProps) {
   const blocks = value.length > 0 ? value : [DEFAULT_BLOCK];
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [menuOpenAt, setMenuOpenAt] = useState<number | null>(null);
 
   const updateBlock = useCallback(
     (index: number, updates: Partial<ContentBlock>) => {
@@ -82,8 +84,28 @@ export function BlockEditor({ value, onChange, placeholder, className = "" }: Bl
     [blocks, onChange]
   );
 
+  const handleMenuSelect = useCallback(
+    (type: ContentBlockType, extra?: { level?: number; listType?: "bullet" | "ordered" }) => {
+      if (menuOpenAt === null) return;
+      const data: ContentBlock["data"] =
+        type === "heading" ? { level: extra?.level ?? 1, text: "" } : type === "list" ? { items: [""], listType: extra?.listType ?? "bullet" } : {};
+      insertBlockAfter(menuOpenAt, type, data);
+      setMenuOpenAt(null);
+    },
+    [menuOpenAt, insertBlockAfter]
+  );
+
   const createKeyDownHandler = useCallback(
     (index: number) => (e: React.KeyboardEvent) => {
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+        const block = blocks[index];
+        const text = (block.data?.text ?? "") as string;
+        if (block.type === "paragraph" && text.endsWith("/")) {
+          e.preventDefault();
+          updateBlockData(index, { text: text.slice(0, -1) });
+          setMenuOpenAt(index);
+        }
+      }
       if (e.key === "Enter" && !e.shiftKey) {
         const block = blocks[index];
         if (block.type === "paragraph" || block.type === "heading" || block.type === "blockquote" || block.type === "code") {
@@ -106,22 +128,42 @@ export function BlockEditor({ value, onChange, placeholder, className = "" }: Bl
           deleteBlock(index);
         }
       }
+      if (e.key === "Escape") {
+        setMenuOpenAt(null);
+      }
     },
-    [blocks, insertBlockAfter, deleteBlock]
+    [blocks, insertBlockAfter, deleteBlock, updateBlockData]
   );
 
-  const appendBlock = useCallback(() => {
-    insertBlockAfter(blocks.length - 1, "paragraph");
-  }, [blocks.length, insertBlockAfter]);
+  const openMenuAfter = useCallback((index: number) => {
+    setMenuOpenAt(index);
+  }, []);
 
   return (
-    <div className={`space-y-1 ${className}`}>
+    <div className={`relative space-y-1 ${className}`}>
+      {menuOpenAt !== null && (
+        <div className="mb-2">
+          <BlockMenu
+            onSelect={handleMenuSelect}
+            onClose={() => setMenuOpenAt(null)}
+          />
+        </div>
+      )}
       {blocks.map((block, index) => (
         <div
           key={block.id}
           ref={(el) => { blockRefs.current[index] = el; }}
-          className="relative"
+          className="group relative flex gap-1"
         >
+          <button
+            type="button"
+            onClick={() => openMenuAfter(index)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-gray-500 opacity-0 hover:bg-gray-800 hover:text-white group-hover:opacity-100"
+            aria-label="Add block"
+          >
+            +
+          </button>
+          <div className="min-w-0 flex-1">
           {block.type === "paragraph" && (
             <ParagraphBlock
               block={block}
@@ -165,11 +207,12 @@ export function BlockEditor({ value, onChange, placeholder, className = "" }: Bl
               onKeyDown={createKeyDownHandler(index)}
             />
           )}
+          </div>
         </div>
       ))}
       <button
         type="button"
-        onClick={appendBlock}
+        onClick={() => openMenuAfter(blocks.length - 1)}
         className="flex h-8 w-8 items-center justify-center rounded text-gray-500 hover:bg-gray-800 hover:text-white"
         aria-label="Add block"
       >
