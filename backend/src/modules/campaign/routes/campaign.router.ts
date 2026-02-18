@@ -3,12 +3,14 @@ import { container } from "tsyringe";
 import { CampaignController } from "../controllers/campaign.controller";
 import { ScheduledPostController } from "../controllers/scheduled-post.controller";
 import { CampaignTemplateController } from "../controllers/campaign-template.controller";
+import { CampaignAgentController } from "../controllers/campaign-agent.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 
 const router = Router();
 const campaignController = container.resolve(CampaignController);
 const scheduledPostController = container.resolve(ScheduledPostController);
 const templateController = container.resolve(CampaignTemplateController);
+const campaignAgentController = container.resolve(CampaignAgentController);
 
 // IMPORTANT: Specific routes must come BEFORE parameterized routes (/:id)
 // Otherwise Express will match /:id first and treat "scheduled-posts" as an ID
@@ -40,6 +42,10 @@ router.put("/templates/:id", authMiddleware, templateController.update);
 router.delete("/templates/:id", authMiddleware, templateController.delete);
 router.post("/templates/:id/activate", authMiddleware, templateController.activate);
 router.post("/templates/:id/deactivate", authMiddleware, templateController.deactivate);
+
+// Campaign agent (chat + create-from-proposal) - must come before /:id
+router.post("/agent/chat", authMiddleware, campaignAgentController.chat);
+router.post("/agent/create-from-proposal", authMiddleware, campaignAgentController.createFromProposal);
 
 // Parameterized campaign routes (/:id) - must come LAST
 router.get("/:id/stats", authMiddleware, campaignController.getByIdWithStats);

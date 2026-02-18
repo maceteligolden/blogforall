@@ -56,6 +56,18 @@ export class CampaignAgentService {
   /**
    * Handle one user message: guardrails, HF chat, history, optional proposal.
    */
+  /**
+   * Create a campaign and scheduled posts from an agent proposal.
+   * Implemented in create-from-proposal subtask; throws until then.
+   */
+  async createFromProposal(
+    _userId: string,
+    _siteId: string,
+    _proposal: AgentProposal
+  ): Promise<{ campaign: unknown; scheduled_posts: unknown[] }> {
+    throw new Error("Create from proposal not implemented");
+  }
+
   async chat(params: {
     sessionId?: string;
     siteId?: string;
