@@ -27,12 +27,16 @@ interface BlockEditorProps {
   onChange: (blocks: ContentBlock[]) => void;
   placeholder?: string;
   className?: string;
+  /** When provided, image blocks can upload files; returns final URL on success */
+  onUploadImage?: (file: File) => Promise<string>;
 }
 
-export function BlockEditor({ value, onChange, placeholder, className = "" }: BlockEditorProps) {
+export function BlockEditor({ value, onChange, placeholder, className = "", onUploadImage }: BlockEditorProps) {
   const blocks = value.length > 0 ? value : [DEFAULT_BLOCK];
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [menuOpenAt, setMenuOpenAt] = useState<number | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<Record<string, "uploading" | "failed">>({});
+  const pendingFiles = useRef<Record<string, File>>({});
 
   const updateBlock = useCallback(
     (index: number, updates: Partial<ContentBlock>) => {
@@ -139,6 +143,41 @@ export function BlockEditor({ value, onChange, placeholder, className = "" }: Bl
     setMenuOpenAt(index);
   }, []);
 
+  const handleImageUpload = useCallback(
+    async (index: number, file: File) => {
+      if (!onUploadImage) return;
+      const block = blocks[index];
+      if (block?.type !== "image") return;
+      const blobUrl = URL.createObjectURL(file);
+      updateBlockData(index, { url: blobUrl });
+      setUploadStatus((s) => ({ ...s, [block.id]: "uploading" }));
+      pendingFiles.current[block.id] = file;
+      try {
+        const url = await onUploadImage(file);
+        updateBlockData(index, { url });
+        setUploadStatus((s) => {
+          const next = { ...s };
+          delete next[block.id];
+          return next;
+        });
+        delete pendingFiles.current[block.id];
+        URL.revokeObjectURL(blobUrl);
+      } catch {
+        setUploadStatus((s) => ({ ...s, [block.id]: "failed" }));
+      }
+    },
+    [blocks, onUploadImage, updateBlockData]
+  );
+
+  const handleImageRetry = useCallback(
+    (index: number) => {
+      const block = blocks[index];
+      const file = block ? pendingFiles.current[block.id] : undefined;
+      if (file) handleImageUpload(index, file);
+    },
+    [blocks, handleImageUpload]
+  );
+
   return (
     <div className={`relative space-y-1 ${className}`}>
       {menuOpenAt !== null && (
@@ -205,6 +244,9 @@ export function BlockEditor({ value, onChange, placeholder, className = "" }: Bl
               block={block}
               onChange={(data) => updateBlockData(index, data)}
               onKeyDown={createKeyDownHandler(index)}
+              uploadStatus={uploadStatus[block.id]}
+              onFileSelect={onUploadImage ? (file) => handleImageUpload(index, file) : undefined}
+              onRetry={uploadStatus[block.id] === "failed" ? () => handleImageRetry(index) : undefined}
             />
           )}
           </div>

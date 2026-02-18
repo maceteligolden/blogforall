@@ -1,11 +1,13 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
 import { useAuthStore } from "../../store/auth.store";
+import type { ContentBlock } from "@/lib/types/blog";
 
 export interface CreateBlogRequest {
   title: string;
   content: string;
   content_type?: "html" | "markdown";
+  content_blocks?: ContentBlock[];
   excerpt?: string;
   featured_image?: string;
   images?: string[];
