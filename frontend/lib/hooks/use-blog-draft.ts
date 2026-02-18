@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
+import type { ContentBlock } from "@/lib/types/blog";
 
 const DRAFT_STORAGE_KEY = "blog_generation_draft";
 const DRAFT_EXPIRY_DAYS = 7; // Drafts expire after 7 days
@@ -12,6 +13,7 @@ interface BlogGenerationDraft {
     title: string;
     content: string;
     content_type: "html" | "markdown";
+    content_blocks?: ContentBlock[];
     excerpt: string;
     featured_image: string;
     category: string;

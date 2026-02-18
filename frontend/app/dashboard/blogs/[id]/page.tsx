@@ -9,7 +9,10 @@ import { useBlogReview } from "@/lib/hooks/use-blog-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { BlockEditor } from "@/components/editor/BlockEditor";
+import { blocksToHtml, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
+import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
+import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
@@ -26,14 +29,23 @@ export default function EditBlogPage() {
   const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult, applyReviewAsync } = useBlogReview();
   const [showReview, setShowReview] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    content: string;
+    content_type: "html" | "markdown";
+    content_blocks?: ContentBlock[];
+    excerpt: string;
+    featured_image: string;
+    category: string;
+    status: "draft" | "published" | "unpublished";
+  }>({
     title: "",
     content: "",
-    content_type: "html" as "html" | "markdown", // Rich text editor always outputs HTML
+    content_type: "html",
     excerpt: "",
     featured_image: "",
     category: "",
-    status: "draft" as "draft" | "published" | "unpublished",
+    status: "draft",
   });
   const [error, setError] = useState("");
 
@@ -51,10 +63,14 @@ export default function EditBlogPage() {
         }
       }
 
+      const existingBlocks = (blog as { content_blocks?: ContentBlock[] }).content_blocks;
+      const content_blocks =
+        existingBlocks && existingBlocks.length > 0 ? existingBlocks : htmlToBlocks(blog.content || "");
       setFormData({
         title: blog.title || "",
         content: blog.content || "",
         content_type: blog.content_type || "html",
+        content_blocks,
         excerpt: blog.excerpt || "",
         featured_image: blog.featured_image || "",
         category: categoryId,
@@ -64,7 +80,9 @@ export default function EditBlogPage() {
   }, [blog]);
 
   const handleReview = async () => {
-    if (!formData.title || !formData.content) {
+    const useBlocks = formData.content_blocks != null && formData.content_blocks.length > 0;
+    const contentForReview = useBlocks ? blocksToHtml(formData.content_blocks) : formData.content;
+    if (!formData.title || !contentForReview?.trim()) {
       setError("Title and content are required for review");
       return;
     }
@@ -80,7 +98,7 @@ export default function EditBlogPage() {
         blogId: id,
         data: {
           title: formData.title,
-          content: formData.content,
+          content: contentForReview,
           excerpt: formData.excerpt || undefined,
           category: formData.category || undefined,
         },
@@ -95,13 +113,33 @@ export default function EditBlogPage() {
     e.preventDefault();
     setError("");
 
-    if (!formData.title || !formData.content) {
-      setError("Title and content are required");
+    const useBlocks = formData.content_blocks != null && formData.content_blocks.length > 0;
+    if (useBlocks) {
+      const errs = getContentBlocksValidationErrors(formData.content_blocks);
+      if (errs.hasBlobUrls) {
+        setError("Please wait for all image uploads to finish before saving.");
+        return;
+      }
+      if (errs.missingCaptions) {
+        setError("Every image requires a caption before saving.");
+        return;
+      }
+    }
+
+    if (!formData.title) {
+      setError("Title is required");
+      return;
+    }
+    if (!useBlocks && !formData.content?.trim()) {
+      setError("Content is required");
       return;
     }
 
     try {
-      updateBlog.mutate({ id, data: formData });
+      const payload = useBlocks
+        ? { ...formData, content: "", content_blocks: formData.content_blocks }
+        : formData;
+      updateBlog.mutate({ id, data: payload });
     } catch (err: unknown) {
       const errorMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -126,6 +164,11 @@ export default function EditBlogPage() {
       setError(errorMessage);
       console.error("Image upload error:", err);
     }
+  };
+
+  const handleEditorImageUpload = async (file: File): Promise<string> => {
+    const response = await uploadImage.mutateAsync(file);
+    return response.data.data.url;
   };
 
   // Handle image uploads from the rich text editor
@@ -205,7 +248,7 @@ export default function EditBlogPage() {
                 type="button"
                 className="bg-purple-600 hover:bg-purple-700 text-white border-0"
                 onClick={handleReview}
-                disabled={isReviewing || !formData.title || !formData.content}
+                disabled={isReviewing || !formData.title || !(formData.content_blocks?.length ? true : formData.content?.trim())}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 {isReviewing ? "Reviewing..." : "Review with AI"}
@@ -253,14 +296,15 @@ export default function EditBlogPage() {
                   Content *
                 </Label>
                 <div className="h-[calc(100vh-500px)] min-h-[600px]">
-                  <RichTextEditor
-                    value={formData.content}
-                    onChange={(value) => setFormData({ ...formData, content: value })}
+                  <BlockEditor
+                    value={formData.content_blocks ?? []}
+                    onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
                     placeholder="Start writing your blog post..."
+                    onUploadImage={handleEditorImageUpload}
                   />
                 </div>
                 <p className="mt-2 text-xs text-gray-500">
-                  Use the toolbar to format your text, add headers, lists, images, and more.
+                  Use + or type / to add blocks. Every image requires a caption.
                 </p>
               </div>
             </div>
@@ -359,7 +403,7 @@ export default function EditBlogPage() {
                 reviewResult={reviewResult}
                 originalContent={{
                   title: formData.title,
-                  content: formData.content,
+                  content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
                   excerpt: formData.excerpt,
                 }}
                 isLoading={false}
@@ -376,11 +420,12 @@ export default function EditBlogPage() {
                           improved_excerpt: reviewResult.improved_excerpt,
                         },
                       });
-                      // Update form data with improvements
+                      const improvedContent = reviewResult.improved_content || (formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content);
                       setFormData({
                         ...formData,
                         title: reviewResult.improved_title || formData.title,
-                        content: reviewResult.improved_content || formData.content,
+                        content: improvedContent,
+                        content_blocks: htmlToBlocks(improvedContent),
                         excerpt: reviewResult.improved_excerpt || formData.excerpt,
                       });
                     } else {
@@ -394,10 +439,12 @@ export default function EditBlogPage() {
                           improved_excerpt: reviewResult.improved_excerpt,
                         },
                       });
+                      const improvedContent = reviewResult.improved_content || (formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content);
                       setFormData({
                         ...formData,
                         title: reviewResult.improved_title || formData.title,
-                        content: reviewResult.improved_content || formData.content,
+                        content: improvedContent,
+                        content_blocks: htmlToBlocks(improvedContent),
                         excerpt: reviewResult.improved_excerpt || formData.excerpt,
                       });
                     }
@@ -417,7 +464,7 @@ export default function EditBlogPage() {
             <BlogReviewComparison
               original={{
                 title: formData.title,
-                content: formData.content,
+                content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
                 excerpt: formData.excerpt,
               }}
               reviewResult={reviewResult}
@@ -432,10 +479,12 @@ export default function EditBlogPage() {
                       improved_excerpt: reviewResult.improved_excerpt,
                     },
                   });
+                  const improvedContent = reviewResult.improved_content || (formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content);
                   setFormData({
                     ...formData,
                     title: reviewResult.improved_title || formData.title,
-                    content: reviewResult.improved_content || formData.content,
+                    content: improvedContent,
+                    content_blocks: htmlToBlocks(improvedContent),
                     excerpt: reviewResult.improved_excerpt || formData.excerpt,
                   });
                   setShowComparison(false);

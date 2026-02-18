@@ -9,7 +9,10 @@ import { useBlogReview } from "@/lib/hooks/use-blog-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RichTextEditor } from "@/components/editor/rich-text-editor";
+import { BlockEditor } from "@/components/editor/BlockEditor";
+import { blocksToHtml, canSaveContentBlocks, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
+import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
+import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
@@ -52,14 +55,23 @@ export default function NewBlogPage() {
     content: string;
     excerpt: string;
   } | null>(null);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    content: string;
+    content_type: "html" | "markdown";
+    content_blocks?: ContentBlock[];
+    excerpt: string;
+    featured_image: string;
+    category: string;
+    status: "draft" | "published" | "unpublished";
+  }>({
     title: "",
     content: "",
-    content_type: "html" as "html" | "markdown", // Rich text editor always outputs HTML
+    content_type: "html",
     excerpt: "",
     featured_image: "",
     category: "",
-    status: "draft" as "draft" | "published" | "unpublished",
+    status: "draft",
   });
   const [error, setError] = useState("");
 
@@ -96,13 +108,14 @@ export default function NewBlogPage() {
       // Generate blog content (includes auto-review in backend)
       const generatedData = await generateBlog(prompt.trim(), confirmedAnalysis);
 
-      // Update form data with generated content
-      setFormData({
-        ...formData,
+      // Update form data with generated content; convert HTML to blocks for editor
+      setFormData((prev) => ({
+        ...prev,
         title: generatedData.content.title,
         content: generatedData.content.content,
+        content_blocks: htmlToBlocks(generatedData.content.content),
         excerpt: generatedData.content.excerpt,
-      });
+      }));
 
       // Stage: Complete (review happens automatically in backend)
       setGenerationStage("complete");
@@ -275,7 +288,9 @@ export default function NewBlogPage() {
   };
 
   const handleReview = async () => {
-    if (!formData.title || !formData.content) {
+    const useBlocks = formData.content_blocks != null && formData.content_blocks.length > 0;
+    const contentForReview = useBlocks ? blocksToHtml(formData.content_blocks) : formData.content;
+    if (!formData.title || !contentForReview?.trim()) {
       setError("Title and content are required for review");
       return;
     }
@@ -284,7 +299,7 @@ export default function NewBlogPage() {
       await reviewBlogAsync({
         data: {
           title: formData.title,
-          content: formData.content,
+          content: contentForReview,
           excerpt: formData.excerpt || undefined,
           category: formData.category || undefined,
         },
@@ -337,7 +352,7 @@ export default function NewBlogPage() {
     const timer = setTimeout(() => {
       // Only save if there's meaningful content
       const hasContent = 
-        (mode === "write" && (formData.title || formData.content)) ||
+        (mode === "write" && (formData.title || formData.content_blocks?.length || formData.content)) ||
         (mode === "ai-generate" && prompt.trim());
       
       if (hasContent) {
@@ -360,7 +375,7 @@ export default function NewBlogPage() {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         const hasContent = 
-          (mode === "write" && (formData.title || formData.content)) ||
+          (mode === "write" && (formData.title || formData.content_blocks?.length || formData.content)) ||
           (mode === "ai-generate" && prompt.trim());
         
         if (hasContent) {
@@ -384,7 +399,7 @@ export default function NewBlogPage() {
         e.preventDefault();
         if (mode === "ai-generate" && prompt.trim() && !isAnalyzing) {
           handleAnalyzePrompt();
-        } else if (mode === "write" && formData.title && formData.content) {
+        } else if (mode === "write" && formData.title && (formData.content_blocks?.length || formData.content?.trim())) {
           const form = document.getElementById("blog-form") as HTMLFormElement;
           if (form) {
             form.requestSubmit();
@@ -445,8 +460,25 @@ export default function NewBlogPage() {
     e.preventDefault();
     setError("");
 
-    if (!formData.title || !formData.content) {
-      setError("Title and content are required");
+    const useBlocks = formData.content_blocks != null && formData.content_blocks.length > 0;
+    if (useBlocks) {
+      const errs = getContentBlocksValidationErrors(formData.content_blocks);
+      if (errs.hasBlobUrls) {
+        setError("Please wait for all image uploads to finish before saving.");
+        return;
+      }
+      if (errs.missingCaptions) {
+        setError("Every image requires a caption before saving.");
+        return;
+      }
+    }
+
+    if (!formData.title) {
+      setError("Title is required");
+      return;
+    }
+    if (!useBlocks && !formData.content?.trim()) {
+      setError("Content is required");
       return;
     }
 
@@ -456,6 +488,8 @@ export default function NewBlogPage() {
     try {
       const submitData = {
         ...formData,
+        content: useBlocks ? "" : formData.content,
+        content_blocks: useBlocks ? formData.content_blocks : undefined,
         category: formData.category || undefined,
       };
       createBlog.mutate(submitData);
@@ -485,31 +519,10 @@ export default function NewBlogPage() {
     }
   };
 
-  // Handle image uploads from the rich text editor
-  useEffect(() => {
-    const handleEditorImageUpload = async (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const { file, resolve, reject } = customEvent.detail;
-
-      try {
-        const response = await uploadImage.mutateAsync(file);
-        const imageUrl = response.data.data.url;
-        resolve(imageUrl);
-      } catch (err: unknown) {
-        const errorMessage =
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          "Failed to upload image";
-        reject(new Error(errorMessage));
-        console.error("Editor image upload error:", err);
-      }
-    };
-
-    window.addEventListener("upload-image" as any, handleEditorImageUpload);
-
-    return () => {
-      window.removeEventListener("upload-image" as any, handleEditorImageUpload);
-    };
-  }, [uploadImage]);
+  const handleEditorImageUpload = async (file: File): Promise<string> => {
+    const response = await uploadImage.mutateAsync(file);
+    return response.data.data.url;
+  };
 
   return (
     <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
@@ -562,7 +575,7 @@ export default function NewBlogPage() {
               type="button"
               className="bg-purple-600 hover:bg-purple-700 text-white border-0"
               onClick={handleReview}
-              disabled={isReviewing || !formData.title || !formData.content}
+              disabled={isReviewing || !formData.title || !(formData.content_blocks?.length ? true : formData.content?.trim())}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               {isReviewing ? "Reviewing..." : "Review with AI"}
@@ -615,7 +628,7 @@ export default function NewBlogPage() {
                       <div className="flex items-start justify-between mb-2">
                         <p className="text-sm text-green-400 font-medium">Prompt Analysis Complete</p>
                         <div className="flex items-center gap-2">
-                          {formData.content && (
+                          {(formData.content_blocks?.length || formData.content) && (
                             <>
                               <Button
                                 type="button"
@@ -683,14 +696,15 @@ export default function NewBlogPage() {
                       Content *
                     </Label>
                     <div className="h-[calc(100vh-500px)] min-h-[600px]">
-                      <RichTextEditor
-                        value={formData.content}
-                        onChange={(value) => setFormData({ ...formData, content: value })}
+                      <BlockEditor
+                        value={formData.content_blocks ?? []}
+                        onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
                         placeholder="Start writing your blog post..."
+                        onUploadImage={handleEditorImageUpload}
                       />
                     </div>
                     <p className="mt-2 text-xs text-gray-500">
-                      Use the toolbar to format your text, add headers, lists, images, and more.
+                      Use + or type / to add blocks. Every image requires a caption.
                     </p>
                   </div>
                 </>
@@ -792,34 +806,22 @@ export default function NewBlogPage() {
                 reviewResult={reviewResult || autoReviewResult}
                 originalContent={{
                   title: formData.title,
-                  content: formData.content,
+                  content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
                   excerpt: formData.excerpt,
                 }}
                 isLoading={false}
                 onViewComparison={() => setShowComparison(true)}
                 onApplyReview={async (selectedSuggestions, applyAll) => {
-                  // For new blogs, just update the form data directly
-                  // The blog hasn't been created yet, so we can't call the API
                   const result = reviewResult || autoReviewResult;
+                  const improvedContent = result.improved_content || formData.content;
                   try {
-                    if (applyAll) {
-                      // Update form data with all improvements
-                      setFormData({
-                        ...formData,
-                        title: result.improved_title || formData.title,
-                        content: result.improved_content || formData.content,
-                        excerpt: result.improved_excerpt || formData.excerpt,
-                      });
-                    } else {
-                      // Apply selected suggestions (for now, apply all improvements)
-                      // TODO: Implement selective application based on selected suggestions
-                      setFormData({
-                        ...formData,
-                        title: result.improved_title || formData.title,
-                        content: result.improved_content || formData.content,
-                        excerpt: result.improved_excerpt || formData.excerpt,
-                      });
-                    }
+                    setFormData({
+                      ...formData,
+                      title: result.improved_title || formData.title,
+                      content: improvedContent,
+                      content_blocks: htmlToBlocks(improvedContent),
+                      excerpt: result.improved_excerpt || formData.excerpt,
+                    });
                     setShowReview(false);
                   } catch (err) {
                     // Error handled by hook
@@ -834,18 +836,19 @@ export default function NewBlogPage() {
             <BlogReviewComparison
               original={{
                 title: formData.title,
-                content: formData.content,
+                content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
                 excerpt: formData.excerpt,
               }}
               reviewResult={reviewResult || autoReviewResult}
               onClose={() => setShowComparison(false)}
               onApplyAll={async () => {
-                // For new blogs, just update the form data directly
                 const result = reviewResult || autoReviewResult;
+                const improvedContent = result.improved_content || formData.content;
                 setFormData({
                   ...formData,
                   title: result.improved_title || formData.title,
-                  content: result.improved_content || formData.content,
+                  content: improvedContent,
+                  content_blocks: htmlToBlocks(improvedContent),
                   excerpt: result.improved_excerpt || formData.excerpt,
                 });
                 setShowComparison(false);
