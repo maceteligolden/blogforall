@@ -49,7 +49,7 @@ export default function CampaignsPage() {
                 className="border-gray-700 text-gray-300 hover:bg-gray-800"
               >
                 <MessageSquare className="w-4 h-4 mr-2" />
-                Campaign Agent
+                Assistant
               </Button>
             </Link>
             <Button

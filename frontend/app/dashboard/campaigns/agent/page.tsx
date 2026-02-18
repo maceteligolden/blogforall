@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { CampaignAgentService, type AgentChatResponse, type AgentProposal } from "@/lib/api/services/campaign-agent.service";
@@ -8,7 +8,16 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/toast";
-import { Send, Calendar, Target, List } from "lucide-react";
+import { useAuth } from "@/lib/hooks/use-auth";
+import { Send, Calendar, Target, List, FileText, FolderPlus, LayoutList, HelpCircle } from "lucide-react";
+
+const QUICK_ACTIONS: { label: string; message: string; icon: React.ReactNode }[] = [
+  { label: "Create a blog draft", message: "Create a blog draft", icon: <FileText className="w-4 h-4" /> },
+  { label: "Plan a campaign", message: "Plan a campaign", icon: <Calendar className="w-4 h-4" /> },
+  { label: "Add a category", message: "Add a category", icon: <FolderPlus className="w-4 h-4" /> },
+  { label: "Show my drafts", message: "Show my drafts", icon: <List className="w-4 h-4" /> },
+  { label: "What can you do?", message: "What can you do?", icon: <HelpCircle className="w-4 h-4" /> },
+];
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -65,6 +74,8 @@ const markdownComponents = {
 export default function CampaignAgentPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { profile } = useAuth();
+  const firstName = profile?.first_name?.trim() || "there";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -82,28 +93,26 @@ export default function CampaignAgentPage() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || loading) return;
+  const sendMessage = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
 
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
     setLoading(true);
     setProposal(null);
 
     try {
       const res = await CampaignAgentService.chat({
         session_id: sessionId ?? undefined,
-        message: text,
+        message: trimmed,
       });
-      // API returns { message, data: { reply, session_id, proposal? } }; axios puts it in res.data
       const payload = (res as { data?: { data?: AgentChatResponse } }).data?.data;
       if (!payload) throw new Error("No response data");
 
       if (payload.session_id) setSessionId(payload.session_id);
       setMessages((prev) => [...prev, { role: "assistant", content: payload.reply ?? "" }]);
-      if (payload.proposal) setProposal(payload.proposal);
+      setProposal(payload.proposal ?? null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
       setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${message}` }]);
@@ -111,6 +120,11 @@ export default function CampaignAgentPage() {
       setLoading(false);
       inputRef.current?.focus();
     }
+  }, [sessionId, loading]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await sendMessage(input);
   };
 
   const handleCreateCampaign = async () => {
@@ -150,21 +164,41 @@ export default function CampaignAgentPage() {
         <Breadcrumb
           items={[
             { label: "Campaigns", href: "/dashboard/campaigns" },
-            { label: "Campaign Agent" },
+            { label: "Assistant" },
           ]}
         />
-        <h1 className="text-2xl font-display text-white mb-2">Campaign Agent</h1>
+        <h1 className="text-2xl font-display text-white mb-2">Assistant</h1>
         <p className="text-gray-400 text-sm mb-4">
-          Chat to plan your campaign. Describe your goal, audience, and schedule; the agent will propose a campaign and scheduled posts.
+          I can help you draft posts, plan campaigns, add categories, or list your drafts. Tell me what you need or pick an option below.
         </p>
 
         <div className="flex-1 flex flex-col min-h-0 rounded-lg border border-gray-800 bg-gray-900/50">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && (
-              <div className="text-center text-gray-500 py-8">
-                <p>Send a message to start planning your campaign.</p>
-                <p className="text-sm mt-2">e.g. &quot;We&apos;re launching our API next month, 3 posts a week&quot;</p>
-              </div>
+              <>
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] rounded-lg px-4 py-3 bg-gray-800 text-gray-100 border border-gray-700">
+                    <p className="text-sm font-medium text-white">Hi {firstName}, what would you like to do today?</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      I can help you draft posts, plan campaigns, add categories, or show your drafts. Pick one below or tell me in your own words.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_ACTIONS.map(({ label, message, icon }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => sendMessage(message)}
+                      disabled={loading}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-600 bg-gray-800/80 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 hover:border-gray-500 hover:text-white transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {icon}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
             {messages.map((m, i) => (
               <div

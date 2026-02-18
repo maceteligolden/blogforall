@@ -12,21 +12,24 @@ import type {
 } from "../interfaces/campaign-agent.interface";
 import { CampaignService } from "./campaign.service";
 import { ScheduledPostService } from "./scheduled-post.service";
+import { CategoryService } from "../../category/services/category.service";
 import type { CreateCampaignInput } from "../interfaces/campaign.interface";
 
 const HF_ROUTER_CHAT_URL = "https://router.huggingface.co/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You are a veteran campaign manager for a blog platform. You help users plan marketing campaigns and content schedules.
+const SYSTEM_PROMPT = `You are a blog marketing assistant for a blog platform. You help with:
+
+1. **Campaigns** — Plan marketing campaigns and content schedules (goals, audience, dates, posting frequency, scheduled posts). When you have enough information, output a campaign proposal as JSON (see below).
+2. **Categories** — Add or discuss categories (e.g. "Add a category called Tech"). Ask for the category name if needed, then confirm you'll add it.
+3. **Blog drafts** — Create draft posts or list the user's drafts. Ask for title and topic if they want to create a draft.
+4. **General** — Answer what you can do, suggest next steps, or guide them.
 
 Rules:
-- Only discuss campaign and content planning: goals, audience, dates, posting frequency, number of posts, content themes, blog topics/titles, SEO and readability goals.
-- If the user asks about something off-topic (support, account, non-marketing), politely say: "I can only help with campaign and content planning for your blog. For other questions please use the appropriate support channel."
-- Extract campaign details from minimal input (e.g. "product launch next month, 3 posts a week" → goal, end_date, posting_frequency, total_posts_planned). Ask one or two short clarifying questions when something is ambiguous.
-- When you have enough information to propose a full campaign, output a single JSON object in a markdown code block with the exact structure below. Use \`\`\`json and \`\`\` as fences. Do not add any other code blocks.
-- The JSON must have: "campaign" (object with name, goal, target_audience?, start_date, end_date, posting_frequency, timezone?, total_posts_planned?) and "scheduled_posts" (array of objects with title, scheduled_at, timezone?, generation_prompt, content_theme?).
-- Dates in ISO 8601 format (YYYY-MM-DD). posting_frequency must be one of: daily, weekly, biweekly, monthly, custom.
-- For each scheduled post, generation_prompt should describe the blog topic and align with the campaign goal and audience so that auto-generation later produces on-brand content.
-- Do not use <think> or </think> tags in your replies. Output only your final answer to the user.`;
+- Only refuse clearly off-topic requests (support, billing, account, password, refunds). For those, say: "I can only help with your blog content and campaigns. For account or billing, use the appropriate support channel."
+- Adding categories, creating drafts, planning campaigns, and listing content are all in scope. Help with those; ask one short question if needed (e.g. "What should the category be called?").
+- For campaign planning: extract details from minimal input. When you have enough to propose a full campaign, output a single JSON object in a markdown code block with \`\`\`json and \`\`\`. The JSON must have: "campaign" (object with name, goal, target_audience?, start_date, end_date, posting_frequency, timezone?, total_posts_planned?) and "scheduled_posts" (array of objects with title, scheduled_at, timezone?, generation_prompt, content_theme?). Dates in ISO 8601 (YYYY-MM-DD or full datetime). posting_frequency: daily, weekly, biweekly, monthly, or custom.
+- When you create a category, you must output a JSON code block (on its own line) with exactly: \`\`\`json\\n{"action": "create_category", "name": "the category name"}\\n\`\`\` so the system can create it. The user will not see this block. Also say in plain language that you added the category.
+- Do not use <think> or </think> tags. Output only your final answer.`;
 
 /** In-memory session: messages and last activity. */
 interface AgentSession {
@@ -46,7 +49,8 @@ export class CampaignAgentService {
 
   constructor(
     private campaignService: CampaignService,
-    private scheduledPostService: ScheduledPostService
+    private scheduledPostService: ScheduledPostService,
+    private categoryService: CategoryService
   ) {
     const token = CampaignAgentConfig.HUGGINGFACE_API_TOKEN;
     if (!token) {
@@ -159,8 +163,15 @@ export class CampaignAgentService {
       CampaignAgentConfig.TEMPERATURE
     );
 
-    const proposal = this.parseProposalFromMessage(rawReply);
-    const reply = this.replyForDisplay(rawReply);
+    const siteId = params.siteId ?? "";
+    const rawReplyAfterActions = await this.parseAndExecuteActions(rawReply, siteId);
+    const proposal = this.parseProposalFromMessage(rawReplyAfterActions);
+    let reply = this.replyForDisplay(rawReplyAfterActions);
+    const campaignFallback = "I've prepared a campaign proposal for you — review it below and click Create campaign when ready.";
+    if (reply === campaignFallback && !proposal) {
+      reply =
+        "I didn't get a clear response. You can ask me to **plan a campaign**, **add a category**, or **draft a post** — or try rephrasing.";
+    }
 
     session.messages.push({ role: "user", content: message.trim() });
     session.messages.push({ role: "assistant", content: reply });
@@ -252,6 +263,39 @@ export class CampaignAgentService {
   /** Remove <think>...</think> blocks from model output so they are not shown to the user. */
   private stripThinkBlocks(content: string): string {
     return content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  }
+
+  /**
+   * Parse fenced blocks for {"action": "create_category", "name": "..."}, execute them, and return content with those blocks removed.
+   */
+  private async parseAndExecuteActions(content: string, siteId: string): Promise<string> {
+    if (!siteId?.trim()) return content;
+    const actionBlockRegex = /\s*```(?:json)?\s*([\s\S]*?)```\s*/g;
+    const toRemove: string[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = actionBlockRegex.exec(content)) !== null) {
+      const trimmed = m[1].trim();
+      if (!trimmed.startsWith("{")) continue;
+      try {
+        const parsed = JSON.parse(trimmed) as { action?: string; name?: string; campaign?: unknown };
+        if (parsed.campaign) continue;
+        if (parsed?.action === "create_category" && typeof parsed.name === "string" && parsed.name.trim()) {
+          try {
+            await this.categoryService.createCategory(siteId, { name: parsed.name.trim() });
+            toRemove.push(m[0]);
+          } catch (err) {
+            logger.error("Campaign agent: create_category failed", { err, name: parsed.name, siteId }, "CampaignAgentService");
+          }
+        }
+      } catch {
+        // not valid JSON or not an action
+      }
+    }
+    let out = content;
+    for (const block of toRemove) {
+      out = out.replace(block, "");
+    }
+    return out.replace(/\n{3,}/g, "\n\n").trim();
   }
 
   /** Return only the part of the reply that should be shown to the user (no code/JSON blocks). */
@@ -397,8 +441,11 @@ export class CampaignAgentService {
     return { campaign: validCampaign, scheduled_posts: validPosts };
   }
 
+  /** Accept YYYY-MM-DD or full ISO datetime (e.g. 2023-10-01T00:00:00Z) so model output passes validation. */
   private isIsoDate(s: string): boolean {
-    return /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s));
+    if (!s || typeof s !== "string") return false;
+    const parsed = Date.parse(s);
+    return !Number.isNaN(parsed) && /^\d{4}-\d{2}-\d{2}/.test(s.trim());
   }
 
   private cleanupSessions(ttlMs: number): void {
