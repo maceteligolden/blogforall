@@ -10,6 +10,9 @@ import type {
   AgentProposalCampaign,
   AgentProposalScheduledPost,
 } from "../interfaces/campaign-agent.interface";
+import { CampaignService } from "./campaign.service";
+import { ScheduledPostService } from "./scheduled-post.service";
+import type { CreateCampaignInput } from "../interfaces/campaign.interface";
 
 const HF_ROUTER_CHAT_URL = "https://router.huggingface.co/v1/chat/completions";
 
@@ -40,7 +43,10 @@ const OFF_TOPIC_PATTERNS = [
 export class CampaignAgentService {
   private readonly sessions = new Map<string, AgentSession>();
 
-  constructor() {
+  constructor(
+    private campaignService: CampaignService,
+    private scheduledPostService: ScheduledPostService
+  ) {
     const token = CampaignAgentConfig.HUGGINGFACE_API_TOKEN;
     if (!token) {
       logger.warn(
@@ -58,14 +64,61 @@ export class CampaignAgentService {
    */
   /**
    * Create a campaign and scheduled posts from an agent proposal.
-   * Implemented in create-from-proposal subtask; throws until then.
    */
   async createFromProposal(
-    _userId: string,
-    _siteId: string,
-    _proposal: AgentProposal
+    userId: string,
+    siteId: string,
+    proposal: AgentProposal
   ): Promise<{ campaign: unknown; scheduled_posts: unknown[] }> {
-    throw new Error("Create from proposal not implemented");
+    const c = proposal.campaign;
+    const campaignInput: CreateCampaignInput = {
+      name: c.name,
+      goal: c.goal,
+      start_date: new Date(c.start_date),
+      end_date: new Date(c.end_date),
+      posting_frequency: c.posting_frequency,
+    };
+    if (c.description) campaignInput.description = c.description;
+    if (c.target_audience) campaignInput.target_audience = c.target_audience;
+    if (c.timezone) campaignInput.timezone = c.timezone;
+    if (c.total_posts_planned != null) campaignInput.total_posts_planned = c.total_posts_planned;
+
+    const campaign = await this.campaignService.createCampaign(userId, siteId, campaignInput);
+    const timezone = c.timezone ?? "UTC";
+    const scheduled_posts: unknown[] = [];
+
+    for (const p of proposal.scheduled_posts) {
+      const scheduledAt = new Date(p.scheduled_at);
+      if (scheduledAt.getTime() < Date.now()) {
+        logger.warn(
+          "Skipping scheduled post in the past",
+          { title: p.title, scheduled_at: p.scheduled_at },
+          "CampaignAgentService"
+        );
+        continue;
+      }
+      const created = await this.scheduledPostService.createScheduledPost(userId, siteId, {
+        campaign_id: campaign._id.toString(),
+        title: p.title,
+        scheduled_at: scheduledAt,
+        timezone: p.timezone ?? timezone,
+        auto_generate: true,
+        generation_prompt: p.generation_prompt,
+        metadata: {
+          campaign_goal: c.goal,
+          target_audience: c.target_audience,
+          content_theme: p.content_theme,
+        },
+      });
+      scheduled_posts.push(created);
+    }
+
+    logger.info(
+      "Campaign and scheduled posts created from agent proposal",
+      { campaignId: campaign._id, postCount: scheduled_posts.length, userId, siteId },
+      "CampaignAgentService"
+    );
+    return { campaign, scheduled_posts };
   }
 
   async chat(params: {
