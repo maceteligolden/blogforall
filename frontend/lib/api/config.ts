@@ -126,6 +126,8 @@ export const API_ENDPOINTS = {
       GET_ONE: (id: string) => `/campaigns/templates/${id}`,
       GET_BY_TYPE: (type: string) => `/campaigns/templates/type/${type}`,
     },
+    AGENT_CHAT: "/campaigns/agent/chat",
+    AGENT_CREATE_FROM_PROPOSAL: "/campaigns/agent/create-from-proposal",
   },
 };
 
