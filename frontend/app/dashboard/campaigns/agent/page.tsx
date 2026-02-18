@@ -1,19 +1,24 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { CampaignAgentService, type AgentChatResponse, type AgentProposal } from "@/lib/api/services/campaign-agent.service";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send } from "lucide-react";
+import { useToast } from "@/components/ui/toast";
+import { Send, Calendar, Target, List } from "lucide-react";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export default function CampaignAgentPage() {
+  const router = useRouter();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [proposal, setProposal] = useState<AgentProposal | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -53,6 +58,37 @@ export default function CampaignAgentPage() {
     } finally {
       setLoading(false);
       inputRef.current?.focus();
+    }
+  };
+
+  const handleCreateCampaign = async () => {
+    if (!proposal || creating) return;
+    setCreating(true);
+    try {
+      const res = await CampaignAgentService.createFromProposal({
+        session_id: sessionId ?? undefined,
+        proposal,
+      });
+      const data = (res as { data?: { campaign?: { _id?: string }; scheduled_posts?: unknown[] } }).data;
+      const campaignId = data?.campaign && typeof data.campaign === "object" && "_id" in data.campaign
+        ? String((data.campaign as { _id: string })._id)
+        : null;
+      const count = Array.isArray(data?.scheduled_posts) ? data.scheduled_posts.length : 0;
+      toast({
+        title: "Campaign created",
+        description: count > 0 ? `Campaign and ${count} scheduled posts created.` : "Campaign created.",
+        variant: "success",
+      });
+      if (campaignId) {
+        router.push(`/dashboard/campaigns/${campaignId}`);
+      } else {
+        router.push("/dashboard/scheduled-posts");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create campaign";
+      toast({ title: "Error", description: message, variant: "error" });
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -102,9 +138,47 @@ export default function CampaignAgentPage() {
               </div>
             )}
             {proposal && (
-              <div className="rounded-lg border border-gray-700 bg-gray-800/80 px-4 py-2 text-sm text-gray-300">
-                <p className="font-medium text-white">Proposal ready: {proposal.campaign.name}</p>
-                <p className="mt-1">{proposal.scheduled_posts.length} scheduled posts. Use the button below to create the campaign.</p>
+              <div className="rounded-lg border border-gray-700 bg-gray-800/80 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-700">
+                  <p className="font-medium text-white">Campaign proposal</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Review and create to add this campaign and scheduled posts.</p>
+                </div>
+                <div className="px-4 py-3 space-y-2 text-sm text-gray-300">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary shrink-0" />
+                    <span><strong className="text-white">{proposal.campaign.name}</strong> — {proposal.campaign.goal}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-primary shrink-0" />
+                    <span>{proposal.campaign.start_date} → {proposal.campaign.end_date}</span>
+                  </div>
+                  {proposal.campaign.target_audience && (
+                    <p className="text-gray-400">Audience: {proposal.campaign.target_audience}</p>
+                  )}
+                  <div className="pt-2">
+                    <p className="flex items-center gap-2 text-gray-400 mb-1">
+                      <List className="w-4 h-4" />
+                      Scheduled posts ({proposal.scheduled_posts.length})
+                    </p>
+                    <ul className="list-disc list-inside space-y-0.5 text-gray-400">
+                      {proposal.scheduled_posts.slice(0, 5).map((p, i) => (
+                        <li key={i}>{p.title} — {p.scheduled_at}</li>
+                      ))}
+                      {proposal.scheduled_posts.length > 5 && (
+                        <li className="text-gray-500">+{proposal.scheduled_posts.length - 5} more</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+                <div className="px-4 py-3 border-t border-gray-700">
+                  <Button
+                    onClick={handleCreateCampaign}
+                    disabled={creating}
+                    className="w-full bg-primary hover:bg-primary/90 text-white"
+                  >
+                    {creating ? "Creating…" : "Create campaign"}
+                  </Button>
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
