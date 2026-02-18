@@ -1,9 +1,12 @@
 import { BlogStatus } from "../../../shared/constants";
+import { ContentBlock } from "../../../shared/schemas/blog.schema";
 
 export interface CreateBlogInput {
   title: string;
   content: string;
   content_type?: "html" | "markdown";
+  /** When provided, content (HTML) is generated from blocks on save */
+  content_blocks?: ContentBlock[];
   excerpt?: string;
   featured_image?: string;
   images?: string[];
@@ -20,6 +23,7 @@ export interface UpdateBlogInput {
   title?: string;
   content?: string;
   content_type?: "html" | "markdown";
+  content_blocks?: ContentBlock[];
   excerpt?: string;
   featured_image?: string;
   images?: string[];

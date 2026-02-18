@@ -2,12 +2,39 @@ import { Schema, model } from "mongoose";
 import { BlogStatus } from "../constants";
 import { BaseEntity } from "../interfaces";
 
+/** Block types for block-based editor (headless / structured content) */
+export type ContentBlockType =
+  | "paragraph"
+  | "heading"
+  | "list"
+  | "image"
+  | "blockquote"
+  | "code";
+
+export interface ContentBlockData {
+  text?: string;
+  level?: number; // heading 1-3
+  items?: string[]; // list
+  listType?: "bullet" | "ordered";
+  url?: string;
+  caption?: string;
+  language?: string;
+}
+
+export interface ContentBlock {
+  id: string;
+  type: ContentBlockType;
+  data: ContentBlockData;
+}
+
 export interface Blog extends BaseEntity {
   author: string; // User ID
   site_id: string; // Site ID - blogs belong to a site
   title: string;
-  content: string; // HTML or Markdown content
+  content: string; // HTML or Markdown content (generated from content_blocks when present)
   content_type: "html" | "markdown";
+  /** Block-based content (source of truth when present); HTML is generated from this on save */
+  content_blocks?: ContentBlock[];
   slug: string; // URL-friendly version of title (unique within a site)
   excerpt?: string; // Short description
   featured_image?: string; // Path to featured image
@@ -59,6 +86,10 @@ const blogSchema = new Schema<Blog>(
       type: String,
       enum: ["html", "markdown"],
       default: "html",
+    },
+    content_blocks: {
+      type: Schema.Types.Mixed,
+      default: undefined,
     },
     slug: {
       type: String,
