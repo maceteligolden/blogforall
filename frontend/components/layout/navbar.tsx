@@ -49,12 +49,6 @@ export function Navbar() {
               Categories
             </Link>
             <Link
-              href="/dashboard/campaigns"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Campaigns
-            </Link>
-            <Link
               href="/dashboard/scheduled-posts"
               className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
             >
