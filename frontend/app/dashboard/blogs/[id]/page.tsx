@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { useBlog, useUpdateBlog, useUploadImage } from "@/lib/hooks/use-blog";
+import { BlogService } from "@/lib/api/services/blog.service";
 import { useCategories } from "@/lib/hooks/use-category";
 import { useBlogReview } from "@/lib/hooks/use-blog-review";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { ReviewModeView } from "@/components/blog/review-mode-view";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Calendar, X } from "lucide-react";
 import type { ReviewSuggestion } from "@/lib/api/services/blog-review.service";
 
 export default function EditBlogPage() {
@@ -52,6 +53,7 @@ export default function EditBlogPage() {
     featured_image: string;
     category: string;
     status: "draft" | "published" | "unpublished";
+    scheduled_at: string;
   }>({
     title: "",
     content: "",
@@ -60,8 +62,11 @@ export default function EditBlogPage() {
     featured_image: "",
     category: "",
     status: "draft",
+    scheduled_at: "",
   });
   const [error, setError] = useState("");
+  const [existingSchedule, setExistingSchedule] = useState<{ scheduled_at: string; _id?: string } | null>(null);
+  const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
 
   useEffect(() => {
     if (blog) {
@@ -89,9 +94,40 @@ export default function EditBlogPage() {
         featured_image: blog.featured_image || "",
         category: categoryId,
         status: blog.status || "draft",
+        scheduled_at: "",
       });
     }
   }, [blog]);
+
+  // Fetch existing schedule
+  useEffect(() => {
+    if (id && blog) {
+      setIsLoadingSchedule(true);
+      BlogService.getBlogSchedule(id)
+        .then((response) => {
+          const schedule = response.data?.data;
+          if (schedule?.scheduled_at) {
+            const scheduledDate = new Date(schedule.scheduled_at);
+            setExistingSchedule({
+              scheduled_at: scheduledDate.toISOString().slice(0, 16),
+              _id: schedule._id,
+            });
+            setFormData((prev) => ({
+              ...prev,
+              scheduled_at: scheduledDate.toISOString().slice(0, 16),
+            }));
+          } else {
+            setExistingSchedule(null);
+          }
+        })
+        .catch(() => {
+          setExistingSchedule(null);
+        })
+        .finally(() => {
+          setIsLoadingSchedule(false);
+        });
+    }
+  }, [id, blog]);
 
   const handleReview = async () => {
     const useBlocks = formData.content_blocks != null && formData.content_blocks.length > 0;
@@ -152,10 +188,44 @@ export default function EditBlogPage() {
     }
 
     try {
+      const { scheduled_at, ...blogData } = formData;
       const payload = useBlocks
-        ? { ...formData, content: "", content_blocks: formData.content_blocks }
-        : formData;
-      updateBlog.mutate({ id, data: payload });
+        ? { ...blogData, content: "", content_blocks: formData.content_blocks }
+        : blogData;
+      updateBlog.mutate(
+        { id, data: payload },
+        {
+          onSuccess: async () => {
+            // Handle scheduling
+            if (scheduled_at) {
+              try {
+                const scheduleDate = new Date(scheduled_at);
+                // If there's an existing schedule, unschedule first
+                if (existingSchedule?._id) {
+                  await BlogService.unscheduleBlog(id);
+                }
+                await BlogService.scheduleBlog(id, scheduleDate);
+                setExistingSchedule({
+                  scheduled_at: scheduled_at,
+                  _id: "new",
+                });
+              } catch (scheduleErr: any) {
+                console.error("Failed to schedule blog:", scheduleErr);
+                setError(scheduleErr?.response?.data?.message || "Blog updated but scheduling failed");
+              }
+            } else if (existingSchedule?._id) {
+              // If scheduled_at is cleared but there was an existing schedule, unschedule
+              try {
+                await BlogService.unscheduleBlog(id);
+                setExistingSchedule(null);
+              } catch (unscheduleErr: any) {
+                console.error("Failed to unschedule blog:", unscheduleErr);
+                setError(unscheduleErr?.response?.data?.message || "Blog updated but unscheduling failed");
+              }
+            }
+          },
+        }
+      );
     } catch (err: unknown) {
       const errorMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -438,6 +508,46 @@ export default function EditBlogPage() {
                         unoptimized={formData.featured_image.includes("localhost")}
                       />
                     </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Schedule Publish
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="scheduled_at"
+                      type="datetime-local"
+                      value={formData.scheduled_at}
+                      onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                      className="mt-1 bg-black border-gray-700 text-white flex-1"
+                      min={new Date().toISOString().slice(0, 16)}
+                      disabled={isLoadingSchedule}
+                    />
+                    {formData.scheduled_at && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setFormData({ ...formData, scheduled_at: "" })}
+                        className="text-gray-400 hover:text-white mt-1"
+                        title="Clear schedule"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {formData.scheduled_at && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Will be published on {new Date(formData.scheduled_at).toLocaleString()}
+                    </p>
+                  )}
+                  {existingSchedule && !formData.scheduled_at && (
+                    <p className="mt-1 text-xs text-amber-500">
+                      Currently scheduled for {new Date(existingSchedule.scheduled_at).toLocaleString()}
+                    </p>
                   )}
                 </div>
 

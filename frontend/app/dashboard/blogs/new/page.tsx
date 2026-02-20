@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useCreateBlog, useUploadImage } from "@/lib/hooks/use-blog";
+import { BlogService } from "@/lib/api/services/blog.service";
 import { useCategories } from "@/lib/hooks/use-category";
 import { useBlogReview } from "@/lib/hooks/use-blog-review";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,7 @@ import { ConfirmModal } from "@/components/ui/modal";
 import { useBlogGeneration } from "@/lib/hooks/use-blog-generation";
 import { useBlogDraft } from "@/lib/hooks/use-blog-draft";
 import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
-import { Sparkles, PenTool, Save, Trash2, RotateCcw, Undo2, Keyboard } from "lucide-react";
+import { Sparkles, PenTool, Save, Trash2, RotateCcw, Undo2, Keyboard, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
 type BlogCreationMode = "write" | "ai-generate";
@@ -64,6 +65,7 @@ export default function NewBlogPage() {
     featured_image: string;
     category: string;
     status: "draft" | "published" | "unpublished";
+    scheduled_at: string;
   }>({
     title: "",
     content: "",
@@ -72,6 +74,7 @@ export default function NewBlogPage() {
     featured_image: "",
     category: "",
     status: "draft",
+    scheduled_at: "",
   });
   const [error, setError] = useState("");
 
@@ -492,7 +495,21 @@ export default function NewBlogPage() {
         content_blocks: useBlocks ? formData.content_blocks : undefined,
         category: formData.category || undefined,
       };
-      createBlog.mutate(submitData);
+      const { scheduled_at, ...blogData } = submitData;
+      createBlog.mutate(blogData, {
+        onSuccess: async (response) => {
+          const blogId = response.data?.data?._id || response.data?._id;
+          if (blogId && scheduled_at) {
+            try {
+              const scheduleDate = new Date(scheduled_at);
+              await BlogService.scheduleBlog(blogId, scheduleDate);
+            } catch (scheduleErr: any) {
+              console.error("Failed to schedule blog:", scheduleErr);
+              setError(scheduleErr?.response?.data?.message || "Blog created but scheduling failed");
+            }
+          }
+        },
+      });
     } catch (err: unknown) {
       const errorMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -791,6 +808,26 @@ export default function NewBlogPage() {
                         unoptimized={formData.featured_image.includes("localhost")}
                       />
                     </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Schedule Publish
+                  </Label>
+                  <Input
+                    id="scheduled_at"
+                    type="datetime-local"
+                    value={formData.scheduled_at}
+                    onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                    className="mt-1 bg-black border-gray-700 text-white"
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
+                  {formData.scheduled_at && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Will be published on {new Date(formData.scheduled_at).toLocaleString()}
+                    </p>
                   )}
                 </div>
               </div>

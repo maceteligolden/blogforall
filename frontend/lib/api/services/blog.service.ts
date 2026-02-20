@@ -117,5 +117,27 @@ export class BlogService {
       },
     });
   }
+
+  static async scheduleBlog(id: string, scheduled_at: Date, timezone?: string) {
+    const siteId = this.getCurrentSiteId();
+    const requestData: { scheduled_at: Date; timezone?: string; site_id?: string } = {
+      scheduled_at,
+      ...(timezone && { timezone }),
+      ...(siteId && { site_id: siteId }),
+    };
+    return apiClient.post(API_ENDPOINTS.BLOGS.SCHEDULE(id), requestData);
+  }
+
+  static async getBlogSchedule(id: string) {
+    const siteId = this.getCurrentSiteId();
+    const params = siteId ? { site_id: siteId } : {};
+    return apiClient.get(API_ENDPOINTS.BLOGS.GET_SCHEDULE(id), { params });
+  }
+
+  static async unscheduleBlog(id: string) {
+    const siteId = this.getCurrentSiteId();
+    const params = siteId ? { site_id: siteId } : {};
+    return apiClient.delete(API_ENDPOINTS.BLOGS.UNSCHEDULE(id), { params });
+  }
 }
 

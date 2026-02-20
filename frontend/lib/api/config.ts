@@ -36,6 +36,9 @@ export const API_ENDPOINTS = {
     RESTORE_VERSION: (blogId: string, version: number) => `/blogs/${blogId}/restore/${version}`,
     GENERATE_ANALYZE: "/blogs/generate/analyze",
     GENERATE: "/blogs/generate",
+    SCHEDULE: (id: string) => `/blogs/${id}/schedule`,
+    GET_SCHEDULE: (id: string) => `/blogs/${id}/schedule`,
+    UNSCHEDULE: (id: string) => `/blogs/${id}/schedule`,
   },
   API_KEYS: {
     CREATE: "/api-keys",

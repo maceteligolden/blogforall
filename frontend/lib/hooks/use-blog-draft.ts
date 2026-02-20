@@ -18,6 +18,7 @@ interface BlogGenerationDraft {
     featured_image: string;
     category: string;
     status: "draft" | "published" | "unpublished";
+    scheduled_at: string;
   };
   timestamp: number;
 }
