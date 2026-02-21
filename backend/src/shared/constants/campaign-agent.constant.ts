@@ -5,11 +5,7 @@
 
 export const CampaignAgentConfig = {
   /** Reuse HF token from blog review / HF_TOKEN */
-  HUGGINGFACE_API_TOKEN: (
-    process.env.HUGGINGFACE_API_TOKEN ||
-    process.env.HF_TOKEN ||
-    ""
-  ).trim(),
+  HUGGINGFACE_API_TOKEN: (process.env.HUGGINGFACE_API_TOKEN || process.env.HF_TOKEN || "").trim(),
 
   /** Chat model for the campaign agent (hf-inference compatible). */
   AGENT_MODEL: process.env.CAMPAIGN_AGENT_MODEL || "HuggingFaceTB/SmolLM3-3B",

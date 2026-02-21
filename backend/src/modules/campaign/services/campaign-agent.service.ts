@@ -167,7 +167,8 @@ export class CampaignAgentService {
     const rawReplyAfterActions = await this.parseAndExecuteActions(rawReply, siteId);
     const proposal = this.parseProposalFromMessage(rawReplyAfterActions);
     let reply = this.replyForDisplay(rawReplyAfterActions);
-    const campaignFallback = "I've prepared a campaign proposal for you — review it below and click Create campaign when ready.";
+    const campaignFallback =
+      "I've prepared a campaign proposal for you — review it below and click Create campaign when ready.";
     if (reply === campaignFallback && !proposal) {
       reply =
         "I didn't get a clear response. You can ask me to **plan a campaign**, **add a category**, or **draft a post** — or try rephrasing.";
@@ -284,7 +285,11 @@ export class CampaignAgentService {
             await this.categoryService.createCategory(siteId, { name: parsed.name.trim() });
             toRemove.push(m[0]);
           } catch (err) {
-            logger.error("Campaign agent: create_category failed", { err, name: parsed.name, siteId }, "CampaignAgentService");
+            logger.error(
+              "Campaign agent: create_category failed",
+              { err, name: parsed.name, siteId },
+              "CampaignAgentService"
+            );
           }
         }
       } catch {
@@ -302,15 +307,20 @@ export class CampaignAgentService {
   private replyForDisplay(content: string): string {
     let out = this.stripFencedJsonOnly(content);
     out = this.stripUnfencedProposalJson(out);
-    return out.trim() || "I've prepared a campaign proposal for you — review it below and click Create campaign when ready.";
+    return (
+      out.trim() || "I've prepared a campaign proposal for you — review it below and click Create campaign when ready."
+    );
   }
 
   /** Remove only fenced blocks that contain JSON (start with {). Keep other code blocks (e.g. lists of details). */
   private stripFencedJsonOnly(content: string): string {
-    return content.replace(/\s*```(?:json)?\s*([\s\S]*?)```\s*/g, (match, inner) => {
-      if (/^\s*\{/.test(inner)) return "";
-      return match;
-    }).replace(/\n{3,}/g, "\n\n").trim();
+    return content
+      .replace(/\s*```(?:json)?\s*([\s\S]*?)```\s*/g, (match, inner) => {
+        if (/^\s*\{/.test(inner)) return "";
+        return match;
+      })
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   }
 
   /** Remove raw/unfenced JSON object that looks like { "campaign": ..., "scheduled_posts": ... } from text. */
@@ -338,9 +348,7 @@ export class CampaignAgentService {
    */
   private parseProposalFromMessage(content: string): AgentProposal | undefined {
     const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonStr = fenced
-      ? fenced[1].trim()
-      : this.extractUnfencedProposalJson(content);
+    const jsonStr = fenced ? fenced[1].trim() : this.extractUnfencedProposalJson(content);
     if (!jsonStr) return undefined;
     try {
       const parsed = JSON.parse(jsonStr) as unknown;
@@ -409,7 +417,8 @@ export class CampaignAgentService {
     if (typeof campaign.description === "string") validCampaign.description = campaign.description;
     if (typeof campaign.target_audience === "string") validCampaign.target_audience = campaign.target_audience;
     if (typeof campaign.timezone === "string") validCampaign.timezone = campaign.timezone;
-    if (typeof campaign.total_posts_planned === "number") validCampaign.total_posts_planned = campaign.total_posts_planned;
+    if (typeof campaign.total_posts_planned === "number")
+      validCampaign.total_posts_planned = campaign.total_posts_planned;
 
     const validPosts: AgentProposalScheduledPost[] = [];
     for (const p of posts) {

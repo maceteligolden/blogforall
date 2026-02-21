@@ -15,7 +15,11 @@ export class CampaignAgentController {
       if (!userId) {
         return next(new BadRequestError("User not authenticated"));
       }
-      const { session_id: sessionId, message, site_id: siteId } = req.body as {
+      const {
+        session_id: sessionId,
+        message,
+        site_id: siteId,
+      } = req.body as {
         session_id?: string;
         message?: string;
         site_id?: string;
