@@ -22,7 +22,7 @@ export interface ContentBlockData {
 export interface ContentBlock {
   id: string;
   type: ContentBlockType;
-  data: ContentBlockData;
+  data:  Record<string, unknown>;
 }
 
 export interface Blog {

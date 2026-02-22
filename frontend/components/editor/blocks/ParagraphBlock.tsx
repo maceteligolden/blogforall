@@ -24,7 +24,7 @@ export function ParagraphBlock({ block, onChange, onKeyDown, placeholder = "Writ
   return (
     <div className="group/block relative" data-block-type="paragraph">
       <textarea
-        value={text}
+        value={text as string}
         onChange={handleChange}
         onKeyDown={onKeyDown}
         placeholder={placeholder}

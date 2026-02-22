@@ -24,7 +24,7 @@ export function BlockquoteBlock({ block, onChange, onKeyDown, placeholder = "Quo
   return (
     <div className="group/block relative border-l-4 border-gray-600 pl-4" data-block-type="blockquote">
       <textarea
-        value={text}
+        value={text as string}
         onChange={handleChange}
         onKeyDown={onKeyDown}
         placeholder={placeholder}

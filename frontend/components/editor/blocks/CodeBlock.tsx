@@ -25,7 +25,7 @@ export function CodeBlock({ block, onChange, onKeyDown, placeholder = "Code", se
     <div className="group/block relative" data-block-type="code">
       <pre className="rounded-md bg-gray-900 p-3">
         <textarea
-          value={text}
+          value={text as string}
           onChange={handleChange}
           onKeyDown={onKeyDown}
           placeholder={placeholder}

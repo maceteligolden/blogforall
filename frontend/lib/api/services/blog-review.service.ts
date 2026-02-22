@@ -36,13 +36,17 @@ export interface BlogReviewResult {
   improved_excerpt?: string;
   summary: string;
 }
-
+export interface ContentBlock {
+  id: string;
+  type: string;
+  data: Record<string, unknown>;
+}
 export interface ReviewBlogRequest {
   title: string;
   content: string;
   excerpt?: string;
   category?: string;
-  content_blocks?: { id: string; type: string; data: Record<string, unknown> }[];
+  content_blocks?: ContentBlock[] | undefined;
 }
 
 export interface ApplyReviewRequest {

@@ -35,8 +35,8 @@ export function ImageBlock({ block, onChange, onKeyDown, uploadStatus = "idle", 
       <div className="relative">
         {url ? (
           <img
-            src={url}
-            alt={caption || "Image"}
+            src={url as string}
+            alt={caption as string || "Image"}
             className="max-h-[400px] w-auto rounded-lg object-contain"
           />
         ) : (
@@ -70,7 +70,7 @@ export function ImageBlock({ block, onChange, onKeyDown, uploadStatus = "idle", 
       <figcaption className="mt-2">
         <input
           type="text"
-          value={caption}
+          value={caption as string}
           onChange={(e) => onChange({ ...block.data, caption: e.target.value })}
           onKeyDown={onKeyDown}
           placeholder="Add a caption (required)"

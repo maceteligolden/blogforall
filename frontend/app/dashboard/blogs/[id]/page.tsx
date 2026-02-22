@@ -130,9 +130,13 @@ export default function EditBlogPage() {
   }, [id, blog]);
 
   const handleReview = async () => {
-    const useBlocks = formData.content_blocks != null && formData.content_blocks.length > 0;
-    const contentForReview = useBlocks ? blocksToHtml(formData.content_blocks) : formData.content;
-    if (!formData.title || !contentForReview?.trim()) {
+    const useBlocks =
+      Array.isArray(formData.content_blocks) && formData.content_blocks.length > 0;
+    const contentForReview = useBlocks
+      ? blocksToHtml(formData.content_blocks as ContentBlock[])
+      : formData.content;
+
+    if (!formData.title || !contentForReview || !contentForReview.trim()) {
       setError("Title and content are required for review");
       return;
     }
@@ -167,7 +171,7 @@ export default function EditBlogPage() {
 
     const useBlocks = formData.content_blocks != null && formData.content_blocks.length > 0;
     if (useBlocks) {
-      const errs = getContentBlocksValidationErrors(formData.content_blocks);
+      const errs = getContentBlocksValidationErrors(formData.content_blocks || []);
       if (errs.hasBlobUrls) {
         setError("Please wait for all image uploads to finish before saving.");
         return;

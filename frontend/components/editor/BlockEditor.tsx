@@ -123,7 +123,7 @@ export function BlockEditor({ value, onChange, placeholder, className = "", onUp
         const isEmpty = typeof text === "string" && text.trim() === "";
         if (block.type === "list") {
           const items = block.data?.items ?? [];
-          if (items.length === 1 && !items[0]?.trim()) {
+          if (Array.isArray(items) && items.length === 1 && !items[0]?.trim()) {
             e.preventDefault();
             deleteBlock(index);
           }

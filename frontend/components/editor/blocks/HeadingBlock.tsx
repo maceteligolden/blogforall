@@ -15,7 +15,7 @@ const levelToTag = { 1: "text-3xl", 2: "text-2xl", 3: "text-xl" } as const;
 
 export function HeadingBlock({ block, onChange, onKeyDown, placeholder = "Heading", selected }: HeadingBlockProps) {
   const text = block.data?.text ?? "";
-  const level = Math.min(3, Math.max(1, block.data?.level ?? 1));
+  const level = Math.min(3, Math.max(1, (block.data?.level as number) ?? 1));
   const sizeClass = levelToTag[level as 1 | 2 | 3] ?? "text-2xl";
 
   const handleChange = useCallback(
@@ -29,7 +29,7 @@ export function HeadingBlock({ block, onChange, onKeyDown, placeholder = "Headin
     <div className="group/block relative" data-block-type="heading">
       <input
         type="text"
-        value={text}
+        value={text as string}
         onChange={handleChange}
         onKeyDown={onKeyDown}
         placeholder={placeholder}

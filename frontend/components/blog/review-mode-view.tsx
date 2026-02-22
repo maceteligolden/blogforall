@@ -96,34 +96,34 @@ export function ReviewModeView({
               <div className="space-y-3 text-gray-300">
                 {content_blocks!.map((block) => (
                   <div key={block.id} className="border-l-2 border-gray-700 pl-3">
-                    {block.type === "paragraph" && <p>{block.data.text}</p>}
+                    {block.type === "paragraph" && <p>{block.data.text as string}</p>}
                     {block.type === "heading" && (
                       <p
                             className={`font-semibold ${
                               block.data.level === 1 ? "text-xl" : block.data.level === 2 ? "text-lg" : "text-base"
                             }`}
                           >
-                            {block.data.text}
+                            {block.data.text as string}
                           </p>
                         )}
                     {block.type === "list" && (
                       <ul className="list-disc list-inside">
-                        {(block.data.items ?? []).map((item, i) => (
+                        {(block.data.items as string[] ?? []).map((item, i) => (
                           <li key={i}>{item}</li>
                         ))}
                       </ul>
                     )}
                     {block.type === "blockquote" && (
-                      <blockquote className="border-gray-600 italic">{block.data.text}</blockquote>
+                      <blockquote className="border-gray-600 italic">{block.data.text as string}</blockquote>
                     )}
                     {block.type === "code" && (
                       <pre className="bg-gray-800 rounded p-2 text-sm overflow-x-auto">
-                        <code>{block.data.text}</code>
+                        <code>{block.data.text as string}</code>
                       </pre>
                     )}
                     {block.type === "image" && (
                       <div className="text-gray-500">
-                        [Image: {block.data.caption ?? "no caption"}]
+                        [Image: {block.data.caption as string ?? "no caption"}]
                       </div>
                     )}
                   </div>

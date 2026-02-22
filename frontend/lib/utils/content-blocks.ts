@@ -10,7 +10,7 @@ export function getContentBlocksValidationErrors(blocks: ContentBlock[]): {
   for (const block of blocks) {
     if (block.type === "image") {
       const url = block.data?.url ?? "";
-      if (url.startsWith("blob:")) hasBlobUrls = true;
+      if (typeof url === "string" && url.startsWith("blob:")) hasBlobUrls = true;
       const caption = block.data?.caption ?? "";
       if (!caption || String(caption).trim() === "") missingCaptions = true;
     }
@@ -36,10 +36,10 @@ export function blocksToHtml(blocks: ContentBlock[]): string {
     const d = block.data ?? {};
     switch (block.type) {
       case "paragraph":
-        parts.push(`<p>${escapeHtml(d.text ?? "")}</p>`);
+        parts.push(`<p>${escapeHtml((d as { text?: string }).text ?? "")}</p>`);
         break;
       case "heading":
-        parts.push(`<h${Math.min(3, Math.max(1, d.level ?? 1))}>${escapeHtml(d.text ?? "")}</h${Math.min(3, Math.max(1, d.level ?? 1))}>`);
+        parts.push(`<h${Math.min(3, Math.max(1, (d as { level?: number }).level ?? 1))}>${escapeHtml((d as { text?: string }).text ?? "")}</h${Math.min(3, Math.max(1, (d as { level?: number }).level ?? 1))}>`);
         break;
       case "list": {
         const tag = d.listType === "ordered" ? "ol" : "ul";
@@ -48,13 +48,13 @@ export function blocksToHtml(blocks: ContentBlock[]): string {
         break;
       }
       case "image":
-        if (d.url) parts.push(`<figure><img src="${escapeHtml(d.url)}" alt="${escapeHtml(d.caption ?? "")}" /><figcaption>${escapeHtml(d.caption ?? "")}</figcaption></figure>`);
+        if (d.url) parts.push(`<figure><img src="${escapeHtml((d as { url?: string }).url ?? "")}" alt="${escapeHtml((d as { caption?: string }).caption ?? "")}" /><figcaption>${escapeHtml((d as { caption?: string }).caption ?? "")}</figcaption></figure>`);
         break;
       case "blockquote":
-        parts.push(`<blockquote>${escapeHtml(d.text ?? "")}</blockquote>`);
+        parts.push(`<blockquote>${escapeHtml((d as { text?: string }).text ?? "")}</blockquote>`);
         break;
       case "code":
-        parts.push(`<pre><code>${escapeHtml(d.text ?? "")}</code></pre>`);
+        parts.push(`<pre><code>${escapeHtml((d as { text?: string }).text ?? "")}</code></pre>`);
         break;
       default:
         parts.push(`<p>${escapeHtml((d as { text?: string }).text ?? "")}</p>`);
