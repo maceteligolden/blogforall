@@ -292,8 +292,13 @@ FLAT CONTENT (for reference):
       "explanation": "<why this change improves the blog>"
     }`;
 
-    return `You are an expert blog post reviewer. Analyze the following blog post and provide a comprehensive review.
-
+    return `
+You are a senior editorial reviewer and SEO evaluator. 
+Analyze the provided blog post quickly but rigorously. 
+Focus on clarity, coherence, SEO fundamentals, structural integrity, 
+and audience alignment. Do not invent facts. Penalize meaningless, contradictory, 
+or AI-gibberish content. Infer the intended blog type, audience, and goal before scoring,
+ and use that inference as the benchmark for tone, grammar, structure, and engagement evaluation.
 BLOG POST DETAILS:
 Title: ${title}
 ${excerpt ? `Excerpt: ${excerpt}` : ""}
@@ -302,7 +307,21 @@ ${wordCount ? `Word Count: ${wordCount}` : ""}
 ${blocksSection}
 CONTENT:
 ${content}
-
+FAST REVIEW RULES: 1) Infer intent: identify blog type (tutorial,
+opinion, SEO post, technical guide, etc.), target audience, and primary goal. 2) 
+Coherence check: if content contains gibberish, filler, unclear logic, contradiction
+or meaningless sentences, cap readability, structure, engagement, and fact_check at 40 or below. 3)
+SEO quick checks: title 50–60 characters; excerpt 150–160 characters; clear 
+primary keyword present in title and early content; logical heading hierarchy
+ (single H1, structured H2/H3); no keyword stuffing; content depth appropriate for 
+ topic; matches likely search intent (informational, transactional, etc.). 
+ 4) Structure check: clear introduction, logical section flow, 
+ scannable paragraphs, conclusion or takeaway present. 
+ 5) Grammar check: spelling, punctuation, tense consistency, 
+ subject-verb agreement, sentence clarity. 
+ 6) Style and engagement: tone consistent with inferred audience; clear value;
+  strong opening; avoids fluff; actionable or insightful where appropriate.
+  SCORING: Use integers 0–100 only. Be realistic and avoid inflated scores. If content is thin, incoherent, or poorly structured, scores should reflect that. OUTPUT RULES: Return ONLY valid JSON. No markdown. No commentary outside JSON. No trailing commas. improved_content must be a concise but fully rewritten, publication-ready version that preserves the original topic and intent, improves clarity and SEO naturally, removes fluff, adds clean heading structure (one H1 only), and aligns with inferred audience and goal.
 Respond with ONLY valid JSON in this exact format:
 {
   "overall_score": <number 0-100>,
@@ -319,20 +338,10 @@ Respond with ONLY valid JSON in this exact format:
     ${suggestionFormat}
   ],
   "improved_content": "<complete improved version of the content>",
-  "improved_title": "<improved title if needed>",
-  "improved_excerpt": "<improved excerpt if needed>",
-  "summary": "<overall summary of the review>"
+  "improved_title": "<optimized title if needed, otherwise original>",
+  "improved_excerpt": "<optimized excerpt if needed, otherwise original>",
+  "summary": "<concise evaluation summary>"
 }
-
-REVIEW CRITERIA:
-1. Readability: Sentence length, paragraph structure, clarity, flow
-2. SEO: Keyword usage, title 50-60 chars, excerpt 150-160 chars, heading hierarchy (H1 then H2/H3), image alt/captions
-3. Grammar: Spelling, punctuation, tense, subject-verb agreement
-4. Structure: Heading hierarchy, paragraph organization, lists, logical flow
-5. Fact-check: Flag unsupported or potentially inaccurate claims
-6. Style: Tone, voice consistency, engagement level
-7. Engagement (winning post): Strong opening hook, clear audience/goal, scannability (subheadings, short paras), clear takeaway or CTA, completeness
-
 Return ONLY valid JSON, no markdown or extra text.`;
   }
 
