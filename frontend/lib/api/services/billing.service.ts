@@ -10,6 +10,37 @@ export interface Card {
   is_default: boolean;
 }
 
+
+export interface Invoice {
+  id: string;
+  number: string | null;
+  amount_paid: number;
+  amount_due: number;
+  currency: string;
+  status: string;
+  created: string;
+  period_start: string | null;
+  period_end: string | null;
+  invoice_pdf: string | null;
+  hosted_invoice_url: string | null;
+  description: string;
+}
+
+export interface InvoiceDetails extends Invoice {
+  subtotal: number;
+  total: number;
+  lines: Array<{
+    description: string | null;
+    amount: number;
+    quantity: number | null;
+    period: {
+      start: string;
+      end: string;
+    } | null;
+  }>;
+}
+
+
 export class BillingService {
   /**
    * Initialize add card process - returns setup intent client secret
@@ -72,33 +103,4 @@ export class BillingService {
     );
     return response.data.data;
   }
-}
-
-export interface Invoice {
-  id: string;
-  number: string | null;
-  amount_paid: number;
-  amount_due: number;
-  currency: string;
-  status: string;
-  created: string;
-  period_start: string | null;
-  period_end: string | null;
-  invoice_pdf: string | null;
-  hosted_invoice_url: string | null;
-  description: string;
-}
-
-export interface InvoiceDetails extends Invoice {
-  subtotal: number;
-  total: number;
-  lines: Array<{
-    description: string | null;
-    amount: number;
-    quantity: number | null;
-    period: {
-      start: string;
-      end: string;
-    } | null;
-  }>;
 }
