@@ -9,7 +9,7 @@ export class HuggingFaceFacade {
  
     constructor() {}
 
-      private async hfChatCompletion(
+    async hfChatCompletion(
     model: string,
     messages: { role: string; content: string }[],
     maxTokens: number,
