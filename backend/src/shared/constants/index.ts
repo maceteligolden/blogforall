@@ -41,3 +41,14 @@ export enum HttpStatus {
 
 // Re-export campaign constants
 export { CampaignStatus, PostFrequency, ScheduledPostStatus, CampaignTemplateType } from "./campaign.constant";
+
+// Re-export notification constants
+export {
+  NotificationChannel,
+  NotificationType,
+  NotificationStatus,
+  EMAIL_TEMPLATE_KEYS,
+  NotificationConfig,
+  NOTIFICATION_ENV_KEYS,
+} from "./notification.constant";
+export type { EmailTemplateKey } from "./notification.constant";
