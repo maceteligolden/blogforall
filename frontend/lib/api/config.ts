@@ -102,6 +102,12 @@ export const API_ENDPOINTS = {
     ACCEPT: (token: string) => `/invitations/${token}/accept`,
     REJECT: (token: string) => `/invitations/${token}/reject`,
   },
+  NOTIFICATIONS: {
+    LIST: "/notifications",
+    UNREAD_COUNT: "/notifications/unread-count",
+    MARK_READ: (id: string) => `/notifications/${id}/read`,
+    MARK_ALL_READ: "/notifications/read-all",
+  },
   CAMPAIGNS: {
     CREATE: "/campaigns",
     LIST: "/campaigns",
@@ -155,6 +161,8 @@ export const QUERY_KEYS = {
   SITE_MEMBERS: (siteId: string) => ["sites", siteId, "members"],
   SITE_INVITATIONS: (siteId: string) => ["sites", siteId, "invitations"],
   USER_INVITATIONS: ["invitations"],
+  NOTIFICATIONS: ["notifications"],
+  NOTIFICATIONS_UNREAD_COUNT: ["notifications", "unread-count"],
   CAMPAIGNS: ["campaigns"],
   CAMPAIGN: (id: string) => ["campaigns", id],
   MY_CAMPAIGNS: ["campaigns", "my-campaigns"],
