@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bebas_Neue, Montserrat } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/lib/providers/query-provider";
+import { ChunkErrorHandler } from "@/components/chunk-error-handler";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -27,7 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${bebasNeue.variable} ${montserrat.variable} font-sans`}>
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+        <ChunkErrorHandler>{children}</ChunkErrorHandler>
+      </QueryProvider>
       </body>
     </html>
   );
