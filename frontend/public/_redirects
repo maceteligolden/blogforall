@@ -1,2 +1,5 @@
+# Let Next.js static chunks and assets be served (do not rewrite to index.html)
+/_next/*  200
+# SPA fallback for client-side routes
 /*    /index.html   200
 

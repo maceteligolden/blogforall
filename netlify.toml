@@ -8,3 +8,17 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Ensure JS/CSS under _next/static are served with correct MIME types (avoids "refused to execute" errors)
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+[[headers]]
+  for = "/_next/static/chunks/*"
+  [headers.values]
+    Content-Type = "application/javascript"
+[[headers]]
+  for = "/_next/static/css/*"
+  [headers.values]
+    Content-Type = "text/css"
+
