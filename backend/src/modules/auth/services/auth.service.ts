@@ -3,7 +3,7 @@ import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
 import { BadRequestError, UnauthorizedError, NotFoundError } from "../../../shared/errors";
-import { UserPlan } from "../../../shared/constants";
+import { UserPlan, UserRole } from "../../../shared/constants";
 import { logger } from "../../../shared/utils/logger";
 import {
   SignupInput,
@@ -136,17 +136,14 @@ export class AuthService {
     const hasSites = userSites.length > 0;
     const defaultSiteId = hasSites ? userSites[0]._id!.toString() : undefined;
 
-    // Generate tokens with site context
-    const accessToken = generateAccessToken({
+    const tokenPayload = {
       userId: user._id!.toString(),
       email: user.email,
       currentSiteId: defaultSiteId,
-    });
-    const refreshToken = generateRefreshToken({
-      userId: user._id!.toString(),
-      email: user.email,
-      currentSiteId: defaultSiteId,
-    });
+      role: user.role ?? UserRole.USER,
+    };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
 
     // Update session token
     await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
@@ -202,6 +199,7 @@ export class AuthService {
         userId: user._id!.toString(),
         email: user.email,
         currentSiteId: defaultSiteId,
+        role: user.role ?? UserRole.USER,
       });
 
       return { access_token: accessToken };
@@ -227,11 +225,11 @@ export class AuthService {
       throw new BadRequestError("You do not have access to this site");
     }
 
-    // Generate new access token with updated site context
     const accessToken = generateAccessToken({
       userId: user._id!.toString(),
       email: user.email,
       currentSiteId: siteId,
+      role: user.role ?? UserRole.USER,
     });
 
     logger.info("Site context updated", { userId, siteId }, "AuthService");
@@ -250,6 +248,7 @@ export class AuthService {
     last_name: string;
     phone_number?: string;
     plan: string;
+    role: string;
     created_at?: Date;
     updated_at?: Date;
   }> {
@@ -265,6 +264,7 @@ export class AuthService {
       last_name: user.last_name,
       phone_number: user.phone_number,
       plan: user.plan,
+      role: user.role ?? UserRole.USER,
       created_at: user.created_at,
       updated_at: user.updated_at,
     };

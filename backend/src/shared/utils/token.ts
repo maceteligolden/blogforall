@@ -4,6 +4,7 @@ export interface TokenPayload {
   userId: string;
   email: string;
   currentSiteId?: string; // Optional site context
+  role?: string; // UserRole for admin checks without DB lookup
 }
 
 export const generateAccessToken = (payload: TokenPayload): string => {

@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { UnauthorizedError } from "../errors";
+import { UnauthorizedError, ForbiddenError } from "../errors";
 import { verifyAccessToken } from "../utils/token";
+import { UserRole } from "../constants";
 
 declare global {
   namespace Express {
@@ -10,6 +11,7 @@ declare global {
         userId: string;
         email?: string;
         currentSiteId?: string; // Site context from JWT token
+        role?: string; // UserRole for admin authorization
       };
       site?: {
         id: string;
@@ -34,6 +36,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
       userId: decoded.userId,
       email: decoded.email,
       currentSiteId: decoded.currentSiteId,
+      role: decoded.role,
     };
 
     next();
@@ -46,4 +49,20 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
     }
     next(new UnauthorizedError("Invalid or expired token"));
   }
+};
+
+/**
+ * PSEUDOCODE:
+ * 1. REQUIRE authMiddleware to have run (req.user set)
+ * 2. IF req.user.role !== UserRole.ADMIN THEN next(ForbiddenError)
+ * 3. ELSE next()
+ */
+export const requireAdmin = (req: Request, _res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    return next(new UnauthorizedError("Authentication required"));
+  }
+  if (req.user.role !== UserRole.ADMIN) {
+    return next(new ForbiddenError("Admin access required"));
+  }
+  next();
 };
