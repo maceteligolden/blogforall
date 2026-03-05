@@ -1,78 +1,88 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import { Bell, X, Heart, MessageSquare } from "lucide-react";
-
-export interface Notification {
-  id: string;
-  type: "like" | "comment";
-  message: string;
-  blogId?: string;
-  blogTitle?: string;
-  timestamp: Date;
-  read: boolean;
-}
+import {
+  createContext,
+  useContext,
+  useCallback,
+  ReactNode,
+} from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { NotificationService } from "@/lib/api/services/notification.service";
+import { QUERY_KEYS } from "@/lib/api/config";
+import type { NotificationItem } from "@/lib/api/types/notification.types";
 
 interface NotificationContextType {
-  notifications: Notification[];
+  notifications: NotificationItem[];
   unreadCount: number;
-  addNotification: (notification: Omit<Notification, "id" | "timestamp" | "read">) => void;
+  isLoadingList: boolean;
+  isLoadingCount: boolean;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
-  removeNotification: (id: string) => void;
-  clearAll: () => void;
+  refetch: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+const LIST_LIMIT = 20;
 
-  const addNotification = useCallback(
-    (notification: Omit<Notification, "id" | "timestamp" | "read">) => {
-      const newNotification: Notification = {
-        ...notification,
-        id: Date.now().toString(),
-        timestamp: new Date(),
-        read: false,
-      };
-      setNotifications((prev) => [newNotification, ...prev]);
+export function NotificationProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+
+  const listQuery = useQuery({
+    queryKey: QUERY_KEYS.NOTIFICATIONS,
+    queryFn: () => NotificationService.list({ limit: LIST_LIMIT }),
+    select: (res) => res.data ?? [],
+  });
+
+  const countQuery = useQuery({
+    queryKey: QUERY_KEYS.NOTIFICATIONS_UNREAD_COUNT,
+    queryFn: () => NotificationService.getUnreadCount(),
+  });
+
+  const markAsReadMutation = useMutation({
+    mutationFn: (id: string) => NotificationService.markAsRead(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS_UNREAD_COUNT });
     },
-    []
+  });
+
+  const markAllAsReadMutation = useMutation({
+    mutationFn: () => NotificationService.markAllAsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS_UNREAD_COUNT });
+    },
+  });
+
+  const markAsRead = useCallback(
+    (id: string) => {
+      markAsReadMutation.mutate(id);
+    },
+    [markAsReadMutation]
   );
 
-  const markAsRead = useCallback((id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  }, []);
-
   const markAllAsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
+    markAllAsReadMutation.mutate();
+  }, [markAllAsReadMutation]);
 
-  const removeNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+  const refetch = useCallback(() => {
+    listQuery.refetch();
+    countQuery.refetch();
+  }, [listQuery, countQuery]);
 
-  const clearAll = useCallback(() => {
-    setNotifications([]);
-  }, []);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const value: NotificationContextType = {
+    notifications: listQuery.data ?? [],
+    unreadCount: countQuery.data ?? 0,
+    isLoadingList: listQuery.isLoading,
+    isLoadingCount: countQuery.isLoading,
+    markAsRead,
+    markAllAsRead,
+    refetch,
+  };
 
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        addNotification,
-        markAsRead,
-        markAllAsRead,
-        removeNotification,
-        clearAll,
-      }}
-    >
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );
@@ -85,4 +95,3 @@ export function useNotifications() {
   }
   return context;
 }
-
