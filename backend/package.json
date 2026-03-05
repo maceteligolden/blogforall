@@ -16,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@getbrevo/brevo": "^4.0.1",
     "@huggingface/inference": "^4.13.11",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^4.17.21",
