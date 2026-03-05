@@ -111,11 +111,11 @@ export class AuthService {
    * PSEUDOCODE:
    * 1. FIND user by email; if not found THROW UnauthorizedError (invalid credentials)
    * 2. COMPARE password with hash; if invalid THROW UnauthorizedError
-   * 3. GET user sites; if none TRY ensureDefaultWorkspace and re-fetch sites
-   * 4. BUILD defaultSiteId from first site
+   * 3. GET user sites (do NOT ensure default workspace on login so first-time flow shows create-site first)
+   * 4. BUILD defaultSiteId from first site if any
    * 5. GENERATE access and refresh tokens with userId, email, currentSiteId
    * 6. UPDATE user sessionToken in DB
-   * 7. RETURN tokens, user payload, and requiresSiteCreation (!hasSites before ensure)
+   * 7. RETURN tokens, user payload, and requiresSiteCreation true when user has 0 sites
    */
   async login(input: LoginInput): Promise<LoginResponse> {
     const { email, password } = input;
@@ -126,30 +126,15 @@ export class AuthService {
       throw new UnauthorizedError("Invalid credentials");
     }
 
-    // Verify password
     const isPasswordValid = await comparePassword(password, user.password);
     if (!isPasswordValid) {
       logger.warn("Failed login attempt - invalid password", { email }, "AuthService");
       throw new UnauthorizedError("Invalid credentials");
     }
 
-    // Ensure user has at least one workspace (uses env.workspace.defaultName if none)
     const userSites = await this.siteService.getSitesByUser(user._id!.toString());
-    let hasSites = userSites.length > 0;
-    if (!hasSites) {
-      try {
-        await this.siteService.ensureDefaultWorkspace(user._id!.toString());
-        const updatedUserSites = await this.siteService.getSitesByUser(user._id!.toString());
-        userSites.push(...updatedUserSites);
-        hasSites = updatedUserSites.length > 0;
-        logger.info("Default workspace created on first login", { userId: user._id, email }, "AuthService");
-      } catch (error) {
-        logger.error("Failed to create default workspace on login", error as Error, { userId: user._id }, "AuthService");
-      }
-    }
-
-    // Get user's default site (first site) for token context
-    const defaultSiteId = userSites.length > 0 ? userSites[0]._id!.toString() : undefined;
+    const hasSites = userSites.length > 0;
+    const defaultSiteId = hasSites ? userSites[0]._id!.toString() : undefined;
 
     // Generate tokens with site context
     const accessToken = generateAccessToken({

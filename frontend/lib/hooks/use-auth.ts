@@ -11,7 +11,7 @@ export function useAuth() {
   const loginMutation = useMutation({
     mutationFn: (data: LoginRequest) => AuthService.login(data),
     onSuccess: async (response) => {
-      const { tokens, user: userData } = response.data.data;
+      const { tokens, user: userData, requiresSiteCreation } = response.data.data;
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
 
@@ -22,6 +22,11 @@ export function useAuth() {
           router.push(redirect);
           return;
         }
+      }
+
+      if (requiresSiteCreation) {
+        router.push("/onboarding/create-site");
+        return;
       }
 
       try {
