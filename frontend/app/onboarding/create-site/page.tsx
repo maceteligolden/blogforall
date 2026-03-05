@@ -19,17 +19,24 @@ export default function CreateSitePage() {
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
 
+  const skipMutation = useMutation({
+    mutationFn: () => SiteService.ensureDefaultWorkspace(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
+      router.push("/onboarding/invite");
+    },
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(apiMessage || "Could not create default workspace. Please create one above.");
+    },
+  });
+
   const createSiteMutation = useMutation({
     mutationFn: (data: CreateSiteRequest) => SiteService.createSite(data),
     onSuccess: async (newSite) => {
-      // Invalidate sites query
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
-      
-      // Switch to the new site
       updateSiteContext(newSite._id);
-      
-      // Redirect to dashboard
-      router.push("/dashboard");
+      router.push("/onboarding/invite");
     },
     onError: (err: any) => {
       const apiMessage = err?.response?.data?.message;
@@ -111,13 +118,22 @@ export default function CreateSitePage() {
                 />
               </div>
 
-              <div className="flex justify-end space-x-4 pt-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => skipMutation.mutate()}
+                  disabled={skipMutation.isPending}
+                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                >
+                  {skipMutation.isPending ? "Skipping..." : "Skip for now"}
+                </Button>
                 <Button
                   type="submit"
                   disabled={createSiteMutation.isPending || !name.trim()}
                   className="bg-primary hover:bg-primary/90 text-white px-8"
                 >
-                  {createSiteMutation.isPending ? "Creating..." : "Create Site"}
+                  {createSiteMutation.isPending ? "Creating..." : "Create workspace"}
                 </Button>
               </div>
             </form>
@@ -125,7 +141,7 @@ export default function CreateSitePage() {
 
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-400">
-              You can create additional sites later from the dashboard
+              You can create additional workspaces later from the dashboard
             </p>
           </div>
         </div>

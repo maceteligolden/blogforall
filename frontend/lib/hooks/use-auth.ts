@@ -14,27 +14,33 @@ export function useAuth() {
       const { tokens, user: userData } = response.data.data;
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
-      
-      // currentSiteId is automatically extracted from token in setTokens
-      
-      // Check onboarding status
+
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get("redirect");
+        if (redirect) {
+          router.push(redirect);
+          return;
+        }
+      }
+
       try {
         const onboardingStatus = await OnboardingService.getStatus();
         if (onboardingStatus.requiresOnboarding) {
           router.push("/onboarding");
           return;
         }
-        
-        // Check if user has sites
+
         const { SiteService } = await import("../api/services/site.service");
         const sites = await SiteService.getSites();
         if (sites.length === 0) {
           router.push("/onboarding/create-site");
+        } else if (typeof window !== "undefined" && !localStorage.getItem("blogforall_invite_prompt_seen")) {
+          router.push("/onboarding/invite");
         } else {
           router.push("/dashboard");
         }
-      } catch (error) {
-        // If check fails, redirect to onboarding to be safe
+      } catch {
         router.push("/onboarding");
       }
     },
@@ -47,7 +53,15 @@ export function useAuth() {
   const signupMutation = useMutation({
     mutationFn: (data: SignupRequest) => AuthService.signup(data),
     onSuccess: () => {
-      // Redirect to login - user will be redirected to onboarding after login
+      if (typeof window !== "undefined") {
+        const inviteToken = sessionStorage.getItem("blogforall_signup_invite_token");
+        sessionStorage.removeItem("blogforall_signup_invite_token");
+        if (inviteToken) {
+          const returnUrl = `/invitations/accept?token=${encodeURIComponent(inviteToken)}`;
+          router.push(`/auth/login?message=Account created. Sign in to continue.&redirect=${encodeURIComponent(returnUrl)}`);
+          return;
+        }
+      }
       router.push("/auth/login?message=Account created successfully. Please sign in to continue.");
     },
     onError: (error: unknown) => {

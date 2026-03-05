@@ -68,4 +68,17 @@ export class SiteController {
       next(error);
     }
   };
+
+  ensureDefault = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.userId;
+      const site = await this.siteService.ensureDefaultWorkspace(userId);
+      sendSuccess(res, site ? "Default workspace created" : "User already has workspace(s)", {
+        created: !!site,
+        site: site ?? null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

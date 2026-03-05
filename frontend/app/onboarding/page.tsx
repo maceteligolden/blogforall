@@ -65,17 +65,15 @@ function OnboardingForm() {
       OnboardingService.complete(planId, paymentMethodId),
     onSuccess: async () => {
       queryClient.invalidateQueries();
-      // Check if user has sites, if not redirect to site creation
       try {
         const { SiteService } = await import("@/lib/api/services/site.service");
         const sites = await SiteService.getSites();
         if (sites.length === 0) {
           router.push("/onboarding/create-site");
         } else {
-          router.push("/dashboard");
+          router.push("/onboarding/invite");
         }
-      } catch (error) {
-        // If check fails, redirect to site creation to be safe
+      } catch {
         router.push("/onboarding/create-site");
       }
     },
@@ -85,17 +83,15 @@ function OnboardingForm() {
     mutationFn: () => OnboardingService.skip(),
     onSuccess: async () => {
       queryClient.invalidateQueries();
-      // Check if user has sites, if not redirect to site creation
       try {
         const { SiteService } = await import("@/lib/api/services/site.service");
         const sites = await SiteService.getSites();
         if (sites.length === 0) {
           router.push("/onboarding/create-site");
         } else {
-          router.push("/dashboard");
+          router.push("/onboarding/invite");
         }
-      } catch (error) {
-        // If check fails, redirect to site creation to be safe
+      } catch {
         router.push("/onboarding/create-site");
       }
     },

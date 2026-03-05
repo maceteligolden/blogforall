@@ -53,6 +53,15 @@ export interface SiteWithMembers extends Site {
 
 export class SiteService {
   /**
+   * Ensure user has at least one workspace (create default from env if none). Returns created site or null.
+   */
+  static async ensureDefaultWorkspace(): Promise<{ created: boolean; site: Site | null }> {
+    const response = await apiClient.post(API_ENDPOINTS.SITES.ENSURE_DEFAULT);
+    const data = response.data?.data ?? response.data;
+    return { created: data.created ?? false, site: data.site ?? null };
+  }
+
+  /**
    * Get all sites for the authenticated user
    */
   static async getSites(includeMembers = false): Promise<Site[]> {

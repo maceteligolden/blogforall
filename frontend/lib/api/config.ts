@@ -84,6 +84,7 @@ export const API_ENDPOINTS = {
   },
   SITES: {
     CREATE: "/sites",
+    ENSURE_DEFAULT: "/sites/ensure-default",
     LIST: "/sites",
     GET_ONE: (id: string) => `/sites/${id}`,
     UPDATE: (id: string) => `/sites/${id}`,

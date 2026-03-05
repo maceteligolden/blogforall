@@ -12,6 +12,7 @@ const siteController = container.resolve(SiteController);
 
 // All routes require authentication
 router.post("/", authMiddleware, validateBody(createSiteSchema), siteController.create);
+router.post("/ensure-default", authMiddleware, siteController.ensureDefault);
 router.get("/", authMiddleware, siteController.list);
 router.get("/:id", authMiddleware, validateParams(siteIdParamSchema), siteController.getById);
 router.patch("/:id", authMiddleware, validateParams(siteIdParamSchema), validateBody(updateSiteSchema), siteController.update);
