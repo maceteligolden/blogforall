@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import { TransactionalEmailsApi, SendSmtpEmail } from "@getbrevo/brevo";
+import { BrevoClient } from "@getbrevo/brevo";
 import { NotificationConfig } from "../constants/notification.constant";
 import { logger } from "../utils/logger";
 
@@ -21,42 +21,53 @@ export interface BrevoSendResult {
 /** Facade over Brevo Transactional Email API. Single point for sending; env from NotificationConfig. */
 @injectable()
 export class BrevoFacade {
-  private api: TransactionalEmailsApi | null = null;
+  private client: BrevoClient | null = null;
 
   constructor() {
     if (NotificationConfig.brevoApiKey) {
-      this.api = new TransactionalEmailsApi();
-      (this.api as unknown as { authentications: { apiKey: { apiKey: string } } }).authentications.apiKey.apiKey =
-        NotificationConfig.brevoApiKey;
+      this.client = new BrevoClient({ apiKey: NotificationConfig.brevoApiKey });
     } else {
       logger.warn("BREVO_API_KEY not set; email sending will be no-op.", {}, "BrevoFacade");
     }
   }
 
   async send(params: BrevoSendParams): Promise<BrevoSendResult> {
-    if (!this.api) {
+    if (!this.client) {
       throw new Error("Brevo API not configured. Set BREVO_API_KEY.");
     }
 
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.sender = {
-      name: NotificationConfig.brevoSenderName,
-      email: NotificationConfig.brevoSenderEmail,
+    const request: {
+      sender: { name: string; email: string };
+      to: { email: string }[];
+      subject: string;
+      htmlContent?: string;
+      textContent?: string;
+      templateId?: number;
+      params?: Record<string, unknown>;
+    } = {
+      sender: {
+        name: NotificationConfig.brevoSenderName,
+        email: NotificationConfig.brevoSenderEmail,
+      },
+      to: [{ email: params.to }],
+      subject: params.subject,
     };
-    sendSmtpEmail.to = [{ email: params.to }];
-    sendSmtpEmail.subject = params.subject;
+
     if (params.templateId != null) {
-      sendSmtpEmail.templateId = params.templateId;
-      if (params.templateParams) {
-        sendSmtpEmail.params = params.templateParams;
+      request.templateId = params.templateId;
+      if (params.templateParams && Object.keys(params.templateParams).length > 0) {
+        request.params = params.templateParams as Record<string, unknown>;
       }
     } else {
-      if (params.html) sendSmtpEmail.htmlContent = params.html;
-      if (params.text) sendSmtpEmail.textContent = params.text;
+      if (params.html) request.htmlContent = params.html;
+      if (params.text) request.textContent = params.text;
     }
 
-    const response = await this.api.sendTransacEmail(sendSmtpEmail);
-    const messageId = (response.body as { messageId?: string })?.messageId ?? "";
+    const response = await this.client.transactionalEmails.sendTransacEmail(request);
+    const messageId =
+      (response && typeof response === "object" && "messageId" in response
+        ? (response as { messageId?: string }).messageId
+        : undefined) ?? "";
 
     logger.info(
       "Brevo email sent",
