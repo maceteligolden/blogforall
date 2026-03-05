@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,13 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { validatePassword } from "@/lib/utils/password-validation";
 
-export default function SignupPage() {
+const SIGNUP_INVITE_KEY = "blogforall_signup_invite_token";
+
+function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signupAsync, isLoading, signupError } = useAuth();
+  const inviteToken = searchParams.get("invite");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -37,6 +41,9 @@ export default function SignupPage() {
       return;
     }
 
+    if (inviteToken) {
+      sessionStorage.setItem(SIGNUP_INVITE_KEY, inviteToken);
+    }
     try {
       await signupAsync(formData);
     } catch (err: unknown) {
@@ -66,7 +73,9 @@ export default function SignupPage() {
           <div>
             <h1 className="text-center text-3xl font-bold text-primary mb-2">BlogForAll</h1>
             <h2 className="text-center text-2xl font-bold text-white mt-4">Create your account</h2>
-            <p className="mt-2 text-center text-sm text-gray-400">Start managing your blogs today</p>
+            <p className="mt-2 text-center text-sm text-gray-400">
+              {inviteToken ? "You're signing up to accept a workspace invitation." : "Start managing your blogs today"}
+            </p>
           </div>
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             {error && (
@@ -161,6 +170,16 @@ export default function SignupPage() {
           </form>
         </div>
       </div>
+    </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <Suspense fallback={<div className="text-center text-gray-400">Loading...</div>}>
+        <SignupForm />
+      </Suspense>
     </div>
   );
 }
