@@ -9,11 +9,10 @@ import Link from "next/link";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useQuery } from "@tanstack/react-query";
 import { SubscriptionService } from "@/lib/api/services/subscription.service";
-import { CampaignService } from "@/lib/api/services/campaign.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 
 export default function DashboardPage() {
-  const { user, logout, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { data: blogs, isLoading: blogsLoading } = useBlogs();
   const { data: apiKeys, isLoading: keysLoading } = useApiKeys();
   const router = useRouter();
@@ -24,21 +23,12 @@ export default function DashboardPage() {
     retry: false,
   });
 
-  const { data: campaignsResponse } = useQuery({
-    queryKey: QUERY_KEYS.MY_CAMPAIGNS,
-    queryFn: () => CampaignService.getCampaigns(),
-    retry: false,
-  });
-
-  const campaigns = campaignsResponse?.data?.data || [];
-  const activeCampaigns = campaigns.filter((c: any) => c.status === "active").length;
-  const totalCampaigns = campaigns.length;
-
-  const isFreePlan = subscriptionData?.plan?.price === 0 || subscriptionData?.plan?.interval === "free" || subscriptionData?.subscription?.status === "free";
-
-  const handleLogout = () => {
-    logout();
-  };
+  const activePlanName =
+    subscriptionData?.plan?.name ?? user?.plan ?? "Free";
+  const isFreePlan =
+    subscriptionData?.plan?.price === 0 ||
+    subscriptionData?.plan?.interval === "free" ||
+    subscriptionData?.subscription?.status === "free";
 
   const isLoading = authLoading || blogsLoading || keysLoading;
   const totalBlogs = blogs?.length || 0;
@@ -90,22 +80,17 @@ export default function DashboardPage() {
             <p className="text-gray-400 text-lg">Manage your blogs and API keys from here</p>
           </div>
 
-        {/* Stats Cards - Netflix card style */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-colors">
             <h3 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wide">Plan</h3>
-            <p className="text-3xl font-bold text-white capitalize mb-1">{user?.plan || "Free"}</p>
+            <p className="text-3xl font-bold text-white capitalize mb-1">{activePlanName}</p>
             <p className="text-xs text-gray-500">Current subscription</p>
           </div>
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-colors">
             <h3 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wide">Total Blogs</h3>
             <p className="text-3xl font-bold text-white mb-1">{totalBlogs}</p>
             <p className="text-xs text-gray-500">{publishedBlogs} published</p>
-          </div>
-          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-colors">
-            <h3 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wide">Campaigns</h3>
-            <p className="text-3xl font-bold text-white mb-1">{totalCampaigns}</p>
-            <p className="text-xs text-gray-500">{activeCampaigns} active</p>
           </div>
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-colors">
             <h3 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wide">API Keys</h3>
@@ -141,12 +126,6 @@ export default function DashboardPage() {
               onClick={() => router.push("/dashboard/categories")}
             >
               Manage Categories
-            </Button>
-            <Button
-              className="w-full justify-start bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 h-12 text-base font-medium"
-              onClick={() => router.push("/dashboard/campaigns")}
-            >
-              Manage Campaigns
             </Button>
           </div>
         </div>

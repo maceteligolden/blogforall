@@ -8,6 +8,7 @@ import {
   EMAIL_TEMPLATE_KEYS,
 } from "../../../shared/constants/notification.constant";
 import { generateCorrelationId } from "../../../shared/utils/notification.util";
+import { logger } from "../../../shared/utils/logger";
 import { BadRequestError, AppError } from "../../../shared/errors";
 import type { Notification } from "../../../shared/schemas/notification.schema";
 import type {
@@ -62,6 +63,11 @@ export class NotificationService {
           correlationId,
           params: input.templateParams ?? {},
         });
+        logger.info(
+          "Email notification enqueued",
+          { notificationId, templateKey, correlationId },
+          "NotificationService"
+        );
         return { notificationId, correlationId };
       } catch (error: unknown) {
         if (error instanceof AppError) throw error;

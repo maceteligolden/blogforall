@@ -5,30 +5,18 @@ import { PlanModel } from "../src/shared/schemas/plan.schema";
 import { StripeFacade } from "../src/shared/facade/stripe.facade";
 import { container } from "tsyringe";
 
+const LANDING_PLAN_NAMES = ["Free", "Starter", "Professional", "Enterprise"] as const;
+
 async function seedPlans() {
   try {
     await connectDatabase();
+    await PlanModel.updateMany(
+      { name: { $nin: LANDING_PLAN_NAMES } },
+      { $set: { isActive: false } }
+    );
     const stripeFacade = container.resolve(StripeFacade);
 
-    const plans = [
-      {
-        name: "Basic",
-        price: 3,
-        interval: "month" as const,
-        limits: {
-          blogPosts: 5,
-          apiCallsPerMonth: 5000,
-          storageGB: 0.5,
-          maxSitesAllowed: 1,
-        },
-        features: [
-          "Up to 5 blog posts",
-          "5,000 API calls/month",
-          "0.5 GB storage",
-          "Email support",
-        ],
-        isActive: true,
-      },
+    const paidPlans = [
       {
         name: "Starter",
         price: 5,
@@ -37,13 +25,15 @@ async function seedPlans() {
           blogPosts: 10,
           apiCallsPerMonth: 10000,
           storageGB: 1,
-          maxSitesAllowed: 3,
+          maxSitesAllowed: 1,
         },
         features: [
           "Up to 10 blog posts",
-          "10,000 API calls/month",
-          "1 GB storage",
-          "Basic support",
+          "AI blog generation",
+          "AI content review",
+          "1 site",
+          "Basic campaigns",
+          "API access",
         ],
         isActive: true,
       },
@@ -55,37 +45,16 @@ async function seedPlans() {
           blogPosts: 50,
           apiCallsPerMonth: 100000,
           storageGB: 10,
-          maxSitesAllowed: 10,
+          maxSitesAllowed: 3,
         },
         features: [
           "Up to 50 blog posts",
-          "100,000 API calls/month",
-          "10 GB storage",
-          "Advanced analytics",
+          "Advanced AI features",
+          "3 sites",
+          "Unlimited campaigns",
+          "Team collaboration",
+          "Campaign templates",
           "Priority support",
-          "Custom categories",
-        ],
-        isActive: true,
-      },
-      {
-        name: "Business",
-        price: 15,
-        interval: "month" as const,
-        limits: {
-          blogPosts: 200,
-          apiCallsPerMonth: 500000,
-          storageGB: 50,
-          maxSitesAllowed: 50,
-        },
-        features: [
-          "Up to 200 blog posts",
-          "500,000 API calls/month",
-          "50 GB storage",
-          "Advanced analytics",
-          "Priority support",
-          "Custom categories",
-          "API access",
-          "Custom branding",
         ],
         isActive: true,
       },
@@ -94,60 +63,58 @@ async function seedPlans() {
         price: 20,
         interval: "month" as const,
         limits: {
-          blogPosts: -1, // Unlimited
-          apiCallsPerMonth: -1, // Unlimited
-          storageGB: -1, // Unlimited
-          maxSitesAllowed: -1, // Unlimited
+          blogPosts: -1,
+          apiCallsPerMonth: -1,
+          storageGB: -1,
+          maxSitesAllowed: -1,
         },
         features: [
           "Unlimited blog posts",
-          "Unlimited API calls",
-          "Unlimited storage",
-          "White-label options",
-          "24/7 priority support",
+          "All AI features",
+          "Unlimited sites",
+          "Advanced API features",
+          "Unlimited team members",
           "Custom integrations",
-          "Dedicated account manager",
+          "24/7 priority support",
         ],
         isActive: true,
       },
     ];
 
-    console.log("Creating plans in Stripe and database...");
+    console.log("Creating plans to match landing page (Starter, Professional, Enterprise + Free)...");
 
-    for (const planData of plans) {
-      // Check if plan already exists
+    for (const planData of paidPlans) {
       const existingPlan = await PlanModel.findOne({ name: planData.name });
       if (existingPlan) {
         console.log(`Plan "${planData.name}" already exists, skipping...`);
         continue;
       }
-
-      // Create product in Stripe
-      const product = await stripeFacade.findOrCreateProduct(
-        `BlogForAll ${planData.name}`,
-        `BlogForAll ${planData.name} Plan`
-      );
-
-      // Create price in Stripe
-      const price = await stripeFacade.createPrice(
-        product.id,
-        planData.price,
-        "usd",
-        planData.interval
-      );
-
-      // Create plan in database
-      const plan = new PlanModel({
-        ...planData,
-        stripe_price_id: price.id,
-        currency: "usd",
-      });
-
-      await plan.save();
-      console.log(`✓ Created plan: ${planData.name} (Stripe Price ID: ${price.id})`);
+      try {
+        const product = await stripeFacade.findOrCreateProduct(
+          `BlogForAll ${planData.name}`,
+          `BlogForAll ${planData.name} Plan`
+        );
+        const price = await stripeFacade.createPrice(
+          product.id,
+          planData.price,
+          "usd",
+          planData.interval
+        );
+        const plan = new PlanModel({
+          ...planData,
+          stripe_price_id: price.id,
+          currency: "usd",
+        });
+        await plan.save();
+        console.log(`✓ Created plan: ${planData.name} (Stripe Price ID: ${price.id})`);
+      } catch (err) {
+        console.warn(`Stripe or save failed for ${planData.name}, creating without Stripe:`, err);
+        const plan = new PlanModel({ ...planData, currency: "usd" });
+        await plan.save();
+        console.log(`✓ Created plan: ${planData.name} (no Stripe)`);
+      }
     }
 
-    // Create free plan (no Stripe price needed)
     const freePlanData = {
       name: "Free",
       price: 0,
@@ -167,16 +134,16 @@ async function seedPlans() {
       isActive: true,
     };
 
-    const existingFreePlan = await PlanModel.findOne({ name: freePlanData.name });
-    if (!existingFreePlan) {
+    const existingFree = await PlanModel.findOne({ name: freePlanData.name });
+    if (!existingFree) {
       const freePlan = new PlanModel(freePlanData);
       await freePlan.save();
-      console.log(`✓ Created plan: ${freePlanData.name}`);
+      console.log(`✓ Created plan: Free`);
     } else {
-      console.log(`Plan "${freePlanData.name}" already exists, skipping...`);
+      console.log(`Plan "Free" already exists, skipping...`);
     }
 
-    console.log("\n✅ Plan seeding completed!");
+    console.log("\n✅ Plan seeding completed! Active plans: Free, Starter, Professional, Enterprise.");
     process.exit(0);
   } catch (error) {
     console.error("Error seeding plans:", error);

@@ -89,19 +89,30 @@ export class AuthService {
     }
 
     const loginUrl = `${env.frontend.baseUrl}/auth/login`;
-    try {
-      await this.notificationService.createAndSend({
-        channel: NotificationChannel.EMAIL,
-        type: NotificationType.WELCOME,
-        recipientEmail: user.email,
-        templateParams: {
-          firstName: user.first_name,
-          loginUrl,
-        },
-      });
-    } catch (error) {
-      logger.error("Failed to send welcome email on signup", error as Error, { userId: user._id, email }, "AuthService");
-    }
+    const recipientEmail = user.email;
+    const firstName = user.first_name;
+    const userIdForLog = user._id;
+    setImmediate(() => {
+      this.notificationService
+        .createAndSend({
+          channel: NotificationChannel.EMAIL,
+          type: NotificationType.WELCOME,
+          recipientEmail,
+          templateParams: { firstName, loginUrl },
+        })
+        .then(() => {
+          logger.info("Welcome email enqueued for new user", { userId: userIdForLog, email: recipientEmail }, "AuthService");
+        })
+        .catch((error: unknown) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+          logger.error(
+            "Welcome email failed (signup already succeeded)",
+            err,
+            { userId: userIdForLog, email: recipientEmail, message: err.message, stack: err.stack },
+            "AuthService"
+          );
+        });
+    });
 
     logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");
     return user;

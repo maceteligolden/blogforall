@@ -101,6 +101,22 @@ const startServer = async () => {
     // Start the email notification queue worker
     const emailProcessor = container.resolve(EmailJobProcessor);
     emailQueue.process((job) => emailProcessor.handle(job));
+    emailQueue.on("failed", (job, err) => {
+      logger.error(
+        "Email queue job failed",
+        err,
+        {
+          jobId: job?.id,
+          notificationId: job?.data?.notificationId,
+          templateKey: job?.data?.templateKey,
+          attempt: job?.attemptsMade,
+        },
+        "EmailQueue"
+      );
+    });
+    emailQueue.on("error", (err) => {
+      logger.error("Email queue error (e.g. Redis connection)", err, {}, "EmailQueue");
+    });
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {}, "Server");
