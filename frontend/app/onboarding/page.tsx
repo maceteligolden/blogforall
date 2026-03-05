@@ -165,6 +165,8 @@ function OnboardingForm() {
   }
 
   const safePlans = Array.isArray(plans) ? plans : [];
+  const plansToRender = safePlans.length > 0 ? safePlans : [];
+
   if (safePlans.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -189,12 +191,13 @@ function OnboardingForm() {
           </p>
         </div>
 
-        {step === "plan" && (
+        {step === "plan" && Array.isArray(plansToRender) && (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {(safePlans ?? []).map((plan) => {
+              {plansToRender.map((plan) => {
                 const isFree = plan.price === 0 || plan.interval === "free";
                 const limits = plan.limits ?? {};
+                const planFeatures = Array.isArray(plan.features) ? plan.features : [];
                 return (
                   <div
                     key={plan._id}
@@ -244,9 +247,9 @@ function OnboardingForm() {
                         {limits.storageGB === -1 ? "Unlimited" : `${limits.storageGB ?? 0} GB`} storage
                       </p>
                     </div>
-                    {(plan.features ?? []).length > 0 && (
+                    {planFeatures.length > 0 && (
                       <ul className="space-y-1 mb-4">
-                        {(plan.features ?? []).slice(0, 3).map((feature, index) => (
+                        {planFeatures.slice(0, 3).map((feature, index) => (
                           <li key={index} className="text-xs text-gray-300 flex items-center gap-2">
                             <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
