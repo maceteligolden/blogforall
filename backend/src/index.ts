@@ -10,6 +10,8 @@ import { routes } from "./routes";
 import { seedPlansIfNeeded } from "./shared/utils/seed-plans.util";
 import { container } from "tsyringe";
 import { PostSchedulerService } from "./modules/campaign/services/post-scheduler.service";
+import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
+import { emailQueue } from "./modules/notification/queue/email.queue";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -96,6 +98,10 @@ const startServer = async () => {
     // Start the post scheduler
     const scheduler = container.resolve(PostSchedulerService);
     scheduler.start();
+
+    // Start the email notification queue worker
+    const emailProcessor = container.resolve(EmailJobProcessor);
+    emailQueue.process((job) => emailProcessor.handle(job));
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {}, "Server");

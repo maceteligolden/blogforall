@@ -11,6 +11,7 @@ import billingRouter from "./modules/billing/routes/billing.router";
 import webhookRouter from "./modules/billing/routes/webhook.router";
 import onboardingRouter from "./modules/onboarding/routes/onboarding.router";
 import siteRouter from "./modules/site/routes/site.router";
+import notificationRouter from "./modules/notification/routes/notification.router";
 import { SiteInvitationController } from "./modules/site/controllers/site-invitation.controller";
 import { container } from "tsyringe";
 import { authMiddleware } from "./shared/middlewares/auth.middleware";
@@ -49,6 +50,9 @@ router.use("/onboarding", onboardingRouter);
 
 // Site routes (protected with JWT)
 router.use("/sites", siteRouter);
+
+// Notification routes (protected with JWT)
+router.use("/notifications", notificationRouter);
 
 // Campaign routes (protected with JWT)
 router.use("/campaigns", campaignRouter);
