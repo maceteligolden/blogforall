@@ -16,6 +16,7 @@ import {
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  /** PSEUDOCODE: PARSE body with signupSchema; CALL authService.signup; SEND 201; ON ZodError next(BadRequestError). */
   signup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const validatedData = signupSchema.parse(req.body);
@@ -30,6 +31,7 @@ export class AuthController {
     }
   };
 
+  /** PSEUDOCODE: PARSE body with loginSchema; CALL authService.login; SEND 200 with result; ON ZodError next(BadRequestError). */
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const validatedData = loginSchema.parse(req.body);
@@ -44,6 +46,7 @@ export class AuthController {
     }
   };
 
+  /** PSEUDOCODE: GET userId from req.user; if missing next(BadRequestError); CALL authService.logout; SEND 204. */
   logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
@@ -57,6 +60,7 @@ export class AuthController {
     }
   };
 
+  /** PSEUDOCODE: GET refresh_token from body; if missing next(BadRequestError); CALL authService.refreshToken; SEND 200 with result. */
   refresh = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { refresh_token } = req.body;
@@ -70,6 +74,7 @@ export class AuthController {
     }
   };
 
+  /** PSEUDOCODE: GET userId from req.user; if missing next(BadRequestError); CALL authService.getProfile; SEND 200 with profile. */
   getProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
@@ -83,6 +88,7 @@ export class AuthController {
     }
   };
 
+  /** PSEUDOCODE: GET userId from req.user; PARSE body with updateProfileSchema; CALL authService.updateProfile; SEND 204. */
   updateProfile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
@@ -101,6 +107,7 @@ export class AuthController {
     }
   };
 
+  /** PSEUDOCODE: GET userId from req.user; PARSE body with changePasswordSchema; CALL authService.changePassword; SEND 204. */
   changePassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
@@ -119,6 +126,7 @@ export class AuthController {
     }
   };
 
+  /** PSEUDOCODE: GET userId from req.user; PARSE body with updateSiteContextSchema; CALL authService.updateSiteContext; SEND 200 with new token. */
   updateSiteContext = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;

@@ -26,30 +26,35 @@ export class AuthService {
     private siteService: SiteService
   ) {}
 
+  /**
+   * PSEUDOCODE:
+   * 1. CHECK existing user by email; if exists THROW BadRequestError
+   * 2. HASH password
+   * 3. TRY create Stripe customer; on failure LOG and continue
+   * 4. CREATE user with hashed password, plan FREE, terms_accepted_at (now), terms_version from input
+   * 5. TRY create free subscription; on failure LOG and continue
+   * 6. TRY ensure default workspace; on failure LOG and continue
+   * 7. LOG success and RETURN user
+   */
   async signup(input: SignupInput): Promise<User> {
-    const { email, password, first_name, last_name, phone_number } = input;
+    const { email, password, first_name, last_name, phone_number, terms_version } = input;
 
-    // Check if user already exists
     const existingUser = await this.userRepository.findByEmail(email);
     if (existingUser) {
       logger.warn("Signup attempt with existing email", { email }, "AuthService");
       throw new BadRequestError("User with this email already exists");
     }
 
-    // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create Stripe customer
     let stripeCustomerId: string | undefined;
     try {
       const customer = await this.stripeFacade.createCustomer(email.toLowerCase(), `${first_name} ${last_name}`.trim());
       stripeCustomerId = customer.id;
     } catch (error) {
       logger.error("Failed to create Stripe customer", error as Error, { email }, "AuthService");
-      // Continue without Stripe customer - can be created later
     }
 
-    // Create user with default free plan
     const user = await this.userRepository.create({
       email: email.toLowerCase(),
       password: hashedPassword,
@@ -58,6 +63,8 @@ export class AuthService {
       phone_number,
       plan: UserPlan.FREE,
       stripe_customer_id: stripeCustomerId,
+      terms_accepted_at: new Date(),
+      terms_version: terms_version ?? undefined,
     });
 
     // Create free subscription for new user
@@ -81,10 +88,19 @@ export class AuthService {
     return user;
   }
 
+  /**
+   * PSEUDOCODE:
+   * 1. FIND user by email; if not found THROW UnauthorizedError (invalid credentials)
+   * 2. COMPARE password with hash; if invalid THROW UnauthorizedError
+   * 3. GET user sites; if none TRY ensureDefaultWorkspace and re-fetch sites
+   * 4. BUILD defaultSiteId from first site
+   * 5. GENERATE access and refresh tokens with userId, email, currentSiteId
+   * 6. UPDATE user sessionToken in DB
+   * 7. RETURN tokens, user payload, and requiresSiteCreation (!hasSites before ensure)
+   */
   async login(input: LoginInput): Promise<LoginResponse> {
     const { email, password } = input;
 
-    // Find user
     const user = await this.userRepository.findByEmail(email.toLowerCase());
     if (!user) {
       logger.warn("Failed login attempt - user not found", { email }, "AuthService");
@@ -149,11 +165,23 @@ export class AuthService {
     };
   }
 
+  /**
+   * PSEUDOCODE:
+   * 1. UPDATE user sessionToken to null (invalidate refresh)
+   * 2. LOG logout
+   */
   async logout(userId: string): Promise<void> {
     await this.userRepository.updateSessionToken(userId, null);
     logger.info("User logged out", { userId }, "AuthService");
   }
 
+  /**
+   * PSEUDOCODE:
+   * 1. VERIFY refresh token and decode payload
+   * 2. FIND user by decoded userId; if not found or sessionToken !== refreshToken THROW UnauthorizedError
+   * 3. GET user sites for defaultSiteId (or use decoded currentSiteId)
+   * 4. GENERATE new access token and RETURN
+   */
   async refreshToken(refreshToken: string): Promise<{ access_token: string }> {
     try {
       const decoded = verifyRefreshToken(refreshToken);
@@ -163,7 +191,6 @@ export class AuthService {
         throw new UnauthorizedError("Invalid refresh token");
       }
 
-      // Get user's default site for token context (or use existing from token)
       const userSites = await this.siteService.getSitesByUser(user._id!.toString());
       const defaultSiteId = userSites.length > 0 ? userSites[0]._id!.toString() : decoded.currentSiteId;
 
@@ -180,8 +207,10 @@ export class AuthService {
   }
 
   /**
-   * Update the current site context in the user's session
-   * This generates a new access token with the updated site context
+   * PSEUDOCODE:
+   * 1. FIND user by userId; if not found THROW NotFoundError
+   * 2. CHECK user has access to siteId via SiteService; if not THROW BadRequestError
+   * 3. GENERATE new access token with updated currentSiteId and RETURN
    */
   async updateSiteContext(userId: string, siteId: string): Promise<{ access_token: string }> {
     const user = await this.userRepository.findById(userId);
@@ -189,7 +218,6 @@ export class AuthService {
       throw new NotFoundError("User not found");
     }
 
-    // Verify user has access to the site
     const hasAccess = await this.siteService.hasSiteAccess(siteId, userId);
     if (!hasAccess) {
       throw new BadRequestError("You do not have access to this site");
@@ -206,6 +234,11 @@ export class AuthService {
     return { access_token: accessToken };
   }
 
+  /**
+   * PSEUDOCODE:
+   * 1. FIND user by userId; if not found THROW NotFoundError
+   * 2. RETURN profile object (id, email, first_name, last_name, phone_number, plan, created_at, updated_at)
+   */
   async getProfile(userId: string): Promise<{
     id: string;
     email: string;
@@ -233,6 +266,12 @@ export class AuthService {
     };
   }
 
+  /**
+   * PSEUDOCODE:
+   * 1. FIND user by userId; if not found THROW NotFoundError
+   * 2. UPDATE user with input (first_name, last_name, phone_number)
+   * 3. LOG profile updated
+   */
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<void> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
@@ -243,6 +282,13 @@ export class AuthService {
     logger.info("Profile updated", { userId }, "AuthService");
   }
 
+  /**
+   * PSEUDOCODE:
+   * 1. FIND user by userId; if not found THROW NotFoundError
+   * 2. COMPARE old_password with user password; if invalid THROW BadRequestError
+   * 3. HASH new_password and UPDATE user password in DB (clear reset token if any)
+   * 4. LOG password changed
+   */
   async changePassword(userId: string, input: ChangePasswordInput): Promise<void> {
     const { old_password, new_password } = input;
 
@@ -251,7 +297,6 @@ export class AuthService {
       throw new NotFoundError("User not found");
     }
 
-    // Verify old password
     const isOldPasswordValid = await comparePassword(old_password, user.password);
     if (!isOldPasswordValid) {
       throw new BadRequestError("Old password is incorrect");
