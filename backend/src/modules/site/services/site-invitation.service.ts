@@ -12,6 +12,7 @@ import { SiteInvitation } from "../../../shared/schemas/site-invitation.schema";
 import { InvitationStatus, SiteMemberRole } from "../../../shared/constants";
 import Site from "../../../shared/schemas/site.schema";
 import User from "../../../shared/schemas/user.schema";
+import { env } from "../../../shared/config/env";
 
 @injectable()
 export class SiteInvitationService {
@@ -59,10 +60,10 @@ export class SiteInvitationService {
       }
     }
 
-    // Generate token and set expiration (24 hours)
+    // Generate token and set expiration from env (days)
     const token = this.generateInvitationToken();
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
+    expiresAt.setDate(expiresAt.getDate() + env.workspace.invitationExpiryDays);
 
     const invitation = await this.invitationRepository.create({
       site_id: siteId,
@@ -276,7 +277,7 @@ export class SiteInvitationService {
               </div>
 
               <p style="font-size: 14px; color: #999; margin-top: 32px; border-top: 1px solid #e9ecef; padding-top: 24px;">
-                If you didn't expect this invitation, you can safely ignore this email. The invitation will expire in 24 hours.
+                If you didn't expect this invitation, you can safely ignore this email. The invitation will expire in ${env.workspace.invitationExpiryDays} days.
               </p>
 
               <p style="font-size: 12px; color: #adb5bd; margin-top: 24px;">
@@ -304,7 +305,7 @@ Expires: ${new Date(invitation.expires_at).toLocaleDateString()} at ${new Date(i
 Accept the invitation by clicking this link:
 ${acceptUrl}
 
-If you didn't expect this invitation, you can safely ignore this email. The invitation will expire in 24 hours.
+If you didn't expect this invitation, you can safely ignore this email. The invitation will expire in ${env.workspace.invitationExpiryDays} days.
       `.trim();
 
       await emailService.sendEmail({
