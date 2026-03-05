@@ -1,4 +1,4 @@
-/** Payload for email notification job (Bull). */
+/** Payload for email notification job (Bull queue). */
 export interface EmailJobPayload {
   notificationId: string;
   templateKey: string;

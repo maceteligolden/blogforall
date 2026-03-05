@@ -6,10 +6,9 @@ const HF_ROUTER_CHAT_URL = "https://router.huggingface.co/v1/chat/completions";
 
 @injectable()
 export class HuggingFaceFacade {
- 
-    constructor() {}
+  constructor() {}
 
-    async hfChatCompletion(
+  async hfChatCompletion(
     model: string,
     messages: { role: string; content: string }[],
     maxTokens: number,

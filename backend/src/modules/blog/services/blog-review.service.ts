@@ -57,10 +57,7 @@ export interface BlogReviewResult {
 
 @injectable()
 export class BlogReviewService {
-  constructor(
-    private readonly huggingFaceFacade: HuggingFaceFacade,
-  ) {
-  }
+  constructor(private readonly huggingFaceFacade: HuggingFaceFacade) {}
 
   /**
    * Review a blog post using AI.

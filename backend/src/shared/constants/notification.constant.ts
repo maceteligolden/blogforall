@@ -53,7 +53,7 @@ export const EMAIL_METADATA_RETENTION_DAYS = 365;
 /** Max connections per user for Socket.io (when implemented) */
 export const MAX_SOCKET_CONNECTIONS_PER_USER = 3;
 
-/** Env key names for notification service */
+/** Env key names for notification service (reference only; resolved config in shared/config/env) */
 export const NOTIFICATION_ENV_KEYS = {
   BREVO_API_KEY: "BREVO_API_KEY",
   BREVO_SENDER_EMAIL: "BREVO_SENDER_EMAIL",
@@ -63,21 +63,3 @@ export const NOTIFICATION_ENV_KEYS = {
   EMAIL_METADATA_RETENTION_DAYS: "EMAIL_METADATA_RETENTION_DAYS",
   EMAIL_QUEUE_NAME: "EMAIL_QUEUE_NAME",
 } as const;
-
-/** Resolved config from env (used by facade and queue) */
-export const NotificationConfig = {
-  brevoApiKey: (process.env[NOTIFICATION_ENV_KEYS.BREVO_API_KEY] || "").trim(),
-  brevoSenderEmail:
-    (process.env[NOTIFICATION_ENV_KEYS.BREVO_SENDER_EMAIL] || process.env.SMTP_FROM || "noreply@blogforall.com").trim(),
-  brevoSenderName: (process.env[NOTIFICATION_ENV_KEYS.BREVO_SENDER_NAME] || "BlogForAll").trim(),
-  redisUrl: process.env[NOTIFICATION_ENV_KEYS.REDIS_URL] || "redis://localhost:6379",
-  retentionDaysRead: parseInt(
-    process.env[NOTIFICATION_ENV_KEYS.NOTIFICATION_RETENTION_DAYS_READ] || String(NOTIFICATION_RETENTION_DAYS_READ),
-    10
-  ),
-  emailMetadataRetentionDays: parseInt(
-    process.env[NOTIFICATION_ENV_KEYS.EMAIL_METADATA_RETENTION_DAYS] || String(EMAIL_METADATA_RETENTION_DAYS),
-    10
-  ),
-  emailQueueName: process.env[NOTIFICATION_ENV_KEYS.EMAIL_QUEUE_NAME] || "notification:email",
-};
