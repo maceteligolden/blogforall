@@ -16,6 +16,8 @@ import { User } from "../../../shared/schemas/user.schema";
 import { StripeFacade } from "../../../shared/facade/stripe.facade";
 import { SubscriptionService } from "../../subscription/services/subscription.service";
 import { SiteService } from "../../site/services/site.service";
+import { NotificationService } from "../../notification/services/notification.service";
+import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 
 @injectable()
 export class AuthService {
@@ -23,7 +25,8 @@ export class AuthService {
     private userRepository: UserRepository,
     private stripeFacade: StripeFacade,
     private subscriptionService: SubscriptionService,
-    private siteService: SiteService
+    private siteService: SiteService,
+    private notificationService: NotificationService
   ) {}
 
   /**
@@ -34,7 +37,8 @@ export class AuthService {
    * 4. CREATE user with hashed password, plan FREE, terms_accepted_at (now), terms_version from input
    * 5. TRY create free subscription; on failure LOG and continue
    * 6. TRY ensure default workspace; on failure LOG and continue
-   * 7. LOG success and RETURN user
+   * 7. TRY send welcome email via NotificationService (async queue); on failure LOG and continue
+   * 8. LOG success and RETURN user
    */
   async signup(input: SignupInput): Promise<User> {
     const { email, password, first_name, last_name, phone_number, terms_version } = input;
@@ -81,7 +85,22 @@ export class AuthService {
       logger.info("Default workspace ensured for new user", { userId: user._id, email }, "AuthService");
     } catch (error) {
       logger.error("Failed to create default workspace on signup", error as Error, { userId: user._id }, "AuthService");
-      // Continue even if creation fails - user can create one later
+    }
+
+    const frontendBase = process.env.FRONTEND_URL?.split(",")[0]?.trim() || "http://localhost:3000";
+    const loginUrl = `${frontendBase}/auth/login`;
+    try {
+      await this.notificationService.createAndSend({
+        channel: NotificationChannel.EMAIL,
+        type: NotificationType.WELCOME,
+        recipientEmail: user.email,
+        templateParams: {
+          firstName: user.first_name,
+          loginUrl,
+        },
+      });
+    } catch (error) {
+      logger.error("Failed to send welcome email on signup", error as Error, { userId: user._id, email }, "AuthService");
     }
 
     logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");

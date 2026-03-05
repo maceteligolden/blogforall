@@ -16,6 +16,7 @@ const BREVO_TEMPLATE_IDS: Partial<Record<EmailTemplateKey, number>> = {
   [EMAIL_TEMPLATE_KEYS.SITE_INVITATION]: 1,
   [EMAIL_TEMPLATE_KEYS.PASSWORD_RESET]: 2,
   [EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST]: 3,
+  [EMAIL_TEMPLATE_KEYS.WELCOME]: 4,
 };
 
 /** Variable names expected by Brevo for each template (must match Brevo dashboard). */
@@ -23,6 +24,7 @@ const BREVO_PARAM_NAMES: Partial<Record<EmailTemplateKey, string[]>> = {
   [EMAIL_TEMPLATE_KEYS.SITE_INVITATION]: ["inviterName", "siteName", "roleLabel", "acceptUrl", "expiresAt"],
   [EMAIL_TEMPLATE_KEYS.PASSWORD_RESET]: ["resetUrl", "expiresAt"],
   [EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST]: ["authorName", "blogTitle", "commentSnippet", "commentUrl"],
+  [EMAIL_TEMPLATE_KEYS.WELCOME]: ["firstName", "loginUrl"],
 };
 
 export function getBrevoTemplateId(key: EmailTemplateKey): number | null {
@@ -65,6 +67,8 @@ function getSubjectForTemplate(key: EmailTemplateKey, params: Record<string, str
       return "Reset your password";
     case EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST:
       return `New comment on "${params.blogTitle ?? "your post"}"`;
+    case EMAIL_TEMPLATE_KEYS.WELCOME:
+      return `Welcome to BlogForAll, ${params.firstName ?? "there"}!`;
     default:
       return "Notification";
   }
@@ -94,9 +98,37 @@ function getCodeBackedTemplate(
         html: buildCommentOnPostHtml(params),
         text: buildCommentOnPostText(params),
       };
+    case EMAIL_TEMPLATE_KEYS.WELCOME:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildWelcomeHtml(params),
+        text: buildWelcomeText(params),
+      };
     default:
       return { subject: "Notification", text: "" };
   }
+}
+
+function buildWelcomeHtml(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const loginUrl = params.loginUrl ?? "#";
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1>Welcome to BlogForAll!</h1>
+  <p>Hi ${escapeHtml(firstName)},</p>
+  <p>Your account has been created. You can sign in and start managing your blogs.</p>
+  <p><a href="${escapeHtml(loginUrl)}" style="background: #3b82f6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Sign in</a></p>
+  <p style="color: #999; font-size: 12px;">If you didn't create this account, you can ignore this email.</p>
+</body>
+</html>`;
+}
+
+function buildWelcomeText(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const loginUrl = params.loginUrl ?? "#";
+  return `Welcome to BlogForAll, ${firstName}. Sign in: ${loginUrl}`;
 }
 
 function buildSiteInvitationHtml(params: Record<string, string>): string {

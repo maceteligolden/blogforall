@@ -114,6 +114,8 @@ export class NotificationService {
         return EMAIL_TEMPLATE_KEYS.PASSWORD_RESET;
       case NotificationType.COMMENT_ON_POST:
         return EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST;
+      case NotificationType.WELCOME:
+        return EMAIL_TEMPLATE_KEYS.WELCOME;
       default:
         return "site_invitation";
     }

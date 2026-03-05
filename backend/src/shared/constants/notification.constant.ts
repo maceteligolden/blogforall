@@ -16,6 +16,7 @@ export enum NotificationType {
   INVITATION_REJECTED = "invitation_rejected",
   NEW_COMMENT_MODERATOR = "new_comment_moderator",
   PASSWORD_RESET = "password_reset",
+  WELCOME = "welcome",
 }
 
 export enum NotificationStatus {
@@ -35,6 +36,7 @@ export const EMAIL_TEMPLATE_KEYS = {
   SITE_INVITATION: "site_invitation",
   PASSWORD_RESET: "password_reset",
   COMMENT_ON_POST: "comment_on_post",
+  WELCOME: "welcome",
 } as const;
 
 export type EmailTemplateKey = (typeof EMAIL_TEMPLATE_KEYS)[keyof typeof EMAIL_TEMPLATE_KEYS];
