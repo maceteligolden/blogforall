@@ -168,6 +168,9 @@ export default function SiteMembersPage() {
                         Role
                       </th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-400 uppercase tracking-wide">
+                        Posts
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-400 uppercase tracking-wide">
                         Joined
                       </th>
                       <th className="px-6 py-4 text-right text-sm font-medium text-gray-400 uppercase tracking-wide">
@@ -221,6 +224,9 @@ export default function SiteMembersPage() {
                               ))}
                             </select>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-400 text-sm">
+                          {member.posts_count ?? 0}
                         </td>
                         <td className="px-6 py-4 text-gray-400 text-sm">
                           {member.joined_at
