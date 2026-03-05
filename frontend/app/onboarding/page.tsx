@@ -164,7 +164,8 @@ function OnboardingForm() {
     );
   }
 
-  if (!plans || plans.length === 0) {
+  const safePlans = Array.isArray(plans) ? plans : [];
+  if (safePlans.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
@@ -191,8 +192,9 @@ function OnboardingForm() {
         {step === "plan" && (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {plans.map((plan) => {
+              {safePlans.map((plan) => {
                 const isFree = plan.price === 0 || plan.interval === "free";
+                const limits = plan.limits ?? {};
                 return (
                   <div
                     key={plan._id}
@@ -230,16 +232,16 @@ function OnboardingForm() {
                     </div>
                     <div className="space-y-2 mb-4">
                       <p className="text-sm text-gray-400">
-                        {plan.limits.blogPosts === -1 ? "Unlimited" : plan.limits.blogPosts} blog posts
+                        {limits.blogPosts === -1 ? "Unlimited" : (limits.blogPosts ?? 0)} blog posts
                       </p>
                       <p className="text-sm text-gray-400">
-                        {plan.limits.apiCallsPerMonth === -1
+                        {limits.apiCallsPerMonth === -1
                           ? "Unlimited"
-                          : plan.limits.apiCallsPerMonth.toLocaleString()}{" "}
+                          : (limits.apiCallsPerMonth ?? 0).toLocaleString()}{" "}
                         API calls/month
                       </p>
                       <p className="text-sm text-gray-400">
-                        {plan.limits.storageGB === -1 ? "Unlimited" : `${plan.limits.storageGB} GB`} storage
+                        {limits.storageGB === -1 ? "Unlimited" : `${limits.storageGB ?? 0} GB`} storage
                       </p>
                     </div>
                     {(plan.features ?? []).length > 0 && (

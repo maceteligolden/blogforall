@@ -57,7 +57,8 @@ export class SubscriptionService {
    */
   static async getPlans(): Promise<Plan[]> {
     const response = await apiClient.get<{ data: Plan[] }>(API_ENDPOINTS.SUBSCRIPTION.PLANS);
-    return response.data.data || [];
+    const raw = response.data?.data;
+    return Array.isArray(raw) ? raw : [];
   }
 
   /**
