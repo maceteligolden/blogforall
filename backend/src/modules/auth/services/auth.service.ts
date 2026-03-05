@@ -68,17 +68,13 @@ export class AuthService {
       // Continue even if subscription creation fails - can be created later
     }
 
-    // Create default site for new user
+    // Ensure user has a default workspace (uses env.workspace.defaultName)
     try {
-      const siteName = `${first_name}'s Site`;
-      await this.siteService.createSite(user._id!.toString(), {
-        name: siteName,
-        description: "Default site",
-      });
-      logger.info("Default site created for new user", { userId: user._id, email }, "AuthService");
+      await this.siteService.ensureDefaultWorkspace(user._id!.toString());
+      logger.info("Default workspace ensured for new user", { userId: user._id, email }, "AuthService");
     } catch (error) {
-      logger.error("Failed to create default site on signup", error as Error, { userId: user._id }, "AuthService");
-      // Continue even if site creation fails - user can create one later
+      logger.error("Failed to create default workspace on signup", error as Error, { userId: user._id }, "AuthService");
+      // Continue even if creation fails - user can create one later
     }
 
     logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");
@@ -102,29 +98,18 @@ export class AuthService {
       throw new UnauthorizedError("Invalid credentials");
     }
 
-    // Check if user has any sites (for first-time login after migration)
+    // Ensure user has at least one workspace (uses env.workspace.defaultName if none)
     const userSites = await this.siteService.getSitesByUser(user._id!.toString());
-    const hasSites = userSites.length > 0;
-
-    // If user doesn't have sites, create a default site
+    let hasSites = userSites.length > 0;
     if (!hasSites) {
       try {
-        const siteName = `${user.first_name}'s Site`;
-        await this.siteService.createSite(user._id!.toString(), {
-          name: siteName,
-          description: "Default site",
-        });
-        logger.info(
-          "Default site created for existing user on first login",
-          { userId: user._id, email },
-          "AuthService"
-        );
-        // Refresh user sites after creating default site
+        await this.siteService.ensureDefaultWorkspace(user._id!.toString());
         const updatedUserSites = await this.siteService.getSitesByUser(user._id!.toString());
         userSites.push(...updatedUserSites);
+        hasSites = updatedUserSites.length > 0;
+        logger.info("Default workspace created on first login", { userId: user._id, email }, "AuthService");
       } catch (error) {
-        logger.error("Failed to create default site on login", error as Error, { userId: user._id }, "AuthService");
-        // Continue even if site creation fails - user can create one later
+        logger.error("Failed to create default workspace on login", error as Error, { userId: user._id }, "AuthService");
       }
     }
 

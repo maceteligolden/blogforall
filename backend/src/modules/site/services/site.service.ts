@@ -8,6 +8,7 @@ import { CreateSiteInput, UpdateSiteInput, SiteWithMembers } from "../interfaces
 import { Site } from "../../../shared/schemas/site.schema";
 import { SiteMemberRole } from "../../../shared/constants";
 import Blog from "../../../shared/schemas/blog.schema";
+import { env } from "../../../shared/config/env";
 
 @injectable()
 export class SiteService {
@@ -102,6 +103,23 @@ export class SiteService {
    */
   async getSitesByUser(userId: string): Promise<Site[]> {
     return this.siteRepository.findByUser(userId);
+  }
+
+  /**
+   * Ensure user has at least one workspace; create one with default name from env if none.
+   * Returns the created site or null if user already had sites.
+   */
+  async ensureDefaultWorkspace(userId: string): Promise<Site | null> {
+    const sites = await this.siteRepository.findByUser(userId);
+    if (sites.length > 0) {
+      return null;
+    }
+    const site = await this.createSite(userId, {
+      name: env.workspace.defaultName,
+      description: "",
+    });
+    logger.info("Default workspace created for user", { siteId: site._id, userId }, "SiteService");
+    return site;
   }
 
   /**
