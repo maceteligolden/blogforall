@@ -24,6 +24,7 @@ The system must be **reliable**, **secure**, **performant**, and **traceable** s
 | Transactional email (invitations, password reset, comment alerts, etc.) via Brevo | Marketing / campaign emails (Brevo can support later) |
 | In-app notification delivery via WebSocket | Push (e.g. browser/mobile push) |
 | Persisted in-app notification model and API | Email template builder UI (templates in code or Brevo UI) |
+| **UI for in-app notifications:** bell in navbar, dropdown/list, unread count, mark as read (see §6.9) | In-app email preview or email-specific UI |
 | Traceability: correlation IDs, logs, metrics, lifecycle states | Full distributed tracing (e.g. OpenTelemetry) – optional extension |
 
 ### 1.3 Goals
@@ -528,6 +529,100 @@ sequenceDiagram
 - Per-user cap: e.g. max 3 sockets; drop oldest or reject new with `connection_limit_exceeded`.
 - For multi-instance scaling: replace in-memory map with Redis adapter so that `pushToUser` publishes to a channel `notify:userId` and the instance that holds that user’s socket consumes and emits (see Socket.io Redis adapter docs).
 
+### 6.9 UI Integration (In-App Notifications)
+
+How in-app notifications are exposed in the frontend: placement, components, data flow, and interactions.
+
+#### 6.9.1 Placement and Entry Points
+
+| Location | Purpose |
+|----------|--------|
+| **Navbar (global)** | Notification bell icon with unread count badge; primary entry for all authenticated users. Visible on dashboard, settings, and all protected layouts. |
+| **Notification dropdown / panel** | Opens on bell click (or tap on mobile); shows a short list of recent notifications (e.g. last 10–20) with “Load more” or link to full page. |
+| **Notifications page (optional)** | Dedicated route (e.g. `/dashboard/notifications`) for full list with pagination, filters (all / unread), and “Mark all as read”. |
+
+- **Default:** Bell in navbar + dropdown is required; full notifications page is recommended for Phase 3 and can follow in a later phase.
+
+#### 6.9.2 Components (Conceptual)
+
+| Component | Responsibility |
+|-----------|----------------|
+| **NotificationBell** | Renders bell icon; fetches unread count via `GET /notifications/unread-count` (or from provider state); shows badge when count &gt; 0; opens dropdown on click; accessible (e.g. `aria-label`, keyboard). |
+| **NotificationDropdown** | Panel below (or beside) bell; lists recent notifications from provider; “Mark all as read” action; “View all” link to `/dashboard/notifications`; closes on outside click or Escape. |
+| **NotificationItem** | Single row: icon by type, title, body snippet, relative time; unread styling (e.g. bold); click → mark as read (if not read) and optional navigation (e.g. to blog, comment, or invitation). |
+| **NotificationProvider (context)** | Holds list (or slice), unread count, Socket.io connection; exposes `notifications`, `unreadCount`, `markAsRead(id)`, `markAllRead()`, and optional `refetch`. Initial load via REST; real-time updates via Socket.io. |
+| **Empty / loading / error states** | Empty: “No notifications”; loading: skeleton or spinner; error: short message and retry. |
+
+#### 6.9.3 Data Flow
+
+1. **Initial load (REST)**  
+   - On mount (or when user is authenticated), `NotificationProvider` (or a hook) calls `GET /api/v1/notifications?limit=20&offset=0` and optionally `GET /api/v1/notifications/unread-count`.  
+   - Store in context or state; use for bell badge and dropdown list.
+
+2. **Real-time updates (WebSocket)**  
+   - Provider (or a dedicated hook) establishes Socket.io connection with JWT (e.g. `?token=...` or auth event).  
+   - On `notification` (or equivalent) event: append new notification to list, increment unread count, optionally show a small toast or highlight the bell.  
+   - Reconnection: after reconnect, optionally call `GET /notifications?since=<lastCreatedAt>` to catch up; merge into list and update unread count.
+
+3. **Mark as read**  
+   - User clicks a notification (or “Mark all as read”): call `PATCH /api/v1/notifications/:id/read` or `POST /api/v1/notifications/mark-all-read`.  
+   - Optimistically update local state (set `readAt` or remove from unread count); on error, revert or show message.
+
+4. **Pagination (full page)**  
+   - On `/dashboard/notifications`, use `GET /notifications?limit=20&offset=N` (or cursor); append or replace based on “load more” vs “refresh”.
+
+#### 6.9.4 User Interactions
+
+| Action | Behaviour |
+|--------|-----------|
+| Click bell | Open dropdown; focus first notification or “Mark all as read” for keyboard users. |
+| Click notification item | Mark as read (if unread); navigate to target (e.g. blog post, comment, invite flow) when `payload` contains link/ID; close dropdown if in dropdown context. |
+| “Mark all as read” | Call API; clear local unread count and mark all visible items read. |
+| “View all” | Navigate to `/dashboard/notifications`; close dropdown. |
+| Outside click / Escape | Close dropdown. |
+
+#### 6.9.5 Visual and UX Guidelines
+
+- **Unread:** Distinct styling (e.g. bold title, background tint, or dot) so unread items are scannable.  
+- **Badge:** Show numeric unread count on bell when &gt; 0; cap display at “9+” if desired.  
+- **Recency:** Show relative time (e.g. “2 min ago”, “Yesterday”); sort newest first.  
+- **Type icon:** Optional icon per notification type (comment, like, invitation, etc.) for quick recognition.  
+- **Empty state:** “You’re all caught up” or “No notifications yet” in dropdown and on full page.  
+- **Mobile:** Dropdown may become a bottom sheet or full-screen list on small viewports; touch-friendly targets.
+
+#### 6.9.6 Accessibility and Performance
+
+- **A11y:** Bell has `aria-label` (e.g. “Notifications (3 unread)”); dropdown has `aria-expanded` and `aria-controls`; list is focusable and keyboard-navigable; focus trap in dropdown when open.  
+- **Performance:** Virtualise or limit list length in dropdown (e.g. 20 items) to avoid large DOM; full page can use infinite scroll or pagination.  
+- **Offline / reconnection:** If Socket.io disconnects, show connection status only if needed; REST remains source of truth so list and count stay valid after refetch.
+
+#### 6.9.7 Summary Diagram (UI)
+
+```mermaid
+flowchart LR
+    subgraph Navbar
+        Bell[NotificationBell + badge]
+        Bell --> Dropdown[NotificationDropdown]
+    end
+
+    subgraph Provider["NotificationProvider"]
+        State[notifications, unreadCount]
+        State --> REST[REST: list + unread-count]
+        State --> WS[Socket.io: new notification]
+        State --> MarkRead[markAsRead / markAllRead]
+    end
+
+    Dropdown --> NotificationItem1[NotificationItem]
+    Dropdown --> NotificationItem2[NotificationItem]
+    Dropdown --> MarkAll[Mark all read]
+    Dropdown --> ViewAll[View all → /dashboard/notifications]
+
+    REST --> State
+    WS --> State
+    MarkRead --> API[PATCH /notifications/:id/read etc.]
+    API --> State
+```
+
 ---
 
 ## 7. Cross-Cutting: Traceability
@@ -603,7 +698,7 @@ Log create and read; optionally log push.
 |-------|--------|
 | **1 – Foundation** | Notification model (DB); NotificationService.createAndSend; correlationId + notificationId everywhere; structured logging. |
 | **2 – Email (Brevo)** | Brevo facade; replace invitation email with Brevo; store messageId; retries + idempotency; optional queue. |
-| **3 – In-app (REST + WS)** | REST list/mark-read; WebSocket server with JWT auth; push on create; frontend consume REST + WS and update existing NotificationProvider. |
+| **3 – In-app (REST + WS) + UI** | REST list/mark-read; WebSocket server with JWT auth; push on create; frontend consume REST + WS and update existing NotificationProvider. **UI:** Notification bell in navbar, dropdown with recent list, unread count badge, mark-as-read; optional full notifications page. See §6.9 UI Integration. |
 | **4 – Observability** | Metrics (counts, latency); optional Brevo webhooks; dashboards and alerts. |
 | **5 – More types** | Comment/like/invitation-accepted notifications; password reset email; etc. |
 
