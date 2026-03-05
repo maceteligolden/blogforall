@@ -2,9 +2,7 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { SiteMemberService } from "../services/site-member.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
-import { BadRequestError } from "../../../shared/errors";
-import { ZodError } from "zod";
-import { addMemberSchema, updateMemberRoleSchema } from "../validations/site-member.validation";
+import { UpdateMemberRoleInput } from "../interfaces/site-member.interface";
 
 @injectable()
 export class SiteMemberController {
@@ -12,32 +10,20 @@ export class SiteMemberController {
 
   addMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: siteId } = req.params;
-      const validatedData = addMemberSchema.parse(req.body);
-      const member = await this.siteMemberService.addMember(siteId, userId, validatedData);
+      const userId = req.user!.userId;
+      const { id: siteId } = req.validatedParams as { id: string };
+      const body = req.validatedBody as { user_id: string; role: string };
+      const member = await this.siteMemberService.addMember(siteId, userId, body);
       sendCreated(res, "Member added successfully", member);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   getMembers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: siteId } = req.params;
+      const userId = req.user!.userId;
+      const { id: siteId } = req.validatedParams as { id: string };
       const members = await this.siteMemberService.getMembers(siteId, userId);
       sendSuccess(res, "Members retrieved successfully", members);
     } catch (error) {
@@ -47,32 +33,20 @@ export class SiteMemberController {
 
   updateMemberRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: siteId, userId: targetUserId } = req.params;
-      const validatedData = updateMemberRoleSchema.parse(req.body);
-      const member = await this.siteMemberService.updateMemberRole(siteId, targetUserId, userId, validatedData);
+      const userId = req.user!.userId;
+      const { id: siteId, userId: targetUserId } = req.validatedParams as { id: string; userId: string };
+      const body = req.validatedBody as UpdateMemberRoleInput;
+      const member = await this.siteMemberService.updateMemberRole(siteId, targetUserId, userId, body);
       sendSuccess(res, "Member role updated successfully", member);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   removeMember = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: siteId, userId: targetUserId } = req.params;
+      const userId = req.user!.userId;
+      const { id: siteId, userId: targetUserId } = req.validatedParams as { id: string; userId: string };
       await this.siteMemberService.removeMember(siteId, targetUserId, userId);
       sendNoContent(res, "Member removed successfully");
     } catch (error) {

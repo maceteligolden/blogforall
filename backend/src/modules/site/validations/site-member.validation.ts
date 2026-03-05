@@ -9,3 +9,8 @@ export const addMemberSchema = z.object({
 export const updateMemberRoleSchema = z.object({
   role: z.nativeEnum(SiteMemberRole).refine((val) => val !== SiteMemberRole.OWNER, "Cannot assign owner role"),
 });
+
+export const siteIdAndUserIdParamSchema = z.object({
+  id: z.string().min(1, "Site ID is required"),
+  userId: z.string().min(1, "User ID is required"),
+});

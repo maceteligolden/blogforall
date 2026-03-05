@@ -2,9 +2,8 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { SiteInvitationService } from "../services/site-invitation.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
-import { BadRequestError } from "../../../shared/errors";
-import { ZodError } from "zod";
-import { createInvitationSchema } from "../validations/site-invitation.validation";
+import { CreateInvitationInput } from "../interfaces/site-invitation.interface";
+import { InvitationStatus } from "../../../shared/constants";
 
 @injectable()
 export class SiteInvitationController {
@@ -12,34 +11,23 @@ export class SiteInvitationController {
 
   createInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: siteId } = req.params;
-      const validatedData = createInvitationSchema.parse(req.body);
-      const invitation = await this.invitationService.createInvitation(siteId, userId, validatedData);
+      const userId = req.user!.userId;
+      const { id: siteId } = req.validatedParams as { id: string };
+      const body = req.validatedBody as CreateInvitationInput;
+      const invitation = await this.invitationService.createInvitation(siteId, userId, body);
       sendCreated(res, "Invitation sent successfully", invitation);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   getSiteInvitations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: siteId } = req.params;
+      const userId = req.user!.userId;
+      const { id: siteId } = req.validatedParams as { id: string };
       const status = req.query.status as string | undefined;
-      const invitations = await this.invitationService.getSiteInvitations(siteId, userId, status as any);
+      const statusFilter = status && Object.values(InvitationStatus).includes(status as InvitationStatus) ? (status as InvitationStatus) : undefined;
+      const invitations = await this.invitationService.getSiteInvitations(siteId, userId, statusFilter);
       sendSuccess(res, "Invitations retrieved successfully", invitations);
     } catch (error) {
       next(error);
@@ -48,13 +36,10 @@ export class SiteInvitationController {
 
   getUserInvitations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = req.user!.userId;
       const status = req.query.status as string | undefined;
-      const invitations = await this.invitationService.getUserInvitations(userId, status as any);
+      const statusFilter = status && Object.values(InvitationStatus).includes(status as InvitationStatus) ? (status as InvitationStatus) : undefined;
+      const invitations = await this.invitationService.getUserInvitations(userId, statusFilter);
       sendSuccess(res, "Invitations retrieved successfully", invitations);
     } catch (error) {
       next(error);
@@ -63,11 +48,7 @@ export class SiteInvitationController {
 
   acceptInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = req.user!.userId;
       const { token } = req.params;
       await this.invitationService.acceptInvitation(token, userId);
       sendSuccess(res, "Invitation accepted successfully", null);
@@ -78,11 +59,7 @@ export class SiteInvitationController {
 
   rejectInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = req.user!.userId;
       const { token } = req.params;
       await this.invitationService.rejectInvitation(token, userId);
       sendNoContent(res, "Invitation rejected successfully");
