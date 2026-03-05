@@ -22,8 +22,9 @@ function SignupForm() {
     first_name: "",
     last_name: "",
     phone_number: "",
+    accept_terms: false,
   });
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
   const [isPasswordValid, setIsPasswordValid] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,6 +33,10 @@ function SignupForm() {
 
     if (!formData.email || !formData.password || !formData.first_name || !formData.last_name) {
       setError("Please fill in all required fields");
+      return;
+    }
+    if (!formData.accept_terms) {
+      setError("You must accept the Terms and Conditions to sign up");
       return;
     }
 
@@ -45,7 +50,11 @@ function SignupForm() {
       sessionStorage.setItem(SIGNUP_INVITE_KEY, inviteToken);
     }
     try {
-      await signupAsync(formData);
+      await signupAsync({
+        ...formData,
+        accept_terms: true,
+        terms_version: "2025-01",
+      });
     } catch (err: unknown) {
       const errorMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -56,9 +65,10 @@ function SignupForm() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     });
   };
 
@@ -149,10 +159,31 @@ function SignupForm() {
                   Password must contain: 1 lowercase, 1 uppercase, 1 number, 1 symbol, and at least 8 characters
                 </p>
               </div>
+              <div className="flex items-start gap-2">
+                <input
+                  id="accept_terms"
+                  name="accept_terms"
+                  type="checkbox"
+                  required
+                  checked={formData.accept_terms}
+                  onChange={handleChange}
+                  className="mt-1 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary focus:ring-primary"
+                />
+                <Label htmlFor="accept_terms" className="text-sm text-gray-300 cursor-pointer">
+                  I accept the{" "}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                    Terms and Conditions
+                  </a>
+                </Label>
+              </div>
             </div>
 
             <div>
-              <Button type="submit" className="w-full" disabled={isLoading || !isPasswordValid}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading || !isPasswordValid || !formData.accept_terms}
+              >
                 {isLoading ? "Creating account..." : "Create account"}
               </Button>
             </div>
