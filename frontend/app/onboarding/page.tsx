@@ -192,7 +192,7 @@ function OnboardingForm() {
         {step === "plan" && (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {safePlans.map((plan) => {
+              {(safePlans ?? []).map((plan) => {
                 const isFree = plan.price === 0 || plan.interval === "free";
                 const limits = plan.limits ?? {};
                 return (

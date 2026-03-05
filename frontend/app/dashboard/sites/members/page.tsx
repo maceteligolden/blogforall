@@ -49,7 +49,7 @@ export default function SiteMembersPage() {
   const queryClient = useQueryClient();
 
   // Fetch site members
-  const { data: members = [], isLoading } = useQuery({
+  const { data: membersData, isLoading } = useQuery({
     queryKey: currentSiteId ? QUERY_KEYS.SITE_MEMBERS(currentSiteId) : [],
     queryFn: () => {
       if (!currentSiteId) throw new Error("No site selected");
@@ -57,6 +57,7 @@ export default function SiteMembersPage() {
     },
     enabled: !!currentSiteId,
   });
+  const members = Array.isArray(membersData) ? membersData : [];
 
   // Fetch current site info
   const { data: currentSite } = useQuery({
@@ -97,7 +98,7 @@ export default function SiteMembersPage() {
   });
 
   // Fetch pending invitations for this site
-  const { data: pendingInvitations = [] } = useQuery({
+  const { data: pendingInvitationsData } = useQuery({
     queryKey: currentSiteId ? QUERY_KEYS.SITE_INVITATIONS(currentSiteId) : [],
     queryFn: () => {
       if (!currentSiteId) throw new Error("No site selected");
@@ -105,6 +106,7 @@ export default function SiteMembersPage() {
     },
     enabled: !!currentSiteId,
   });
+  const pendingInvitations = Array.isArray(pendingInvitationsData) ? pendingInvitationsData : [];
 
   // Cancel invitation mutation
   const cancelInvitationMutation = useMutation({
@@ -171,7 +173,7 @@ export default function SiteMembersPage() {
           </div>
 
           {/* Pending invitations */}
-          {pendingInvitations.length > 0 && (
+          {(pendingInvitations ?? []).length > 0 && (
             <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-8">
               <h2 className="text-lg font-semibold text-white px-6 py-4 border-b border-gray-800">
                 Pending invitations
@@ -192,7 +194,7 @@ export default function SiteMembersPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
-                    {pendingInvitations.map((inv) => (
+                    {(pendingInvitations ?? []).map((inv) => (
                       <tr key={inv._id} className="hover:bg-gray-800/30 transition-colors">
                         <td className="px-6 py-3 text-gray-300">{inv.email}</td>
                         <td className="px-6 py-3 text-gray-400 capitalize">{inv.role}</td>
@@ -216,7 +218,7 @@ export default function SiteMembersPage() {
           )}
 
           {/* Members List */}
-          {members.length === 0 ? (
+          {(members ?? []).length === 0 ? (
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
               <User className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">No members yet</h3>
@@ -253,7 +255,7 @@ export default function SiteMembersPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
-                    {members.map((member) => (
+                    {(members ?? []).map((member) => (
                       <tr key={member._id} className="hover:bg-gray-800/30 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">

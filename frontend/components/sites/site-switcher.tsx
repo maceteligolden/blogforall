@@ -97,7 +97,7 @@ export function SiteSwitcher() {
               <div className="px-4 py-2 text-sm text-gray-400" role="status">No sites found</div>
             ) : (
               <>
-                {sites.map((site) => (
+                {(sites ?? []).map((site) => (
                   <button
                     key={site._id}
                     role="menuitem"

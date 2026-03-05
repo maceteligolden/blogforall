@@ -32,7 +32,7 @@ interface BlockEditorProps {
 }
 
 export function BlockEditor({ value, onChange, placeholder, className = "", onUploadImage }: BlockEditorProps) {
-  const blocks = value.length > 0 ? value : [DEFAULT_BLOCK];
+  const blocks = (Array.isArray(value) && value.length > 0) ? value : [DEFAULT_BLOCK];
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [menuOpenAt, setMenuOpenAt] = useState<number | null>(null);
   const [uploadStatus, setUploadStatus] = useState<Record<string, "uploading" | "failed">>({});
@@ -188,7 +188,7 @@ export function BlockEditor({ value, onChange, placeholder, className = "", onUp
           />
         </div>
       )}
-      {blocks.map((block, index) => (
+      {(blocks ?? []).map((block, index) => (
         <div
           key={block.id}
           ref={(el) => { blockRefs.current[index] = el; }}

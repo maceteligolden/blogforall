@@ -155,7 +155,7 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {notifications.map((notification) => {
+              {(notifications ?? []).map((notification) => {
                 const isUnread = !notification.read_at;
                 return (
                   <div

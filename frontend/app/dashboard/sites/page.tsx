@@ -12,10 +12,11 @@ import { Building2, Settings, Users, ChevronRight } from "lucide-react";
 export default function WorkspacesListPage() {
   const { currentSiteId } = useAuthStore();
 
-  const { data: sites = [], isLoading } = useQuery({
+  const { data: sitesData, isLoading } = useQuery({
     queryKey: QUERY_KEYS.SITES,
     queryFn: () => SiteService.getSites(true),
   });
+  const sites = Array.isArray(sitesData) ? sitesData : [];
 
   if (isLoading) {
     return (
@@ -45,7 +46,7 @@ export default function WorkspacesListPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {sites.map((site) => (
+              {(sites ?? []).map((site) => (
                 <div
                   key={site._id}
                   className="bg-gray-900 rounded-lg border border-gray-800 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
