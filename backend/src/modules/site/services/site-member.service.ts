@@ -7,6 +7,7 @@ import { AddMemberInput, UpdateMemberRoleInput, SiteMemberWithUser } from "../in
 import { SiteMember } from "../../../shared/schemas/site-member.schema";
 import { SiteMemberRole } from "../../../shared/constants";
 import User from "../../../shared/schemas/user.schema";
+import Blog from "../../../shared/schemas/blog.schema";
 
 @injectable()
 export class SiteMemberService {
@@ -78,13 +79,17 @@ export class SiteMemberService {
 
     const members = await this.siteMemberRepository.findBySite(siteId);
 
-    // Populate user information
+    // Populate user information and posts_count per member
     const membersWithUser = await Promise.all(
       members.map(async (member) => {
-        const user = await User.findById(member.user_id);
+        const [user, postsCount] = await Promise.all([
+          User.findById(member.user_id),
+          Blog.countDocuments({ site_id: siteId, author: member.user_id }),
+        ]);
         const memberObj = (member as any).toObject ? (member as any).toObject() : { ...(member as any) };
         return {
           ...memberObj,
+          posts_count: postsCount,
           user: user
             ? {
                 _id: user._id!.toString(),

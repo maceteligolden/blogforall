@@ -17,6 +17,7 @@ export interface SiteMemberWithUser {
   joined_at: Date;
   created_at: Date;
   updated_at: Date;
+  posts_count?: number;
   user?: {
     _id: string;
     email: string;
