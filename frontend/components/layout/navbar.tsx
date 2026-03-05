@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { User, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { SiteSwitcher } from "@/components/sites/site-switcher";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -70,6 +71,7 @@ export function Navbar() {
 
           {/* Right Side */}
           <div className="flex items-center space-x-4 relative z-[9999]">
+            <NotificationBell />
             {/* User Menu */}
             <div className="relative z-[10000]">
               <div className="flex items-center space-x-2">
