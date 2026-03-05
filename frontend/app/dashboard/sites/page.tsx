@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
-import { SiteService, Site } from "@/lib/api/services/site.service";
+import { PageLoading } from "@/components/ui/page-loading";
+import { SiteService, SiteWithMemberCount } from "@/lib/api/services/site.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { Building2, Settings, Users, ChevronRight } from "lucide-react";
@@ -18,15 +19,10 @@ export default function WorkspacesListPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black text-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <Breadcrumb items={[{ label: "Dashboard" }, { label: "Workspaces" }]} />
-          <div className="py-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
-            <p className="text-gray-400">Loading workspaces...</p>
-          </div>
-        </div>
-      </div>
+      <PageLoading
+        breadcrumbItems={[{ label: "Dashboard" }, { label: "Workspaces" }]}
+        message="Loading workspaces..."
+      />
     );
   }
 
@@ -49,7 +45,7 @@ export default function WorkspacesListPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {(sites as (Site & { memberCount?: number })[]).map((site) => (
+              {sites.map((site) => (
                 <div
                   key={site._id}
                   className="bg-gray-900 rounded-lg border border-gray-800 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"

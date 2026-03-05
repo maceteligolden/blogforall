@@ -2,7 +2,7 @@ import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
 
 export type SiteMemberRole = "owner" | "admin" | "editor" | "viewer";
-export type InvitationStatus = "pending" | "accepted" | "rejected" | "expired";
+export type InvitationStatus = "pending" | "accepted" | "rejected" | "expired" | "cancelled";
 
 export interface SiteInvitation {
   _id: string;
@@ -76,5 +76,12 @@ export class SiteInvitationService {
    */
   static async rejectInvitation(token: string): Promise<void> {
     await apiClient.post(API_ENDPOINTS.INVITATIONS.REJECT(token));
+  }
+
+  /**
+   * Cancel a pending invitation (site owner or admin only)
+   */
+  static async cancelInvitation(siteId: string, invitationId: string): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.SITES.CANCEL_INVITATION(siteId, invitationId));
   }
 }

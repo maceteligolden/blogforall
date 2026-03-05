@@ -1,55 +1,16 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
+import type {
+  Site,
+  CreateSiteRequest,
+  UpdateSiteRequest,
+  SiteMember,
+  AddMemberRequest,
+  UpdateMemberRoleRequest,
+  SiteWithMemberCount,
+} from "../types/site.types";
 
-export interface Site {
-  _id: string;
-  name: string;
-  description?: string;
-  slug: string;
-  owner: string;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface CreateSiteRequest {
-  name: string;
-  description?: string;
-}
-
-export interface UpdateSiteRequest {
-  name?: string;
-  description?: string;
-}
-
-export interface SiteMember {
-  _id: string;
-  site_id: string;
-  user_id: string;
-  role: "owner" | "admin" | "editor" | "viewer";
-  joined_at: Date;
-  created_at: Date;
-  updated_at: Date;
-  posts_count?: number;
-  user?: {
-    _id: string;
-    email: string;
-    first_name: string;
-    last_name: string;
-  };
-}
-
-export interface AddMemberRequest {
-  user_id: string;
-  role: "admin" | "editor" | "viewer";
-}
-
-export interface UpdateMemberRoleRequest {
-  role: "admin" | "editor" | "viewer";
-}
-
-export interface SiteWithMembers extends Site {
-  memberCount?: number;
-}
+export type { Site, CreateSiteRequest, UpdateSiteRequest, SiteMember, AddMemberRequest, UpdateMemberRoleRequest, SiteWithMemberCount } from "../types/site.types";
 
 export class SiteService {
   /**
@@ -64,7 +25,7 @@ export class SiteService {
   /**
    * Get all sites for the authenticated user
    */
-  static async getSites(includeMembers = false): Promise<Site[]> {
+  static async getSites(includeMembers = false): Promise<SiteWithMemberCount[]> {
     const response = await apiClient.get(API_ENDPOINTS.SITES.LIST, {
       params: { include_members: includeMembers },
     });

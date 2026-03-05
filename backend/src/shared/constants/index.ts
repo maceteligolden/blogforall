@@ -25,6 +25,7 @@ export enum InvitationStatus {
   ACCEPTED = "accepted",
   REJECTED = "rejected",
   EXPIRED = "expired",
+  CANCELLED = "cancelled",
 }
 
 export enum HttpStatus {

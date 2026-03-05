@@ -95,6 +95,7 @@ export const API_ENDPOINTS = {
     REMOVE_MEMBER: (siteId: string, userId: string) => `/sites/${siteId}/members/${userId}`,
     CREATE_INVITATION: (siteId: string) => `/sites/${siteId}/invitations`,
     GET_INVITATIONS: (siteId: string) => `/sites/${siteId}/invitations`,
+    CANCEL_INVITATION: (siteId: string, invitationId: string) => `/sites/${siteId}/invitations/${invitationId}`,
   },
   INVITATIONS: {
     LIST: "/invitations",

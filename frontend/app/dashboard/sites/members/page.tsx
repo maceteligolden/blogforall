@@ -7,9 +7,13 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/modal";
 import { SiteService, SiteMember } from "@/lib/api/services/site.service";
+import {
+  SiteInvitationService,
+  SiteInvitation,
+} from "@/lib/api/services/site-invitation.service";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
-import { Plus, Trash2, User, Shield, Edit, Eye } from "lucide-react";
+import { Plus, Trash2, User, Shield, Edit, Eye, X } from "lucide-react";
 import { InviteMemberDialog } from "@/components/sites/invite-member-dialog";
 
 type SiteMemberRole = "owner" | "admin" | "editor" | "viewer";
@@ -38,9 +42,10 @@ const roleColors: Record<SiteMemberRole, string> = {
 export default function SiteMembersPage() {
   const router = useRouter();
   const { currentSiteId } = useAuthStore();
-  const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showInviteDialog, setShowInviteDialog] = useState<boolean>(false);
   const [memberToRemove, setMemberToRemove] = useState<SiteMember | null>(null);
   const [memberToUpdateRole, setMemberToUpdateRole] = useState<SiteMember | null>(null);
+  const [invitationToCancel, setInvitationToCancel] = useState<SiteInvitation | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch site members
@@ -88,6 +93,30 @@ export default function SiteMembersPage() {
         queryKey: currentSiteId ? QUERY_KEYS.SITE_MEMBERS(currentSiteId) : [],
       });
       setMemberToUpdateRole(null);
+    },
+  });
+
+  // Fetch pending invitations for this site
+  const { data: pendingInvitations = [] } = useQuery({
+    queryKey: currentSiteId ? QUERY_KEYS.SITE_INVITATIONS(currentSiteId) : [],
+    queryFn: () => {
+      if (!currentSiteId) throw new Error("No site selected");
+      return SiteInvitationService.getSiteInvitations(currentSiteId, "pending");
+    },
+    enabled: !!currentSiteId,
+  });
+
+  // Cancel invitation mutation
+  const cancelInvitationMutation = useMutation({
+    mutationFn: (invitationId: string) => {
+      if (!currentSiteId) throw new Error("No site selected");
+      return SiteInvitationService.cancelInvitation(currentSiteId, invitationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: currentSiteId ? QUERY_KEYS.SITE_INVITATIONS(currentSiteId) : [],
+      });
+      setInvitationToCancel(null);
     },
   });
 
@@ -140,6 +169,51 @@ export default function SiteMembersPage() {
               Invite Member
             </Button>
           </div>
+
+          {/* Pending invitations */}
+          {pendingInvitations.length > 0 && (
+            <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-8">
+              <h2 className="text-lg font-semibold text-white px-6 py-4 border-b border-gray-800">
+                Pending invitations
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-800/50 border-b border-gray-800">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-400 uppercase tracking-wide">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-400 uppercase tracking-wide">
+                        Role
+                      </th>
+                      <th className="px-6 py-3 text-right text-sm font-medium text-gray-400 uppercase tracking-wide">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {pendingInvitations.map((inv) => (
+                      <tr key={inv._id} className="hover:bg-gray-800/30 transition-colors">
+                        <td className="px-6 py-3 text-gray-300">{inv.email}</td>
+                        <td className="px-6 py-3 text-gray-400 capitalize">{inv.role}</td>
+                        <td className="px-6 py-3 text-right">
+                          <button
+                            onClick={() => setInvitationToCancel(inv)}
+                            disabled={cancelInvitationMutation.isPending}
+                            className="inline-flex items-center gap-1.5 text-red-400 hover:text-red-300 transition-colors text-sm"
+                            title="Cancel invitation"
+                          >
+                            <X className="w-4 h-4" />
+                            Cancel
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Members List */}
           {members.length === 0 ? (
@@ -281,6 +355,24 @@ export default function SiteMembersPage() {
           } from the site?`}
           confirmText="Remove"
           cancelText="Cancel"
+          variant="danger"
+        />
+      )}
+
+      {/* Cancel Invitation Confirmation */}
+      {invitationToCancel && (
+        <ConfirmModal
+          isOpen={!!invitationToCancel}
+          onClose={() => setInvitationToCancel(null)}
+          onConfirm={() => {
+            if (invitationToCancel) {
+              cancelInvitationMutation.mutate(invitationToCancel._id);
+            }
+          }}
+          title="Cancel invitation"
+          message={`Cancel the invitation sent to ${invitationToCancel.email}? They will no longer be able to join with this link.`}
+          confirmText="Cancel invitation"
+          cancelText="Keep"
           variant="danger"
         />
       )}

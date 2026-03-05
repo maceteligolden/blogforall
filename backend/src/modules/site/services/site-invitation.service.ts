@@ -185,6 +185,37 @@ export class SiteInvitationService {
   }
 
   /**
+   * Cancel a pending invitation (owner or admin only; only PENDING can be cancelled).
+   */
+  async cancelInvitation(siteId: string, invitationId: string, userId: string): Promise<void> {
+    const site = await this.siteRepository.findById(siteId);
+    if (!site) {
+      throw new NotFoundError("Site not found");
+    }
+
+    const requesterRole = await this.getRequesterRole(siteId, userId);
+    if (requesterRole !== SiteMemberRole.OWNER && requesterRole !== SiteMemberRole.ADMIN) {
+      throw new ForbiddenError("Only site owner or admin can cancel invitations");
+    }
+
+    const invitation = await this.invitationRepository.findById(invitationId, siteId);
+    if (!invitation) {
+      throw new NotFoundError("Invitation not found");
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new BadRequestError("Only pending invitations can be cancelled");
+    }
+
+    await this.invitationRepository.updateStatus(invitation.token, InvitationStatus.CANCELLED);
+    logger.info(
+      "Invitation cancelled",
+      { invitationId, siteId, cancelledBy: userId },
+      "SiteInvitationService"
+    );
+  }
+
+  /**
    * Get invitations for a site
    */
   async getSiteInvitations(siteId: string, userId: string, status?: InvitationStatus): Promise<SiteInvitation[]> {
@@ -218,7 +249,8 @@ export class SiteInvitationService {
     const invitationsWithSite = await Promise.all(
       invitations.map(async (invitation) => {
         const site = await Site.findById(invitation.site_id);
-        const invObj = (invitation as any).toObject ? (invitation as any).toObject() : { ...(invitation as any) };
+        const doc = invitation as { toObject?: () => Record<string, unknown> } & SiteInvitation;
+        const invObj = doc.toObject ? doc.toObject() : { ...invitation };
         return {
           ...invObj,
           site: site

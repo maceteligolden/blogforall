@@ -49,7 +49,7 @@ export class SiteInvitationController {
   acceptInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.userId;
-      const { token } = req.params;
+      const { token } = req.validatedParams as { token: string };
       await this.invitationService.acceptInvitation(token, userId);
       sendSuccess(res, "Invitation accepted successfully", null);
     } catch (error) {
@@ -60,9 +60,20 @@ export class SiteInvitationController {
   rejectInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.userId;
-      const { token } = req.params;
+      const { token } = req.validatedParams as { token: string };
       await this.invitationService.rejectInvitation(token, userId);
       sendNoContent(res, "Invitation rejected successfully");
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  cancelInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.userId;
+      const { id: siteId, invitationId } = req.validatedParams as { id: string; invitationId: string };
+      await this.invitationService.cancelInvitation(siteId, invitationId, userId);
+      sendNoContent(res, "Invitation cancelled successfully");
     } catch (error) {
       next(error);
     }

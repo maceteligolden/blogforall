@@ -3,7 +3,15 @@ import { SiteMemberRepository } from "../repositories/site-member.repository";
 import { SiteRepository } from "../repositories/site.repository";
 import { NotFoundError, ForbiddenError, BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
-import { AddMemberInput, UpdateMemberRoleInput, SiteMemberWithUser } from "../interfaces/site-member.interface";
+import {
+  AddMemberInput,
+  UpdateMemberRoleInput,
+  SiteMemberWithUser,
+  GetMembersOptions,
+  AddMemberOptions,
+  UpdateMemberRoleOptions,
+  RemoveMemberOptions,
+} from "../interfaces/site-member.interface";
 import { SiteMember } from "../../../shared/schemas/site-member.schema";
 import { SiteMemberRole } from "../../../shared/constants";
 import User from "../../../shared/schemas/user.schema";
@@ -20,13 +28,19 @@ export class SiteMemberService {
    * Add a member to a site
    */
   async addMember(siteId: string, userId: string, input: AddMemberInput): Promise<SiteMember> {
-    // Check if site exists
+    return this.addMemberWithOptions({ siteId, userId, input });
+  }
+
+  /**
+   * Add a member to a site (options object)
+   */
+  async addMemberWithOptions(options: AddMemberOptions): Promise<SiteMember> {
+    const { siteId, userId, input } = options;
     const site = await this.siteRepository.findById(siteId);
     if (!site) {
       throw new NotFoundError("Site not found");
     }
 
-    // Check if requester has permission (owner or admin)
     const requesterRole = await this.getRequesterRole(siteId, userId);
     if (requesterRole !== SiteMemberRole.OWNER && requesterRole !== SiteMemberRole.ADMIN) {
       throw new ForbiddenError("Only site owner or admin can add members");
@@ -63,13 +77,19 @@ export class SiteMemberService {
    * Get all members of a site
    */
   async getMembers(siteId: string, userId: string): Promise<SiteMemberWithUser[]> {
-    // Check if site exists
+    return this.getMembersWithOptions({ siteId, userId });
+  }
+
+  /**
+   * Get all members of a site (options object)
+   */
+  async getMembersWithOptions(options: GetMembersOptions): Promise<SiteMemberWithUser[]> {
+    const { siteId, userId } = options;
     const site = await this.siteRepository.findById(siteId);
     if (!site) {
       throw new NotFoundError("Site not found");
     }
 
-    // Check if requester has access
     const hasAccess =
       (await this.siteRepository.isOwner(siteId, userId)) ||
       (await this.siteMemberRepository.findBySiteAndUser(siteId, userId));
@@ -79,14 +99,14 @@ export class SiteMemberService {
 
     const members = await this.siteMemberRepository.findBySite(siteId);
 
-    // Populate user information and posts_count per member
     const membersWithUser = await Promise.all(
       members.map(async (member) => {
         const [user, postsCount] = await Promise.all([
           User.findById(member.user_id),
           Blog.countDocuments({ site_id: siteId, author: member.user_id }),
         ]);
-        const memberObj = (member as any).toObject ? (member as any).toObject() : { ...(member as any) };
+        const doc = member as SiteMember & { toObject?: () => Record<string, unknown> };
+        const memberObj = doc.toObject ? doc.toObject() : { ...member };
         return {
           ...memberObj,
           posts_count: postsCount,
@@ -114,7 +134,14 @@ export class SiteMemberService {
     requesterUserId: string,
     input: UpdateMemberRoleInput
   ): Promise<SiteMember> {
-    // Check if site exists
+    return this.updateMemberRoleWithOptions({ siteId, targetUserId, requesterUserId, input });
+  }
+
+  /**
+   * Update member role (options object)
+   */
+  async updateMemberRoleWithOptions(options: UpdateMemberRoleOptions): Promise<SiteMember> {
+    const { siteId, targetUserId, requesterUserId, input } = options;
     const site = await this.siteRepository.findById(siteId);
     if (!site) {
       throw new NotFoundError("Site not found");
@@ -163,7 +190,14 @@ export class SiteMemberService {
    * Remove member from site
    */
   async removeMember(siteId: string, targetUserId: string, requesterUserId: string): Promise<void> {
-    // Check if site exists
+    return this.removeMemberWithOptions({ siteId, targetUserId, requesterUserId });
+  }
+
+  /**
+   * Remove member from site (options object)
+   */
+  async removeMemberWithOptions(options: RemoveMemberOptions): Promise<void> {
+    const { siteId, targetUserId, requesterUserId } = options;
     const site = await this.siteRepository.findById(siteId);
     if (!site) {
       throw new NotFoundError("Site not found");

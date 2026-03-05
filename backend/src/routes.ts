@@ -13,8 +13,10 @@ import onboardingRouter from "./modules/onboarding/routes/onboarding.router";
 import siteRouter from "./modules/site/routes/site.router";
 import notificationRouter from "./modules/notification/routes/notification.router";
 import { SiteInvitationController } from "./modules/site/controllers/site-invitation.controller";
+import { invitationTokenParamSchema } from "./modules/site/validations/site-invitation.validation";
 import { container } from "tsyringe";
 import { authMiddleware } from "./shared/middlewares/auth.middleware";
+import { validateParams } from "./shared/middlewares/validate.middleware";
 
 const router = Router();
 
@@ -61,7 +63,7 @@ router.use("/campaigns", campaignRouter);
 // These routes are for users to view and accept/reject their invitations
 const invitationController = container.resolve(SiteInvitationController);
 router.get("/invitations", authMiddleware, invitationController.getUserInvitations);
-router.post("/invitations/:token/accept", authMiddleware, invitationController.acceptInvitation);
-router.post("/invitations/:token/reject", authMiddleware, invitationController.rejectInvitation);
+router.post("/invitations/:token/accept", authMiddleware, validateParams(invitationTokenParamSchema), invitationController.acceptInvitation);
+router.post("/invitations/:token/reject", authMiddleware, validateParams(invitationTokenParamSchema), invitationController.rejectInvitation);
 
 export { router as routes };

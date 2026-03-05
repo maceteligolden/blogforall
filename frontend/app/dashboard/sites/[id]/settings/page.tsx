@@ -1,27 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/modal";
-import { SiteService, Site } from "@/lib/api/services/site.service";
-import { useAuthStore } from "@/lib/store/auth.store";
+import { PageLoading } from "@/components/ui/page-loading";
+import { SiteService } from "@/lib/api/services/site.service";
 import { QUERY_KEYS } from "@/lib/api/config";
+import { useWorkspaceSettingsMutations } from "@/lib/hooks/use-workspace-settings-mutations";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 export default function WorkspaceSettingsPage() {
-  const router = useRouter();
   const params = useParams();
-  const siteId = params?.id as string;
-  const queryClient = useQueryClient();
-  const { currentSiteId, setCurrentSiteId } = useAuthStore();
+  const siteId = (params?.id as string) ?? "";
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [name, setName] = useState<string>("");
+  const [description, setDescription] = useState<string>("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
 
   const { data: site, isLoading } = useQuery({
     queryKey: siteId ? QUERY_KEYS.SITE(siteId) : [],
@@ -29,32 +27,14 @@ export default function WorkspaceSettingsPage() {
     enabled: !!siteId,
   });
 
+  const { updateMutation, deleteMutation } = useWorkspaceSettingsMutations(siteId);
+
   useEffect(() => {
     if (site) {
       setName(site.name);
       setDescription(site.description ?? "");
     }
   }, [site]);
-
-  const updateMutation = useMutation({
-    mutationFn: (data: { name?: string; description?: string }) =>
-      SiteService.updateSite(siteId, data),
-    onSuccess: (updated) => {
-      queryClient.setQueryData(QUERY_KEYS.SITE(siteId), updated);
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () => SiteService.deleteSite(siteId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
-      if (currentSiteId === siteId) {
-        setCurrentSiteId(null);
-      }
-      router.push("/dashboard/sites");
-    },
-  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,15 +56,14 @@ export default function WorkspaceSettingsPage() {
 
   if (isLoading || !site) {
     return (
-      <div className="min-h-screen bg-black text-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <Breadcrumb items={[{ label: "Dashboard" }, { label: "Workspaces" }, { label: "Settings" }]} />
-          <div className="py-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
-            <p className="text-gray-400">Loading...</p>
-          </div>
-        </div>
-      </div>
+      <PageLoading
+        breadcrumbItems={[
+          { label: "Dashboard" },
+          { label: "Workspaces", href: "/dashboard/sites" },
+          { label: "Settings" },
+        ]}
+        message="Loading..."
+      />
     );
   }
 

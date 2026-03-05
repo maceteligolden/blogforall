@@ -2,35 +2,31 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { SiteInvitationService } from "@/lib/api/services/site-invitation.service";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { useInvitationResponseMutations } from "@/lib/hooks/use-invitation-response-mutations";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
+
+type InvitationStatus = "idle" | "loading" | "accepted" | "rejected" | "error";
 
 function AcceptInviteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const { isAuthenticated } = useAuthStore();
-  const [status, setStatus] = useState<"idle" | "loading" | "accepted" | "rejected" | "error">("idle");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [status, setStatus] = useState<InvitationStatus>("idle");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
-  const acceptMutation = useMutation({
-    mutationFn: () => SiteInvitationService.acceptInvitation(token!),
-    onSuccess: () => setStatus("accepted"),
-    onError: (err: unknown) => {
+  const { acceptMutation, rejectMutation } = useInvitationResponseMutations({
+    token,
+    onAcceptSuccess: () => setStatus("accepted"),
+    onRejectSuccess: () => setStatus("rejected"),
+    onAcceptError: (msg) => {
       setStatus("error");
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to accept invitation";
       setErrorMessage(msg);
     },
-  });
-
-  const rejectMutation = useMutation({
-    mutationFn: () => SiteInvitationService.rejectInvitation(token!),
-    onSuccess: () => setStatus("rejected"),
-    onError: () => setStatus("error"),
+    onRejectError: () => setStatus("error"),
   });
 
   useEffect(() => {

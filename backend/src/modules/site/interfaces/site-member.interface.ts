@@ -9,6 +9,30 @@ export interface UpdateMemberRoleInput {
   role: SiteMemberRole;
 }
 
+export interface GetMembersOptions {
+  siteId: string;
+  userId: string;
+}
+
+export interface AddMemberOptions {
+  siteId: string;
+  userId: string;
+  input: AddMemberInput;
+}
+
+export interface UpdateMemberRoleOptions {
+  siteId: string;
+  targetUserId: string;
+  requesterUserId: string;
+  input: UpdateMemberRoleInput;
+}
+
+export interface RemoveMemberOptions {
+  siteId: string;
+  targetUserId: string;
+  requesterUserId: string;
+}
+
 export interface SiteMemberWithUser {
   _id: string;
   site_id: string;

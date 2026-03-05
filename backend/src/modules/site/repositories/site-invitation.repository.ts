@@ -32,6 +32,17 @@ export class SiteInvitationRepository {
   }
 
   /**
+   * Find invitation by id (and optionally site id)
+   */
+  async findById(id: string, siteId?: string): Promise<SiteInvitationType | null> {
+    const query: Record<string, unknown> = { _id: id };
+    if (siteId) {
+      query.site_id = siteId;
+    }
+    return SiteInvitation.findOne(query);
+  }
+
+  /**
    * Find invitations by site
    */
   async findBySite(siteId: string, status?: InvitationStatus): Promise<SiteInvitationType[]> {

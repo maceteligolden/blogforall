@@ -1,53 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { SiteService, CreateSiteRequest } from "@/lib/api/services/site.service";
-import { useAuth } from "@/lib/hooks/use-auth";
+import { useState } from "react";
+import { useCreateSiteMutations } from "@/lib/hooks/use-create-site-mutations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProtectedRoute } from "@/components/protected-route";
-import { QUERY_KEYS } from "@/lib/api/config";
 
 export default function CreateSitePage() {
-  const router = useRouter();
-  const { updateSiteContext } = useAuth();
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState("");
+  const [name, setName] = useState<string>("");
+  const [description, setDescription] = useState<string>("");
+  const [error, setError] = useState<string>("");
 
-  const skipMutation = useMutation({
-    mutationFn: () => SiteService.ensureDefaultWorkspace(),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
-      router.push("/onboarding/invite");
-    },
-    onError: (err: unknown) => {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setError(apiMessage || "Could not create default workspace. Please create one above.");
-    },
-  });
-
-  const createSiteMutation = useMutation({
-    mutationFn: (data: CreateSiteRequest) => SiteService.createSite(data),
-    onSuccess: async (newSite) => {
-      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
-      updateSiteContext(newSite._id);
-      router.push("/onboarding/invite");
-    },
-    onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
-      const message =
-        apiMessage ||
-        (err?.code === "ECONNREFUSED" || err?.message?.includes("Network")
-          ? "Cannot reach server. Please check that the backend is running."
-          : "Failed to create site");
-      setError(message);
-    },
-  });
+  const { skipMutation, createSiteMutation } = useCreateSiteMutations({ onError: setError });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
