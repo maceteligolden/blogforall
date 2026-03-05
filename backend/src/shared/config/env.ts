@@ -4,8 +4,17 @@
 
 const NOTIFICATION_RETENTION_DAYS_READ_DEFAULT = 90;
 const EMAIL_METADATA_RETENTION_DAYS_DEFAULT = 365;
+const WORKSPACE_DEFAULT_NAME_DEFAULT = "My Workspace";
+const INVITATION_EXPIRY_DAYS_DEFAULT = 7;
 
 export const env = {
+  workspace: {
+    defaultName: (process.env.WORKSPACE_DEFAULT_NAME || WORKSPACE_DEFAULT_NAME_DEFAULT).trim(),
+    invitationExpiryDays: parseInt(
+      process.env.INVITATION_EXPIRY_DAYS || String(INVITATION_EXPIRY_DAYS_DEFAULT),
+      10
+    ),
+  },
   notification: {
     brevoApiKey: (process.env.BREVO_API_KEY || "").trim(),
     brevoSenderEmail: (
