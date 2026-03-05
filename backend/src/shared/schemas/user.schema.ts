@@ -23,6 +23,8 @@ export interface User extends BaseEntity {
   }>;
   stripe_customer_id?: string; // Stripe customer ID for payment processing
   onboarding_completed: boolean; // Whether user has completed onboarding (card + plan)
+  terms_accepted_at?: Date; // When user accepted terms at signup (audit)
+  terms_version?: string; // Terms version accepted (e.g. "2025-01") for audit
 }
 
 const userSchema = new Schema<User>(
@@ -109,6 +111,15 @@ const userSchema = new Schema<User>(
       type: Boolean,
       default: false,
       index: true,
+    },
+    terms_accepted_at: {
+      type: Date,
+      required: false,
+    },
+    terms_version: {
+      type: String,
+      required: false,
+      trim: true,
     },
     created_at: {
       type: Date,

@@ -4,6 +4,8 @@ export interface SignupInput {
   first_name: string;
   last_name: string;
   phone_number?: string;
+  accept_terms: boolean;
+  terms_version?: string;
 }
 
 export interface LoginInput {

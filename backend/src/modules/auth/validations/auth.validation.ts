@@ -6,6 +6,10 @@ export const signupSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
   last_name: z.string().min(1, "Last name is required"),
   phone_number: z.string().optional(),
+  accept_terms: z.literal(true, {
+    errorMap: () => ({ message: "You must accept the Terms and Conditions to sign up" }),
+  }),
+  terms_version: z.string().optional(),
 });
 
 export const loginSchema = z.object({
