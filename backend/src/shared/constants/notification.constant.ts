@@ -13,6 +13,7 @@ export enum NotificationType {
   COMMENT_ON_POST = "comment_on_post",
   LIKE_ON_POST = "like_on_post",
   INVITATION_ACCEPTED = "invitation_accepted",
+  INVITATION_REJECTED = "invitation_rejected",
   NEW_COMMENT_MODERATOR = "new_comment_moderator",
   PASSWORD_RESET = "password_reset",
 }

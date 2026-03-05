@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { SiteMemberService } from "../services/site-member.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
-import { UpdateMemberRoleInput } from "../interfaces/site-member.interface";
+ import { AddMemberInput, UpdateMemberRoleInput } from "../interfaces/site-member.interface";
 
 @injectable()
 export class SiteMemberController {
@@ -12,7 +12,7 @@ export class SiteMemberController {
     try {
       const userId = req.user!.userId;
       const { id: siteId } = req.validatedParams as { id: string };
-      const body = req.validatedBody as { user_id: string; role: string };
+      const body = req.validatedBody as AddMemberInput;
       const member = await this.siteMemberService.addMember(siteId, userId, body);
       sendCreated(res, "Member added successfully", member);
     } catch (error) {
