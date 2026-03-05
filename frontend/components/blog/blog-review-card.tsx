@@ -99,7 +99,7 @@ export function BlogReviewCard({
 
       {/* Category Scores */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {Object.entries(reviewResult.scores).map(([key, score]) => (
+        {Object.entries(reviewResult.scores ?? {}).map(([key, score]) => (
           <div key={key} className="bg-gray-800 rounded-lg p-3">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs text-gray-400 capitalize">{key.replace("_", " ")}</span>
@@ -117,11 +117,11 @@ export function BlogReviewCard({
       </div>
 
       {/* Suggestions */}
-      {reviewResult.suggestions.length > 0 && (
+      {(reviewResult.suggestions ?? []).length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-lg font-semibold text-white">
-              Suggestions ({reviewResult.suggestions.length})
+              Suggestions ({(reviewResult.suggestions ?? []).length})
             </h4>
             {onViewComparison && (
               <Button
@@ -136,7 +136,7 @@ export function BlogReviewCard({
           </div>
 
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {reviewResult.suggestions.map((suggestion, index) => (
+            {(reviewResult.suggestions ?? []).map((suggestion, index) => (
               <div
                 key={index}
                 className={`border rounded-lg p-4 cursor-pointer transition-all ${

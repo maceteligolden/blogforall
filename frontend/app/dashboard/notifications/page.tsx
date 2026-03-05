@@ -79,7 +79,9 @@ export default function NotificationsPage() {
     },
   });
 
-  const notifications = data?.pages.flatMap((p) => p.data) ?? [];
+  const notifications = Array.isArray(data?.pages)
+    ? data.pages.flatMap((p) => (Array.isArray(p?.data) ? p.data : []))
+    : [];
   const total = data?.pages[0]?.pagination?.total ?? 0;
 
   const handleItemClick = (notification: NotificationItem) => {

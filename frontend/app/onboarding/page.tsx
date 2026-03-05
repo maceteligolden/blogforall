@@ -242,9 +242,9 @@ function OnboardingForm() {
                         {plan.limits.storageGB === -1 ? "Unlimited" : `${plan.limits.storageGB} GB`} storage
                       </p>
                     </div>
-                    {plan.features.length > 0 && (
+                    {(plan.features ?? []).length > 0 && (
                       <ul className="space-y-1 mb-4">
-                        {plan.features.slice(0, 3).map((feature, index) => (
+                        {(plan.features ?? []).slice(0, 3).map((feature, index) => (
                           <li key={index} className="text-xs text-gray-300 flex items-center gap-2">
                             <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

@@ -31,12 +31,13 @@ export default function DashboardLayout({
   });
 
   // Check if user has sites
-  const { data: sites = [], isLoading: sitesLoading } = useQuery({
+  const { data: sitesData, isLoading: sitesLoading } = useQuery({
     queryKey: QUERY_KEYS.SITES,
     queryFn: () => SiteService.getSites(),
     retry: false,
     enabled: isAuthenticated && !onboardingStatus?.requiresOnboarding,
   });
+  const sites = Array.isArray(sitesData) ? sitesData : [];
 
   useEffect(() => {
     if (!isAuthenticated) {

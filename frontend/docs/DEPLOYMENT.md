@@ -59,3 +59,13 @@ A **ChunkErrorHandler** is included: on **ChunkLoadError** or failed chunk fetch
 - [ ] Requests to `https://your-domain/_next/static/chunks/*.js` return **200** and body is JavaScript.
 - [ ] Response header `Content-Type` for those `.js` requests is **`application/javascript`** (or `text/javascript`).
 - [ ] No proxy/CDN is rewriting chunk URLs or returning an HTML/plain error page for `_next/static` paths.
+
+## Runtime errors
+
+### "Cannot read properties of undefined (reading 'length')" at Array.map
+
+This usually happens when a list (e.g. from an API or context) is undefined and the code calls `.map()` or `.length` on it. The app now guards all such usages with defaults (e.g. `(items ?? []).map`, `Array.isArray(data) ? data : []`) in dashboard, notifications, onboarding, and blog review components. If you see this again, add a fallback for the specific array (e.g. `(plan.features ?? []).map(...)`).
+
+### "Failed to execute 'observe' on 'MutationObserver': parameter 1 is not of type 'Node'"
+
+This typically comes from a **browser extension** (e.g. `web-client-content-script.js`), not from the app. You can ignore it or reproduce in an incognito window with extensions disabled to confirm.

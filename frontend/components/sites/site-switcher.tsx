@@ -19,11 +19,12 @@ export function SiteSwitcher() {
   const queryClient = useQueryClient();
 
   // Fetch sites
-  const { data: sites = [], isLoading } = useQuery({
+  const { data: sitesData, isLoading } = useQuery({
     queryKey: QUERY_KEYS.SITES,
     queryFn: () => SiteService.getSites(),
     enabled: isAuthenticated,
   });
+  const sites = Array.isArray(sitesData) ? sitesData : [];
 
   // Get current site
   const currentSite = sites.find((site) => site._id === currentSiteId);

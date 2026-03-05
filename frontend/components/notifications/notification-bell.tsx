@@ -160,14 +160,14 @@ export function NotificationBell() {
               <div className="p-8 text-center">
                 <p className="text-sm text-gray-400">Loading...</p>
               </div>
-            ) : notifications.length === 0 ? (
+            ) : (notifications ?? []).length === 0 ? (
               <div className="p-8 text-center">
                 <p className="text-sm text-gray-400">No notifications yet</p>
                 <p className="text-xs text-gray-500 mt-1">You&apos;re all caught up</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-800">
-                {notifications.map((notification) => {
+                {(notifications ?? []).map((notification) => {
                   const isUnread = !notification.read_at;
                   return (
                     <div

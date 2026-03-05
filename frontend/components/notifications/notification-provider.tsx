@@ -72,7 +72,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [listQuery, countQuery]);
 
   const value: NotificationContextType = {
-    notifications: listQuery.data ?? [],
+    notifications: Array.isArray(listQuery.data) ? listQuery.data : [],
     unreadCount: countQuery.data ?? 0,
     isLoadingList: listQuery.isLoading,
     isLoadingCount: countQuery.isLoading,

@@ -13,6 +13,7 @@ interface BreadcrumbProps {
 }
 
 export function Breadcrumb({ items }: BreadcrumbProps) {
+  const safeItems = Array.isArray(items) ? items : [];
   return (
     <nav className="flex items-center space-x-2 text-sm text-gray-400 mb-6">
       <Link
@@ -21,7 +22,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
       >
         <Home className="w-4 h-4" />
       </Link>
-      {items.map((item, index) => (
+      {safeItems.map((item, index) => (
         <div key={index} className="flex items-center space-x-2">
           <ChevronRight className="w-4 h-4" />
           {item.href ? (

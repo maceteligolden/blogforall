@@ -31,10 +31,11 @@ export default function DashboardPage() {
     subscriptionData?.subscription?.status === "free";
 
   const isLoading = authLoading || blogsLoading || keysLoading;
-  const totalBlogs = blogs?.length || 0;
-  const publishedBlogs = blogs?.filter((b: any) => b.status === "published").length || 0;
-  const totalApiKeys = apiKeys?.length || 0;
-  const recentBlogs = blogs?.slice(0, 5) || [];
+  const blogsList = Array.isArray(blogs) ? blogs : [];
+  const totalBlogs = blogsList.length;
+  const publishedBlogs = blogsList.filter((b: { status?: string }) => b.status === "published").length;
+  const totalApiKeys = Array.isArray(apiKeys) ? apiKeys.length : 0;
+  const recentBlogs = Array.isArray(blogs) ? blogs.slice(0, 5) : [];
 
   if (isLoading) {
     return (
@@ -144,9 +145,9 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {recentBlogs.length > 0 ? (
+          {(recentBlogs ?? []).length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recentBlogs.map((blog: any) => (
+              {(recentBlogs ?? []).map((blog: { _id: string; title?: string; status?: string; excerpt?: string; views?: number; likes?: number; updated_at?: string }) => (
                 <div
                   key={blog._id}
                   className="bg-gray-900 rounded-lg border border-gray-800 p-4 hover:border-gray-700 transition-colors cursor-pointer"
