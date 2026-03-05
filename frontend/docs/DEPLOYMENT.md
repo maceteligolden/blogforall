@@ -4,7 +4,7 @@
 
 This app is set up for Netlify with `@netlify/plugin-nextjs`.
 
-- **Base directory:** If the app lives in `frontend/`, set Netlify **Base directory** to `frontend` and **Build command** to `yarn build` (or `npm run build`). **Publish directory** is usually managed by the plugin (e.g. `frontend/.next` or as per plugin).
+- **Base directory:** Netlify **Base directory** is set to `frontend`. Build command is `yarn build`; **Publish directory** is managed by `@netlify/plugin-nextjs` (e.g. `.next` relative to base).
 - **Redirects:** `frontend/public/_redirects` must **not** send `/_next/*` to `index.html`. A rule `/_next/*  200` is placed **before** any `/*  /index.html  200` so static chunks are served as files, not as the SPA shell.
 - **MIME types:** If JS chunks are served as `text/plain`, the browser will refuse to run them. We set correct types via:
   - **netlify.toml** `[[headers]]` for `/_next/static/chunks/*` → `Content-Type: application/javascript` and `/_next/static/css/*` → `text/css`.
