@@ -8,6 +8,7 @@ import { errorHandler } from "./shared/middlewares/error-handler.middleware";
 import { requestLogger } from "./shared/middlewares/request-logger.middleware";
 import { routes } from "./routes";
 import { seedPlansIfNeeded } from "./shared/utils/seed-plans.util";
+import { env } from "./shared/config/env";
 import { container } from "tsyringe";
 import { PostSchedulerService } from "./modules/campaign/services/post-scheduler.service";
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
@@ -42,10 +43,8 @@ app.use((req, res, next) => {
     "https://blogforall-ij6u.onrender.com",
   ];
 
-  // Get allowed origins from environment or use defaults
-  const allowedOrigins = process.env.FRONTEND_URL
-    ? [...process.env.FRONTEND_URL.split(",").map((url) => url.trim()), ...defaultOrigins]
-    : defaultOrigins;
+  const allowedOrigins =
+    env.frontend.urls.length > 0 ? [...env.frontend.urls, ...defaultOrigins] : defaultOrigins;
 
   // Remove duplicates
   const uniqueOrigins = [...new Set(allowedOrigins)];

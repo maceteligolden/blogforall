@@ -18,6 +18,7 @@ import { SubscriptionService } from "../../subscription/services/subscription.se
 import { SiteService } from "../../site/services/site.service";
 import { NotificationService } from "../../notification/services/notification.service";
 import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
+import { env } from "../../../shared/config/env";
 
 @injectable()
 export class AuthService {
@@ -87,8 +88,7 @@ export class AuthService {
       logger.error("Failed to create default workspace on signup", error as Error, { userId: user._id }, "AuthService");
     }
 
-    const frontendBase = process.env.FRONTEND_URL?.split(",")[0]?.trim() || "http://localhost:3000";
-    const loginUrl = `${frontendBase}/auth/login`;
+    const loginUrl = `${env.frontend.baseUrl}/auth/login`;
     try {
       await this.notificationService.createAndSend({
         channel: NotificationChannel.EMAIL,

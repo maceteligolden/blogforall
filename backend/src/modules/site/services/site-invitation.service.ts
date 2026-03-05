@@ -293,8 +293,7 @@ export class SiteInvitationService {
       const inviter = await User.findById(invitedBy);
       const inviterName = inviter ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member" : "A team member";
       const siteName = site.name || "a site";
-      const frontendBase = process.env.FRONTEND_URL?.split(",")[0]?.trim() || "http://localhost:3000";
-      const acceptUrl = `${frontendBase}/invitations/accept?token=${invitation.token}`;
+      const acceptUrl = `${env.frontend.baseUrl}/invitations/accept?token=${invitation.token}`;
       const roleLabel = invitation.role.charAt(0).toUpperCase() + invitation.role.slice(1);
       const expiresAt = new Date(invitation.expires_at).toLocaleString();
 
