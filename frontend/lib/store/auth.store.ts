@@ -2,6 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getCurrentSiteIdFromToken } from "../utils/jwt";
 
+export const USER_ROLE = {
+  USER: "user",
+  ADMIN: "admin",
+} as const;
+
+export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
+
 interface User {
   id: string;
   email: string;
@@ -9,6 +16,7 @@ interface User {
   last_name: string;
   phone_number?: string;
   plan: string;
+  role?: string;
 }
 
 interface AuthState {
@@ -119,4 +127,7 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+/** Selector: true when the current user has admin role. Use to guard admin-only UI. */
+export const useIsAdmin = (): boolean => useAuthStore((s) => s.user?.role === USER_ROLE.ADMIN);
 
