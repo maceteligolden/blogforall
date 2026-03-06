@@ -68,7 +68,8 @@ function OnboardingForm() {
       try {
         const { SiteService } = await import("@/lib/api/services/site.service");
         const sites = await SiteService.getSites();
-        if (sites.length === 0) {
+        const siteList = Array.isArray(sites) ? sites : [];
+        if (siteList.length === 0) {
           router.push("/onboarding/create-site");
         } else {
           router.push("/onboarding/invite");
@@ -86,7 +87,8 @@ function OnboardingForm() {
       try {
         const { SiteService } = await import("@/lib/api/services/site.service");
         const sites = await SiteService.getSites();
-        if (sites.length === 0) {
+        const siteList = Array.isArray(sites) ? sites : [];
+        if (siteList.length === 0) {
           router.push("/onboarding/create-site");
         } else {
           router.push("/onboarding/invite");
@@ -196,8 +198,8 @@ function OnboardingForm() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               {plansToRender.map((plan) => {
                 const isFree = plan.price === 0 || plan.interval === "free";
-                const limits = plan.limits ?? {};
-                const planFeatures = Array.isArray(plan.features) ? plan.features : [];
+                const limits = plan?.limits ?? {};
+                const planFeatures = Array.isArray(plan?.features) ? plan.features : [];
                 return (
                   <div
                     key={plan._id}
@@ -240,14 +242,14 @@ function OnboardingForm() {
                       <p className="text-sm text-gray-400">
                         {limits.apiCallsPerMonth === -1
                           ? "Unlimited"
-                          : (limits.apiCallsPerMonth ?? 0).toLocaleString()}{" "}
+                          : Number(limits.apiCallsPerMonth ?? 0).toLocaleString()}{" "}
                         API calls/month
                       </p>
                       <p className="text-sm text-gray-400">
                         {limits.storageGB === -1 ? "Unlimited" : `${limits.storageGB ?? 0} GB`} storage
                       </p>
                     </div>
-                    {planFeatures.length > 0 && (
+                    {(planFeatures?.length ?? 0) > 0 && (
                       <ul className="space-y-1 mb-4">
                         {planFeatures.slice(0, 3).map((feature, index) => (
                           <li key={index} className="text-xs text-gray-300 flex items-center gap-2">

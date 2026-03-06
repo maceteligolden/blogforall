@@ -29,7 +29,8 @@ export class SiteService {
     const response = await apiClient.get(API_ENDPOINTS.SITES.LIST, {
       params: { include_members: includeMembers },
     });
-    return response.data?.data || response.data || [];
+    const raw = response.data?.data ?? response.data;
+    return Array.isArray(raw) ? raw : [];
   }
 
   /**
