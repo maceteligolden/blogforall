@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { LandingHeader } from "@/components/layout/landing-header";
 import { LandingFooter } from "@/components/layout/landing-footer";
-import { Sparkles, Calendar, Users, Zap, Code, BarChart3, Clock, Target, FileText, Globe, Key, Wand2 } from "lucide-react";
+import { Calendar, Users, Zap, Code, BarChart3, Clock, Target, FileText, Globe, Key, Wand2 } from "lucide-react";
 
 export default function Home() {
   const { isAuthenticated } = useAuthStore();
@@ -14,52 +14,35 @@ export default function Home() {
     <div className="min-h-screen bg-black text-white">
       <LandingHeader />
 
-      {/* Enhanced Hero Section */}
-      <section className="relative py-32 px-6 lg:px-8 overflow-hidden">
-        {/* Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-black to-black pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(30,64,175,0.1),transparent_50%)] pointer-events-none" />
-        
-        <div className="relative max-w-5xl mx-auto text-center">
-          <div className="inline-block mb-6 px-4 py-2 bg-primary/10 border border-primary/30 rounded-full">
-            <span className="text-primary text-sm font-medium flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              AI-Powered Content Creation
-            </span>
-          </div>
-          <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold mb-8 tracking-tight leading-tight">
-            Create, Schedule &{" "}
-            <span className="bg-gradient-to-r from-primary via-blue-400 to-primary bg-clip-text text-transparent">
-              Publish
-            </span>
-            <br />
-            with AI-Powered Intelligence
+      {/* Hero — minimal, conversion-focused */}
+      <section className="relative min-h-[70vh] flex items-center justify-center px-6 lg:px-8 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(30,64,175,0.12),transparent_50%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.06] to-transparent pointer-events-none" />
+        <div className="relative max-w-4xl mx-auto text-center">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6">
+            Content that runs itself.
           </h1>
-          <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
-            The complete blog management platform with AI content generation, marketing campaigns, 
-            and automated scheduling. Build, manage, and grow your content effortlessly.
+          <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10">
+            AI-powered content, campaigns, and scheduling so your team can focus on strategy.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {!isAuthenticated && (
               <>
                 <Link href="/auth/signup">
-                  <Button className="bg-primary hover:bg-primary/90 text-white px-10 py-7 text-lg font-semibold shadow-lg shadow-primary/50 hover:shadow-xl hover:shadow-primary/50 transition-all">
-                    Start Free Trial
+                  <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-base font-semibold">
+                    Start free
                   </Button>
                 </Link>
                 <Link href="/auth/login">
-                  <Button
-                    variant="outline"
-                    className="border-2 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-600 px-10 py-7 text-lg font-semibold transition-all"
-                  >
-                    Sign In
+                  <Button variant="outline" className="border border-gray-600 text-gray-300 hover:bg-gray-800/80 hover:text-white px-8 py-6 text-base font-medium">
+                    Sign in
                   </Button>
                 </Link>
               </>
             )}
             {isAuthenticated && (
               <Link href="/dashboard">
-                <Button className="bg-primary hover:bg-primary/90 text-white px-10 py-7 text-lg font-semibold shadow-lg shadow-primary/50 hover:shadow-xl hover:shadow-primary/50 transition-all">
+                <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-base font-semibold">
                   Go to Dashboard
                 </Button>
               </Link>
