@@ -191,15 +191,31 @@ export default function EditBlogPage() {
       return;
     }
 
-    try {
-      const { scheduled_at, ...blogData } = formData;
-      const payload = useBlocks
-        ? { ...blogData, content: "", content_blocks: formData.content_blocks }
-        : blogData;
-      updateBlog.mutate(
-        { id, data: payload },
-        {
-          onSuccess: async () => {
+    const { scheduled_at, ...blogData } = formData;
+    const payload = useBlocks
+      ? {
+          ...blogData,
+          content: "",
+          content_blocks: (formData.content_blocks || []).map((b, i) => ({
+            id: (b as { id?: string; _id?: string }).id ?? (b as { _id?: string })._id ?? `block-${i}`,
+            type: b.type,
+            data: {
+              ...b.data,
+              level: b.data?.level != null ? Number(b.data.level) : undefined,
+            },
+          })),
+        }
+      : { ...blogData, content_blocks: undefined };
+    const siteId = (blog as { site_id?: string })?.site_id;
+    const dataWithSite = siteId ? { ...payload, site_id: siteId } : payload;
+    updateBlog.mutate(
+      { id, data: dataWithSite },
+      {
+        onError: (err: { response?: { data?: { message?: string } } }) => {
+          const msg = err?.response?.data?.message ?? "Failed to update blog";
+          setError(msg);
+        },
+        onSuccess: async () => {
             // Handle scheduling
             if (scheduled_at) {
               try {
@@ -229,13 +245,7 @@ export default function EditBlogPage() {
             }
           },
         }
-      );
-    } catch (err: unknown) {
-      const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to update blog";
-      setError(errorMessage);
-    }
+    );
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -12,7 +12,7 @@ import { env } from "./shared/config/env";
 import { container } from "tsyringe";
 import { PostSchedulerService } from "./modules/campaign/services/post-scheduler.service";
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
-import { emailQueue } from "./modules/notification/queue/email.queue";
+import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -97,25 +97,35 @@ const startServer = async () => {
     const scheduler = container.resolve(PostSchedulerService);
     scheduler.start();
 
-    // Start the email notification queue worker
-    const emailProcessor = container.resolve(EmailJobProcessor);
-    emailQueue.process((job) => emailProcessor.handle(job));
-    emailQueue.on("failed", (job, err) => {
-      logger.error(
-        "Email queue job failed",
-        err,
-        {
-          jobId: job?.id,
-          notificationId: job?.data?.notificationId,
-          templateKey: job?.data?.templateKey,
-          attempt: job?.attemptsMade,
-        },
-        "EmailQueue"
-      );
-    });
-    emailQueue.on("error", (err) => {
-      logger.error("Email queue error (e.g. Redis connection)", err, {}, "EmailQueue");
-    });
+    // Start the email notification queue worker only when Redis is configured
+    if (isEmailQueueConnected) {
+      const emailProcessor = container.resolve(EmailJobProcessor);
+      emailQueue.process((job) => emailProcessor.handle(job));
+      emailQueue.on("failed", (job, err) => {
+        logger.error(
+          "Email queue job failed",
+          err,
+          {
+            jobId: job?.id,
+            notificationId: job?.data?.notificationId,
+            templateKey: job?.data?.templateKey,
+            attempt: job?.attemptsMade,
+          },
+          "EmailQueue"
+        );
+      });
+      let lastEmailQueueErrorLog = 0;
+      const EMAIL_QUEUE_ERROR_LOG_INTERVAL_MS = 60_000;
+      emailQueue.on("error", (err) => {
+        const now = Date.now();
+        if (now - lastEmailQueueErrorLog >= EMAIL_QUEUE_ERROR_LOG_INTERVAL_MS) {
+          lastEmailQueueErrorLog = now;
+          logger.error("Email queue error (e.g. Redis connection)", err, {}, "EmailQueue");
+        }
+      });
+    } else {
+      logger.info("Email queue disabled (no REDIS_URL); notifications will not be sent", {}, "EmailQueue");
+    }
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {}, "Server");

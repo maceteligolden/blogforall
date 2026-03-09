@@ -25,7 +25,9 @@ export const env = {
     brevoApiKey: (process.env.BREVO_API_KEY || "").trim(),
     brevoSenderEmail: (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || "noreply@blogforall.com").trim(),
     brevoSenderName: (process.env.BREVO_SENDER_NAME || "BlogForAll").trim(),
-    redisUrl: process.env.REDIS_URL || "redis://localhost:6379",
+    redisUrl:
+      process.env.REDIS_URL?.trim() ??
+      (process.env.NODE_ENV === "development" ? "" : "redis://localhost:6379"),
     retentionDaysRead: parseInt(
       process.env.NOTIFICATION_RETENTION_DAYS_READ || String(NOTIFICATION_RETENTION_DAYS_READ_DEFAULT),
       10

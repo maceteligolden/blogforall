@@ -138,14 +138,26 @@ export class BlogController {
         return next(new BadRequestError("User not authenticated"));
       }
 
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.body.site_id || (req.query.site_id as string);
+      const siteId = (req.body?.site_id as string) || (req.query.site_id as string);
       if (!siteId) {
         return next(new BadRequestError("Site ID is required"));
       }
 
-      const validatedData = updateBlogSchema.parse(req.body);
-      const blog = await this.blogService.updateBlog(id, siteId, userId, validatedData);
+      const { site_id: _siteId, ...bodyWithoutSiteId } = req.body ?? {};
+      const result = updateBlogSchema.safeParse(bodyWithoutSiteId);
+      if (!result.success) {
+        const errorMessages = result.error.errors
+          .map((err) => `${err.path.join(".")}: ${err.message}`)
+          .join(", ");
+        return next(new BadRequestError(errorMessages));
+      }
+
+      const sanitized = {
+        ...result.data,
+        featured_image: result.data.featured_image ?? undefined,
+        category: result.data.category ?? undefined,
+      };
+      const blog = await this.blogService.updateBlog(id, siteId, userId, sanitized);
       sendSuccess(res, "Blog updated successfully", blog);
     } catch (error) {
       if (error instanceof ZodError) {
