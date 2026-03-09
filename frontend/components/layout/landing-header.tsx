@@ -15,12 +15,12 @@ export function LandingHeader() {
             BlogForAll
           </Link>
           <div className="flex items-center gap-8">
-            <a href="/#features" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">
+            <Link href="/#features" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">
               Features
-            </a>
-            <a href="/#pricing" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">
+            </Link>
+            <Link href="/#pricing" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">
               Pricing
-            </a>
+            </Link>
             <Link href="/docs" className="text-sm text-gray-400 hover:text-white transition-colors">
               Docs
             </Link>

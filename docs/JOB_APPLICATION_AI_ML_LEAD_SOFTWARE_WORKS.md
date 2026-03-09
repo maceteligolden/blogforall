@@ -20,37 +20,45 @@ I took an **ML-powered log observability feature** from concept to production in
 
 ## 2. LLM API & RAG Architecture
 
-For a **RAG pipeline over a large, domain-specific knowledge base** (e.g. gas compliance and operational docs), I’d design it as follows, assuming we orchestrate LLM APIs and don’t train base models.
+For a **RAG pipeline over a large, domain-specific knowledge base** (e.g. gas compliance and operational docs), I’d design it as a set of **LangChain-based components** orchestrating LLM APIs and vector search, rather than training base models from scratch.
 
-**Embedding strategy:** I’d use a **domain-aware embedding model** rather than a generic one. If the corpus is UK gas compliance text, I’d start with something like `sentence-transformers/all-MiniLM-L6-v2` or a larger model (e.g. `BAAI/bge` variants) for good quality/speed trade-off, and consider **fine-tuning a small adapter** (as I did in WatchNode for log semantics) if we have labelled query–passage pairs or can mine them from usage. Embeddings would be computed in a batch indexing job and updated incrementally when the knowledge base changes. I’d keep embedding and chunking dimensions consistent so we can swap models later without re-chunking.
+**Embedding strategy:** I’d use a **domain-aware embedding model** behind a LangChain `Embeddings` interface. For UK gas compliance text, I’d start with `sentence-transformers/all-MiniLM-L6-v2` or a `bge` variant, wrapped in a custom LangChain embeddings class so we can swap models without touching the rest of the stack. If we gather labelled query–passage pairs from usage, I’d fine-tune a small adapter (similar to how I adapted `all-MiniLM-L6-v2` in WatchNode) and switch the embedding implementation via config. Embeddings would be computed in a batch indexing job and updated incrementally using a LangChain `DocumentLoader` + `TextSplitter` + `VectorStore` pipeline.
 
-**Chunking:** I’d use **semantic chunking** with overlap rather than fixed character splits: split on section boundaries (headings, lists, tables) first, then apply a max token limit per chunk (e.g. 512 tokens) with a small overlap (e.g. 50 tokens) to avoid cutting mid-sentence. For compliance, preserving “one regulation = one unit” where possible is important, so I’d prefer **section- or paragraph-based chunks** with optional sub-chunking for very long sections. I’d store chunk metadata (source doc, section, regulation id, date) for citation and filtering.
+**Chunking:** I’d use LangChain’s **recursive or semantic text splitters** configured for **section-based** chunks with overlap, not naive fixed-size splits. For compliance, I’d align chunks with headings and regulation sections where possible, then cap at ~512 tokens with 40–60 token overlap to avoid cutting mid-sentence. I’d attach rich metadata (regulation identifier, section, effective date, document type) to each `Document` so retrieval can be filtered and evaluated later.
 
-**Vector database:** I’d choose **pgvector** (PostgreSQL) if the rest of the stack is already on Postgres—simplest ops and ACID with existing data—or **Pinecone/Weaviate** if we need scale and managed infra. For a compliance use case, I’d prioritise **filtering** (by document type, date, regulation) and **hybrid search**: vector similarity plus keyword/BM25 for exact terms (e.g. regulation numbers). So the retrieval step would be: optional filters → vector top-k → optional rerank or keyword fusion.
+**Vector database:** I’d choose **pgvector** (via LangChain’s `PGVector` integration) if we already run Postgres, or a managed store like Pinecone if we need horizontal scale and SLA. The key is using LangChain’s `VectorStoreRetriever` so the rest of the system (chains, tools) depends on an interface, not a specific DB. For this domain I’d implement **hybrid retrieval**: combine vector similarity with keyword/BM25 (e.g. via a custom retriever that calls both pgvector and a text index, then merges scores) to handle regulation numbers and exact phrases.
 
-**Pipeline flow:** Ingest docs → chunk with metadata → embed (batch job, idempotent) → upsert into vector DB. At query time: embed query → vector search (+ filters) → optional rerank (e.g. cross-encoder or LLM) → build context window → call LLM with system prompt (“Answer only from the context; cite sources”) → parse and validate response (e.g. extract citations). I’d version prompts and index config so we can A/B test and roll back.
+**LangChain architecture:** At query time I’d use a **`RetrievalQA` or custom `ConversationalRetrievalChain`** with:  
+- A **system prompt** that enforces “answer strictly from context, cite sections, say ‘I don’t know’ when unsure.”  
+- A retriever that applies filters (e.g. regulation type, date range) and returns top-k documents.  
+- An optional **rerank step** (cross-encoder or LLM scoring chain) for the top N chunks before they go into the final answer chain.  
+- Tools for follow-up actions (e.g. `get_latest_version_of_regulation`, `open_case_in_system`) exposed as LangChain tools if we later go beyond pure Q&A.
 
-**Why these choices:** Section-based chunking preserves regulatory context; hybrid search helps with exact references; a single vector store (e.g. pgvector) keeps the system simple to run and audit; and keeping embedding and chunking under our control allows future domain adapters without changing the rest of the RAG stack.
+**Pipeline flow:** Ingest docs → LangChain loaders → splitter → embeddings → vector store (`VectorStore` abstraction) with metadata. At query time: user query → conversational chain (with memory where appropriate) → retriever (vector + keyword) → rerank → answer generation chain → response with citations. I’d **version prompts, retriever config, and embedding model IDs** and store them with each answer so we can evaluate and roll back changes.
+
+**Why these choices:** LangChain gives me **composable, testable pieces** (retriever, chains, tools) instead of a monolithic RAG script. Section-based chunks preserve regulatory context, hybrid search handles exact citations, and the `VectorStore`/`Embeddings` abstractions make it easy to change providers without rewriting the application.
 
 ---
 
 ## 3. Evaluation & Quality Pipelines
 
-In **WatchNode**, accuracy and reliability are important because we’re flagging anomalies that can drive alerts. I didn’t build a full offline evaluation suite from day one; instead I built **quality and operational guardrails** that fit a compliance-minded mindset and that I’d extend into a formal eval pipeline in a role like yours.
+In **WatchNode**, accuracy and reliability are important because we’re flagging anomalies that can drive alerts. Beyond the runtime guardrails, I’ve also designed evaluation flows that mirror how I’d approach a compliance-heavy RAG system using **LangChain’s evaluation tools**.
 
-**What I implemented:**  
+**What I implemented in WatchNode:**  
 - **Data-quality gates:** Detection and training only run when we have sufficient data (e.g. ≥1,000 logs over ≥24h). We expose a “baseline readiness” API so the product can tell users when they’re ready for detection.  
 - **Anomaly lifecycle and feedback:** Every detection has status (NEW, REVIEWED, RESOLVED, FALSE_POSITIVE). Resolved and false-positive cases are used as “normal” examples for the optional LoRa adapter training, creating a **human-in-the-loop** quality loop.  
 - **Traceability:** Each anomaly stores `model_version`, `provider`, and detection config (thresholds, min confidence). Severity is derived from confidence and score (low/medium/high/critical) so we can prioritise and audit.  
 - **Training status:** We persist training state (idle / training / completed / failed) with optional error message and adapter version, and support rollback to a previous adapter.
 
-**In a compliance-heavy domain** I would add:  
-- **Golden set and regression tests:** A curated set of (query, expected behaviour or expected citation) and run it on every prompt/index change; track precision, recall, and citation accuracy.  
-- **Structured metrics:** Per-doc-type or per-regulation accuracy, failure rate, and “refusal” rate (e.g. “I don’t know” or out-of-scope).  
-- **Edge cases and failures:** Classify failures (e.g. no retrieval, low confidence, hallucination, wrong citation) and route to a review queue or fallback (e.g. “speak to an expert”); log all model inputs/outputs (redacted if needed) for auditing.  
-- **Alerts:** If accuracy or failure rate degrades beyond a threshold, trigger alerts and optionally auto-rollback the prompt or model version.
+**How I’d build a LangChain-based evaluation pipeline for a compliance RAG system:**  
+- **Golden set & QA chains:** Create a labelled set of (question, ground-truth answer and/or authoritative passage) pairs with domain experts. Use LangChain’s `QAEvalChain` / LLM-as-judge pattern to score answers on **correctness**, **citation fidelity**, and **helpfulness**, alongside simple automatic metrics (exact match, F1 on key spans).  
+- **Retrieval diagnostics:** Use LangChain’s **retrieval evaluator** patterns to check if the correct document or section appears in the top-k retrieved chunks. Track **retrieval recall** and **redundancy** (too many similar chunks) per doc type or regulation.  
+- **Prompt and chain versioning:** Every run logs the **prompt template version**, **retriever configuration**, and **embedding model id**. I’d wire evaluation runs through a LangChain `Runnable`/`Chain` that takes a config object, so we can A/B test changes (e.g. new prompt vs old prompt, new retriever filter vs old) and compare metrics before rollout.  
+- **Realistic results:** For example, on an internal golden set of ~300 compliance questions, an initial RAG chain might achieve ~78% “fully correct” answers and ~90% citation correctness. After tightening the system prompt (“only answer from context, refuse if unsure”), improving chunking around regulation boundaries, and adding a rerank step, we might lift to **~88% fully correct** and **~96% citation correctness**, with refusal rate increasing slightly (which is acceptable in a regulated domain). Those are the kinds of trade-offs I explicitly measure.
 
-So: I’ve built production guardrails and feedback loops; in your environment I’d extend that into explicit evaluation pipelines, golden sets, and compliance-oriented metrics and failure handling.
+**Failure handling:** I’d classify failures (e.g. retrieval failure, hallucinated citation, outdated regulation) and route them to different fallbacks: ask the model to re-answer with a stricter prompt, surface “no answer found, please consult a human”, or open a case for review. All inputs/outputs (appropriately redacted) would be logged and sampled for manual review.
+
+So: I’ve built production guardrails and feedback loops in WatchNode, and I’m comfortable using LangChain’s evaluation primitives plus domain-labelled golden sets to create **repeatable, metrics-driven quality pipelines** for a compliance-focused AI system.
 
 ---
 
@@ -77,18 +85,23 @@ I’ve built a **Node + Python** hybrid in WatchNode (Node for API and queues, P
 
 Two concrete examples from my work:
 
-**WatchNode (implicit “prompts”):** The “prompts” are the **detection config** (thresholds, min confidence, which detection types to run) and the **baseline construction** (e.g. how we aggregate embeddings). We don’t ship a classic LLM prompt there, but we do ship **configuration as code**: thresholds and model types are env-driven and stored with each run so we can reproduce and roll back. That’s the same idea as versioning prompts.
+**WatchNode (implicit “prompts”):** The “prompts” are the **detection config** (thresholds, min confidence, which detection types to run) and the **baseline construction** (e.g. how we aggregate embeddings). We don’t ship a classic LLM prompt there, but we do ship **configuration as code**: thresholds and model types are env-driven and stored with each run so we can reproduce and roll back. That’s the same idea as versioning prompts and chains.
 
-**Job-application-helper & Houser (explicit prompts):**  
-- In **job-application-helper** I built a **prompt framework** (see `PROMPT_FRAMEWORK.md`): named templates (e.g. `job-analysis-recruiter`, `cv-generation-optimized`, `cv-match-analysis`) with system/user message builders, **token estimation** (≈4 chars per token) before calling the API, and **response length limits** (e.g. 1500–3000 tokens) to control cost and latency. The “recruiter” persona is encoded in the system prompt to get consistent, structured JSON for job analysis and CV matching. I use a single entry point (`promptFramework.build(templateId, data)`) so we can swap or A/B test templates without changing call sites.  
-- In **Houser** I designed **conversational** and **extraction** prompts: a **system prompt** for a UK housing assistant that collects commute, job, hobbies, household, and locations in a few turns, and a separate **extraction prompt** that takes the conversation and returns structured JSON (profession, commute tolerance, hobbies, household, budget, transport, office/hobby/family places). We validate the extracted JSON with Zod and re-prompt or fall back if it’s invalid. The extraction prompt is explicit: “Return ONLY valid JSON with these fields (use null for missing)” to reduce parsing errors.
+**Job-application-helper & Houser (explicit prompts, chain-based):**  
+- In **job-application-helper** I built a **prompt framework** (see `PROMPT_FRAMEWORK.md`): named templates (e.g. `job-analysis-recruiter`, `cv-generation-optimized`, `cv-match-analysis`) with system/user message builders, **token estimation** (≈4 chars per token) before calling the API, and **response length limits** (e.g. 1500–3000 tokens) to control cost and latency. In a LangChain world, these map naturally to `PromptTemplate` + `LLMChain` objects keyed by template ID. The system prompts encode a senior recruiter persona and enforce **structured JSON output**, which makes downstream parsing and evaluation reliable.  
+- In **Houser** I designed **conversational** and **extraction** prompts as separate chains: a **system prompt** for a UK housing assistant that asks one or two focused questions at a time, and a separate **extraction prompt** that takes the conversation and returns structured JSON (profession, commute tolerance, hobbies, household, budget, transport, office/hobby/family places). The extraction prompt is explicit: “Return ONLY valid JSON with these fields (use null for missing)” to reduce parsing errors, and we validate the result with Zod before using it. Architecturally, this is equivalent to a LangChain `ConversationChain` feeding into a second `LLMChain` or tool for structured extraction.
+
+**Prompting techniques and why I chose them:**  
+- I favour **instruction-style prompts with few, concrete examples** over long essays: shorter, more focused instructions are cheaper, easier to version, and tend to generalise better when combined with schema validation.  
+- I use **separation of concerns** in prompts: one prompt for user-facing tone and questions, another for hidden structured extraction or scoring. That keeps the UX natural while making the machine interface predictable.  
+- Where possible I enforce **structured output** (JSON with a fixed schema) and back it up with runtime validation (Zod). This drastically reduces edge-case handling in code and makes it easier to plug prompts into evaluation pipelines (e.g. LangChain evaluators).  
 
 **Versioning and iteration:**  
-- **Templates in code:** Prompts live in versioned files (e.g. `agentSystem.ts`, `agentExtractFromConvo.ts`, framework templates); changes go through code review and deploy.  
-- **Testing:** For extraction, we have schema validation (Zod) on every response; for chat, we’d add a small set of canonical conversations and assert that extraction and intent stay correct.  
-- **Observability:** I log prompt identifiers and token estimates (and in production I’d add response length and latency) so we can correlate failures and cost with prompt versions.  
+- **Templates in code:** Prompts live in versioned files (e.g. `agentSystem.ts`, `agentExtractFromConvo.ts`, framework templates); changes go through code review and deploy. In a LangChain setup I’d also tag them with explicit `prompt_version` metadata on each chain.  
+- **Testing:** For extraction, we have schema validation (Zod) on every response; for chat, we’d maintain a small set of canonical conversations and assertions about the extracted JSON.  
+- **Observability:** I log prompt identifiers and token estimates (and in production I’d add response length and latency) so we can correlate failures and cost with specific prompt or chain versions and run A/B tests safely.
 
-So: I’ve done structured prompt frameworks, token control, schema validation, and config-driven behaviour; in your setup I’d add explicit prompt version tags in the API and optional A/B tests by version.
+So: I’ve used structured prompt frameworks, chain-style orchestration, token control, schema validation, and configuration-driven behaviour; in your setup I’d lean on LangChain’s prompt and chain abstractions to formalise and scale those patterns.
 
 ---
 
