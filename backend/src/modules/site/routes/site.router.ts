@@ -15,7 +15,13 @@ router.post("/", authMiddleware, validateBody(createSiteSchema), siteController.
 router.post("/ensure-default", authMiddleware, siteController.ensureDefault);
 router.get("/", authMiddleware, siteController.list);
 router.get("/:id", authMiddleware, validateParams(siteIdParamSchema), siteController.getById);
-router.patch("/:id", authMiddleware, validateParams(siteIdParamSchema), validateBody(updateSiteSchema), siteController.update);
+router.patch(
+  "/:id",
+  authMiddleware,
+  validateParams(siteIdParamSchema),
+  validateBody(updateSiteSchema),
+  siteController.update
+);
 router.delete("/:id", authMiddleware, validateParams(siteIdParamSchema), siteController.delete);
 
 // Site member routes (nested under /sites/:id/members)

@@ -63,7 +63,17 @@ router.use("/campaigns", campaignRouter);
 // These routes are for users to view and accept/reject their invitations
 const invitationController = container.resolve(SiteInvitationController);
 router.get("/invitations", authMiddleware, invitationController.getUserInvitations);
-router.post("/invitations/:token/accept", authMiddleware, validateParams(invitationTokenParamSchema), invitationController.acceptInvitation);
-router.post("/invitations/:token/reject", authMiddleware, validateParams(invitationTokenParamSchema), invitationController.rejectInvitation);
+router.post(
+  "/invitations/:token/accept",
+  authMiddleware,
+  validateParams(invitationTokenParamSchema),
+  invitationController.acceptInvitation
+);
+router.post(
+  "/invitations/:token/reject",
+  authMiddleware,
+  validateParams(invitationTokenParamSchema),
+  invitationController.rejectInvitation
+);
 
 export { router as routes };

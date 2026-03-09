@@ -101,7 +101,11 @@ export class AuthService {
           templateParams: { firstName, loginUrl },
         })
         .then(() => {
-          logger.info("Welcome email enqueued for new user", { userId: userIdForLog, email: recipientEmail }, "AuthService");
+          logger.info(
+            "Welcome email enqueued for new user",
+            { userId: userIdForLog, email: recipientEmail },
+            "AuthService"
+          );
         })
         .catch((error: unknown) => {
           const err = error instanceof Error ? error : new Error(String(error));

@@ -16,7 +16,7 @@ export class EmailJobProcessor {
     private readonly notificationRepository: NotificationRepository
   ) {}
 
-   /**
+  /**
    * PSEUDOCODE:
    * 1. EXTRACT payload from job.data (notificationId, templateKey, recipientEmail, correlationId, params)
    * 2. FETCH notification by id from repository

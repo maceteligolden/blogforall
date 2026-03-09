@@ -208,11 +208,7 @@ export class SiteInvitationService {
     }
 
     await this.invitationRepository.updateStatus(invitation.token, InvitationStatus.CANCELLED);
-    logger.info(
-      "Invitation cancelled",
-      { invitationId, siteId, cancelledBy: userId },
-      "SiteInvitationService"
-    );
+    logger.info("Invitation cancelled", { invitationId, siteId, cancelledBy: userId }, "SiteInvitationService");
   }
 
   /**
@@ -291,7 +287,9 @@ export class SiteInvitationService {
   ): Promise<void> {
     try {
       const inviter = await User.findById(invitedBy);
-      const inviterName = inviter ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member" : "A team member";
+      const inviterName = inviter
+        ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member"
+        : "A team member";
       const siteName = site.name || "a site";
       const acceptUrl = `${env.frontend.baseUrl}/invitations/accept?token=${invitation.token}`;
       const roleLabel = invitation.role.charAt(0).toUpperCase() + invitation.role.slice(1);
@@ -332,7 +330,9 @@ export class SiteInvitationService {
   ): Promise<void> {
     try {
       const inviter = await User.findById(invitedBy);
-      const inviterName = inviter ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member" : "A team member";
+      const inviterName = inviter
+        ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member"
+        : "A team member";
       const siteName = site.name || "a site";
 
       await this.notificationService.createAndSend({
@@ -371,7 +371,8 @@ export class SiteInvitationService {
       const site = await this.siteRepository.findById(invitation.site_id);
       const siteName = site?.name ?? "a workspace";
 
-      const type = response === "accepted" ? NotificationType.INVITATION_ACCEPTED : NotificationType.INVITATION_REJECTED;
+      const type =
+        response === "accepted" ? NotificationType.INVITATION_ACCEPTED : NotificationType.INVITATION_REJECTED;
       const title = response === "accepted" ? "Invitation accepted" : "Invitation declined";
       const body =
         response === "accepted"

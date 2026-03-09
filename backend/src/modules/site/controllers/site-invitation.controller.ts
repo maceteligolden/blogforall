@@ -26,7 +26,10 @@ export class SiteInvitationController {
       const userId = req.user!.userId;
       const { id: siteId } = req.validatedParams as { id: string };
       const status = req.query.status as string | undefined;
-      const statusFilter = status && Object.values(InvitationStatus).includes(status as InvitationStatus) ? (status as InvitationStatus) : undefined;
+      const statusFilter =
+        status && Object.values(InvitationStatus).includes(status as InvitationStatus)
+          ? (status as InvitationStatus)
+          : undefined;
       const invitations = await this.invitationService.getSiteInvitations(siteId, userId, statusFilter);
       sendSuccess(res, "Invitations retrieved successfully", invitations);
     } catch (error) {
@@ -38,7 +41,10 @@ export class SiteInvitationController {
     try {
       const userId = req.user!.userId;
       const status = req.query.status as string | undefined;
-      const statusFilter = status && Object.values(InvitationStatus).includes(status as InvitationStatus) ? (status as InvitationStatus) : undefined;
+      const statusFilter =
+        status && Object.values(InvitationStatus).includes(status as InvitationStatus)
+          ? (status as InvitationStatus)
+          : undefined;
       const invitations = await this.invitationService.getUserInvitations(userId, statusFilter);
       sendSuccess(res, "Invitations retrieved successfully", invitations);
     } catch (error) {

@@ -43,8 +43,7 @@ app.use((req, res, next) => {
     "https://blogforall-ij6u.onrender.com",
   ];
 
-  const allowedOrigins =
-    env.frontend.urls.length > 0 ? [...env.frontend.urls, ...defaultOrigins] : defaultOrigins;
+  const allowedOrigins = env.frontend.urls.length > 0 ? [...env.frontend.urls, ...defaultOrigins] : defaultOrigins;
 
   // Remove duplicates
   const uniqueOrigins = [...new Set(allowedOrigins)];

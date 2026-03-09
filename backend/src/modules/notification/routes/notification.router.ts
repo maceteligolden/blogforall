@@ -3,10 +3,7 @@ import { container } from "tsyringe";
 import { NotificationController } from "../controllers/notification.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 import { validateQuery, validateParams } from "../../../shared/middlewares/validate.middleware";
-import {
-  listNotificationsQuerySchema,
-  notificationIdParamSchema,
-} from "../validations/notification.validation";
+import { listNotificationsQuerySchema, notificationIdParamSchema } from "../validations/notification.validation";
 
 const router = Router();
 const controller = container.resolve(NotificationController);

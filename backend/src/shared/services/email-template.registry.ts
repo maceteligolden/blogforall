@@ -74,11 +74,7 @@ function getSubjectForTemplate(key: EmailTemplateKey, params: Record<string, str
   }
 }
 
-function getCodeBackedTemplate(
-  key: EmailTemplateKey,
-  _locale: string,
-  params: Record<string, string>
-): RenderedEmail {
+function getCodeBackedTemplate(key: EmailTemplateKey, _locale: string, params: Record<string, string>): RenderedEmail {
   switch (key) {
     case EMAIL_TEMPLATE_KEYS.SITE_INVITATION:
       return {

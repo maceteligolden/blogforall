@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { SiteMemberService } from "../services/site-member.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
- import { AddMemberInput, UpdateMemberRoleInput } from "../interfaces/site-member.interface";
+import { AddMemberInput, UpdateMemberRoleInput } from "../interfaces/site-member.interface";
 
 @injectable()
 export class SiteMemberController {

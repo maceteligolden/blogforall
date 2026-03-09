@@ -8,10 +8,7 @@ const LANDING_PLAN_NAMES = ["Free", "Starter", "Professional", "Enterprise"] as 
 
 export async function seedPlansIfNeeded(): Promise<void> {
   try {
-    await PlanModel.updateMany(
-      { name: { $nin: LANDING_PLAN_NAMES } },
-      { $set: { isActive: false } }
-    );
+    await PlanModel.updateMany({ name: { $nin: LANDING_PLAN_NAMES } }, { $set: { isActive: false } });
 
     const activeCount = await PlanModel.countDocuments({ isActive: true, name: { $in: LANDING_PLAN_NAMES } });
     const MIN_REQUIRED_PLANS = 4;
@@ -25,11 +22,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
       return;
     }
 
-    logger.info(
-      `Seeding plans to match landing (${LANDING_PLAN_NAMES.join(", ")})...`,
-      {},
-      "PlanSeeder"
-    );
+    logger.info(`Seeding plans to match landing (${LANDING_PLAN_NAMES.join(", ")})...`, {}, "PlanSeeder");
     const stripeFacade = container.resolve(StripeFacade);
 
     const paidPlans = [

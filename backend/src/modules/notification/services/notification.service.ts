@@ -71,9 +71,7 @@ export class NotificationService {
         return { notificationId, correlationId };
       } catch (error: unknown) {
         if (error instanceof AppError) throw error;
-        throw new AppError(
-          error instanceof Error ? error.message : "Failed to create or enqueue email notification"
-        );
+        throw new AppError(error instanceof Error ? error.message : "Failed to create or enqueue email notification");
       }
     }
 
@@ -98,9 +96,7 @@ export class NotificationService {
         return { notificationId, correlationId };
       } catch (error: unknown) {
         if (error instanceof AppError) throw error;
-        throw new AppError(
-          error instanceof Error ? error.message : "Failed to create in-app notification"
-        );
+        throw new AppError(error instanceof Error ? error.message : "Failed to create in-app notification");
       }
     }
 
