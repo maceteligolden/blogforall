@@ -6,7 +6,7 @@ import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/
 import { BlogStatus } from "../../../shared/constants";
 import { ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
 import { logger } from "../../../shared/utils/logger";
-import { validateContentBlocks, blocksToHtml } from "../../../shared/utils/content-blocks.util";
+import { validateContentBlocks, blocksToHtml, htmlToPlainText } from "../../../shared/utils/content-blocks.util";
 import { CreateBlogInput, UpdateBlogInput, BlogQueryFilters } from "../interfaces/blog.interface";
 import { Blog } from "../../../shared/schemas/blog.schema";
 import { PaginatedResponse } from "../../../shared/interfaces";
@@ -27,6 +27,21 @@ export class BlogService {
       .replace(/[^\w\s-]/g, "") // Remove special characters
       .replace(/[\s_-]+/g, "-") // Replace spaces and underscores with hyphens
       .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
+  }
+
+  private generateExcerptFromHtml(html: string, maxLength = 250): string | undefined {
+    if (!html || typeof html !== "string") return undefined;
+    const plain = htmlToPlainText(html);
+    if (!plain) return undefined;
+
+    if (plain.length <= maxLength) {
+      return plain;
+    }
+
+    const truncated = plain.slice(0, maxLength);
+    const lastSpace = truncated.lastIndexOf(" ");
+    const base = lastSpace > maxLength * 0.6 ? truncated.slice(0, lastSpace) : truncated;
+    return `${base.trimEnd()}…`;
   }
 
   private async ensureUniqueSlug(slug: string, siteId: string, excludeId?: string): Promise<string> {
@@ -69,10 +84,16 @@ export class BlogService {
       throw new BadRequestError("Content is required");
     }
 
+    let excerpt = input.excerpt;
+    if (!excerpt || excerpt.trim() === "") {
+      excerpt = this.generateExcerptFromHtml(content);
+    }
+
     const blog = await this.blogRepository.create({
       ...input,
       content,
       content_blocks,
+      excerpt,
       author: authorId,
       site_id: siteId,
       slug,
@@ -83,7 +104,7 @@ export class BlogService {
     return blog;
   }
 
-  async getBlogById(blogId: string, siteId: string, authorId?: string): Promise<Blog> {
+  async getBlogById(blogId: string, siteId?: string, authorId?: string): Promise<Blog> {
     const blog = await this.blogRepository.findById(blogId, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");
@@ -133,6 +154,13 @@ export class BlogService {
       validateContentBlocks(input.content_blocks);
       updateData.content = blocksToHtml(input.content_blocks);
       updateData.content_blocks = input.content_blocks;
+    }
+
+    const effectiveContent = updateData.content ?? blog.content;
+    if (input.excerpt !== undefined) {
+      updateData.excerpt = input.excerpt || this.generateExcerptFromHtml(effectiveContent);
+    } else if (!blog.excerpt) {
+      updateData.excerpt = this.generateExcerptFromHtml(effectiveContent);
     }
 
     // Validate category if provided

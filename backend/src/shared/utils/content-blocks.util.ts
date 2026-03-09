@@ -129,6 +129,13 @@ function stripHtml(html: string): string {
 }
 
 /**
+ * Public helper to convert HTML to plain text (for excerpts, previews, etc.).
+ */
+export function htmlToPlainText(html: string): string {
+  return stripHtml(html);
+}
+
+/**
  * Converts legacy HTML content to content_blocks (for first-edit migration).
  * Handles p, h1-h3, ul/ol+li, figure (img+figcaption), blockquote, pre+code.
  * Parses in document order by repeatedly matching the next block-level element.

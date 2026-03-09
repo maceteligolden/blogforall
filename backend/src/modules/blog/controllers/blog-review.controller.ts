@@ -28,15 +28,10 @@ export class BlogReviewController {
       const { blogId } = req.params;
       const { title, content, excerpt, category, content_blocks: bodyContentBlocks } = req.body;
 
-      // If blogId is provided, fetch the blog
-      const siteId = req.user?.currentSiteId;
-      if (!siteId) {
-        return next(new BadRequestError("Site context is required"));
-      }
-
       let blog = null;
       if (blogId) {
-        blog = await this.blogService.getBlogById(blogId, siteId, userId);
+        // Site context is not required here; we enforce ownership instead.
+        blog = await this.blogService.getBlogById(blogId, undefined, userId);
         if (!blog) {
           return next(new NotFoundError("Blog not found"));
         }
@@ -103,12 +98,7 @@ export class BlogReviewController {
         return next(new BadRequestError("Blog ID is required"));
       }
 
-      const siteId = req.user?.currentSiteId;
-      if (!siteId) {
-        return next(new BadRequestError("Site context is required"));
-      }
-
-      const blog = await this.blogService.getBlogById(blogId, siteId, userId);
+      const blog = await this.blogService.getBlogById(blogId, undefined, userId);
       if (!blog) {
         return next(new NotFoundError("Blog not found"));
       }
@@ -149,6 +139,7 @@ export class BlogReviewController {
       if (improved_excerpt !== undefined) {
         updateData.excerpt = improved_excerpt;
       }
+      const siteId = blog.site_id;
       const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, updateData);
 
       sendSuccess(res, "Review suggestions applied successfully", updatedBlog);
@@ -177,12 +168,7 @@ export class BlogReviewController {
         return next(new BadRequestError("target, original, and suggestion are required"));
       }
 
-      const siteId = req.user?.currentSiteId;
-      if (!siteId) {
-        return next(new BadRequestError("Site context is required"));
-      }
-
-      const blog = await this.blogService.getBlogById(blogId, siteId, userId);
+      const blog = await this.blogService.getBlogById(blogId, undefined, userId);
       if (!blog) {
         return next(new NotFoundError("Blog not found"));
       }
@@ -249,6 +235,7 @@ export class BlogReviewController {
         updateData.content_blocks = newContentBlocks;
       }
 
+      const siteId = blog.site_id;
       const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, updateData);
       sendSuccess(res, "Suggestion applied", updatedBlog);
     } catch (error) {
@@ -273,12 +260,7 @@ export class BlogReviewController {
         return next(new BadRequestError("Blog ID and valid version number are required"));
       }
 
-      const siteId = req.user?.currentSiteId;
-      if (!siteId) {
-        return next(new BadRequestError("Site context is required"));
-      }
-
-      const blog = await this.blogService.getBlogById(blogId, siteId, userId);
+      const blog = await this.blogService.getBlogById(blogId, undefined, userId);
       if (!blog) {
         return next(new NotFoundError("Blog not found"));
       }
@@ -306,6 +288,7 @@ export class BlogReviewController {
       });
 
       // Restore the target version
+      const siteId = blog.site_id;
       const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, {
         content: targetVersion.content,
         title: targetVersion.title,
