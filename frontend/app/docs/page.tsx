@@ -70,33 +70,64 @@ export default function DocsPage() {
     );
   };
 
+  const navItems = [
+    { href: "#api-keys", label: "API Key Setup" },
+    { href: "#authentication", label: "Authentication" },
+    {
+      href: "#blogs",
+      label: "Blogs & Public API",
+      children: [
+        { href: "#blogs-overview", label: "Overview" },
+        { href: "#blogs-list", label: "List published blogs" },
+        { href: "#blogs-by-id", label: "Get blog by ID" },
+        { href: "#blogs-by-slug", label: "Get blog by slug" },
+        { href: "#blogs-categories", label: "Categories" },
+        { href: "#blogs-by-category", label: "Blogs by category" },
+      ],
+    },
+    { href: "#comments", label: "Comment Endpoints" },
+    { href: "#frontend-examples", label: "Frontend Examples" },
+  ];
+
   return (
     <div className="min-h-screen bg-black text-white">
       <LandingHeader />
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            API <span className="text-primary">Documentation</span>
-          </h1>
-          <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-            Complete guide to integrating BlogForAll with your applications. Build custom frontends, 
-            mobile apps, or connect with third-party services.
-          </p>
-        </div>
+      <div className="flex max-w-7xl mx-auto px-6 lg:px-8 py-8 gap-12">
+        {/* Sidebar */}
+        <aside className="hidden lg:block w-56 flex-shrink-0">
+          <nav className="sticky top-24 space-y-1 text-sm">
+            <div className="font-semibold text-white mb-4">On this page</div>
+            {navItems.map((item) => (
+              <div key={item.href}>
+                <a href={item.href} className="block py-1.5 text-gray-400 hover:text-primary transition-colors">
+                  {item.label}
+                </a>
+                {item.children?.map((child) => (
+                  <a
+                    key={child.href}
+                    href={child.href}
+                    className="block py-1 pl-4 text-gray-500 hover:text-primary transition-colors"
+                  >
+                    {child.label}
+                  </a>
+                ))}
+              </div>
+            ))}
+          </nav>
+        </aside>
 
-        {/* Table of Contents */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-12">
-          <h2 className="text-xl font-semibold mb-4 text-primary">Table of Contents</h2>
-          <ul className="space-y-2 text-gray-300">
-            <li><a href="#api-keys" className="hover:text-primary transition-colors">1. API Key Setup</a></li>
-            <li><a href="#authentication" className="hover:text-primary transition-colors">2. Authentication</a></li>
-            <li><a href="#blogs" className="hover:text-primary transition-colors">3. Blog Endpoints</a></li>
-            <li><a href="#comments" className="hover:text-primary transition-colors">4. Comment Endpoints</a></li>
-            <li><a href="#frontend-examples" className="hover:text-primary transition-colors">5. Frontend Examples</a></li>
-          </ul>
-        </div>
+        {/* Main content */}
+        <main className="flex-1 min-w-0">
+          {/* Hero */}
+          <div className="mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              API <span className="text-primary">Documentation</span>
+            </h1>
+            <p className="text-lg text-gray-400 max-w-2xl">
+              Integrate BlogForAll with your apps: read published blogs, categories, and more via the Public API. All endpoints described here require API key authentication.
+            </p>
+          </div>
 
         {/* API Key Setup */}
         <section id="api-keys" className="mb-20">
@@ -216,61 +247,77 @@ x-secret-key: your_secret_key`}
           </div>
         </section>
 
-        {/* Blog Endpoints */}
+        {/* Blogs & Public API */}
         <section id="blogs" className="mb-20">
-          <h2 className="text-4xl font-bold mb-8">3. Blog Endpoints</h2>
+          <h2 className="text-4xl font-bold mb-4">3. Blogs & Public API</h2>
+
+          <div id="blogs-overview" className="bg-gray-900/50 rounded-xl border border-gray-800 p-6 mb-10">
+            <h3 className="text-xl font-semibold mb-3 text-primary">Overview</h3>
+            <p className="text-gray-400 mb-4">
+              The Public Blog API returns only <strong className="text-white">published</strong> blogs for a given site. Every request must include your API key headers and, for blog endpoints, a <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">site_id</code> query parameter to scope results to that site. Draft and unpublished posts are not returned. The full data model, auth rules, categories, scheduled posts, and AI review are described in the repository spec: <code className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-300">docs/PRD_BLOGS_AND_PUBLIC_API.md</code>.
+            </p>
+            <p className="text-gray-400 text-sm">
+              Base path: <code className="text-primary">/api/v1/public/blogs</code>. All endpoints below require <code className="text-primary">x-access-key-id</code> and <code className="text-primary">x-secret-key</code> headers.
+            </p>
+          </div>
 
           <div className="space-y-6">
-            {/* Get All Blogs */}
-            <EndpointCard
-              method="GET"
-              path="/api/v1/public/blogs"
-              description="Get all published blogs with pagination, search, and filtering."
-              requiresAuth={true}
-            >
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2 text-gray-300">Query Parameters</h4>
-                  <div className="bg-black rounded-lg p-4 border border-gray-800">
-                    <table className="w-full text-sm text-gray-300">
-                      <thead>
-                        <tr className="border-b border-gray-800">
-                          <th className="text-left py-2 px-3">Parameter</th>
-                          <th className="text-left py-2 px-3">Type</th>
-                          <th className="text-left py-2 px-3">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-2 px-3"><code className="text-primary">page</code></td>
-                          <td className="py-2 px-3">number</td>
-                          <td className="py-2 px-3">Page number (default: 1)</td>
-                        </tr>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-2 px-3"><code className="text-primary">limit</code></td>
-                          <td className="py-2 px-3">number</td>
-                          <td className="py-2 px-3">Items per page (default: 10, max: 100)</td>
-                        </tr>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-2 px-3"><code className="text-primary">search</code></td>
-                          <td className="py-2 px-3">string</td>
-                          <td className="py-2 px-3">Search in title, excerpt, and content</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3"><code className="text-primary">category</code></td>
-                          <td className="py-2 px-3">string</td>
-                          <td className="py-2 px-3">Filter by category ID</td>
-                        </tr>
-                      </tbody>
-                    </table>
+            {/* List published blogs */}
+            <div id="blogs-list">
+              <EndpointCard
+                method="GET"
+                path="/api/v1/public/blogs"
+                description="List all published blogs for a site with pagination, search, and filtering."
+                requiresAuth={true}
+              >
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2 text-gray-300">Query Parameters</h4>
+                    <div className="bg-black rounded-lg p-4 border border-gray-800">
+                      <table className="w-full text-sm text-gray-300">
+                        <thead>
+                          <tr className="border-b border-gray-800">
+                            <th className="text-left py-2 px-3">Parameter</th>
+                            <th className="text-left py-2 px-3">Type</th>
+                            <th className="text-left py-2 px-3">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-gray-800">
+                            <td className="py-2 px-3"><code className="text-primary">site_id</code></td>
+                            <td className="py-2 px-3">string</td>
+                            <td className="py-2 px-3">Site ID whose blogs to fetch (required)</td>
+                          </tr>
+                          <tr className="border-b border-gray-800">
+                            <td className="py-2 px-3"><code className="text-primary">page</code></td>
+                            <td className="py-2 px-3">number</td>
+                            <td className="py-2 px-3">Page number (default: 1)</td>
+                          </tr>
+                          <tr className="border-b border-gray-800">
+                            <td className="py-2 px-3"><code className="text-primary">limit</code></td>
+                            <td className="py-2 px-3">number</td>
+                            <td className="py-2 px-3">Items per page (default: 10, max: 100)</td>
+                          </tr>
+                          <tr className="border-b border-gray-800">
+                            <td className="py-2 px-3"><code className="text-primary">search</code></td>
+                            <td className="py-2 px-3">string</td>
+                            <td className="py-2 px-3">Search in title, excerpt, and content</td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 px-3"><code className="text-primary">category</code></td>
+                            <td className="py-2 px-3">string</td>
+                            <td className="py-2 px-3">Filter by category ID</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-                <CodeBlock
-                  code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs?page=1&limit=20&search=javascript" \\
+                  <CodeBlock
+                    code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs?site_id=YOUR_SITE_ID&page=1&limit=20&search=javascript" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
-                  id="get-all-blogs"
-                />
+                    id="get-all-blogs"
+                  />
                 <div>
                   <h4 className="font-semibold mb-2 text-gray-300">Response</h4>
                   <CodeBlock
@@ -310,69 +357,78 @@ x-secret-key: your_secret_key`}
                 </div>
               </div>
             </EndpointCard>
+            </div>
 
-            {/* Get Blog by ID */}
-            <EndpointCard
-              method="GET"
-              path="/api/v1/public/blogs/:id"
-              description="Get a single published blog by its ID."
-              requiresAuth={true}
-            >
-              <CodeBlock
-                code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/blog_id_123" \\
-  -H "x-access-key-id: your_access_key_id" \\
-  -H "x-secret-key: your_secret_key"`}
-                id="get-blog-by-id"
-              />
-            </EndpointCard>
-
-            {/* Get Blog by Slug */}
-            <EndpointCard
-              method="GET"
-              path="/api/v1/public/blogs/slug/:slug"
-              description="Get a single published blog by its URL-friendly slug."
-              requiresAuth={true}
-            >
-              <CodeBlock
-                code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/slug/getting-started-with-javascript" \\
-  -H "x-access-key-id: your_access_key_id" \\
-  -H "x-secret-key: your_secret_key"`}
-                id="get-blog-by-slug"
-              />
-            </EndpointCard>
-
-            {/* Get Categories */}
-            <EndpointCard
-              method="GET"
-              path="/api/v1/public/blogs/categories"
-              description="Get all categories available for your blogs."
-              requiresAuth={true}
-            >
-              <CodeBlock
-                code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/categories" \\
-  -H "x-access-key-id: your_access_key_id" \\
-  -H "x-secret-key: your_secret_key"`}
-                id="get-categories"
-              />
-            </EndpointCard>
-
-            {/* Get Blogs by Category */}
-            <EndpointCard
-              method="GET"
-              path="/api/v1/public/blogs/categories/:categoryId"
-              description="Get all published blogs in a specific category."
-              requiresAuth={true}
-            >
-              <div className="space-y-4">
+            {/* Get blog by ID */}
+            <div id="blogs-by-id">
+              <EndpointCard
+                method="GET"
+                path="/api/v1/public/blogs/:id"
+                description="Get a single published blog by ID. Requires site_id query parameter."
+                requiresAuth={true}
+              >
                 <CodeBlock
-                  code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/categories/category_id_123?page=1&limit=10" \\
+                  code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/blog_id_123?site_id=YOUR_SITE_ID" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
-                  id="get-blogs-by-category"
+                  id="get-blog-by-id"
                 />
-                <p className="text-sm text-gray-500">Supports the same query parameters as Get All Blogs (page, limit, search).</p>
-              </div>
-            </EndpointCard>
+              </EndpointCard>
+            </div>
+
+            {/* Get blog by slug */}
+            <div id="blogs-by-slug">
+              <EndpointCard
+                method="GET"
+                path="/api/v1/public/blogs/slug/:slug"
+                description="Get a single published blog by its URL-friendly slug. Requires site_id query parameter."
+                requiresAuth={true}
+              >
+                <CodeBlock
+                  code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/slug/getting-started-with-javascript?site_id=YOUR_SITE_ID" \\
+  -H "x-access-key-id: your_access_key_id" \\
+  -H "x-secret-key: your_secret_key"`}
+                  id="get-blog-by-slug"
+                />
+              </EndpointCard>
+            </div>
+
+            {/* Categories */}
+            <div id="blogs-categories">
+              <EndpointCard
+                method="GET"
+                path="/api/v1/public/blogs/categories"
+                description="Get all blog categories. Optional: tree=true, include_inactive=true."
+                requiresAuth={true}
+              >
+                <CodeBlock
+                  code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/categories" \\
+  -H "x-access-key-id: your_access_key_id" \\
+  -H "x-secret-key: your_secret_key"`}
+                  id="get-categories"
+                />
+              </EndpointCard>
+            </div>
+
+            {/* Blogs by category */}
+            <div id="blogs-by-category">
+              <EndpointCard
+                method="GET"
+                path="/api/v1/public/blogs/categories/:categoryId"
+                description="Get published blogs in a specific category. Requires site_id; supports page, limit, search."
+                requiresAuth={true}
+              >
+                <div className="space-y-4">
+                  <CodeBlock
+                    code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/categories/category_id_123?site_id=YOUR_SITE_ID&page=1&limit=10" \\
+  -H "x-access-key-id: your_access_key_id" \\
+  -H "x-secret-key: your_secret_key"`}
+                    id="get-blogs-by-category"
+                  />
+                  <p className="text-sm text-gray-500">Query params: site_id (required), page, limit, search.</p>
+                </div>
+              </EndpointCard>
+            </div>
 
             {/* Like Blog */}
             <EndpointCard
@@ -1029,6 +1085,7 @@ function BlogList() {
             </Button>
           </Link>
         </div>
+        </main>
       </div>
 
       <LandingFooter />

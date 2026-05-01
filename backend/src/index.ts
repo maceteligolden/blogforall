@@ -15,7 +15,7 @@ import { EmailJobProcessor } from "./modules/notification/queue/email-job.proces
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = env.port;
 
 // Serve uploaded images statically (before other middlewares to avoid conflicts)
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));

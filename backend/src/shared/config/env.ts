@@ -38,4 +38,5 @@ export const env = {
     ),
     emailQueueName: process.env.EMAIL_QUEUE_NAME || "notification:email",
   },
+  port: process.env.PORT || 3001
 } as const;
