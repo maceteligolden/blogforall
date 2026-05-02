@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "./button";
 
@@ -41,9 +42,9 @@ export function Modal({
     xl: "max-w-4xl",
   };
 
-  return (
+  const overlay = (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10050] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
@@ -77,6 +78,8 @@ export function Modal({
       </div>
     </div>
   );
+
+  return createPortal(overlay, document.body);
 }
 
 interface ConfirmModalProps {
