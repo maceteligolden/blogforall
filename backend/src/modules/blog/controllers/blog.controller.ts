@@ -146,9 +146,7 @@ export class BlogController {
       const { site_id: _siteId, ...bodyWithoutSiteId } = req.body ?? {};
       const result = updateBlogSchema.safeParse(bodyWithoutSiteId);
       if (!result.success) {
-        const errorMessages = result.error.errors
-          .map((err) => `${err.path.join(".")}: ${err.message}`)
-          .join(", ");
+        const errorMessages = result.error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
         return next(new BadRequestError(errorMessages));
       }
 

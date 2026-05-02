@@ -44,9 +44,11 @@ export class AuthService {
   async signup(input: SignupInput): Promise<User> {
     const { email, password, first_name, last_name, phone_number, terms_version } = input;
 
-    const existingUser = await this.userRepository.findByEmail(email);
+    const formattedEmail = email.toLocaleLowerCase();
+
+    const existingUser = await this.userRepository.findByEmail(formattedEmail);
     if (existingUser) {
-      logger.warn("Signup attempt with existing email", { email }, "AuthService");
+      logger.warn("Signup attempt with existing email", { email: formattedEmail }, "AuthService");
       throw new BadRequestError("User with this email already exists");
     }
 
@@ -54,14 +56,14 @@ export class AuthService {
 
     let stripeCustomerId: string | undefined;
     try {
-      const customer = await this.stripeFacade.createCustomer(email.toLowerCase(), `${first_name} ${last_name}`.trim());
+      const customer = await this.stripeFacade.createCustomer(formattedEmail, `${first_name} ${last_name}`.trim());
       stripeCustomerId = customer.id;
     } catch (error) {
-      logger.error("Failed to create Stripe customer", error as Error, { email }, "AuthService");
+      logger.error("Failed to create Stripe customer", error as Error, { email: formattedEmail }, "AuthService");
     }
 
     const user = await this.userRepository.create({
-      email: email.toLowerCase(),
+      email: formattedEmail,
       password: hashedPassword,
       first_name,
       last_name,

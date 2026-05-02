@@ -1,8 +1,8 @@
-import {Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import { env } from "../config/env";
 
 export const corsMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    const origin = req.headers.origin;
+  const origin = req.headers.origin;
 
   // Default allowed origins for development
   const defaultOrigins = [
@@ -42,4 +42,4 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction) 
     return res.sendStatus(200);
   }
   next();
-}
+};
