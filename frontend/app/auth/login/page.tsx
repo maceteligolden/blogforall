@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { AuthPageHeader } from "@/components/auth/auth-page-header";
 
 function LoginForm() {
   const router = useRouter();
@@ -50,11 +51,7 @@ function LoginForm() {
       
       <div className="relative flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-md space-y-8 rounded-lg bg-gray-900/80 backdrop-blur-sm border border-gray-800 p-8 shadow-xl">
-          <div>
-            <h1 className="text-center text-3xl font-bold text-primary mb-2">Bloggr</h1>
-            <h2 className="text-center text-2xl font-bold text-white mt-4">Sign in to your account</h2>
-            <p className="mt-2 text-center text-sm text-gray-400">Manage your blogs with ease</p>
-          </div>
+          <AuthPageHeader title="Sign in to your account" subtitle="Manage your blogs with ease" />
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
