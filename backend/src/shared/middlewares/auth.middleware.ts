@@ -12,6 +12,8 @@ declare global {
         email?: string;
         currentSiteId?: string; // Site context from JWT token
         role?: string; // UserRole for admin authorization
+        /** Mongo site _id bound to the API key (public API only). */
+        workspaceSiteId?: string;
       };
       site?: {
         id: string;

@@ -6,6 +6,7 @@ import { validateBody, validateParams } from "../../../shared/middlewares/valida
 import { createSiteSchema, updateSiteSchema, siteIdParamSchema } from "../validations/site.validation";
 import siteMemberRouter from "./site-member.router";
 import siteInvitationRouter from "./site-invitation.router";
+import siteApiKeyRouter from "./site-api-key.router";
 
 const router = Router();
 const siteController = container.resolve(SiteController);
@@ -29,5 +30,8 @@ router.use("/:id/members", siteMemberRouter);
 
 // Site invitation routes (nested under /sites/:id/invitations)
 router.use("/:id/invitations", siteInvitationRouter);
+
+// Workspace API keys (nested under /sites/:id/api-keys)
+router.use("/:id/api-keys", siteApiKeyRouter);
 
 export default router;

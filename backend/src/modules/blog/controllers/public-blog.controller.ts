@@ -20,14 +20,9 @@ export class PublicBlogController {
     const accessKeyId = (req as any).accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
-      }
-
-      // TODO: Get siteId from API key context or request (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
       }
 
       const validatedFilters = blogQuerySchema.parse(req.query);
@@ -103,7 +98,8 @@ export class PublicBlogController {
     const accessKeyId = (req as any).accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
       }
 
@@ -120,6 +116,7 @@ export class PublicBlogController {
         {
           accessKeyId,
           userId,
+          siteId,
           tree,
           includeInactive,
           method: req.method,
@@ -127,9 +124,6 @@ export class PublicBlogController {
         },
         "PublicBlogController"
       );
-
-      // TODO: Update to use siteId from request context (task 15)
-      const siteId = userId; // Temporary - will be replaced with actual siteId
       let categories;
       if (tree) {
         categories = await categoryService.getSiteCategoriesTree(siteId, includeInactive);
@@ -178,14 +172,9 @@ export class PublicBlogController {
     const accessKeyId = (req as any).accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
-      }
-
-      // TODO: Get siteId from API key context or request (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
       }
 
       const { categoryId } = req.params;
@@ -269,14 +258,9 @@ export class PublicBlogController {
     const accessKeyId = (req as any).accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
-      }
-
-      // TODO: Get siteId from API key context or request (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
       }
 
       const { id } = req.params;
@@ -359,14 +343,9 @@ export class PublicBlogController {
     const accessKeyId = (req as any).accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
-      }
-
-      // TODO: Get siteId from API key context or request (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
       }
 
       const { slug } = req.params;

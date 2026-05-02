@@ -5,6 +5,8 @@ export interface Site extends BaseEntity {
   name: string;
   description?: string;
   slug: string; // URL-friendly identifier, globally unique
+  /** Opaque id for SDKs / public API (not Mongo _id). */
+  public_id: string;
   owner: string; // User ID of the site owner
   created_at: Date;
   updated_at: Date;
@@ -31,6 +33,13 @@ const siteSchema = new Schema<Site>(
       lowercase: true,
       trim: true,
       match: /^[a-z0-9-]+$/, // Only lowercase letters, numbers, and hyphens
+    },
+    public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+      trim: true,
     },
     owner: {
       type: String,
@@ -60,5 +69,6 @@ siteSchema.pre("save", function (next) {
 // Indexes for efficient queries
 siteSchema.index({ owner: 1 });
 siteSchema.index({ slug: 1 }, { unique: true });
+siteSchema.index({ public_id: 1 }, { unique: true });
 
 export default model<Site>("Site", siteSchema);

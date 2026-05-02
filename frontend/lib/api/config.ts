@@ -40,11 +40,6 @@ export const API_ENDPOINTS = {
     GET_SCHEDULE: (id: string) => `/blogs/${id}/schedule`,
     UNSCHEDULE: (id: string) => `/blogs/${id}/schedule`,
   },
-  API_KEYS: {
-    CREATE: "/api-keys",
-    LIST: "/api-keys",
-    DELETE: (accessKeyId: string) => `/api-keys/${accessKeyId}`,
-  },
   COMMENTS: {
     CREATE: "/comments",
     GET_ONE: (id: string) => `/comments/${id}`,
@@ -96,6 +91,9 @@ export const API_ENDPOINTS = {
     CREATE_INVITATION: (siteId: string) => `/sites/${siteId}/invitations`,
     GET_INVITATIONS: (siteId: string) => `/sites/${siteId}/invitations`,
     CANCEL_INVITATION: (siteId: string, invitationId: string) => `/sites/${siteId}/invitations/${invitationId}`,
+    LIST_API_KEYS: (siteId: string) => `/sites/${siteId}/api-keys`,
+    CREATE_API_KEY: (siteId: string) => `/sites/${siteId}/api-keys`,
+    DELETE_API_KEY: (siteId: string, accessKeyId: string) => `/sites/${siteId}/api-keys/${accessKeyId}`,
   },
   INVITATIONS: {
     LIST: "/invitations",
@@ -147,7 +145,7 @@ export const QUERY_KEYS = {
   BLOGS: ["blogs"],
   BLOG: (id: string) => ["blogs", id],
   MY_BLOGS: ["blogs", "my-blogs"],
-  API_KEYS: ["api-keys"],
+  API_KEYS: (siteId: string) => ["api-keys", siteId],
   COMMENTS: ["comments"],
   COMMENTS_BY_BLOG: (blogId: string) => ["comments", "blog", blogId],
   COMMENT_REPLIES: (commentId: string) => ["comments", commentId, "replies"],

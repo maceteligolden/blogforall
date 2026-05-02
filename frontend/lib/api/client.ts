@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from "axios";
 import { API_CONFIG, API_ENDPOINTS } from "./config";
+import { useAuthStore } from "../store/auth.store";
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_CONFIG.baseURL,
@@ -41,8 +42,9 @@ apiClient.interceptors.response.use(
 
         if (!refreshToken) {
           if (typeof window !== "undefined") {
-            localStorage.clear();
-            window.location.href = "/auth/login";
+            useAuthStore.getState().clearAuth();
+            const r = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `/auth/login?redirect=${r}`;
           }
           return Promise.reject(error);
         }
@@ -57,6 +59,10 @@ apiClient.interceptors.response.use(
 
           if (typeof window !== "undefined" && newAccessToken) {
             localStorage.setItem("access_token", newAccessToken);
+            const rt = localStorage.getItem("refresh_token");
+            if (rt) {
+              useAuthStore.getState().setTokens(newAccessToken, rt);
+            }
           }
 
           if (originalRequest.headers && newAccessToken) {
@@ -67,8 +73,9 @@ apiClient.interceptors.response.use(
         }
       } catch (refreshError) {
         if (typeof window !== "undefined") {
-          localStorage.clear();
-          window.location.href = "/auth/login";
+          useAuthStore.getState().clearAuth();
+          const r = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.href = `/auth/login?redirect=${r}`;
         }
         return Promise.reject(refreshError);
       }

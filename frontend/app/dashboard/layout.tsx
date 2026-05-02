@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Navbar } from "@/components/layout/navbar";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
@@ -19,6 +19,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const { currentSiteId, isAuthenticated } = useAuthStore();
   const { updateSiteContext } = useAuth();
@@ -41,7 +42,16 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push("/auth/login");
+      if (typeof window !== "undefined") {
+        const at = localStorage.getItem("access_token");
+        const rt = localStorage.getItem("refresh_token");
+        if (at && rt) {
+          // Zustand can briefly disagree with localStorage (e.g. after token refresh updates LS only).
+          useAuthStore.getState().setTokens(at, rt);
+          return;
+        }
+      }
+      router.push(`/auth/login?redirect=${encodeURIComponent(pathname || "/dashboard")}`);
       return;
     }
 
@@ -74,7 +84,17 @@ export default function DashboardLayout({
     }
 
     setCheckingOnboarding(false);
-  }, [onboardingStatus, onboardingLoading, sites, sitesLoading, currentSiteId, isAuthenticated, router, updateSiteContext]);
+  }, [
+    pathname,
+    onboardingStatus,
+    onboardingLoading,
+    sites,
+    sitesLoading,
+    currentSiteId,
+    isAuthenticated,
+    router,
+    updateSiteContext,
+  ]);
 
   if (checkingOnboarding || onboardingLoading || sitesLoading) {
     return (

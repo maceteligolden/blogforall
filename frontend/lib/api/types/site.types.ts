@@ -3,6 +3,8 @@ export interface Site {
   name: string;
   description?: string;
   slug: string;
+  /** Opaque workspace id for SDK / public API */
+  public_id?: string;
   owner: string;
   created_at: Date;
   updated_at: Date;

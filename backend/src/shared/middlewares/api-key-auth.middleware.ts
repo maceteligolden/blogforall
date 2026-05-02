@@ -45,7 +45,7 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
     }
 
     const apiKeyService = container.resolve(ApiKeyService);
-    const { userId } = await apiKeyService.verifyApiKey(accessKeyId, secretKey);
+    const { userId, siteId } = await apiKeyService.verifyApiKey(accessKeyId, secretKey);
 
     const authDuration = Date.now() - startTime;
 
@@ -62,13 +62,11 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
       "ApiKeyAuthMiddleware"
     );
 
-    // Attach user info to request
-    // For API key auth, we only need userId (email not required)
     req.user = {
       userId,
+      workspaceSiteId: siteId,
     };
 
-    // Attach access key ID to request for logging in controllers
     (req as any).accessKeyId = accessKeyId;
 
     next();

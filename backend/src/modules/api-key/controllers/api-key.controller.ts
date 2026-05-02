@@ -17,8 +17,13 @@ export class ApiKeyController {
         return next(new BadRequestError("User not authenticated"));
       }
 
+      const siteId = req.params.id;
+      if (!siteId) {
+        return next(new BadRequestError("Workspace ID is required"));
+      }
+
       const validatedData = createApiKeySchema.parse(req.body);
-      const apiKey = await this.apiKeyService.createApiKey(userId, validatedData);
+      const apiKey = await this.apiKeyService.createApiKey(siteId, userId, validatedData);
       sendCreated(res, "API key created successfully", apiKey);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -36,7 +41,12 @@ export class ApiKeyController {
         return next(new BadRequestError("User not authenticated"));
       }
 
-      const apiKeys = await this.apiKeyService.getUserApiKeys(userId);
+      const siteId = req.params.id;
+      if (!siteId) {
+        return next(new BadRequestError("Workspace ID is required"));
+      }
+
+      const apiKeys = await this.apiKeyService.getSiteApiKeys(siteId, userId);
       sendSuccess(res, "API keys retrieved successfully", apiKeys);
     } catch (error) {
       next(error);
@@ -50,12 +60,13 @@ export class ApiKeyController {
         return next(new BadRequestError("User not authenticated"));
       }
 
+      const siteId = req.params.id;
       const { accessKeyId } = req.params;
-      if (!accessKeyId) {
-        return next(new BadRequestError("Access Key ID is required"));
+      if (!siteId || !accessKeyId) {
+        return next(new BadRequestError("Workspace ID and access key ID are required"));
       }
 
-      await this.apiKeyService.deleteApiKey(userId, accessKeyId);
+      await this.apiKeyService.deleteApiKey(siteId, userId, accessKeyId);
       sendNoContent(res, "API key deleted successfully");
     } catch (error) {
       next(error);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth.store";
 
 interface ProtectedRouteProps {
@@ -10,6 +10,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { isAuthenticated, accessToken } = useAuthStore();
   const [isChecking, setIsChecking] = useState(true);
 
@@ -18,12 +19,20 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     const timer = setTimeout(() => {
       setIsChecking(false);
       if (!isAuthenticated || !accessToken) {
-        router.push("/auth/login");
+        if (typeof window !== "undefined") {
+          const at = localStorage.getItem("access_token");
+          const rt = localStorage.getItem("refresh_token");
+          if (at && rt) {
+            useAuthStore.getState().setTokens(at, rt);
+            return;
+          }
+        }
+        router.push(`/auth/login?redirect=${encodeURIComponent(pathname || "/dashboard")}`);
       }
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, accessToken, router]);
+  }, [isAuthenticated, accessToken, router, pathname]);
 
   // Show loading state while checking auth
   if (isChecking || !isAuthenticated || !accessToken) {

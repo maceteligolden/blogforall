@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import Site, { Site as SiteType } from "../../../shared/schemas/site.schema";
 import SiteMember from "../../../shared/schemas/site-member.schema";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
+import { generateSitePublicId } from "../../../shared/utils/site-public-id";
 
 @injectable()
 export class SiteRepository {
@@ -53,9 +54,17 @@ export class SiteRepository {
     }
     const slug = await this.ensureUniqueSlug(baseSlug);
 
+    let public_id = generateSitePublicId();
+    for (let i = 0; i < 8; i++) {
+      const taken = await Site.exists({ public_id });
+      if (!taken) break;
+      public_id = generateSitePublicId();
+    }
+
     const site = new Site({
       ...siteData,
       slug,
+      public_id,
     });
     return site.save();
   }
@@ -65,6 +74,10 @@ export class SiteRepository {
    */
   async findById(id: string): Promise<SiteType | null> {
     return Site.findById(id);
+  }
+
+  async findByPublicId(publicId: string): Promise<SiteType | null> {
+    return Site.findOne({ public_id: publicId });
   }
 
   /**

@@ -9,13 +9,15 @@ import { Site } from "../../../shared/schemas/site.schema";
 import { SiteMemberRole } from "../../../shared/constants";
 import Blog from "../../../shared/schemas/blog.schema";
 import { env } from "../../../shared/config/env";
+import { ApiKeyRepository } from "../../api-key/repositories/api-key.repository";
 
 @injectable()
 export class SiteService {
   constructor(
     private siteRepository: SiteRepository,
     private siteMemberRepository: SiteMemberRepository,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    private apiKeyRepository: ApiKeyRepository
   ) {}
 
   /**
@@ -186,6 +188,8 @@ export class SiteService {
 
     // Delete all blogs associated with the site
     await Blog.deleteMany({ site_id: siteId });
+
+    await this.apiKeyRepository.deleteBySiteId(siteId);
 
     // Delete all site members
     await this.siteMemberRepository.deleteBySite(siteId);
