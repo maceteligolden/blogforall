@@ -143,7 +143,7 @@ These documents describe the platform-wide auth model that this blogs + public A
 
 ```http
 GET /api/public/v1/blogs?site_id=<SITE_ID> HTTP/1.1
-Host: api.blogforall.com
+Host: api.bloggr.com
 x-access-key-id: <ACCESS_KEY_ID>
 x-secret-key: <SECRET_KEY>
 ```
@@ -278,7 +278,7 @@ The AI review APIs are **not** exposed via API keys; they are dashboard-only.
 
 Assuming a base like:
 
-- **Base URL**: `https://api.blogforall.com`
+- **Base URL**: `https://api.bloggr.com`
 - **Prefix**: `/api/public/v1`
 
 Every public blog API call must include:
@@ -314,7 +314,7 @@ Every public blog API call must include:
         "slug": "my-first-blog",
         "title": "My first blog",
         "excerpt": "Short summary…",
-        "featured_image": "https://cdn.blogforall.com/uploads/cover.jpg",
+        "featured_image": "https://cdn.bloggr.com/uploads/cover.jpg",
         "status": "published",
         "category": "category_id",
         "published_at": "2026-02-10T12:34:56.000Z",

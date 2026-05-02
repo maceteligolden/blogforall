@@ -81,7 +81,7 @@ function SignupForm() {
       <div className="relative flex min-h-screen items-center justify-center px-4 py-8">
         <div className="w-full max-w-md space-y-8 rounded-lg bg-gray-900/80 backdrop-blur-sm border border-gray-800 p-8 shadow-xl">
           <div>
-            <h1 className="text-center text-3xl font-bold text-primary mb-2">BlogForAll</h1>
+            <h1 className="text-center text-3xl font-bold text-primary mb-2">Bloggr</h1>
             <h2 className="text-center text-2xl font-bold text-white mt-4">Create your account</h2>
             <p className="mt-2 text-center text-sm text-gray-400">
               {inviteToken ? "You're signing up to accept a workspace invitation." : "Start managing your blogs today"}

@@ -1,6 +1,6 @@
 # Blog Editor: Implementation Plan, Pages, User Flows & UX
 
-This doc covers **which pages to work on**, **implementation order**, **user flows**, and **UX considerations** for the block-based blog editor (blogforall).
+This doc covers **which pages to work on**, **implementation order**, **user flows**, and **UX considerations** for the block-based blog editor (Bloggr).
 
 ---
 

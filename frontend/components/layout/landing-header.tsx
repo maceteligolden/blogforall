@@ -12,7 +12,7 @@ export function LandingHeader() {
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <nav className="flex justify-between items-center h-16">
           <Link href="/" className="flex items-center font-semibold text-white hover:text-primary transition-colors">
-            BlogForAll
+            Bloggr
           </Link>
           <div className="flex items-center gap-8">
             <Link href="/#features" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">

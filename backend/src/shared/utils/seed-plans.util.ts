@@ -105,8 +105,8 @@ export async function seedPlansIfNeeded(): Promise<void> {
         if (hasStripeKey) {
           try {
             const product = await stripeFacade.findOrCreateProduct(
-              `BlogForAll ${planData.name}`,
-              `BlogForAll ${planData.name} Plan`
+              `Bloggr ${planData.name}`,
+              `Bloggr ${planData.name} Plan`
             );
             const price = await stripeFacade.createPrice(product.id, planData.price, "usd", planData.interval);
             stripePriceId = price.id;

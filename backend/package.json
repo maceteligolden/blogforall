@@ -1,7 +1,7 @@
 {
   "name": "blogforall-backend",
   "version": "1.0.0",
-  "description": "BlogForAll Backend API",
+  "description": "Bloggr Backend API",
   "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",

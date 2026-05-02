@@ -68,7 +68,7 @@ function getSubjectForTemplate(key: EmailTemplateKey, params: Record<string, str
     case EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST:
       return `New comment on "${params.blogTitle ?? "your post"}"`;
     case EMAIL_TEMPLATE_KEYS.WELCOME:
-      return `Welcome to BlogForAll, ${params.firstName ?? "there"}!`;
+      return `Welcome to Bloggr, ${params.firstName ?? "there"}!`;
     default:
       return "Notification";
   }
@@ -112,7 +112,7 @@ function buildWelcomeHtml(params: Record<string, string>): string {
 <!DOCTYPE html>
 <html>
 <body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h1>Welcome to BlogForAll!</h1>
+  <h1>Welcome to Bloggr!</h1>
   <p>Hi ${escapeHtml(firstName)},</p>
   <p>Your account has been created. You can sign in and start managing your blogs.</p>
   <p><a href="${escapeHtml(loginUrl)}" style="background: #3b82f6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Sign in</a></p>
@@ -124,7 +124,7 @@ function buildWelcomeHtml(params: Record<string, string>): string {
 function buildWelcomeText(params: Record<string, string>): string {
   const firstName = params.firstName ?? "there";
   const loginUrl = params.loginUrl ?? "#";
-  return `Welcome to BlogForAll, ${firstName}. Sign in: ${loginUrl}`;
+  return `Welcome to Bloggr, ${firstName}. Sign in: ${loginUrl}`;
 }
 
 function buildSiteInvitationHtml(params: Record<string, string>): string {

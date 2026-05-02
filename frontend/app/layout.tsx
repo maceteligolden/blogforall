@@ -16,7 +16,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "BlogForAll - Blog Management Platform",
+  title: "Bloggr - Blog Management Platform",
   description: "Create, manage, and publish blogs with API access",
 };
 

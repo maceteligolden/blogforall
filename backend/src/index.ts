@@ -14,6 +14,7 @@ import { PostSchedulerService } from "./modules/campaign/services/post-scheduler
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
 import { corsMiddleware } from "./shared/middlewares/cors.middleware";
+import { backfillSitePublicIds } from "./shared/utils/backfill-site-public-ids";
 
 const app = express();
 const PORT = env.port;
@@ -37,7 +38,7 @@ app.use(corsMiddleware);
 
 // Routes
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "BlogForAll API is running" });
+  res.status(200).json({ status: "ok", message: "Bloggr API is running" });
 });
 
 app.use("/api/v1", routes);
@@ -49,6 +50,8 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDatabase();
+
+    await backfillSitePublicIds();
 
     // Seed plans if none exist
     await seedPlansIfNeeded();

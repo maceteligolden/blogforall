@@ -150,8 +150,8 @@ export class SubscriptionService {
         try {
           // Create product in Stripe
           const product = await this.stripeFacade.findOrCreateProduct(
-            `BlogForAll ${newPlan.name}`,
-            `BlogForAll ${newPlan.name} Plan`
+            `Bloggr ${newPlan.name}`,
+            `Bloggr ${newPlan.name} Plan`
           );
 
           // Create price in Stripe
@@ -234,8 +234,8 @@ export class SubscriptionService {
       try {
         // Create product in Stripe
         const product = await this.stripeFacade.findOrCreateProduct(
-          `BlogForAll ${newPlan.name}`,
-          `BlogForAll ${newPlan.name} Plan`
+          `Bloggr ${newPlan.name}`,
+          `Bloggr ${newPlan.name} Plan`
         );
 
         // Create price in Stripe

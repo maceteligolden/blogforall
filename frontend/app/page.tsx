@@ -71,7 +71,7 @@ export default function Home() {
       <section id="features" className="py-20 lg:py-28 px-6 lg:px-8 border-b border-gray-800/50">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">BlogForAll Features</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-3">Bloggr Features</h2>
             <p className="text-gray-400 text-lg max-w-2xl mx-auto">
               Every feature you need to create, review, and publish your blog.
             </p>

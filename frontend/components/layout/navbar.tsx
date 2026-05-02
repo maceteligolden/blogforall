@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { User, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { SiteSwitcher } from "@/components/sites/site-switcher";
-import { NotificationBell } from "@/components/notifications/notification-bell";
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -25,7 +24,7 @@ export function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center">
-            <h1 className="text-2xl font-display text-primary tracking-tight">BlogForAll</h1>
+            <h1 className="text-2xl font-display text-primary tracking-tight">Bloggr</h1>
           </Link>
 
           {/* Navigation Links */}
@@ -53,7 +52,6 @@ export function Navbar() {
 
           {/* Right Side */}
           <div className="flex items-center space-x-4 relative z-[9999]">
-            <NotificationBell />
             {/* User Menu */}
             <div className="relative z-[10000]">
               <div className="flex items-center space-x-2">

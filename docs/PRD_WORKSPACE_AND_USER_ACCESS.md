@@ -10,7 +10,7 @@
 
 ### 1.1 Purpose
 
-Define **Workspace** (product term; backend entity: **Site**) and **user access** behaviour for BlogForAll so that:
+Define **Workspace** (product term; backend entity: **Site**) and **user access** behaviour for Bloggr so that:
 
 - Every user has at least one workspace (created at signup or given a default).
 - Workspaces support roles (**View**, **Edit**, **All**), full CRUD (create, read, update, delete), and **invitations** for users with or without accounts.

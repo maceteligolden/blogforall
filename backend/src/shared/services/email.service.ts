@@ -21,7 +21,7 @@ class EmailService {
     const smtpPort = process.env.SMTP_PORT;
     const smtpUser = process.env.SMTP_USER;
     const smtpPassword = process.env.SMTP_PASSWORD;
-    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@blogforall.com";
+    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@bloggr.com";
 
     // If SMTP is not configured, create a test transporter (won't send emails)
     if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword) {
@@ -67,7 +67,7 @@ class EmailService {
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
-    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@blogforall.com";
+    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@bloggr.com";
 
     // If transporter is not initialized, log the email instead
     if (!this.transporter) {

@@ -14,7 +14,7 @@ export default function AboutPage() {
         {/* Hero Section */}
         <div className="text-center mb-20">
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            About <span className="text-primary">BlogForAll</span>
+            About <span className="text-primary">Bloggr</span>
           </h1>
           <p className="text-xl text-gray-400 max-w-3xl mx-auto">
             Empowering creators and businesses to share their stories with the world through a powerful, 
@@ -27,13 +27,13 @@ export default function AboutPage() {
           <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl border border-gray-800 p-8 md:p-12">
             <h2 className="text-3xl md:text-4xl font-bold mb-6 text-primary">Our Mission</h2>
             <p className="text-lg text-gray-300 leading-relaxed mb-6">
-              At BlogForAll, we believe that everyone should have the power to create, manage, and share 
+              At Bloggr, we believe that everyone should have the power to create, manage, and share 
               their content without the complexity of traditional content management systems. Our mission is 
               to provide a simple yet powerful platform that gives you complete control over your blog content 
               while making it easy to integrate with any frontend or application.
             </p>
             <p className="text-lg text-gray-300 leading-relaxed">
-              Whether you&apos;re a solo creator, a growing business, or an enterprise, BlogForAll adapts to your 
+              Whether you&apos;re a solo creator, a growing business, or an enterprise, Bloggr adapts to your 
               needs and scales with you. We&apos;re committed to building tools that make content management 
               effortless, so you can focus on what matters most: creating amazing content.
             </p>
@@ -105,7 +105,7 @@ export default function AboutPage() {
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
               <h3 className="text-xl font-semibold mb-3 text-primary">Simplicity</h3>
               <p className="text-gray-400">
-                We believe in making complex things simple. BlogForAll is designed to be intuitive 
+                We believe in making complex things simple. Bloggr is designed to be intuitive 
                 and easy to use, whether you&apos;re a beginner or an experienced developer.
               </p>
             </div>
@@ -113,7 +113,7 @@ export default function AboutPage() {
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
               <h3 className="text-xl font-semibold mb-3 text-primary">Flexibility</h3>
               <p className="text-gray-400">
-                Your content, your way. BlogForAll gives you the flexibility to use your content 
+                Your content, your way. Bloggr gives you the flexibility to use your content 
                 however you want, with full API access and no vendor lock-in.
               </p>
             </div>
@@ -122,7 +122,7 @@ export default function AboutPage() {
               <h3 className="text-xl font-semibold mb-3 text-primary">Innovation</h3>
               <p className="text-gray-400">
                 We&apos;re constantly improving and adding new features based on user feedback. 
-                BlogForAll evolves with your needs.
+                Bloggr evolves with your needs.
               </p>
             </div>
 
@@ -138,10 +138,10 @@ export default function AboutPage() {
 
         {/* CTA Section */}
         <section className="bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-2xl border border-primary/30 p-8 md:p-12 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Join the BlogForAll Community</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Join the Bloggr Community</h2>
           <p className="text-gray-300 mb-8 max-w-2xl mx-auto text-lg">
             Start creating and sharing your content today. Join thousands of creators and businesses 
-            who trust BlogForAll to power their blogs.
+            who trust Bloggr to power their blogs.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/auth/signup">

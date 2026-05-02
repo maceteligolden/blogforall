@@ -125,7 +125,7 @@ export default function DocsPage() {
               API <span className="text-primary">Documentation</span>
             </h1>
             <p className="text-lg text-gray-400 max-w-2xl">
-              Integrate BlogForAll with your apps: read published blogs, categories, and more via the Public API. All endpoints described here require API key authentication.
+              Integrate Bloggr with your apps: read published blogs, categories, and more via the Public API. All endpoints described here require API key authentication.
             </p>
           </div>
 
@@ -137,7 +137,7 @@ export default function DocsPage() {
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
               <h3 className="text-2xl font-semibold mb-4 text-primary">Creating API Keys</h3>
               <p className="text-gray-400 mb-6">
-                To use the BlogForAll API, you need to create API credentials. Follow these steps:
+                To use the Bloggr API, you need to create API credentials. Follow these steps:
               </p>
               
               <div className="space-y-4">
@@ -147,7 +147,7 @@ export default function DocsPage() {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Sign up or Log in</h4>
-                    <p className="text-gray-400">Create an account or log in to your existing BlogForAll account.</p>
+                    <p className="text-gray-400">Create an account or log in to your existing Bloggr account.</p>
                   </div>
                 </div>
 
@@ -169,7 +169,7 @@ export default function DocsPage() {
                     <h4 className="font-semibold mb-2">Create New API Key</h4>
                     <p className="text-gray-400 mb-4">Click &quot;Create New API Key&quot; and provide a name for your key (e.g., &quot;Production&quot;, &quot;Development&quot;).</p>
                     <CodeBlock
-                      code={`POST /api/v1/api-keys
+                      code={`POST /api/v1/sites/YOUR_SITE_MONGO_ID/api-keys
 Content-Type: application/json
 Authorization: Bearer YOUR_JWT_TOKEN
 
@@ -188,18 +188,18 @@ Authorization: Bearer YOUR_JWT_TOKEN
                   <div>
                     <h4 className="font-semibold mb-2">Save Your Credentials</h4>
                     <p className="text-gray-400 mb-4">
-                      The API will return your <code className="bg-gray-800 px-2 py-1 rounded text-primary">accessKeyId</code> and <code className="bg-gray-800 px-2 py-1 rounded text-primary">secretKey</code>. 
-                      <strong className="text-white"> Save the secretKey immediately - it will only be shown once!</strong>
+                      The API returns <code className="bg-gray-800 px-2 py-1 rounded text-primary">accessKeyId</code>, <code className="bg-gray-800 px-2 py-1 rounded text-primary">secretKey</code>, and the workspace <code className="bg-gray-800 px-2 py-1 rounded text-primary">sitePublicId</code> (opaque public id). Each key is scoped to that workspace only.
                     </p>
                     <CodeBlock
                       code={`{
   "success": true,
   "message": "API key created successfully",
   "data": {
-    "id": "ak_1234567890",
+    "id": "bfa_...",
     "name": "My API Key",
-    "accessKeyId": "ak_1234567890",
-    "secretKey": "sk_abcdefghijklmnopqrstuvwxyz1234567890",
+    "accessKeyId": "bfa_...",
+    "secretKey": "hex_secret",
+    "sitePublicId": "bfws_...",
     "createdAt": "2024-01-15T10:30:00.000Z",
     "isActive": true
   }
@@ -254,7 +254,7 @@ x-secret-key: your_secret_key`}
           <div id="blogs-overview" className="bg-gray-900/50 rounded-xl border border-gray-800 p-6 mb-10">
             <h3 className="text-xl font-semibold mb-3 text-primary">Overview</h3>
             <p className="text-gray-400 mb-4">
-              The Public Blog API returns only <strong className="text-white">published</strong> blogs for a given site. Every request must include your API key headers and, for blog endpoints, a <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">site_id</code> query parameter to scope results to that site. Draft and unpublished posts are not returned. The full data model, auth rules, categories, scheduled posts, and AI review are described in the repository spec: <code className="bg-gray-800 px-1.5 py-0.5 rounded text-gray-300">docs/PRD_BLOGS_AND_PUBLIC_API.md</code>.
+              The Public Blog API returns only <strong className="text-white">published</strong> blogs for the workspace tied to your API key. Send <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">x-access-key-id</code> and <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">x-secret-key</code> on every request; you do <strong className="text-white">not</strong> pass <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">site_id</code> in the query string—the server resolves the site from the key. Draft and unpublished posts are not returned.
             </p>
             <p className="text-gray-400 text-sm">
               Base path: <code className="text-primary">/api/v1/public/blogs</code>. All endpoints below require <code className="text-primary">x-access-key-id</code> and <code className="text-primary">x-secret-key</code> headers.
@@ -284,11 +284,6 @@ x-secret-key: your_secret_key`}
                         </thead>
                         <tbody>
                           <tr className="border-b border-gray-800">
-                            <td className="py-2 px-3"><code className="text-primary">site_id</code></td>
-                            <td className="py-2 px-3">string</td>
-                            <td className="py-2 px-3">Site ID whose blogs to fetch (required)</td>
-                          </tr>
-                          <tr className="border-b border-gray-800">
                             <td className="py-2 px-3"><code className="text-primary">page</code></td>
                             <td className="py-2 px-3">number</td>
                             <td className="py-2 px-3">Page number (default: 1)</td>
@@ -313,7 +308,7 @@ x-secret-key: your_secret_key`}
                     </div>
                   </div>
                   <CodeBlock
-                    code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs?site_id=YOUR_SITE_ID&page=1&limit=20&search=javascript" \\
+                    code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs?page=1&limit=20&search=javascript" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
                     id="get-all-blogs"
@@ -364,11 +359,11 @@ x-secret-key: your_secret_key`}
               <EndpointCard
                 method="GET"
                 path="/api/v1/public/blogs/:id"
-                description="Get a single published blog by ID. Requires site_id query parameter."
+                description="Get a single published blog by ID (workspace inferred from API key)."
                 requiresAuth={true}
               >
                 <CodeBlock
-                  code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/blog_id_123?site_id=YOUR_SITE_ID" \\
+                  code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/blog_id_123" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
                   id="get-blog-by-id"
@@ -381,11 +376,11 @@ x-secret-key: your_secret_key`}
               <EndpointCard
                 method="GET"
                 path="/api/v1/public/blogs/slug/:slug"
-                description="Get a single published blog by its URL-friendly slug. Requires site_id query parameter."
+                description="Get a single published blog by its URL-friendly slug (workspace inferred from API key)."
                 requiresAuth={true}
               >
                 <CodeBlock
-                  code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/slug/getting-started-with-javascript?site_id=YOUR_SITE_ID" \\
+                  code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/slug/getting-started-with-javascript" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
                   id="get-blog-by-slug"
@@ -402,7 +397,7 @@ x-secret-key: your_secret_key`}
                 requiresAuth={true}
               >
                 <CodeBlock
-                  code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/categories" \\
+                  code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/categories" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
                   id="get-categories"
@@ -415,17 +410,17 @@ x-secret-key: your_secret_key`}
               <EndpointCard
                 method="GET"
                 path="/api/v1/public/blogs/categories/:categoryId"
-                description="Get published blogs in a specific category. Requires site_id; supports page, limit, search."
+                description="Get published blogs in a specific category. Supports page, limit, search (workspace inferred from API key)."
                 requiresAuth={true}
               >
                 <div className="space-y-4">
                   <CodeBlock
-                    code={`curl -X GET "https://api.blogforall.com/api/v1/public/blogs/categories/category_id_123?site_id=YOUR_SITE_ID&page=1&limit=10" \\
+                    code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/categories/category_id_123?page=1&limit=10" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
                     id="get-blogs-by-category"
                   />
-                  <p className="text-sm text-gray-500">Query params: site_id (required), page, limit, search.</p>
+                  <p className="text-sm text-gray-500">Query params: page, limit, search.</p>
                 </div>
               </EndpointCard>
             </div>
@@ -438,7 +433,7 @@ x-secret-key: your_secret_key`}
               requiresAuth={false}
             >
               <CodeBlock
-                code={`curl -X POST "https://api.blogforall.com/api/v1/blogs/blog_id_123/like" \\
+                code={`curl -X POST "https://api.bloggr.com/api/v1/blogs/blog_id_123/like" \\
   -H "Content-Type: application/json"`}
                 id="like-blog"
               />
@@ -487,7 +482,7 @@ x-secret-key: your_secret_key`}
                   />
                 </div>
                 <CodeBlock
-                  code={`curl -X POST "https://api.blogforall.com/api/v1/comments" \\
+                  code={`curl -X POST "https://api.bloggr.com/api/v1/comments" \\
   -H "Content-Type: application/json" \\
   -d '{
     "blog": "blog_id_123",
@@ -535,7 +530,7 @@ x-secret-key: your_secret_key`}
                   </div>
                 </div>
                 <CodeBlock
-                  code={`curl -X GET "https://api.blogforall.com/api/v1/comments/blog/blog_id_123?page=1&limit=20"`}
+                  code={`curl -X GET "https://api.bloggr.com/api/v1/comments/blog/blog_id_123?page=1&limit=20"`}
                   id="get-comments"
                 />
                 <div>
@@ -580,7 +575,7 @@ x-secret-key: your_secret_key`}
               requiresAuth={false}
             >
               <CodeBlock
-                code={`curl -X GET "https://api.blogforall.com/api/v1/comments/comment_id_123"`}
+                code={`curl -X GET "https://api.bloggr.com/api/v1/comments/comment_id_123"`}
                 id="get-comment-by-id"
               />
             </EndpointCard>
@@ -593,7 +588,7 @@ x-secret-key: your_secret_key`}
               requiresAuth={false}
             >
               <CodeBlock
-                code={`curl -X GET "https://api.blogforall.com/api/v1/comments/comment_id_123/replies"`}
+                code={`curl -X GET "https://api.bloggr.com/api/v1/comments/comment_id_123/replies"`}
                 id="get-comment-replies"
               />
             </EndpointCard>
@@ -606,7 +601,7 @@ x-secret-key: your_secret_key`}
               requiresAuth={false}
             >
               <CodeBlock
-                code={`curl -X POST "https://api.blogforall.com/api/v1/comments/comment_id_123/like" \\
+                code={`curl -X POST "https://api.bloggr.com/api/v1/comments/comment_id_123/like" \\
   -H "Content-Type: application/json"`}
                 id="like-comment"
               />
@@ -624,7 +619,7 @@ x-secret-key: your_secret_key`}
               <h3 className="text-2xl font-semibold mb-4 text-primary">JavaScript/TypeScript Example</h3>
               <CodeBlock
                 code={`// API Configuration
-const API_BASE_URL = 'https://api.blogforall.com/api/v1';
+const API_BASE_URL = 'https://api.bloggr.com/api/v1';
 const ACCESS_KEY_ID = 'your_access_key_id';
 const SECRET_KEY = 'your_secret_key';
 
@@ -1077,7 +1072,7 @@ function BlogList() {
         <div className="bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-2xl border border-primary/30 p-8 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-            Create your API keys and start building amazing integrations with BlogForAll.
+            Create your API keys and start building amazing integrations with Bloggr.
           </p>
           <Link href="/auth/signup">
             <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">

@@ -166,8 +166,8 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-1">Email</h4>
-                    <a href="mailto:support@blogforall.com" className="text-gray-400 hover:text-primary transition-colors">
-                      support@blogforall.com
+                    <a href="mailto:support@bloggr.com" className="text-gray-400 hover:text-primary transition-colors">
+                      support@bloggr.com
                     </a>
                   </div>
                 </div>
@@ -204,7 +204,7 @@ export default function ContactPage() {
               <h3 className="text-xl font-semibold mb-4 text-primary">Other Ways to Reach Us</h3>
               <div className="space-y-3">
                 <a
-                  href="https://twitter.com/blogforall"
+                  href="https://twitter.com/bloggr"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 text-gray-400 hover:text-primary transition-colors"
@@ -215,7 +215,7 @@ export default function ContactPage() {
                   <span>Follow us on Twitter</span>
                 </a>
                 <a
-                  href="https://github.com/blogforall"
+                  href="https://github.com/bloggr"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 text-gray-400 hover:text-primary transition-colors"
@@ -247,7 +247,7 @@ export default function ContactPage() {
           <h2 className="text-3xl md:text-4xl font-bold mb-12 text-center">Frequently Asked Questions</h2>
           <div className="space-y-4">
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-              <h3 className="text-lg font-semibold mb-2 text-primary">How do I get started with BlogForAll?</h3>
+              <h3 className="text-lg font-semibold mb-2 text-primary">How do I get started with Bloggr?</h3>
               <p className="text-gray-400">
                 Simply sign up for a free account, create your first blog post, and start publishing! 
                 You can upgrade to a paid plan anytime to unlock more features.
@@ -257,7 +257,7 @@ export default function ContactPage() {
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
               <h3 className="text-lg font-semibold mb-2 text-primary">Can I use my own domain?</h3>
               <p className="text-gray-400">
-                Yes! BlogForAll provides API access so you can build your own frontend and use your own domain. 
+                Yes! Bloggr provides API access so you can build your own frontend and use your own domain. 
                 Your content is yours, and you have full control over how it&apos;s displayed.
               </p>
             </div>
