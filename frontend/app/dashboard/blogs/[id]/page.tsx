@@ -211,9 +211,11 @@ export default function EditBlogPage() {
     updateBlog.mutate(
       { id, data: dataWithSite },
       {
-        onError: (err: { response?: { data?: { message?: string } } }) => {
-          const msg = err?.response?.data?.message ?? "Failed to update blog";
-          setError(msg);
+        onError: (error: Error) => {
+          const apiMessage = (
+            error as Error & { response?: { data?: { message?: string } } }
+          ).response?.data?.message;
+          setError(apiMessage ?? "Failed to update blog");
         },
         onSuccess: async () => {
             // Handle scheduling
