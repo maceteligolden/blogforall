@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { blocksToHtml, canSaveContentBlocks, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
+import { hasBodyContent, hasTitle } from "@/lib/utils/blog-form-validation";
 import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
 import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
@@ -74,6 +75,10 @@ export default function NewBlogPage() {
     status: "draft",
     scheduled_at: "",
   });
+
+  const canSubmitWriteForm =
+    mode === "write" && hasTitle(formData.title) && hasBodyContent(formData);
+  const canReviewForm = hasTitle(formData.title) && hasBodyContent(formData);
 
   const getContentHtml = () =>
     formData.content_blocks != null && formData.content_blocks.length > 0
@@ -607,7 +612,7 @@ export default function NewBlogPage() {
               type="button"
               className="bg-purple-600 hover:bg-purple-700 text-white border-0"
               onClick={handleReview}
-              disabled={isReviewing || !formData.title || !(formData.content_blocks?.length ? true : formData.content?.trim())}
+              disabled={isReviewing || !canReviewForm}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               {isReviewing ? "Reviewing..." : "Review with AI"}
@@ -616,7 +621,7 @@ export default function NewBlogPage() {
               type="submit"
               form="blog-form"
               className="bg-primary hover:bg-primary/90 text-white"
-              disabled={createBlog.isPending}
+              disabled={createBlog.isPending || !canSubmitWriteForm}
             >
               {createBlog.isPending ? "Creating..." : "Create Blog"}
             </Button>

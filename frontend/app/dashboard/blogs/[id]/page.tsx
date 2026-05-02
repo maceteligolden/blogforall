@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { useBlog, useUpdateBlog, useUploadImage } from "@/lib/hooks/use-blog";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { blocksToHtml, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
+import { formFingerprint, hasBodyContent, hasTitle } from "@/lib/utils/blog-form-validation";
 import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
 import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
@@ -73,6 +74,71 @@ export default function EditBlogPage() {
   const [error, setError] = useState("");
   const [existingSchedule, setExistingSchedule] = useState<{ scheduled_at: string; _id?: string } | null>(null);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+  const [savedFingerprint, setSavedFingerprint] = useState<string | null>(null);
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
+  const baselineCapturedForIdRef = useRef<string>("");
+
+  useEffect(() => {
+    baselineCapturedForIdRef.current = "";
+    setSavedFingerprint(null);
+  }, [id]);
+
+  useEffect(() => {
+    if (!blog || isLoading || isLoadingSchedule) return;
+    if (baselineCapturedForIdRef.current === id) return;
+    const frame = requestAnimationFrame(() => {
+      if (baselineCapturedForIdRef.current === id) return;
+      setSavedFingerprint(formFingerprint(formDataRef.current));
+      baselineCapturedForIdRef.current = id;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [blog, isLoading, isLoadingSchedule, id]);
+
+  const compareFields = useMemo(
+    () => ({
+      title: formData.title,
+      content: formData.content,
+      content_blocks: formData.content_blocks,
+      featured_image: formData.featured_image,
+      category: formData.category,
+      status: formData.status,
+      scheduled_at: formData.scheduled_at,
+    }),
+    [
+      formData.title,
+      formData.content,
+      formData.content_blocks,
+      formData.featured_image,
+      formData.category,
+      formData.status,
+      formData.scheduled_at,
+    ]
+  );
+
+  const isDirty =
+    savedFingerprint != null && formFingerprint(compareFields) !== savedFingerprint;
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const showPrefix = isDirty && !updateBlog.isPending;
+    if (showPrefix) {
+      if (!document.title.startsWith("(*) ")) {
+        document.title = `(*) ${document.title}`;
+      }
+    } else if (document.title.startsWith("(*) ")) {
+      document.title = document.title.slice(4);
+    }
+  }, [isDirty, updateBlog.isPending]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof document === "undefined") return;
+      if (document.title.startsWith("(*) ")) {
+        document.title = document.title.slice(4);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (blog) {
@@ -230,6 +296,7 @@ export default function EditBlogPage() {
         },
         onSuccess: async () => {
             const shouldSchedule = formData.status === "published" && scheduled_at;
+            let scheduleSideEffectsOk = true;
             if (shouldSchedule) {
               try {
                 const scheduleDate = new Date(scheduled_at);
@@ -242,6 +309,7 @@ export default function EditBlogPage() {
                   _id: "new",
                 });
               } catch (scheduleErr: any) {
+                scheduleSideEffectsOk = false;
                 console.error("Failed to schedule blog:", scheduleErr);
                 setError(scheduleErr?.response?.data?.message || "Blog updated but scheduling failed");
               }
@@ -250,9 +318,13 @@ export default function EditBlogPage() {
                 await BlogService.unscheduleBlog(id);
                 setExistingSchedule(null);
               } catch (unscheduleErr: any) {
+                scheduleSideEffectsOk = false;
                 console.error("Failed to unschedule blog:", unscheduleErr);
                 setError(unscheduleErr?.response?.data?.message || "Blog updated but unscheduling failed");
               }
+            }
+            if (scheduleSideEffectsOk) {
+              setSavedFingerprint(formFingerprint(formDataRef.current));
             }
           },
         }
@@ -359,7 +431,7 @@ export default function EditBlogPage() {
                 type="button"
                 className="bg-purple-600 hover:bg-purple-700 text-white border-0"
                 onClick={handleReview}
-                disabled={isReviewing || !formData.title || !(formData.content_blocks?.length ? true : formData.content?.trim())}
+                disabled={isReviewing || !hasTitle(formData.title) || !hasBodyContent(formData)}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 {isReviewing ? "Reviewing..." : "Review with AI"}
@@ -369,12 +441,26 @@ export default function EditBlogPage() {
               type="submit"
               form="blog-form"
               className="bg-primary hover:bg-primary/90 text-white"
-              disabled={updateBlog.isPending}
+              disabled={
+                updateBlog.isPending ||
+                savedFingerprint === null ||
+                !isDirty ||
+                !hasTitle(formData.title) ||
+                !hasBodyContent(formData)
+              }
             >
               {updateBlog.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </div>
+        {isDirty && !updateBlog.isPending && (
+          <div
+            className="mt-3 rounded-md border border-amber-800/60 bg-amber-950/40 px-4 py-2 text-sm text-amber-100/90"
+            role="status"
+          >
+            You have unsaved changes
+          </div>
+        )}
       </div>
 
       <main className="flex-1 overflow-y-auto">
