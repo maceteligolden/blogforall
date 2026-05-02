@@ -6,14 +6,12 @@ import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 const router = Router();
 const billingController = container.resolve(BillingController);
 
-router.post("/cards/initialize", authMiddleware, (req, res, next) =>
-  billingController.initializeAddCard(req, res, next)
-);
-router.post("/cards/confirm", authMiddleware, (req, res, next) => billingController.confirmCard(req, res, next));
-router.get("/cards", authMiddleware, (req, res, next) => billingController.fetchCards(req, res, next));
-router.delete("/cards/:id", authMiddleware, (req, res, next) => billingController.deleteCard(req, res, next));
-router.put("/cards/:id/default", authMiddleware, (req, res, next) => billingController.setDefaultCard(req, res, next));
-router.get("/invoices", authMiddleware, (req, res, next) => billingController.getInvoiceHistory(req, res, next));
-router.get("/invoices/:id", authMiddleware, (req, res, next) => billingController.getInvoiceDetails(req, res, next));
+router.post("/cards/initialize", authMiddleware, billingController.initializeAddCard);
+router.post("/cards/confirm", authMiddleware, billingController.confirmCard);
+router.get("/cards", authMiddleware, billingController.fetchCards);
+router.delete("/cards/:id", authMiddleware, billingController.deleteCard);
+router.put("/cards/:id/default", authMiddleware, billingController.setDefaultCard);
+router.get("/invoices", authMiddleware, billingController.getInvoiceHistory);
+router.get("/invoices/:id", authMiddleware, billingController.getInvoiceDetails);
 
 export default router;

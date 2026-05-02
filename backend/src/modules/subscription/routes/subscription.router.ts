@@ -6,10 +6,10 @@ import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 const router = Router();
 const subscriptionController = container.resolve(SubscriptionController);
 
-router.get("/", authMiddleware, (req, res, next) => subscriptionController.getSubscription(req, res, next));
+router.get("/", authMiddleware, subscriptionController.getSubscription);
 // Plans endpoint is public (no auth required) so users can see plans during onboarding
-router.get("/plans", (req, res, next) => subscriptionController.getPlans(req, res, next));
-router.post("/change-plan", authMiddleware, (req, res, next) => subscriptionController.changePlan(req, res, next));
-router.post("/cancel", authMiddleware, (req, res, next) => subscriptionController.cancelSubscription(req, res, next));
+router.get("/plans", subscriptionController.getPlans);
+router.post("/change-plan", authMiddleware, subscriptionController.changePlan);
+router.post("/cancel", authMiddleware, subscriptionController.cancelSubscription);
 
 export default router;

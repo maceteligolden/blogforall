@@ -8,7 +8,7 @@ import { BadRequestError } from "../../../shared/errors";
 export class SubscriptionController {
   constructor(private subscriptionService: SubscriptionService) {}
 
-  async getSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getSubscription = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -24,18 +24,18 @@ export class SubscriptionController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getPlans(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getPlans = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const plans = await this.subscriptionService.getActivePlans();
       sendSuccess(res, "Plans retrieved successfully", plans);
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async changePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
+  changePlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -52,9 +52,9 @@ export class SubscriptionController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async cancelSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
+  cancelSubscription = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -66,5 +66,5 @@ export class SubscriptionController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 }

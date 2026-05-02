@@ -16,7 +16,7 @@ export class BlogGenerationController {
   /**
    * Analyze prompt to extract topic, domain, audience, purpose
    */
-  async analyzePrompt(req: Request, res: Response, next: NextFunction): Promise<void> {
+  analyzePrompt = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -38,12 +38,12 @@ export class BlogGenerationController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
   /**
    * Generate blog content from prompt
    */
-  async generateBlog(req: Request, res: Response, next: NextFunction): Promise<void> {
+  generateBlog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -122,5 +122,5 @@ export class BlogGenerationController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 }

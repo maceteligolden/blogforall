@@ -9,7 +9,7 @@ import { BadRequestError } from "../../../shared/errors";
 export class BillingController {
   constructor(private billingService: BillingService) {}
 
-  async initializeAddCard(req: Request, res: Response, next: NextFunction): Promise<void> {
+  initializeAddCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -21,9 +21,9 @@ export class BillingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async confirmCard(req: Request, res: Response, next: NextFunction): Promise<void> {
+  confirmCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -40,9 +40,9 @@ export class BillingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async fetchCards(req: Request, res: Response, next: NextFunction): Promise<void> {
+  fetchCards = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -54,9 +54,9 @@ export class BillingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async deleteCard(req: Request, res: Response, next: NextFunction): Promise<void> {
+  deleteCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -69,9 +69,9 @@ export class BillingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async setDefaultCard(req: Request, res: Response, next: NextFunction): Promise<void> {
+  setDefaultCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -94,9 +94,9 @@ export class BillingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getInvoiceHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getInvoiceHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -109,9 +109,9 @@ export class BillingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async getInvoiceDetails(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getInvoiceDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -128,5 +128,5 @@ export class BillingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 }

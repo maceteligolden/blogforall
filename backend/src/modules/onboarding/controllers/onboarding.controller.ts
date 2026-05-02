@@ -8,7 +8,7 @@ import { BadRequestError } from "../../../shared/errors";
 export class OnboardingController {
   constructor(private onboardingService: OnboardingService) {}
 
-  async getOnboardingStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getOnboardingStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -20,9 +20,9 @@ export class OnboardingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async completeOnboarding(req: Request, res: Response, next: NextFunction): Promise<void> {
+  completeOnboarding = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -44,9 +44,9 @@ export class OnboardingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
-  async skipOnboarding(req: Request, res: Response, next: NextFunction): Promise<void> {
+  skipOnboarding = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -58,5 +58,5 @@ export class OnboardingController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 }

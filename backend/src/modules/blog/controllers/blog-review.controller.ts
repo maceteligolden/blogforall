@@ -18,7 +18,7 @@ export class BlogReviewController {
   /**
    * Review a blog post (only for draft posts)
    */
-  async reviewBlog(req: Request, res: Response, next: NextFunction): Promise<void> {
+  reviewBlog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -79,12 +79,12 @@ export class BlogReviewController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
   /**
    * Apply review suggestions to a blog post
    */
-  async applyReview(req: Request, res: Response, next: NextFunction): Promise<void> {
+  applyReview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -146,12 +146,12 @@ export class BlogReviewController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
   /**
    * Apply a single review suggestion (auto-save). Pushes current state to version_history so user can undo via restore.
    */
-  async applyOne(req: Request, res: Response, next: NextFunction): Promise<void> {
+  applyOne = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -241,12 +241,12 @@ export class BlogReviewController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 
   /**
    * Restore a previous version of a blog post
    */
-  async restoreVersion(req: Request, res: Response, next: NextFunction): Promise<void> {
+  restoreVersion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -300,5 +300,5 @@ export class BlogReviewController {
     } catch (error) {
       next(error);
     }
-  }
+  };
 }

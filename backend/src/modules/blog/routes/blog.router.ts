@@ -25,16 +25,12 @@ router.post("/:id/schedule", authMiddleware, blogController.schedulePublish);
 router.get("/:id/schedule", authMiddleware, blogController.getSchedule);
 router.delete("/:id/schedule", authMiddleware, blogController.unschedulePublish);
 
-// Blog review routes (protected) — bind so controller methods keep 'this'
-router.post("/:blogId/review", authMiddleware, blogReviewController.reviewBlog.bind(blogReviewController));
-router.post("/review", authMiddleware, blogReviewController.reviewBlog.bind(blogReviewController));
-router.post("/:blogId/review/apply", authMiddleware, blogReviewController.applyReview.bind(blogReviewController));
-router.post("/:blogId/review/apply-one", authMiddleware, blogReviewController.applyOne.bind(blogReviewController));
-router.post(
-  "/:blogId/restore/:version",
-  authMiddleware,
-  blogReviewController.restoreVersion.bind(blogReviewController)
-);
+// Blog review routes (protected)
+router.post("/:blogId/review", authMiddleware, blogReviewController.reviewBlog);
+router.post("/review", authMiddleware, blogReviewController.reviewBlog);
+router.post("/:blogId/review/apply", authMiddleware, blogReviewController.applyReview);
+router.post("/:blogId/review/apply-one", authMiddleware, blogReviewController.applyOne);
+router.post("/:blogId/restore/:version", authMiddleware, blogReviewController.restoreVersion);
 
 // Blog generation routes (protected)
 router.post("/generate/analyze", authMiddleware, blogGenerationController.analyzePrompt);
