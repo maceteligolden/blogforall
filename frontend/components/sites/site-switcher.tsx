@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Plus, Check } from "lucide-react";
@@ -113,6 +114,14 @@ export function SiteSwitcher() {
                   </button>
                 ))}
                 <hr className="my-2 border-gray-800" role="separator" aria-orientation="horizontal" />
+                <Link
+                  href="/dashboard/sites"
+                  role="menuitem"
+                  className="block w-full px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+                  onClick={() => setShowDropdown(false)}
+                >
+                  Workspaces
+                </Link>
                 <button
                   role="menuitem"
                   onClick={() => {

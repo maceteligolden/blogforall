@@ -38,12 +38,6 @@ export function Navbar() {
               Dashboard
             </Link>
             <Link
-              href="/dashboard/sites"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Workspaces
-            </Link>
-            <Link
               href="/dashboard/blogs"
               className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
             >
