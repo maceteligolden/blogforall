@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { env } from "../config/env";
 import { logger } from "../utils/logger";
 
 interface EmailOptions {
@@ -16,12 +17,11 @@ class EmailService {
   }
 
   private initializeTransporter(): void {
-    // Check if email is configured
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpPort = process.env.SMTP_PORT;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
-    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@bloggr.com";
+    const smtpHost = env.smtp.host;
+    const smtpPort = env.smtp.port;
+    const smtpUser = env.smtp.user;
+    const smtpPassword = env.smtp.password;
+    const smtpFrom = env.smtp.from;
 
     // If SMTP is not configured, create a test transporter (won't send emails)
     if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword) {
@@ -32,7 +32,7 @@ class EmailService {
       );
 
       // Create a test account transporter for development
-      if (process.env.NODE_ENV === "development") {
+      if (env.isDevelopment) {
         nodemailer
           .createTestAccount()
           .then((testAccount: nodemailer.TestAccount) => {
@@ -67,7 +67,7 @@ class EmailService {
   }
 
   async sendEmail(options: EmailOptions): Promise<void> {
-    const smtpFrom = process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@bloggr.com";
+    const smtpFrom = env.smtp.from;
 
     // If transporter is not initialized, log the email instead
     if (!this.transporter) {
@@ -95,7 +95,7 @@ class EmailService {
       const info = await this.transporter.sendMail(mailOptions);
 
       // In development with test account, log the preview URL
-      if (process.env.NODE_ENV === "development" && nodemailer.getTestMessageUrl) {
+      if (env.isDevelopment && nodemailer.getTestMessageUrl) {
         const previewUrl = nodemailer.getTestMessageUrl(info);
         if (previewUrl) {
           logger.info(`Email preview: ${previewUrl}`, { to: options.to, subject: options.subject }, "EmailService");

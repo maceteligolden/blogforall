@@ -1,6 +1,7 @@
 import { container } from "tsyringe";
 import { PlanModel } from "../schemas/plan.schema";
 import { StripeFacade } from "../facade/stripe.facade";
+import { env } from "../config/env";
 import { logger } from "./logger";
 
 /** Plan names that match the landing page; only these are kept active and seeded. */
@@ -90,7 +91,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
       },
     ];
 
-    const hasStripeKey = !!process.env.STRIPE_API_KEY;
+    const hasStripeKey = !!env.stripe.apiKey;
 
     for (const planData of paidPlans) {
       try {

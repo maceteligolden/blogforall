@@ -1,12 +1,13 @@
 import { injectable } from "tsyringe";
 import Stripe from "stripe";
+import { env } from "../config/env";
 
 @injectable()
 export class StripeFacade {
   private stripe: Stripe;
 
   constructor() {
-    const apiKey = process.env.STRIPE_API_KEY;
+    const apiKey = env.stripe.apiKey;
     if (!apiKey) {
       throw new Error("STRIPE_API_KEY environment variable is not set");
     }

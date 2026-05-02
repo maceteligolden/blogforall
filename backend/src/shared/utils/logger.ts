@@ -1,3 +1,5 @@
+import { env } from "../config/env";
+
 type LogLevel = "info" | "error" | "warn" | "debug";
 
 interface LogEntry {
@@ -30,7 +32,7 @@ class Logger {
   }
 
   private executeLog(entry: LogEntry): void {
-    const isProduction = process.env.NODE_ENV === "production";
+    const isProduction = env.isProduction;
     const logString = JSON.stringify(entry);
 
     if (isProduction) {
@@ -67,7 +69,7 @@ class Logger {
   }
 
   debug(message: string, metadata?: unknown, context?: string): void {
-    if (process.env.NODE_ENV !== "production") {
+    if (!env.isProduction) {
       this.executeLog(this.formatEntry("debug", message, metadata, context));
     }
   }

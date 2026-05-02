@@ -1,6 +1,6 @@
 /**
  * Notification service configuration and domain constants.
- * Env values are read from process.env; keys are documented in .env.example.
+ * Notification env keys are documented in .env.example; resolved values live in shared/config/env.ts.
  */
 
 export enum NotificationChannel {

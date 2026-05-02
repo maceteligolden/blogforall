@@ -1,11 +1,12 @@
 import crypto from "crypto";
+import { env } from "../config/env";
 
 function getKey32(): Buffer {
-  const explicit = process.env.WORKSPACE_API_KEY_ENCRYPTION_KEY?.trim();
+  const explicit = env.workspaceCrypto.apiKeyEncryptionKey;
   if (explicit && explicit.length >= 32) {
     return crypto.createHash("sha256").update(explicit, "utf8").digest();
   }
-  const access = process.env.ACCESS_SECRET?.trim();
+  const access = env.jwt.accessSecret;
   if (!access) {
     throw new Error("WORKSPACE_API_KEY_ENCRYPTION_KEY or ACCESS_SECRET is required for API key secret storage");
   }

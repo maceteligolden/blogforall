@@ -18,7 +18,7 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction) 
   const uniqueOrigins = [...new Set(allowedOrigins)];
 
   // In development, allow any localhost origin or configured origins
-  if (process.env.NODE_ENV === "development") {
+  if (env.isDevelopment) {
     if (
       origin &&
       (uniqueOrigins.includes(origin) || (origin.includes("localhost") && origin.match(/^http:\/\/localhost:\d+$/)))

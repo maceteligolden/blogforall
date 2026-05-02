@@ -7,6 +7,7 @@ import { SubscriptionStatus } from "../../../shared/schemas/subscription.schema"
 import { SUBSCRIPTION_CONSTANTS } from "../../../shared/constants/subscription.constant";
 import User from "../../../shared/schemas/user.schema";
 import { logger } from "../../../shared/utils/logger";
+import { env } from "../../../shared/config/env";
 
 @injectable()
 export class BillingWebhook {
@@ -16,7 +17,7 @@ export class BillingWebhook {
     private subscriptionRepository: SubscriptionRepository,
     private planRepository: PlanRepository
   ) {
-    const apiKey = process.env.STRIPE_API_KEY;
+    const apiKey = env.stripe.apiKey;
     if (!apiKey) {
       throw new Error("STRIPE_API_KEY environment variable is not set");
     }
@@ -26,7 +27,7 @@ export class BillingWebhook {
   }
 
   async handleWebhook(req: Request, res: Response): Promise<void> {
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const endpointSecret = env.stripe.webhookSecret;
     const sig = req.headers["stripe-signature"];
 
     if (!endpointSecret) {

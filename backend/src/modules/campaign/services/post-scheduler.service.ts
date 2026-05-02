@@ -8,13 +8,14 @@ import { BlogGenerationService } from "../../blog/services/blog-generation.servi
 import { ScheduledPostStatus, CampaignStatus } from "../../../shared/constants/campaign.constant";
 import { BlogStatus } from "../../../shared/constants";
 import { logger } from "../../../shared/utils/logger";
+import { env } from "../../../shared/config/env";
 import { NotFoundError } from "../../../shared/errors";
 
 @injectable()
 export class PostSchedulerService {
   private cronJob: cron.ScheduledTask | null = null;
   private readonly MAX_RETRY_ATTEMPTS = 3;
-  private readonly SCHEDULE_INTERVAL = process.env.SCHEDULER_INTERVAL || "*/1 * * * *"; // Every minute by default
+  private readonly SCHEDULE_INTERVAL = env.scheduler.cronInterval;
 
   constructor(
     private scheduledPostRepository: ScheduledPostRepository,

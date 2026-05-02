@@ -20,7 +20,7 @@ const app = express();
 const PORT = env.port;
 
 // Serve uploaded images statically (before other middlewares to avoid conflicts)
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static(path.join(process.cwd(), env.upload.dir)));
 
 // Middlewares
 app.use(requestLogger);
