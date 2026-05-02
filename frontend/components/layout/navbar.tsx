@@ -44,18 +44,6 @@ export function Navbar() {
               Blogs
             </Link>
             <Link
-              href="/dashboard/categories"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Categories
-            </Link>
-            <Link
-              href="/dashboard/scheduled-posts"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Scheduled Posts
-            </Link>
-            <Link
               href="/dashboard/api-keys"
               className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
             >

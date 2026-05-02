@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { blocksToHtml, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
+import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
 import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
@@ -49,7 +50,6 @@ export default function EditBlogPage() {
     content: string;
     content_type: "html" | "markdown";
     content_blocks?: ContentBlock[];
-    excerpt: string;
     featured_image: string;
     category: string;
     status: "draft" | "published" | "unpublished";
@@ -58,12 +58,18 @@ export default function EditBlogPage() {
     title: "",
     content: "",
     content_type: "html",
-    excerpt: "",
     featured_image: "",
     category: "",
     status: "draft",
     scheduled_at: "",
   });
+
+  const getContentHtml = () =>
+    Array.isArray(formData.content_blocks) && formData.content_blocks.length > 0
+      ? blocksToHtml(formData.content_blocks as ContentBlock[])
+      : formData.content;
+
+  const derivedExcerpt = () => deriveExcerptFromContent(getContentHtml());
   const [error, setError] = useState("");
   const [existingSchedule, setExistingSchedule] = useState<{ scheduled_at: string; _id?: string } | null>(null);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
@@ -90,7 +96,6 @@ export default function EditBlogPage() {
         content: blog.content || "",
         content_type: blog.content_type || "html",
         content_blocks,
-        excerpt: blog.excerpt || "",
         featured_image: blog.featured_image || "",
         category: categoryId,
         status: blog.status || "draft",
@@ -112,10 +117,12 @@ export default function EditBlogPage() {
               scheduled_at: scheduledDate.toISOString().slice(0, 16),
               _id: schedule._id,
             });
-            setFormData((prev) => ({
-              ...prev,
-              scheduled_at: scheduledDate.toISOString().slice(0, 16),
-            }));
+            if (blog.status === "published") {
+              setFormData((prev) => ({
+                ...prev,
+                scheduled_at: scheduledDate.toISOString().slice(0, 16),
+              }));
+            }
           } else {
             setExistingSchedule(null);
           }
@@ -154,7 +161,7 @@ export default function EditBlogPage() {
         data: {
           title: formData.title,
           content: contentForReview,
-          excerpt: formData.excerpt || undefined,
+          excerpt: derivedExcerpt() || undefined,
           category: formData.category || undefined,
           content_blocks: useBlocks ? formData.content_blocks : undefined,
         },
@@ -192,9 +199,13 @@ export default function EditBlogPage() {
     }
 
     const { scheduled_at, ...blogData } = formData;
+    const excerptText = deriveExcerptFromContent(
+      useBlocks ? blocksToHtml(formData.content_blocks as ContentBlock[]) : formData.content
+    );
     const payload = useBlocks
       ? {
           ...blogData,
+          excerpt: excerptText,
           content: "",
           content_blocks: (formData.content_blocks || []).map((b, i) => ({
             id: (b as { id?: string; _id?: string }).id ?? (b as { _id?: string })._id ?? `block-${i}`,
@@ -205,7 +216,7 @@ export default function EditBlogPage() {
             },
           })),
         }
-      : { ...blogData, content_blocks: undefined };
+      : { ...blogData, excerpt: excerptText, content_blocks: undefined };
     const siteId = (blog as { site_id?: string })?.site_id;
     const dataWithSite = siteId ? { ...payload, site_id: siteId } : payload;
     updateBlog.mutate(
@@ -218,11 +229,10 @@ export default function EditBlogPage() {
           setError(apiMessage ?? "Failed to update blog");
         },
         onSuccess: async () => {
-            // Handle scheduling
-            if (scheduled_at) {
+            const shouldSchedule = formData.status === "published" && scheduled_at;
+            if (shouldSchedule) {
               try {
                 const scheduleDate = new Date(scheduled_at);
-                // If there's an existing schedule, unschedule first
                 if (existingSchedule?._id) {
                   await BlogService.unscheduleBlog(id);
                 }
@@ -236,7 +246,6 @@ export default function EditBlogPage() {
                 setError(scheduleErr?.response?.data?.message || "Blog updated but scheduling failed");
               }
             } else if (existingSchedule?._id) {
-              // If scheduled_at is cleared but there was an existing schedule, unschedule
               try {
                 await BlogService.unscheduleBlog(id);
                 setExistingSchedule(null);
@@ -373,14 +382,21 @@ export default function EditBlogPage() {
           {reviewMode && reviewResult ? (
             <ReviewModeView
               title={formData.title}
-              excerpt={formData.excerpt}
+              excerpt={derivedExcerpt()}
               content={formData.content}
               content_blocks={formData.content_blocks}
               reviewResult={reviewResult}
               appliedSuggestionIds={appliedSuggestionIds}
               onApplySuggestion={async (suggestion: ReviewSuggestion) => {
                 const sid = suggestion.id ?? String(reviewResult.suggestions.indexOf(suggestion));
-                const target = suggestion.target ?? (formData.title.includes(suggestion.original) ? "title" : formData.excerpt.includes(suggestion.original) ? "excerpt" : "content");
+                const ex = derivedExcerpt();
+                const target =
+                  suggestion.target ??
+                  (formData.title.includes(suggestion.original)
+                    ? "title"
+                    : ex.includes(suggestion.original)
+                      ? "excerpt"
+                      : "content");
                 try {
                   await applyOneAsync({
                     blogId: id,
@@ -453,12 +469,14 @@ export default function EditBlogPage() {
                   <select
                     id="status"
                     value={formData.status}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const status = e.target.value as "draft" | "published" | "unpublished";
                       setFormData({
                         ...formData,
-                        status: e.target.value as "draft" | "published" | "unpublished",
-                      })
-                    }
+                        status,
+                        ...(status !== "published" ? { scheduled_at: "" } : {}),
+                      });
+                    }}
                     className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
                   >
                     <option value="draft">Draft</option>
@@ -490,20 +508,6 @@ export default function EditBlogPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="excerpt" className="text-gray-300">
-                    Excerpt
-                  </Label>
-                  <textarea
-                    id="excerpt"
-                    value={formData.excerpt}
-                    onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-                    className="mt-1 flex min-h-[100px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-                    maxLength={500}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">{formData.excerpt.length}/500</p>
-                </div>
-
-                <div>
                   <Label htmlFor="featured_image" className="text-gray-300">
                     Featured Image
                   </Label>
@@ -527,45 +531,47 @@ export default function EditBlogPage() {
                   )}
                 </div>
 
-                <div>
-                  <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Schedule Publish
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="scheduled_at"
-                      type="datetime-local"
-                      value={formData.scheduled_at}
-                      onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-                      className="mt-1 bg-black border-gray-700 text-white flex-1"
-                      min={new Date().toISOString().slice(0, 16)}
-                      disabled={isLoadingSchedule}
-                    />
+                {formData.status === "published" && (
+                  <div>
+                    <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Schedule Publish
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="scheduled_at"
+                        type="datetime-local"
+                        value={formData.scheduled_at}
+                        onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                        className="mt-1 bg-black border-gray-700 text-white flex-1"
+                        min={new Date().toISOString().slice(0, 16)}
+                        disabled={isLoadingSchedule}
+                      />
+                      {formData.scheduled_at && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setFormData({ ...formData, scheduled_at: "" })}
+                          className="text-gray-400 hover:text-white mt-1"
+                          title="Clear schedule"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                     {formData.scheduled_at && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setFormData({ ...formData, scheduled_at: "" })}
-                        className="text-gray-400 hover:text-white mt-1"
-                        title="Clear schedule"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Will be published on {new Date(formData.scheduled_at).toLocaleString()}
+                      </p>
+                    )}
+                    {existingSchedule && !formData.scheduled_at && (
+                      <p className="mt-1 text-xs text-amber-500">
+                        Currently scheduled for {new Date(existingSchedule.scheduled_at).toLocaleString()}
+                      </p>
                     )}
                   </div>
-                  {formData.scheduled_at && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Will be published on {new Date(formData.scheduled_at).toLocaleString()}
-                    </p>
-                  )}
-                  {existingSchedule && !formData.scheduled_at && (
-                    <p className="mt-1 text-xs text-amber-500">
-                      Currently scheduled for {new Date(existingSchedule.scheduled_at).toLocaleString()}
-                    </p>
-                  )}
-                </div>
+                )}
 
                 {/* Version history - undo after apply-one or apply all */}
                 {((blog as { version_history?: { version: number; created_at: Date }[] })?.version_history?.length ??
@@ -643,7 +649,7 @@ export default function EditBlogPage() {
                 originalContent={{
                   title: formData.title,
                   content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                  excerpt: formData.excerpt,
+                  excerpt: derivedExcerpt(),
                 }}
                 isLoading={false}
                 onViewComparison={() => setShowComparison(true)}
@@ -665,7 +671,6 @@ export default function EditBlogPage() {
                         title: reviewResult.improved_title || formData.title,
                         content: improvedContent,
                         content_blocks: htmlToBlocks(improvedContent),
-                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
                       });
                     } else {
                       // Apply selected suggestions (for now, apply all improvements)
@@ -684,7 +689,6 @@ export default function EditBlogPage() {
                         title: reviewResult.improved_title || formData.title,
                         content: improvedContent,
                         content_blocks: htmlToBlocks(improvedContent),
-                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
                       });
                     }
                     setShowReview(false);
@@ -702,7 +706,7 @@ export default function EditBlogPage() {
               original={{
                 title: formData.title,
                 content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                excerpt: formData.excerpt,
+                excerpt: derivedExcerpt(),
               }}
               reviewResult={reviewResult}
               onClose={() => setShowComparison(false)}
@@ -722,7 +726,6 @@ export default function EditBlogPage() {
                     title: reviewResult.improved_title || formData.title,
                     content: improvedContent,
                     content_blocks: htmlToBlocks(improvedContent),
-                    excerpt: reviewResult.improved_excerpt || formData.excerpt,
                   });
                   setShowComparison(false);
                   setShowReview(false);

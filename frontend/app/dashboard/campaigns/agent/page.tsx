@@ -148,7 +148,7 @@ export default function CampaignAgentPage() {
       if (campaignId) {
         router.push(`/dashboard/campaigns/${campaignId}`);
       } else {
-        router.push("/dashboard/scheduled-posts");
+        router.push("/dashboard/blogs/scheduled");
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create campaign";

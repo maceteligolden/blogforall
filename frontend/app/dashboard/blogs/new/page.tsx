@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { blocksToHtml, canSaveContentBlocks, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
+import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
 import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
@@ -54,14 +55,12 @@ export default function NewBlogPage() {
   const [previousContent, setPreviousContent] = useState<{
     title: string;
     content: string;
-    excerpt: string;
   } | null>(null);
   const [formData, setFormData] = useState<{
     title: string;
     content: string;
     content_type: "html" | "markdown";
     content_blocks?: ContentBlock[];
-    excerpt: string;
     featured_image: string;
     category: string;
     status: "draft" | "published" | "unpublished";
@@ -70,12 +69,18 @@ export default function NewBlogPage() {
     title: "",
     content: "",
     content_type: "html",
-    excerpt: "",
     featured_image: "",
     category: "",
     status: "draft",
     scheduled_at: "",
   });
+
+  const getContentHtml = () =>
+    formData.content_blocks != null && formData.content_blocks.length > 0
+      ? blocksToHtml(formData.content_blocks)
+      : formData.content;
+
+  const derivedExcerpt = () => deriveExcerptFromContent(getContentHtml());
   const [error, setError] = useState("");
 
   const handleAnalyzePrompt = useCallback(async () => {
@@ -117,7 +122,6 @@ export default function NewBlogPage() {
         title: generatedData.content.title,
         content: generatedData.content.content,
         content_blocks: htmlToBlocks(generatedData.content.content),
-        excerpt: generatedData.content.excerpt,
       }));
 
       // Stage: Complete (review happens automatically in backend)
@@ -166,11 +170,10 @@ export default function NewBlogPage() {
     }
 
     // Store current content as backup before regenerating
-    if (formData.title || formData.content || formData.excerpt) {
+    if (formData.title || formData.content || formData.content_blocks?.length) {
       setPreviousContent({
         title: formData.title,
         content: formData.content,
-        excerpt: formData.excerpt,
       });
     }
 
@@ -186,11 +189,10 @@ export default function NewBlogPage() {
     }
 
     // Store current content as backup before regenerating
-    if (formData.title || formData.content || formData.excerpt) {
+    if (formData.title || formData.content || formData.content_blocks?.length) {
       setPreviousContent({
         title: formData.title,
         content: formData.content,
-        excerpt: formData.excerpt,
       });
     }
 
@@ -231,7 +233,7 @@ export default function NewBlogPage() {
         ...formData,
         title: generatedData.content.title,
         content: generatedData.content.content,
-        excerpt: generatedData.content.excerpt,
+        content_blocks: htmlToBlocks(generatedData.content.content),
       });
 
       // Stage 3: Complete (review happens automatically in backend)
@@ -279,7 +281,9 @@ export default function NewBlogPage() {
         ...formData,
         title: previousContent.title,
         content: previousContent.content,
-        excerpt: previousContent.excerpt,
+        content_blocks: previousContent.content
+          ? htmlToBlocks(previousContent.content)
+          : formData.content_blocks,
       });
       setPreviousContent(null);
       toast({
@@ -303,7 +307,7 @@ export default function NewBlogPage() {
         data: {
           title: formData.title,
           content: contentForReview,
-          excerpt: formData.excerpt || undefined,
+          excerpt: derivedExcerpt() || undefined,
           category: formData.category || undefined,
         },
       });
@@ -326,7 +330,17 @@ export default function NewBlogPage() {
         setMode(draft.mode);
         setPrompt(draft.prompt);
         setPromptAnalysis(draft.promptAnalysis);
-        setFormData(draft.formData);
+        const d = draft.formData;
+        setFormData({
+          title: d.title,
+          content: d.content,
+          content_type: d.content_type,
+          content_blocks: d.content_blocks,
+          featured_image: d.featured_image,
+          category: d.category,
+          status: d.status,
+          scheduled_at: d.status === "published" ? d.scheduled_at : "",
+        });
         setDraftRestored(true);
         toast({
           title: "Draft Restored",
@@ -494,12 +508,13 @@ export default function NewBlogPage() {
         content: useBlocks ? "" : formData.content,
         content_blocks: useBlocks ? formData.content_blocks : undefined,
         category: formData.category || undefined,
+        excerpt: derivedExcerpt(),
       };
       const { scheduled_at, ...blogData } = submitData;
       createBlog.mutate(blogData, {
         onSuccess: async (response) => {
           const blogId = response.data?.data?._id || response.data?._id;
-          if (blogId && scheduled_at) {
+          if (blogId && formData.status === "published" && scheduled_at) {
             try {
               const scheduleDate = new Date(scheduled_at);
               await BlogService.scheduleBlog(blogId, scheduleDate);
@@ -737,12 +752,14 @@ export default function NewBlogPage() {
                   <select
                     id="status"
                     value={formData.status}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const status = e.target.value as "draft" | "published" | "unpublished";
                       setFormData({
                         ...formData,
-                        status: e.target.value as "draft" | "published" | "unpublished",
-                      })
-                    }
+                        status,
+                        ...(status !== "published" ? { scheduled_at: "" } : {}),
+                      });
+                    }}
                     className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
                   >
                     <option value="draft">Draft</option>
@@ -774,20 +791,6 @@ export default function NewBlogPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="excerpt" className="text-gray-300">
-                    Excerpt
-                  </Label>
-                  <textarea
-                    id="excerpt"
-                    value={formData.excerpt}
-                    onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-                    className="mt-1 flex min-h-[100px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-                    maxLength={500}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">{formData.excerpt.length}/500</p>
-                </div>
-
-                <div>
                   <Label htmlFor="featured_image" className="text-gray-300">
                     Featured Image
                   </Label>
@@ -811,25 +814,27 @@ export default function NewBlogPage() {
                   )}
                 </div>
 
-                <div>
-                  <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Schedule Publish
-                  </Label>
-                  <Input
-                    id="scheduled_at"
-                    type="datetime-local"
-                    value={formData.scheduled_at}
-                    onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-                    className="mt-1 bg-black border-gray-700 text-white"
-                    min={new Date().toISOString().slice(0, 16)}
-                  />
-                  {formData.scheduled_at && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Will be published on {new Date(formData.scheduled_at).toLocaleString()}
-                    </p>
-                  )}
-                </div>
+                {formData.status === "published" && (
+                  <div>
+                    <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Schedule Publish
+                    </Label>
+                    <Input
+                      id="scheduled_at"
+                      type="datetime-local"
+                      value={formData.scheduled_at}
+                      onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
+                      className="mt-1 bg-black border-gray-700 text-white"
+                      min={new Date().toISOString().slice(0, 16)}
+                    />
+                    {formData.scheduled_at && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Will be published on {new Date(formData.scheduled_at).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -844,7 +849,7 @@ export default function NewBlogPage() {
                 originalContent={{
                   title: formData.title,
                   content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                  excerpt: formData.excerpt,
+                  excerpt: derivedExcerpt(),
                 }}
                 isLoading={false}
                 onViewComparison={() => setShowComparison(true)}
@@ -857,7 +862,6 @@ export default function NewBlogPage() {
                       title: result.improved_title || formData.title,
                       content: improvedContent,
                       content_blocks: htmlToBlocks(improvedContent),
-                      excerpt: result.improved_excerpt || formData.excerpt,
                     });
                     setShowReview(false);
                   } catch (err) {
@@ -874,7 +878,7 @@ export default function NewBlogPage() {
               original={{
                 title: formData.title,
                 content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                excerpt: formData.excerpt,
+                excerpt: derivedExcerpt(),
               }}
               reviewResult={reviewResult || autoReviewResult}
               onClose={() => setShowComparison(false)}
@@ -886,7 +890,6 @@ export default function NewBlogPage() {
                   title: result.improved_title || formData.title,
                   content: improvedContent,
                   content_blocks: htmlToBlocks(improvedContent),
-                  excerpt: result.improved_excerpt || formData.excerpt,
                 });
                 setShowComparison(false);
                 setShowReview(false);

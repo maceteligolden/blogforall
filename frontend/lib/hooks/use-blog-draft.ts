@@ -14,7 +14,8 @@ interface BlogGenerationDraft {
     content: string;
     content_type: "html" | "markdown";
     content_blocks?: ContentBlock[];
-    excerpt: string;
+    /** Legacy drafts may still contain this; ignored when restoring. */
+    excerpt?: string;
     featured_image: string;
     category: string;
     status: "draft" | "published" | "unpublished";

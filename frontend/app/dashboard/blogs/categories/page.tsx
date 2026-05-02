@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useCategories, useCreateCategory, useDeleteCategory, useUpdateCategory } from "@/lib/hooks/use-category";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +9,9 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { ConfirmModal } from "@/components/ui/modal";
 import { ImportCategoriesDialog } from "@/components/categories/import-categories-dialog";
 import { Download } from "lucide-react";
+import { BlogHubTabs } from "@/components/blogs/blog-hub-tabs";
 
-export default function CategoriesPage() {
-  const router = useRouter();
+export default function BlogCategoriesPage() {
   const { data: categories, isLoading } = useCategories({ tree: true });
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
@@ -145,41 +144,44 @@ export default function CategoriesPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <p className="text-gray-400">Loading categories...</p>
+      <>
+        <Breadcrumb items={[{ label: "Blogs", href: "/dashboard/blogs" }, { label: "Categories" }]} />
+        <BlogHubTabs />
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+            <p className="text-gray-400">Loading categories...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb items={[{ label: "Categories" }]} />
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-display text-white">Categories</h1>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
-              onClick={() => setShowImportDialog(true)}
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Import Categories
-            </Button>
-            <Button
-              className="bg-primary hover:bg-primary/90 text-white"
-              onClick={() => setShowCreateForm(true)}
-            >
-              Create Category
-            </Button>
-          </div>
+    <>
+      <Breadcrumb items={[{ label: "Blogs", href: "/dashboard/blogs" }, { label: "Categories" }]} />
+      <BlogHubTabs />
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-display text-white">Categories</h1>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            className="border-gray-700 text-gray-300 hover:bg-gray-800"
+            onClick={() => setShowImportDialog(true)}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Import Categories
+          </Button>
+          <Button
+            className="bg-primary hover:bg-primary/90 text-white"
+            onClick={() => setShowCreateForm(true)}
+          >
+            Create Category
+          </Button>
         </div>
+      </div>
 
-        <main className="max-w-4xl mx-auto">
-        {/* Create/Edit Form */}
+      <main className="max-w-4xl mx-auto">
         {(showCreateForm || editingId) && (
           <div className="mb-6 bg-gray-900 rounded-lg border border-gray-800 p-6">
             <h3 className="text-lg font-semibold text-white mb-4">
@@ -289,7 +291,6 @@ export default function CategoriesPage() {
           </div>
         )}
 
-        {/* Categories List */}
         {!categories || categories.length === 0 ? (
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
             <p className="text-gray-400 mb-4">No categories found.</p>
@@ -306,8 +307,7 @@ export default function CategoriesPage() {
             {renderCategoryTree(categories)}
           </div>
         )}
-        </main>
-      </div>
+      </main>
 
       <ConfirmModal
         isOpen={deleteModalOpen}
@@ -327,7 +327,6 @@ export default function CategoriesPage() {
         isOpen={showImportDialog}
         onClose={() => setShowImportDialog(false)}
       />
-    </div>
+    </>
   );
 }
-
