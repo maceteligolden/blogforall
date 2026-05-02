@@ -10,7 +10,7 @@ import { logger } from "../utils/logger";
  * - x-access-key-id
  * - x-secret-key
  */
-export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const apiKeyAuthMiddleware = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   const startTime = Date.now();
   const accessKeyId = req.headers["x-access-key-id"] as string;
   const secretKey = req.headers["x-secret-key"] as string;
@@ -67,7 +67,7 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
       workspaceSiteId: siteId,
     };
 
-    (req as any).accessKeyId = accessKeyId;
+    req.accessKeyId = accessKeyId;
 
     next();
   } catch (error) {

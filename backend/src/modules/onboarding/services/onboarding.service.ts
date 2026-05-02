@@ -108,7 +108,7 @@ export class OnboardingService {
     // 2. Ensure user is on free plan (if not already)
     if (hasSubscription) {
       try {
-        const { subscription, plan } = await this.subscriptionService.getActiveSubscription(userId);
+        const { plan } = await this.subscriptionService.getActiveSubscription(userId);
         if (plan.price > 0 || plan.interval !== "free") {
           // User is on a paid plan, downgrade to free
           const plans = await this.subscriptionService.getActivePlans();
@@ -119,7 +119,7 @@ export class OnboardingService {
         }
       } catch (error) {
         // Error getting subscription, but we already created one above
-        logger.error("Error ensuring free plan", error as Error, { userId }, "OnboardingService");
+        logger.error("Error ensuring free plan", error, { userId }, "OnboardingService");
       }
     }
 

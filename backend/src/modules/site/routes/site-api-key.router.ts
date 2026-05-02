@@ -23,11 +23,6 @@ router.post(
   validateBody(createApiKeySchema),
   apiKeyController.create
 );
-router.delete(
-  "/:accessKeyId",
-  authMiddleware,
-  validateParams(accessKeyIdParamSchema),
-  apiKeyController.delete
-);
+router.delete("/:accessKeyId", authMiddleware, validateParams(accessKeyIdParamSchema), apiKeyController.delete);
 
 export default router;

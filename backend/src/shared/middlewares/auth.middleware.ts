@@ -20,11 +20,13 @@ declare global {
         userId: string;
         role: import("../constants").SiteMemberRole | null;
       };
+      /** Set by API key middleware for workspace/public routes. */
+      accessKeyId?: string;
     }
   }
 }
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+export const authMiddleware = (req: Request, _res: Response, next: NextFunction): void => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

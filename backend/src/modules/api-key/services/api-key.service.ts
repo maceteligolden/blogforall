@@ -101,11 +101,7 @@ export class ApiKeyService {
     }
 
     if (!row.apiKey.isActive) {
-      logger.warn(
-        "API key verification failed: Key inactive",
-        { accessKeyId, siteId: row.siteId },
-        "ApiKeyService"
-      );
+      logger.warn("API key verification failed: Key inactive", { accessKeyId, siteId: row.siteId }, "ApiKeyService");
       throw new ForbiddenError("API key is inactive");
     }
 
@@ -115,10 +111,19 @@ export class ApiKeyService {
       throw new ForbiddenError("Invalid API credentials");
     }
 
-    logger.info("API key verified successfully", { accessKeyId, siteId: row.siteId, userId: row.userId }, "ApiKeyService");
+    logger.info(
+      "API key verified successfully",
+      { accessKeyId, siteId: row.siteId, userId: row.userId },
+      "ApiKeyService"
+    );
 
     this.apiKeyRepository.updateLastUsed(row.siteId, accessKeyId).catch((err) => {
-      logger.error("Failed to update API key lastUsed", err as Error, { accessKeyId, siteId: row.siteId }, "ApiKeyService");
+      logger.error(
+        "Failed to update API key lastUsed",
+        err as Error,
+        { accessKeyId, siteId: row.siteId },
+        "ApiKeyService"
+      );
     });
 
     return { userId: row.userId, siteId: row.siteId };

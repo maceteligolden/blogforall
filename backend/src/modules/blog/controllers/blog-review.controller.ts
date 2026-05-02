@@ -7,6 +7,7 @@ import { BadRequestError, NotFoundError, ForbiddenError } from "../../../shared/
 import { BlogStatus } from "../../../shared/constants";
 import { blocksToHtml } from "../../../shared/utils/content-blocks.util";
 import type { ContentBlock } from "../../../shared/schemas/blog.schema";
+import type { UpdateBlogInput } from "../interfaces/blog.interface";
 
 @injectable()
 export class BlogReviewController {
@@ -92,7 +93,7 @@ export class BlogReviewController {
       }
 
       const { blogId } = req.params;
-      const { suggestions, improved_content, improved_title, improved_excerpt } = req.body;
+      const { suggestions: _suggestions, improved_content, improved_title, improved_excerpt } = req.body;
 
       if (!blogId) {
         return next(new BadRequestError("Blog ID is required"));
@@ -126,7 +127,7 @@ export class BlogReviewController {
       });
 
       // Apply improvements
-      const updateData: any = {
+      const updateData: UpdateBlogInput = {
         version_history: versionHistory,
       };
 
@@ -159,7 +160,7 @@ export class BlogReviewController {
       }
 
       const { blogId } = req.params;
-      const { suggestion_id, target, original, suggestion, blockId, blockIndex } = req.body;
+      const { suggestion_id: _suggestion_id, target, original, suggestion, blockId, blockIndex } = req.body;
 
       if (!blogId) {
         return next(new BadRequestError("Blog ID is required"));
@@ -225,15 +226,13 @@ export class BlogReviewController {
         }
       }
 
-      const updateData: Record<string, unknown> = {
+      const updateData: UpdateBlogInput = {
         version_history: versionHistory,
         title: newTitle,
         excerpt: newExcerpt,
         content: newContent,
+        ...(newContentBlocks ? { content_blocks: newContentBlocks } : {}),
       };
-      if (newContentBlocks) {
-        updateData.content_blocks = newContentBlocks;
-      }
 
       const siteId = blog.site_id;
       const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, updateData);

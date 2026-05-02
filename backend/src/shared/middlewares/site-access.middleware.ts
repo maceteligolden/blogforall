@@ -15,7 +15,7 @@ export const siteAccessMiddleware = (options?: {
   bodyName?: string;
   requireRole?: SiteMemberRole[];
 }) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user?.userId;
       if (!userId) {

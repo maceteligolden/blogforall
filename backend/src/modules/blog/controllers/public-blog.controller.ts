@@ -17,7 +17,7 @@ export class PublicBlogController {
    */
   getPublishedBlogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
       const siteId = req.user?.workspaceSiteId;
@@ -95,7 +95,7 @@ export class PublicBlogController {
    */
   getCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
       const siteId = req.user?.workspaceSiteId;
@@ -169,7 +169,7 @@ export class PublicBlogController {
    */
   getBlogsByCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
       const siteId = req.user?.workspaceSiteId;
@@ -255,7 +255,7 @@ export class PublicBlogController {
    */
   getPublishedBlogById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
       const siteId = req.user?.workspaceSiteId;
@@ -340,7 +340,7 @@ export class PublicBlogController {
    */
   getPublishedBlogBySlug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
       const siteId = req.user?.workspaceSiteId;

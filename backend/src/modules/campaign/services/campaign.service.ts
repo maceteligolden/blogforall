@@ -9,7 +9,7 @@ import {
   CampaignQueryFilters,
   CampaignWithStats,
 } from "../interfaces/campaign.interface";
-import { Campaign, Campaign as CampaignType } from "../../../shared/schemas/campaign.schema";
+import { Campaign } from "../../../shared/schemas/campaign.schema";
 import { CampaignStatus, ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
 
@@ -132,7 +132,7 @@ export class CampaignService {
   }
 
   async deleteCampaign(campaignId: string, siteId: string, userId: string): Promise<void> {
-    const campaign = await this.getCampaignById(campaignId, siteId, userId);
+    await this.getCampaignById(campaignId, siteId, userId);
 
     // Check if campaign has scheduled posts
     const scheduledPosts = await this.scheduledPostRepository.findByCampaign(campaignId, siteId);

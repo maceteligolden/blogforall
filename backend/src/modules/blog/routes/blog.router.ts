@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { container } from "tsyringe";
 import { BlogController } from "../controllers/blog.controller";
 import { BlogReviewController } from "../controllers/blog-review.controller";
@@ -37,10 +37,13 @@ router.post("/generate/analyze", authMiddleware, blogGenerationController.analyz
 router.post("/generate", authMiddleware, blogGenerationController.generateBlog);
 
 // Image upload routes (protected)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-router.post("/images/upload", authMiddleware, uploadSingle as any, imageController.uploadSingle);
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-router.post("/images/upload-multiple", authMiddleware, uploadMultiple as any, imageController.uploadMultiple);
+router.post("/images/upload", authMiddleware, uploadSingle as unknown as RequestHandler, imageController.uploadSingle);
+router.post(
+  "/images/upload-multiple",
+  authMiddleware,
+  uploadMultiple as unknown as RequestHandler,
+  imageController.uploadMultiple
+);
 
 // Public routes (no authentication required)
 router.get("/", blogController.getAllBlogs);

@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import Category, { Category as CategoryType } from "../../../shared/schemas/category.schema";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
+import { mongooseDocToPlain } from "../../../shared/utils/mongoose-plain.util";
 
 @injectable()
 export class CategoryRepository {
@@ -141,7 +142,7 @@ export class CategoryRepository {
 
     // Create map of all categories
     categories.forEach((cat) => {
-      const catObj = (cat as any).toObject ? (cat as any).toObject() : { ...(cat as any) };
+      const catObj = mongooseDocToPlain(cat);
       categoryMap.set(cat._id!.toString(), { ...catObj, children: [] });
     });
 

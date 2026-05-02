@@ -26,7 +26,7 @@ export class SubscriptionController {
     }
   };
 
-  getPlans = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getPlans = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const plans = await this.subscriptionService.getActivePlans();
       sendSuccess(res, "Plans retrieved successfully", plans);

@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import mongoose, { Schema, model } from "mongoose";
 import { BaseEntity } from "../interfaces";
 
 export enum SubscriptionStatus {
@@ -22,25 +22,25 @@ export interface Subscription extends BaseEntity {
   cancelAtPeriodEnd: boolean;
 }
 
-const subscriptionSchema = new Schema<Subscription>(
+const subscriptionSchema = new Schema(
   {
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true,
-    } as any,
+    },
     planId: {
       type: Schema.Types.ObjectId,
       ref: "Plan",
       required: true,
       index: true,
-    } as any,
+    },
     pendingPlanId: {
       type: Schema.Types.ObjectId,
       ref: "Plan",
       index: true,
-    } as any,
+    },
     status: {
       type: String,
       enum: Object.values(SubscriptionStatus),
@@ -90,7 +90,7 @@ subscriptionSchema.index({ userId: 1, status: 1 });
 
 // Update updated_at before saving
 subscriptionSchema.pre("save", function (next) {
-  (this as any).updated_at = new Date();
+  (this as mongoose.Document).set("updated_at", new Date());
   next();
 });
 

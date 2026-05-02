@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import Campaign, { Campaign as CampaignType } from "../../../shared/schemas/campaign.schema";
 import { CampaignStatus } from "../../../shared/constants/campaign.constant";
-import { PaginationOptions, PaginatedResponse } from "../../../shared/interfaces";
+import { PaginatedResponse } from "../../../shared/interfaces";
 import { CampaignQueryFilters } from "../interfaces/campaign.interface";
 
 @injectable()

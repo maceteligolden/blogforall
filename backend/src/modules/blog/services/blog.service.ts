@@ -75,7 +75,7 @@ export class BlogService {
     }
 
     let content = input.content ?? "";
-    let content_blocks = input.content_blocks;
+    const content_blocks = input.content_blocks;
 
     if (content_blocks != null && content_blocks.length > 0) {
       validateContentBlocks(content_blocks);

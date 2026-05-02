@@ -4,6 +4,7 @@ import { BillingService } from "../services/billing.service";
 import { SubscriptionService } from "../../subscription/services/subscription.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
+import { logger } from "../../../shared/utils/logger";
 
 @injectable()
 export class BillingController {
@@ -86,8 +87,12 @@ export class BillingController {
         const subscriptionService = container.resolve(SubscriptionService);
         await subscriptionService.updateSubscriptionPaymentMethod(userId);
       } catch (error) {
-        // Log error but don't fail the operation - subscription update is best effort
-        console.error("Failed to update subscription payment method:", error);
+        logger.error(
+          "Failed to update subscription payment method",
+          error instanceof Error ? error : new Error(String(error)),
+          {},
+          "BillingController"
+        );
       }
 
       sendSuccess(res, "Default card updated successfully", { success: true });

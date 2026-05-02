@@ -25,8 +25,8 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
     }
 
     // Include user ID if available
-    if ((req as any).user?.userId) {
-      logData.userId = (req as any).user.userId;
+    if (req.user?.userId) {
+      logData.userId = req.user.userId;
     }
 
     logger.info(`${req.method} ${req.path} - ${res.statusCode}`, logData, "RequestLogger");

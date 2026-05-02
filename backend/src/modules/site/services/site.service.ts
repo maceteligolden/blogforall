@@ -10,6 +10,8 @@ import { SiteMemberRole } from "../../../shared/constants";
 import Blog from "../../../shared/schemas/blog.schema";
 import { env } from "../../../shared/config/env";
 import { ApiKeyRepository } from "../../api-key/repositories/api-key.repository";
+import type { SiteMember as SiteMemberType } from "../../../shared/schemas/site-member.schema";
+import { mongooseDocToPlain } from "../../../shared/utils/mongoose-plain.util";
 
 @injectable()
 export class SiteService {
@@ -133,7 +135,7 @@ export class SiteService {
     const sitesWithMembers = await Promise.all(
       sites.map(async (site) => {
         const memberCount = await this.siteRepository.getMemberCount(site._id!.toString());
-        const siteObj = (site as any).toObject ? (site as any).toObject() : { ...(site as any) };
+        const siteObj = mongooseDocToPlain(site);
         return {
           ...siteObj,
           memberCount,
@@ -229,7 +231,7 @@ export class SiteService {
   /**
    * Get site members (for use by SiteMember service)
    */
-  async getSiteMembers(siteId: string, userId: string): Promise<any[]> {
+  async getSiteMembers(siteId: string, userId: string): Promise<SiteMemberType[]> {
     // Check if user has access
     const hasAccess = await this.hasSiteAccess(siteId, userId);
     if (!hasAccess) {

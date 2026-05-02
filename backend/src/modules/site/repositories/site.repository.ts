@@ -1,7 +1,6 @@
 import { injectable } from "tsyringe";
 import Site, { Site as SiteType } from "../../../shared/schemas/site.schema";
 import SiteMember from "../../../shared/schemas/site-member.schema";
-import { NotFoundError, BadRequestError } from "../../../shared/errors";
 import { generateSitePublicId } from "../../../shared/utils/site-public-id";
 
 @injectable()

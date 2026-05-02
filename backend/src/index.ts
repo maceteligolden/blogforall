@@ -37,7 +37,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(corsMiddleware);
 
 // Routes
-app.get("/health", (req, res) => {
+app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok", message: "Bloggr API is running" });
 });
 

@@ -103,10 +103,12 @@ export function blocksToHtml(blocks: ContentBlock[]): string {
         parts.push(`<pre><code${lang}>${escapeHtml(text)}</code></pre>`);
         break;
       }
-      default:
+      default: {
         // Unknown type: treat as paragraph if it has text
         const fallbackText = (data as { text?: string }).text ?? "";
         parts.push(`<p>${escapeHtml(fallbackText)}</p>`);
+        break;
+      }
     }
   }
 
@@ -148,8 +150,6 @@ export function htmlToBlocks(html: string): ContentBlock[] {
   const blocks: ContentBlock[] = [];
   let str = html.trim();
 
-  const figureRegex =
-    /<figure[^>]*class="[^"]*ql-image-with-caption[^"]*"[^>]*>[\s\S]*?<img[^>]*src="([^"]*)"[^>]*>[\s\S]*?(?:<figcaption[^>]*>([\s\S]*?)<\/figcaption>)?[\s\S]*?<\/figure>/i;
   const blockRegexes: { regex: RegExp; type: ContentBlockType; parse: (m: RegExpExecArray) => ContentBlock }[] = [
     {
       regex:

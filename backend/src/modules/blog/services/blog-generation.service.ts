@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import { HfInference } from "@huggingface/inference";
+import { HfInference, type TextGenerationInput } from "@huggingface/inference";
 import { BlogGenerationConfig } from "../../../shared/constants/blog-generation.constant";
 import { logger } from "../../../shared/utils/logger";
 import { BadRequestError } from "../../../shared/errors";
@@ -91,7 +91,7 @@ export class BlogGenerationService {
                     temperature: 0.3,
                     return_full_text: false,
                   },
-                } as any),
+                } as TextGenerationInput),
                 BlogGenerationConfig.API_TIMEOUT,
                 "Prompt analysis"
               ),
@@ -190,7 +190,7 @@ export class BlogGenerationService {
                     temperature: 0.7, // Higher temperature for more creative content
                     return_full_text: false,
                   },
-                } as any),
+                } as TextGenerationInput),
                 BlogGenerationConfig.API_TIMEOUT,
                 "Blog content generation"
               ),
@@ -293,7 +293,7 @@ Response:`;
             temperature: 0.1,
             return_full_text: false,
           },
-        } as any),
+        } as TextGenerationInput),
         10000, // 10 seconds for safety check
         "Content safety check"
       ).catch(() => {
@@ -409,7 +409,7 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
 
       const parsed = JSON.parse(jsonText) as Partial<PromptAnalysis & { has_clear_topic?: boolean }>;
 
-      const hasClearTopic = (parsed as any).has_clear_topic !== false;
+      const hasClearTopic = parsed.has_clear_topic !== false;
 
       return {
         topic: parsed.topic || "",
@@ -499,12 +499,7 @@ Now write the blog post. Return ONLY valid JSON, no additional text.`;
       };
 
       // Validate fallback content
-      try {
-        this.validateGeneratedContent(fallbackContent, analysis);
-      } catch (validationError) {
-        // If fallback also fails validation, throw the validation error
-        throw validationError;
-      }
+      this.validateGeneratedContent(fallbackContent, analysis);
 
       return fallbackContent;
     }

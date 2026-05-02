@@ -58,7 +58,6 @@ export class PostSchedulerService {
    */
   private async processScheduledPosts(): Promise<void> {
     try {
-      const now = new Date();
       const pendingPosts = await this.scheduledPostRepository.findPendingPosts(100); // Process up to 100 at a time
 
       if (pendingPosts.length === 0) {
@@ -74,7 +73,7 @@ export class PostSchedulerService {
         await Promise.allSettled(batch.map((post) => this.executeScheduledPost(post._id!.toString())));
       }
     } catch (error) {
-      logger.error("Error processing scheduled posts", error as Error, {}, "PostSchedulerService");
+      logger.error("Error processing scheduled posts", error, {}, "PostSchedulerService");
     }
   }
 

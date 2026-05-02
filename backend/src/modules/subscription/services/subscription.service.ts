@@ -166,10 +166,9 @@ export class SubscriptionService {
 
           // Update plan with Stripe price ID
           await this.planRepository.update(newPlanId, { stripe_price_id: stripePriceId });
-        } catch (error: any) {
-          throw new BadRequestError(
-            `Failed to configure plan for billing: ${error.message || "Please contact support"}`
-          );
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : "Please contact support";
+          throw new BadRequestError(`Failed to configure plan for billing: ${message}`);
         }
       }
 
@@ -193,9 +192,9 @@ export class SubscriptionService {
       // Ensure payment method is attached to customer
       try {
         await this.stripeFacade.attachPaymentMethod(user.stripe_customer_id, defaultCard.stripe_card_token);
-      } catch (error: any) {
-        // Payment method might already be attached, continue
-        if (!error.message?.includes("already been attached")) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "";
+        if (!message.includes("already been attached")) {
           throw error;
         }
       }
@@ -207,7 +206,6 @@ export class SubscriptionService {
       const stripeSubscription = await this.stripeFacade.createSubscription(user.stripe_customer_id, stripePriceId);
 
       // Update subscription
-      const now = new Date();
       const updated = await this.subscriptionRepository.update(subscription._id!, {
         planId: newPlanId,
         status: SubscriptionStatus.ACTIVE,
@@ -250,8 +248,9 @@ export class SubscriptionService {
 
         // Update plan with Stripe price ID
         await this.planRepository.update(newPlanId, { stripe_price_id: stripePriceId });
-      } catch (error: any) {
-        throw new BadRequestError(`Failed to configure plan for billing: ${error.message || "Please contact support"}`);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Please contact support";
+        throw new BadRequestError(`Failed to configure plan for billing: ${message}`);
       }
     }
 
@@ -334,7 +333,7 @@ export class SubscriptionService {
   /**
    * Downgrade to free plan
    */
-  private async downgradeToFreePlan(userId: string, subscriptionId: string): Promise<Subscription> {
+  private async downgradeToFreePlan(_userId: string, subscriptionId: string): Promise<Subscription> {
     const plans = await this.planRepository.fetchActivePlans();
     const sortedPlans = plans.sort((a, b) => a.price - b.price);
     const freePlan = sortedPlans[0];

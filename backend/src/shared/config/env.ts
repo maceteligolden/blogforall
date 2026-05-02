@@ -69,7 +69,8 @@ export const env = {
     HUGGINGFACE_API_TOKEN: (process.env.HUGGINGFACE_API_TOKEN || "").trim(),
     GENERATION_MODEL: process.env.BLOG_GENERATION_MODEL || "mistralai/Mistral-7B-Instruct-v0.2",
     GENERATION_FALLBACK_MODELS: (
-      process.env.BLOG_GENERATION_FALLBACK_MODELS || "mistralai/Mixtral-8x7B-Instruct-v0.1,meta-llama/Llama-2-7b-chat-hf"
+      process.env.BLOG_GENERATION_FALLBACK_MODELS ||
+      "mistralai/Mixtral-8x7B-Instruct-v0.1,meta-llama/Llama-2-7b-chat-hf"
     )
       .split(",")
       .map((m) => m.trim()),

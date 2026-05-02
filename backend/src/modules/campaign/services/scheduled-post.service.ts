@@ -9,7 +9,7 @@ import {
   UpdateScheduledPostInput,
   ScheduledPostQueryFilters,
 } from "../interfaces/scheduled-post.interface";
-import { ScheduledPost, ScheduledPost as ScheduledPostType } from "../../../shared/schemas/scheduled-post.schema";
+import { ScheduledPost } from "../../../shared/schemas/scheduled-post.schema";
 import { ScheduledPostStatus, CampaignStatus } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
 

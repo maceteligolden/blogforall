@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import ScheduledPost, { ScheduledPost as ScheduledPostType } from "../../../shared/schemas/scheduled-post.schema";
 import { ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
-import { PaginationOptions, PaginatedResponse } from "../../../shared/interfaces";
+import { PaginatedResponse } from "../../../shared/interfaces";
 import { ScheduledPostQueryFilters } from "../interfaces/scheduled-post.interface";
 
 @injectable()
