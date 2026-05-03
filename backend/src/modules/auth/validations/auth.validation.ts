@@ -31,3 +31,7 @@ export const changePasswordSchema = z.object({
 export const updateSiteContextSchema = z.object({
   site_id: z.string().min(1, "Site ID is required"),
 });
+
+export const refreshTokenBodySchema = z.object({
+  refresh_token: z.string().min(1, "Refresh token is required"),
+});

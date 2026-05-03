@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { SubscriptionService } from "../services/subscription.service";
 import { sendSuccess } from "../../../shared/helper/response.helper";
-import { BadRequestError } from "../../../shared/errors";
+import { getJwtUserId } from "../../../shared/utils/jwt-user";
 
 @injectable()
 export class SubscriptionController {
@@ -10,11 +10,7 @@ export class SubscriptionController {
 
   getSubscription = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = getJwtUserId(req);
       const { subscription, plan } = await this.subscriptionService.getActiveSubscription(userId);
 
       sendSuccess(res, "Subscription retrieved successfully", {
@@ -37,16 +33,8 @@ export class SubscriptionController {
 
   changePlan = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { planId } = req.body;
-      if (!planId) {
-        return next(new BadRequestError("Plan ID is required"));
-      }
-
+      const userId = getJwtUserId(req);
+      const { planId } = req.validatedBody as { planId: string };
       const subscription = await this.subscriptionService.changePlan(userId, planId);
       sendSuccess(res, "Plan changed successfully", subscription);
     } catch (error) {
@@ -56,11 +44,7 @@ export class SubscriptionController {
 
   cancelSubscription = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = getJwtUserId(req);
       const subscription = await this.subscriptionService.cancelSubscription(userId);
       sendSuccess(res, "Subscription will be cancelled at the end of the billing period", subscription);
     } catch (error) {

@@ -36,8 +36,13 @@ export const authMiddleware = (req: Request, _res: Response, next: NextFunction)
     const token = authHeader.split(" ")[1];
     const decoded = verifyAccessToken(token);
 
+    const userId = typeof decoded.userId === "string" ? decoded.userId.trim() : "";
+    if (!userId) {
+      return next(new UnauthorizedError("Invalid token: missing user id"));
+    }
+
     req.user = {
-      userId: decoded.userId,
+      userId,
       email: decoded.email,
       currentSiteId: decoded.currentSiteId,
       role: decoded.role,

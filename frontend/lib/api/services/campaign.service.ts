@@ -135,86 +135,75 @@ export interface ScheduledPost {
 }
 
 export class CampaignService {
-  /**
-   * Get current site ID from auth store
-   */
   private static getCurrentSiteId(): string | undefined {
     if (typeof window === "undefined") return undefined;
     return useAuthStore.getState().currentSiteId || undefined;
   }
 
-  // Campaign methods
+  private static requireSiteId(): string {
+    const siteId = this.getCurrentSiteId();
+    if (!siteId) {
+      throw new Error("No workspace selected. Choose a site before managing campaigns.");
+    }
+    return siteId;
+  }
+
   static async createCampaign(data: CreateCampaignRequest) {
-    const siteId = data.site_id || this.getCurrentSiteId();
-    const requestData = siteId ? { ...data, site_id: siteId } : data;
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.CREATE, requestData);
+    const siteId = data.site_id || this.requireSiteId();
+    const { site_id: _s, ...body } = { ...data, site_id: siteId };
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.CREATE(siteId), body);
   }
 
   static async getCampaigns(params?: CampaignQueryParams) {
-    const siteId = this.getCurrentSiteId();
-    const queryParams = siteId ? { ...params, site_id: siteId } : params;
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.MY_CAMPAIGNS, { params: queryParams });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.MY_CAMPAIGNS(siteId), { params });
   }
 
   static async getAllCampaigns(params?: CampaignQueryParams) {
-    const siteId = this.getCurrentSiteId();
-    const queryParams = siteId ? { ...params, site_id: siteId } : params;
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.LIST, { params: queryParams });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.LIST(siteId), { params });
   }
 
   static async getCampaignById(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.GET_ONE(id), {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.GET_ONE(siteId, id));
   }
 
   static async getCampaignWithStats(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.GET_STATS(id), {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.GET_STATS(siteId, id));
   }
 
   static async updateCampaign(id: string, data: UpdateCampaignRequest) {
-    const siteId = data.site_id || this.getCurrentSiteId();
-    const requestData = siteId ? { ...data, site_id: siteId } : data;
-    return apiClient.put(API_ENDPOINTS.CAMPAIGNS.UPDATE(id), requestData);
+    const siteId = data.site_id || this.requireSiteId();
+    const { site_id: _s, ...body } = { ...data, site_id: siteId };
+    return apiClient.put(API_ENDPOINTS.CAMPAIGNS.UPDATE(siteId, id), body);
   }
 
   static async deleteCampaign(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.delete(API_ENDPOINTS.CAMPAIGNS.DELETE(id), {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.delete(API_ENDPOINTS.CAMPAIGNS.DELETE(siteId, id));
   }
 
   static async activateCampaign(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ACTIVATE(id), null, {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ACTIVATE(siteId, id), null);
   }
 
   static async pauseCampaign(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PAUSE(id), null, {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PAUSE(siteId, id), null);
   }
 
   static async cancelCampaign(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.CANCEL(id), null, {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.CANCEL(siteId, id), null);
   }
 
-  // Scheduled Post methods
   static async createScheduledPost(data: CreateScheduledPostRequest) {
-    const siteId = data.site_id || this.getCurrentSiteId();
-    const requestData = siteId ? { ...data, site_id: siteId } : data;
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.CREATE, requestData);
+    const siteId = data.site_id || this.requireSiteId();
+    const { site_id: _s, ...body } = { ...data, site_id: siteId };
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.CREATE(siteId), body);
   }
 
   static async getScheduledPosts(params?: {
@@ -223,11 +212,8 @@ export class CampaignService {
     scheduled_at_from?: string;
     scheduled_at_to?: string;
   }) {
-    const siteId = this.getCurrentSiteId();
-    const queryParams = siteId ? { ...params, site_id: siteId } : params;
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.MY_POSTS, {
-      params: queryParams,
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.MY_POSTS(siteId), { params });
   }
 
   static async getAllScheduledPosts(params?: {
@@ -238,65 +224,55 @@ export class CampaignService {
     page?: number;
     limit?: number;
   }) {
-    const siteId = this.getCurrentSiteId();
-    const queryParams = siteId ? { ...params, site_id: siteId } : params;
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.LIST, {
-      params: queryParams,
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.LIST(siteId), { params });
   }
 
   static async getScheduledPostById(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.GET_ONE(id), {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.GET_ONE(siteId, id));
   }
 
   static async updateScheduledPost(id: string, data: Partial<CreateScheduledPostRequest>) {
-    const siteId = data.site_id || this.getCurrentSiteId();
-    const requestData = siteId ? { ...data, site_id: siteId } : data;
-    return apiClient.put(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.UPDATE(id), requestData);
+    const siteId = data.site_id || this.requireSiteId();
+    const { site_id: _s, ...body } = { ...data, site_id: siteId };
+    return apiClient.put(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.UPDATE(siteId, id), body);
   }
 
   static async deleteScheduledPost(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.delete(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.DELETE(id), {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.delete(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.DELETE(siteId, id));
   }
 
   static async cancelScheduledPost(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.CANCEL(id), null, {
-      params: { site_id: siteId },
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.CANCEL(siteId, id), null);
   }
 
   static async moveToCampaign(id: string, campaignId: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.MOVE_TO_CAMPAIGN(id), {
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.MOVE_TO_CAMPAIGN(siteId, id), {
       campaign_id: campaignId,
-      site_id: siteId,
     });
   }
 
   static async removeFromCampaign(id: string) {
-    const siteId = this.getCurrentSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.REMOVE_FROM_CAMPAIGN(id), {
-      site_id: siteId,
-    });
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.REMOVE_FROM_CAMPAIGN(siteId, id), null);
   }
 
-  // Template methods
   static async getCampaignTemplates(params?: { type?: string; is_active?: boolean; industry?: string }) {
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.LIST, { params });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.LIST(siteId), { params });
   }
 
   static async getCampaignTemplateById(id: string) {
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.GET_ONE(id));
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.GET_ONE(siteId, id));
   }
 
   static async getCampaignTemplatesByType(type: string) {
-    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.GET_BY_TYPE(type));
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.GET_BY_TYPE(siteId, type));
   }
 }

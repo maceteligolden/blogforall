@@ -8,6 +8,7 @@ import { BlogStatus } from "../../../shared/constants";
 import { blocksToHtml } from "../../../shared/utils/content-blocks.util";
 import type { ContentBlock } from "../../../shared/schemas/blog.schema";
 import type { UpdateBlogInput } from "../interfaces/blog.interface";
+import { getJwtUserId } from "../../../shared/utils/jwt-user";
 
 @injectable()
 export class BlogReviewController {
@@ -16,39 +17,37 @@ export class BlogReviewController {
     private blogService: BlogService
   ) {}
 
-  /**
-   * Review a blog post (only for draft posts)
-   */
   reviewBlog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { blogId } = req.params;
-      const { title, content, excerpt, category, content_blocks: bodyContentBlocks } = req.body;
+      const userId = getJwtUserId(req);
+      const params = req.validatedParams as { siteId: string; blogId?: string };
+      const blogId = params.blogId;
+      const siteId = params.siteId;
+      const body = req.validatedBody as {
+        title?: string;
+        content?: string;
+        excerpt?: string;
+        category?: string;
+        content_blocks?: unknown[];
+      };
+      const { title, content, excerpt, category, content_blocks: bodyContentBlocks } = body;
 
       let blog = null;
       if (blogId) {
-        // Site context is not required here; we enforce ownership instead.
-        blog = await this.blogService.getBlogById(blogId, undefined, userId);
+        blog = await this.blogService.getBlogById(blogId, siteId, userId);
         if (!blog) {
           return next(new NotFoundError("Blog not found"));
         }
 
-        // Only allow review for draft posts
         if (blog.status !== BlogStatus.DRAFT) {
           return next(new ForbiddenError("Only draft blog posts can be reviewed"));
         }
 
-        // Verify ownership
         if (blog.author !== userId) {
           return next(new ForbiddenError("You can only review your own blog posts"));
         }
       }
 
-      // Use blog data or provided data; content can come from body or from content_blocks
       const reviewTitle = title || blog?.title || "";
       let reviewContent = content ?? blog?.content ?? "";
       const reviewExcerpt = excerpt !== undefined ? excerpt : blog?.excerpt;
@@ -65,7 +64,7 @@ export class BlogReviewController {
         return next(new BadRequestError("Content or content_blocks is required"));
       }
       if (content_blocks?.length && !reviewContent) {
-        reviewContent = blocksToHtml(content_blocks);
+        reviewContent = blocksToHtml(content_blocks as ContentBlock[]);
       }
 
       const reviewResult = await this.blogReviewService.reviewBlog(
@@ -73,7 +72,7 @@ export class BlogReviewController {
         reviewContent,
         reviewExcerpt,
         reviewCategory,
-        content_blocks
+        content_blocks as ContentBlock[] | undefined
       );
 
       sendSuccess(res, "Blog review completed", reviewResult);
@@ -82,39 +81,29 @@ export class BlogReviewController {
     }
   };
 
-  /**
-   * Apply review suggestions to a blog post
-   */
   applyReview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
+      const userId = getJwtUserId(req);
+      const { blogId, siteId } = req.validatedParams as { siteId: string; blogId: string };
+      const { improved_content, improved_title, improved_excerpt } = req.validatedBody as {
+        improved_content?: string;
+        improved_title?: string;
+        improved_excerpt?: string;
+      };
 
-      const { blogId } = req.params;
-      const { suggestions: _suggestions, improved_content, improved_title, improved_excerpt } = req.body;
-
-      if (!blogId) {
-        return next(new BadRequestError("Blog ID is required"));
-      }
-
-      const blog = await this.blogService.getBlogById(blogId, undefined, userId);
+      const blog = await this.blogService.getBlogById(blogId, siteId, userId);
       if (!blog) {
         return next(new NotFoundError("Blog not found"));
       }
 
-      // Only allow applying review to draft posts
       if (blog.status !== BlogStatus.DRAFT) {
         return next(new ForbiddenError("Only draft blog posts can be updated with review suggestions"));
       }
 
-      // Verify ownership
       if (blog.author !== userId) {
         return next(new ForbiddenError("You can only update your own blog posts"));
       }
 
-      // Save current version to history before applying changes
       const currentVersion = (blog.version_history?.length || 0) + 1;
       const versionHistory = blog.version_history || [];
 
@@ -126,7 +115,6 @@ export class BlogReviewController {
         created_at: new Date(),
       });
 
-      // Apply improvements
       const updateData: UpdateBlogInput = {
         version_history: versionHistory,
       };
@@ -140,7 +128,6 @@ export class BlogReviewController {
       if (improved_excerpt !== undefined) {
         updateData.excerpt = improved_excerpt;
       }
-      const siteId = blog.site_id;
       const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, updateData);
 
       sendSuccess(res, "Review suggestions applied successfully", updatedBlog);
@@ -149,27 +136,19 @@ export class BlogReviewController {
     }
   };
 
-  /**
-   * Apply a single review suggestion (auto-save). Pushes current state to version_history so user can undo via restore.
-   */
   applyOne = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
+      const userId = getJwtUserId(req);
+      const { blogId, siteId } = req.validatedParams as { siteId: string; blogId: string };
+      const { target, original, suggestion, blockId, blockIndex } = req.validatedBody as {
+        target: "title" | "excerpt" | "content";
+        original: string;
+        suggestion: string;
+        blockId?: string;
+        blockIndex?: number;
+      };
 
-      const { blogId } = req.params;
-      const { suggestion_id: _suggestion_id, target, original, suggestion, blockId, blockIndex } = req.body;
-
-      if (!blogId) {
-        return next(new BadRequestError("Blog ID is required"));
-      }
-      if (!target || !original || suggestion === undefined) {
-        return next(new BadRequestError("target, original, and suggestion are required"));
-      }
-
-      const blog = await this.blogService.getBlogById(blogId, undefined, userId);
+      const blog = await this.blogService.getBlogById(blogId, siteId, userId);
       if (!blog) {
         return next(new NotFoundError("Blog not found"));
       }
@@ -234,7 +213,6 @@ export class BlogReviewController {
         ...(newContentBlocks ? { content_blocks: newContentBlocks } : {}),
       };
 
-      const siteId = blog.site_id;
       const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, updateData);
       sendSuccess(res, "Suggestion applied", updatedBlog);
     } catch (error) {
@@ -242,29 +220,25 @@ export class BlogReviewController {
     }
   };
 
-  /**
-   * Restore a previous version of a blog post
-   */
   restoreVersion = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { blogId, version } = req.params;
+      const userId = getJwtUserId(req);
+      const { blogId, version, siteId } = req.validatedParams as {
+        siteId: string;
+        blogId: string;
+        version: string;
+      };
       const versionNumber = parseInt(version, 10);
 
-      if (!blogId || isNaN(versionNumber)) {
+      if (isNaN(versionNumber)) {
         return next(new BadRequestError("Blog ID and valid version number are required"));
       }
 
-      const blog = await this.blogService.getBlogById(blogId, undefined, userId);
+      const blog = await this.blogService.getBlogById(blogId, siteId, userId);
       if (!blog) {
         return next(new NotFoundError("Blog not found"));
       }
 
-      // Verify ownership
       if (blog.author !== userId) {
         return next(new ForbiddenError("You can only restore versions of your own blog posts"));
       }
@@ -276,7 +250,6 @@ export class BlogReviewController {
         return next(new NotFoundError(`Version ${versionNumber} not found`));
       }
 
-      // Save current version to history before restoring
       const currentVersion = versionHistory.length + 1;
       versionHistory.push({
         version: currentVersion,
@@ -286,8 +259,6 @@ export class BlogReviewController {
         created_at: new Date(),
       });
 
-      // Restore the target version
-      const siteId = blog.site_id;
       const updatedBlog = await this.blogService.updateBlog(blogId, siteId, userId, {
         content: targetVersion.content,
         title: targetVersion.title,

@@ -3,8 +3,8 @@ import { Request, Response, NextFunction } from "express";
 import { BillingService } from "../services/billing.service";
 import { SubscriptionService } from "../../subscription/services/subscription.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
-import { BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
+import { getJwtUserId } from "../../../shared/utils/jwt-user";
 
 @injectable()
 export class BillingController {
@@ -12,11 +12,7 @@ export class BillingController {
 
   initializeAddCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = getJwtUserId(req);
       const response = await this.billingService.initializeAddCard(userId);
       sendSuccess(res, "Setup intent created successfully", response);
     } catch (error) {
@@ -26,16 +22,8 @@ export class BillingController {
 
   confirmCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { payment_method_id } = req.body;
-      if (!payment_method_id) {
-        return next(new BadRequestError("payment_method_id is required"));
-      }
-
+      const userId = getJwtUserId(req);
+      const { payment_method_id } = req.validatedBody as { payment_method_id: string };
       const card = await this.billingService.confirmCard(userId, payment_method_id);
       sendCreated(res, "Card added successfully", card);
     } catch (error) {
@@ -45,11 +33,7 @@ export class BillingController {
 
   fetchCards = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = getJwtUserId(req);
       const cards = await this.billingService.fetchUserCards(userId);
       sendSuccess(res, "Cards retrieved successfully", cards);
     } catch (error) {
@@ -59,12 +43,8 @@ export class BillingController {
 
   deleteCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: cardId } = req.params;
+      const userId = getJwtUserId(req);
+      const { id: cardId } = req.validatedParams as { id: string };
       await this.billingService.deleteCard(cardId, userId);
       sendNoContent(res, "Card deleted successfully");
     } catch (error) {
@@ -74,15 +54,10 @@ export class BillingController {
 
   setDefaultCard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: cardId } = req.params;
+      const userId = getJwtUserId(req);
+      const { id: cardId } = req.validatedParams as { id: string };
       await this.billingService.setDefaultCard(cardId, userId);
 
-      // Update subscription payment method if user has an active paid subscription
       try {
         const subscriptionService = container.resolve(SubscriptionService);
         await subscriptionService.updateSubscriptionPaymentMethod(userId);
@@ -103,12 +78,8 @@ export class BillingController {
 
   getInvoiceHistory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const limit = parseInt(req.query.limit as string) || 10;
+      const userId = getJwtUserId(req);
+      const { limit } = req.validatedQuery as { limit: number };
       const invoices = await this.billingService.getInvoiceHistory(userId, limit);
       sendSuccess(res, "Invoice history retrieved successfully", invoices);
     } catch (error) {
@@ -118,16 +89,8 @@ export class BillingController {
 
   getInvoiceDetails = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id: invoiceId } = req.params;
-      if (!invoiceId) {
-        return next(new BadRequestError("Invoice ID is required"));
-      }
-
+      const userId = getJwtUserId(req);
+      const { id: invoiceId } = req.validatedParams as { id: string };
       const invoice = await this.billingService.getInvoiceDetails(userId, invoiceId);
       sendSuccess(res, "Invoice details retrieved successfully", invoice);
     } catch (error) {

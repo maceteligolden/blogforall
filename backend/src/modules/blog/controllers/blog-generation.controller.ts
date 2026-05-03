@@ -5,6 +5,8 @@ import { BlogReviewService } from "../services/blog-review.service";
 import { sendSuccess } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
+import { getJwtUserId } from "../../../shared/utils/jwt-user";
+import type { PromptAnalysis } from "../services/blog-generation.service";
 
 @injectable()
 export class BlogGenerationController {
@@ -13,26 +15,10 @@ export class BlogGenerationController {
     private blogReviewService: BlogReviewService
   ) {}
 
-  /**
-   * Analyze prompt to extract topic, domain, audience, purpose
-   */
   analyzePrompt = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { prompt } = req.body;
-
-      if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-        return next(
-          new BadRequestError(
-            "Please enter a prompt describing what you'd like to write about. For example: 'Write a guide about React hooks for beginners'."
-          )
-        );
-      }
-
+      getJwtUserId(req);
+      const { prompt } = req.validatedBody as { prompt: string };
       const analysis = await this.blogGenerationService.analyzePrompt(prompt.trim());
       sendSuccess(res, "Prompt analyzed successfully", analysis);
     } catch (error) {
@@ -40,28 +26,12 @@ export class BlogGenerationController {
     }
   };
 
-  /**
-   * Generate blog content from prompt
-   */
   generateBlog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
+      getJwtUserId(req);
+      const { prompt, analysis } = req.validatedBody as { prompt: string; analysis?: unknown };
 
-      const { prompt, analysis } = req.body;
-
-      if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
-        return next(
-          new BadRequestError(
-            "Please enter a prompt describing what you'd like to write about. For example: 'Write a guide about React hooks for beginners'."
-          )
-        );
-      }
-
-      // If analysis is provided, use it; otherwise analyze first
-      let promptAnalysis = analysis;
+      let promptAnalysis = analysis as PromptAnalysis | undefined;
       if (!promptAnalysis) {
         promptAnalysis = await this.blogGenerationService.analyzePrompt(prompt.trim());
       }
@@ -75,10 +45,8 @@ export class BlogGenerationController {
         );
       }
 
-      // Generate blog content
       const generatedContent = await this.blogGenerationService.generateBlogContent(prompt.trim(), promptAnalysis);
 
-      // Auto-review the generated content
       let reviewResult = null;
       let reviewError: Error | null = null;
       try {
@@ -93,7 +61,6 @@ export class BlogGenerationController {
           "BlogGenerationController"
         );
       } catch (error) {
-        // Log review failure but don't fail the entire generation
         reviewError = error as Error;
         logger.error(
           "Auto-review failed - blog content still generated successfully",
@@ -104,7 +71,6 @@ export class BlogGenerationController {
           },
           "BlogGenerationController"
         );
-        // Continue without review - generation was successful
       }
 
       sendSuccess(res, "Blog content generated successfully", {

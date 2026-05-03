@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { OnboardingService } from "../services/onboarding.service";
 import { sendSuccess } from "../../../shared/helper/response.helper";
-import { BadRequestError } from "../../../shared/errors";
+import { getJwtUserId } from "../../../shared/utils/jwt-user";
 
 @injectable()
 export class OnboardingController {
@@ -10,11 +10,7 @@ export class OnboardingController {
 
   getOnboardingStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = getJwtUserId(req);
       const status = await this.onboardingService.getOnboardingStatus(userId);
       sendSuccess(res, "Onboarding status retrieved", status);
     } catch (error) {
@@ -24,21 +20,8 @@ export class OnboardingController {
 
   completeOnboarding = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { planId, paymentMethodId } = req.body;
-
-      if (!planId) {
-        return next(new BadRequestError("Plan ID is required"));
-      }
-
-      if (!paymentMethodId) {
-        return next(new BadRequestError("Payment method ID is required"));
-      }
-
+      const userId = getJwtUserId(req);
+      const { planId, paymentMethodId } = req.validatedBody as { planId: string; paymentMethodId: string };
       await this.onboardingService.completeOnboarding(userId, planId, paymentMethodId);
       sendSuccess(res, "Onboarding completed successfully", { completed: true });
     } catch (error) {
@@ -48,11 +31,7 @@ export class OnboardingController {
 
   skipOnboarding = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
+      const userId = getJwtUserId(req);
       await this.onboardingService.skipOnboarding(userId);
       sendSuccess(res, "Onboarding skipped successfully", { completed: true });
     } catch (error) {

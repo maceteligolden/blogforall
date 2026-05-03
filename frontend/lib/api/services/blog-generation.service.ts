@@ -1,5 +1,6 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
+import { useAuthStore } from "../../store/auth.store";
 import { AxiosRequestConfig } from "axios";
 
 export interface PromptAnalysis {
@@ -26,7 +27,7 @@ export interface GeneratedBlogContent {
 export interface GenerateBlogResponse {
   content: GeneratedBlogContent;
   analysis: PromptAnalysis;
-  review?: any; // BlogReviewResult from review service
+  review?: any;
   reviewError?: {
     message: string;
     type: string;
@@ -39,38 +40,45 @@ export interface AnalyzePromptRequest {
 
 export interface GenerateBlogRequest {
   prompt: string;
-  analysis?: PromptAnalysis; // Optional - will analyze if not provided
+  analysis?: PromptAnalysis;
+}
+
+function requireSiteId(): string {
+  if (typeof window === "undefined") {
+    throw new Error("Blog generation requires a browser context");
+  }
+  const siteId = useAuthStore.getState().currentSiteId;
+  if (!siteId) {
+    throw new Error("No workspace selected. Choose a site before generating blogs.");
+  }
+  return siteId;
 }
 
 export class BlogGenerationService {
-  /**
-   * Analyze a prompt to extract topic, domain, audience, purpose
-   */
   static async analyzePrompt(
     prompt: string,
     signal?: AbortSignal
   ): Promise<{ data: { data: PromptAnalysis } }> {
+    const siteId = requireSiteId();
     const config: AxiosRequestConfig = {
-      timeout: 120000, // 120 seconds for analysis
-      signal, // Support request cancellation
+      timeout: 120000,
+      signal,
     };
-    return apiClient.post(API_ENDPOINTS.BLOGS.GENERATE_ANALYZE, { prompt }, config);
+    return apiClient.post(API_ENDPOINTS.BLOGS.GENERATE_ANALYZE(siteId), { prompt }, config);
   }
 
-  /**
-   * Generate blog content from prompt
-   */
   static async generateBlog(
     prompt: string,
     analysis?: PromptAnalysis,
     signal?: AbortSignal
   ): Promise<{ data: { data: GenerateBlogResponse } }> {
+    const siteId = requireSiteId();
     const config: AxiosRequestConfig = {
-      timeout: 180000, // 180 seconds for generation (longer timeout)
-      signal, // Support request cancellation
+      timeout: 180000,
+      signal,
     };
     return apiClient.post(
-      API_ENDPOINTS.BLOGS.GENERATE,
+      API_ENDPOINTS.BLOGS.GENERATE(siteId),
       {
         prompt,
         analysis,

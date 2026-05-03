@@ -1,61 +1,37 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { BlogService } from "../services/blog.service";
-import { SiteService } from "../../site/services/site.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
-import { BadRequestError } from "../../../shared/errors";
-import { ZodError } from "zod";
-import {
-  createBlogSchema,
-  updateBlogSchema,
-  blogQuerySchema,
-  scheduleBlogSchema,
-} from "../validations/blog.validation";
+import { getJwtUserId } from "../../../shared/utils/jwt-user";
+import type { CreateBlogInput } from "../interfaces/blog.interface";
+import type { UpdateBlogInput } from "../interfaces/blog.interface";
+import type { BlogQueryFilters } from "../interfaces/blog.interface";
 
 @injectable()
 export class BlogController {
-  constructor(
-    private blogService: BlogService,
-    private siteService: SiteService
-  ) {}
+  constructor(private blogService: BlogService) {}
+
+  private siteId(req: Request): string {
+    return (req.validatedParams as { siteId: string }).siteId;
+  }
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      // TODO: Get siteId from request context (task 20)
-      // For now, getting from body or query - will be replaced with site context middleware
-      const siteId = req.body.site_id || (req.query.site_id as string);
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
-      const validatedData = createBlogSchema.parse(req.body);
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const validatedData = req.validatedBody as CreateBlogInput;
       const blog = await this.blogService.createBlog(userId, siteId, validatedData);
       sendCreated(res, "Blog created successfully", blog);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
       const blog = await this.blogService.getBlogById(id, siteId, userId);
       sendSuccess(res, "Blog retrieved successfully", blog);
     } catch (error) {
@@ -65,14 +41,7 @@ export class BlogController {
 
   getBySlug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { slug } = req.params;
-
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
+      const { slug, siteId } = req.validatedParams as { siteId: string; slug: string };
       const blog = await this.blogService.getBlogBySlug(slug, siteId);
       await this.blogService.incrementViews(blog._id!.toString(), siteId);
       sendSuccess(res, "Blog retrieved successfully", blog);
@@ -83,103 +52,45 @@ export class BlogController {
 
   getUserBlogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      // Use site_id from query, or fall back to user's first site when missing (e.g. frontend before store rehydration)
-      let siteId = req.query.site_id as string;
-      if (!siteId) {
-        const userSites = await this.siteService.getSitesByUser(userId);
-        siteId = userSites.length > 0 ? userSites[0]._id!.toString() : "";
-        if (!siteId) {
-          return next(new BadRequestError("No site found. Create a site first."));
-        }
-      }
-
-      const validatedFilters = blogQuerySchema.parse(req.query);
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const validatedFilters = req.validatedQuery as BlogQueryFilters;
       const blogs = await this.blogService.getUserBlogs(userId, siteId, validatedFilters);
       sendSuccess(res, "Blogs retrieved successfully", blogs);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   getAllBlogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
-      const validatedFilters = blogQuerySchema.parse(req.query);
+      const siteId = this.siteId(req);
+      const validatedFilters = req.validatedQuery as BlogQueryFilters;
       const result = await this.blogService.getAllBlogs(siteId, validatedFilters);
       sendSuccess(res, "Blogs retrieved successfully", result);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const siteId = (req.body?.site_id as string) || (req.query.site_id as string);
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
-      const { site_id: _siteId, ...bodyWithoutSiteId } = req.body ?? {};
-      const result = updateBlogSchema.safeParse(bodyWithoutSiteId);
-      if (!result.success) {
-        const errorMessages = result.error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
-
-      const sanitized = {
-        ...result.data,
-        featured_image: result.data.featured_image ?? undefined,
-        category: result.data.category ?? undefined,
-      };
+      const userId = getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
+      const sanitized = req.validatedBody as UpdateBlogInput;
       const blog = await this.blogService.updateBlog(id, siteId, userId, sanitized);
       sendSuccess(res, "Blog updated successfully", blog);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
+      const userId = getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
       await this.blogService.deleteBlog(id, siteId, userId);
       sendNoContent(res, "Blog deleted successfully");
     } catch (error) {
@@ -189,18 +100,9 @@ export class BlogController {
 
   publish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
+      const userId = getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
       const blog = await this.blogService.publishBlog(id, siteId, userId);
       sendSuccess(res, "Blog published successfully", blog);
     } catch (error) {
@@ -210,18 +112,9 @@ export class BlogController {
 
   unpublish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
+      const userId = getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
       const blog = await this.blogService.unpublishBlog(id, siteId, userId);
       sendSuccess(res, "Blog unpublished successfully", blog);
     } catch (error) {
@@ -231,16 +124,10 @@ export class BlogController {
 
   toggleLike = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
       const userId = req.user?.userId;
       const userIdOrIp = userId || req.ip || req.socket.remoteAddress || "unknown";
-
-      // TODO: Get siteId from request context (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-
       const result = await this.blogService.toggleLike(id, siteId, userIdOrIp);
       sendSuccess(res, "Like toggled successfully", result);
     } catch (error) {
@@ -250,41 +137,25 @@ export class BlogController {
 
   schedulePublish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-      const siteId = req.body.site_id || (req.query.site_id as string);
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
-      const validated = scheduleBlogSchema.parse(req.body);
+      const userId = getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
+      const validated = req.validatedBody as { scheduled_at: Date; timezone: string };
       const scheduled = await this.blogService.scheduleBlogPublish(id, siteId, userId, {
         scheduled_at: validated.scheduled_at,
         timezone: validated.timezone,
       });
       sendCreated(res, "Blog scheduled for publish", scheduled);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   getSchedule = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
+      const userId = getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
       const schedule = await this.blogService.getBlogSchedule(id, siteId, userId);
       sendSuccess(res, schedule ? "Schedule retrieved" : "No schedule", schedule);
     } catch (error) {
@@ -294,15 +165,9 @@ export class BlogController {
 
   unschedulePublish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
+      const userId = getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
       await this.blogService.unscheduleBlogPublish(id, siteId, userId);
       sendNoContent(res, "Blog unscheduled");
     } catch (error) {

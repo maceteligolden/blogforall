@@ -2,10 +2,11 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { CampaignTemplateService } from "../services/campaign-template.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
-import { BadRequestError } from "../../../shared/errors";
-import { ZodError } from "zod";
-import { CampaignTemplateQueryFilters } from "../interfaces/campaign-template.interface";
-import { CampaignTemplateType } from "../../../shared/constants/campaign.constant";
+import type {
+  CreateCampaignTemplateInput,
+  UpdateCampaignTemplateInput,
+  CampaignTemplateQueryFilters,
+} from "../interfaces/campaign-template.interface";
 
 @injectable()
 export class CampaignTemplateController {
@@ -13,20 +14,17 @@ export class CampaignTemplateController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const template = await this.templateService.createTemplate(req.body);
+      const body = req.validatedBody as CreateCampaignTemplateInput;
+      const template = await this.templateService.createTemplate(body);
       sendCreated(res, "Campaign template created successfully", template);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { id } = req.validatedParams as { siteId: string; id: string };
       const template = await this.templateService.getTemplateById(id);
       sendSuccess(res, "Campaign template retrieved successfully", template);
     } catch (error) {
@@ -36,12 +34,7 @@ export class CampaignTemplateController {
 
   getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const filters: CampaignTemplateQueryFilters = {
-        type: req.query.type as CampaignTemplateType | undefined,
-        is_active: req.query.is_active === "true" ? true : req.query.is_active === "false" ? false : undefined,
-        industry: req.query.industry as string | undefined,
-      };
-
+      const filters = req.validatedQuery as CampaignTemplateQueryFilters;
       const templates = await this.templateService.getTemplates(filters);
       sendSuccess(res, "Campaign templates retrieved successfully", templates);
     } catch (error) {
@@ -51,7 +44,7 @@ export class CampaignTemplateController {
 
   getByType = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { type } = req.params;
+      const { type } = req.validatedParams as { siteId: string; type: string };
       const templates = await this.templateService.getTemplatesByType(type);
       sendSuccess(res, "Campaign templates retrieved successfully", templates);
     } catch (error) {
@@ -61,21 +54,18 @@ export class CampaignTemplateController {
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
-      const template = await this.templateService.updateTemplate(id, req.body);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const body = req.validatedBody as UpdateCampaignTemplateInput;
+      const template = await this.templateService.updateTemplate(id, body);
       sendSuccess(res, "Campaign template updated successfully", template);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { id } = req.validatedParams as { siteId: string; id: string };
       await this.templateService.deleteTemplate(id);
       sendNoContent(res, "Campaign template deleted successfully");
     } catch (error) {
@@ -85,7 +75,7 @@ export class CampaignTemplateController {
 
   activate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { id } = req.validatedParams as { siteId: string; id: string };
       const template = await this.templateService.activateTemplate(id);
       sendSuccess(res, "Campaign template activated successfully", template);
     } catch (error) {
@@ -95,7 +85,7 @@ export class CampaignTemplateController {
 
   deactivate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { id } = req.params;
+      const { id } = req.validatedParams as { siteId: string; id: string };
       const template = await this.templateService.deactivateTemplate(id);
       sendSuccess(res, "Campaign template deactivated successfully", template);
     } catch (error) {

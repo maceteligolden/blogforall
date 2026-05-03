@@ -18,11 +18,11 @@ export interface CreateBlogRequest {
     description?: string;
     keywords?: string[];
   };
-  site_id?: string; // Optional, will use currentSiteId from token if not provided
+  site_id?: string;
 }
 
 export interface UpdateBlogRequest extends Partial<CreateBlogRequest> {
-  site_id?: string; // Optional, will use currentSiteId from token if not provided
+  site_id?: string;
 }
 
 export interface BlogQueryParams {
@@ -33,85 +33,90 @@ export interface BlogQueryParams {
 }
 
 export class BlogService {
-  /**
-   * Get current site ID from auth store
-   */
   private static getCurrentSiteId(): string | undefined {
     if (typeof window === "undefined") return undefined;
     return useAuthStore.getState().currentSiteId || undefined;
   }
 
+  private static requireSiteId(): string {
+    const siteId = this.getCurrentSiteId();
+    if (!siteId) {
+      throw new Error("No workspace selected. Choose a site before managing blogs.");
+    }
+    return siteId;
+  }
+
   static async createBlog(data: CreateBlogRequest) {
-    // Include site_id if not already provided
-    const siteId = data.site_id || this.getCurrentSiteId();
-    const requestData = siteId ? { ...data, site_id: siteId } : data;
-    return apiClient.post(API_ENDPOINTS.BLOGS.CREATE, requestData);
+    const siteId = data.site_id || this.requireSiteId();
+    const { site_id: _s, ...body } = { ...data, site_id: siteId };
+    return apiClient.post(API_ENDPOINTS.BLOGS.CREATE(siteId), body);
   }
 
   static async getBlogById(id: string) {
-    const siteId = this.getCurrentSiteId();
-    const params = siteId ? { site_id: siteId } : {};
-    return apiClient.get(API_ENDPOINTS.BLOGS.GET_ONE(id), { params });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.BLOGS.GET_ONE(siteId, id));
   }
 
   static async getUserBlogs(params?: BlogQueryParams) {
-    const siteId = this.getCurrentSiteId();
-    const queryParams = siteId ? { ...params, site_id: siteId } : params;
-    return apiClient.get(API_ENDPOINTS.BLOGS.MY_BLOGS, { params: queryParams });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.BLOGS.MY_BLOGS(siteId), { params });
   }
 
   static async getAllBlogs(params?: BlogQueryParams) {
-    const siteId = this.getCurrentSiteId();
-    const queryParams = siteId ? { ...params, site_id: siteId } : params;
-    return apiClient.get(API_ENDPOINTS.BLOGS.LIST, { params: queryParams });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.BLOGS.LIST(siteId), { params });
   }
 
   static async getBlogBySlug(slug: string) {
-    const siteId = this.getCurrentSiteId();
-    const params = siteId ? { site_id: siteId } : {};
-    return apiClient.get(API_ENDPOINTS.BLOGS.GET_BY_SLUG(slug), { params });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.BLOGS.GET_BY_SLUG(siteId, slug));
   }
 
   static async updateBlog(id: string, data: UpdateBlogRequest) {
-    // Include site_id if not already provided
-    const siteId = data.site_id || this.getCurrentSiteId();
-    const requestData = siteId ? { ...data, site_id: siteId } : data;
-    return apiClient.put(API_ENDPOINTS.BLOGS.UPDATE(id), requestData);
+    const siteId = data.site_id || this.requireSiteId();
+    const { site_id: _s, ...body } = { ...data, site_id: siteId };
+    return apiClient.put(API_ENDPOINTS.BLOGS.UPDATE(siteId, id), body);
   }
 
   static async deleteBlog(id: string) {
-    return apiClient.delete(API_ENDPOINTS.BLOGS.DELETE(id));
+    const siteId = this.requireSiteId();
+    return apiClient.delete(API_ENDPOINTS.BLOGS.DELETE(siteId, id));
   }
 
   static async publishBlog(id: string) {
-    return apiClient.post(API_ENDPOINTS.BLOGS.PUBLISH(id));
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.BLOGS.PUBLISH(siteId, id));
   }
 
   static async unpublishBlog(id: string) {
-    return apiClient.post(API_ENDPOINTS.BLOGS.UNPUBLISH(id));
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.BLOGS.UNPUBLISH(siteId, id));
   }
 
   static async toggleLike(id: string) {
-    return apiClient.post(API_ENDPOINTS.BLOGS.LIKE(id));
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.BLOGS.LIKE(siteId, id));
   }
 
   static async uploadImage(file: File) {
+    const siteId = this.requireSiteId();
     const formData = new FormData();
     formData.append("image", file);
-    return apiClient.post(API_ENDPOINTS.BLOGS.UPLOAD_IMAGE, formData, {
+    return apiClient.post(API_ENDPOINTS.BLOGS.UPLOAD_IMAGE(siteId), formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
-      timeout: 60000, // 60 seconds for file uploads
+      timeout: 60000,
     });
   }
 
   static async uploadMultipleImages(files: File[]) {
+    const siteId = this.requireSiteId();
     const formData = new FormData();
     files.forEach((file) => {
       formData.append("images", file);
     });
-    return apiClient.post(API_ENDPOINTS.BLOGS.UPLOAD_IMAGES, formData, {
+    return apiClient.post(API_ENDPOINTS.BLOGS.UPLOAD_IMAGES(siteId), formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -119,25 +124,21 @@ export class BlogService {
   }
 
   static async scheduleBlog(id: string, scheduled_at: Date, timezone?: string) {
-    const siteId = this.getCurrentSiteId();
-    const requestData: { scheduled_at: Date; timezone?: string; site_id?: string } = {
+    const siteId = this.requireSiteId();
+    const requestData: { scheduled_at: Date; timezone?: string } = {
       scheduled_at,
       ...(timezone && { timezone }),
-      ...(siteId && { site_id: siteId }),
     };
-    return apiClient.post(API_ENDPOINTS.BLOGS.SCHEDULE(id), requestData);
+    return apiClient.post(API_ENDPOINTS.BLOGS.SCHEDULE(siteId, id), requestData);
   }
 
   static async getBlogSchedule(id: string) {
-    const siteId = this.getCurrentSiteId();
-    const params = siteId ? { site_id: siteId } : {};
-    return apiClient.get(API_ENDPOINTS.BLOGS.GET_SCHEDULE(id), { params });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.BLOGS.GET_SCHEDULE(siteId, id));
   }
 
   static async unscheduleBlog(id: string) {
-    const siteId = this.getCurrentSiteId();
-    const params = siteId ? { site_id: siteId } : {};
-    return apiClient.delete(API_ENDPOINTS.BLOGS.UNSCHEDULE(id), { params });
+    const siteId = this.requireSiteId();
+    return apiClient.delete(API_ENDPOINTS.BLOGS.UNSCHEDULE(siteId, id));
   }
 }
-

@@ -2,6 +2,12 @@ import { Request, Response, NextFunction } from "express";
 import { z, ZodSchema } from "zod";
 import { BadRequestError } from "../errors";
 
+/**
+ * Request shape validation for JSON/query/params lives here. Intentionally out of scope:
+ * - Stripe webhooks (raw body + signature verification before any JSON schema).
+ * - Multer uploads (binary + fields; validate non-file fields in route middleware after upload runs).
+ */
+
 declare global {
   namespace Express {
     interface Request {

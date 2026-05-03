@@ -41,9 +41,15 @@ export interface AgentCreateFromProposalResponse {
 }
 
 export class CampaignAgentService {
-  private static getCurrentSiteId(): string | undefined {
-    if (typeof window === "undefined") return undefined;
-    return useAuthStore.getState().currentSiteId || undefined;
+  private static requireSiteId(): string {
+    if (typeof window === "undefined") {
+      throw new Error("Campaign agent requires a browser context");
+    }
+    const siteId = useAuthStore.getState().currentSiteId;
+    if (!siteId) {
+      throw new Error("No workspace selected. Choose a site before using the campaign agent.");
+    }
+    return siteId;
   }
 
   static async chat(params: {
@@ -51,12 +57,13 @@ export class CampaignAgentService {
     message: string;
     site_id?: string;
   }): Promise<{ data: AgentChatResponse }> {
-    const siteId = params.site_id ?? this.getCurrentSiteId();
+    const siteId = params.site_id ?? this.requireSiteId();
     const body = {
-      ...params,
-      ...(siteId && { site_id: siteId }),
+      session_id: params.session_id,
+      message: params.message,
+      site_id: siteId,
     };
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.AGENT_CHAT, body);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.AGENT_CHAT(siteId), body);
   }
 
   static async createFromProposal(params: {
@@ -64,12 +71,11 @@ export class CampaignAgentService {
     proposal: AgentProposal;
     site_id?: string;
   }): Promise<{ data: AgentCreateFromProposalResponse }> {
-    const siteId = params.site_id ?? this.getCurrentSiteId();
+    const siteId = params.site_id ?? this.requireSiteId();
     const body = {
       session_id: params.session_id,
       proposal: params.proposal,
-      ...(siteId && { site_id: siteId }),
     };
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.AGENT_CREATE_FROM_PROPOSAL, body);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.AGENT_CREATE_FROM_PROPOSAL(siteId), body);
   }
 }
