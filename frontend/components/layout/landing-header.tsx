@@ -15,10 +15,13 @@ export function LandingHeader() {
             Bloggr
           </Link>
           <div className="flex items-center gap-8">
-            <Link href="/#features" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">
+            <Link
+              href="/#features"
+              className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline"
+            >
               Features
             </Link>
-            <Link href="/#pricing" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">
+            <Link href="/pricing" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">
               Pricing
             </Link>
             <Link href="/docs" className="text-sm text-gray-400 hover:text-white transition-colors">

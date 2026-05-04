@@ -9,9 +9,7 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           <div>
             <h3 className="text-xl font-bold text-primary mb-4">Bloggr</h3>
-            <p className="text-gray-400 text-sm">
-              The modern blog management platform for creators and businesses.
-            </p>
+            <p className="text-gray-400 text-sm">The modern blog management platform for creators and businesses.</p>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Product</h4>
@@ -22,7 +20,7 @@ export function LandingFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/auth/signup" className="hover:text-white transition-colors">
+                <Link href="/pricing" className="hover:text-white transition-colors">
                   Pricing
                 </Link>
               </li>
