@@ -103,9 +103,6 @@ export class BlogService {
     const formData = new FormData();
     formData.append("image", file);
     return apiClient.post(API_ENDPOINTS.BLOGS.UPLOAD_IMAGE(siteId), formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
       timeout: 60000,
     });
   }
@@ -116,11 +113,7 @@ export class BlogService {
     files.forEach((file) => {
       formData.append("images", file);
     });
-    return apiClient.post(API_ENDPOINTS.BLOGS.UPLOAD_IMAGES(siteId), formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    return apiClient.post(API_ENDPOINTS.BLOGS.UPLOAD_IMAGES(siteId), formData);
   }
 
   static async scheduleBlog(id: string, scheduled_at: Date, timezone?: string) {

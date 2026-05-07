@@ -1,6 +1,6 @@
+import "dotenv/config";
 import "reflect-metadata";
 import express from "express";
-import "dotenv/config";
 import path from "path";
 import { connectDatabase } from "./shared/database";
 import { logger } from "./shared/utils/logger";
@@ -15,6 +15,7 @@ import { EmailJobProcessor } from "./modules/notification/queue/email-job.proces
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
 import { corsMiddleware } from "./shared/middlewares/cors.middleware";
 import { backfillSitePublicIds } from "./shared/utils/backfill-site-public-ids";
+import { ObjectStorageService } from "./shared/services/object-storage.service";
 
 const app = express();
 const PORT = env.port;
@@ -52,6 +53,11 @@ const startServer = async () => {
     await connectDatabase();
 
     await backfillSitePublicIds();
+
+    if (env.objectStorage.enabled && env.objectStorage.applyBucketPublicReadAcl) {
+      const objectStorage = container.resolve(ObjectStorageService);
+      await objectStorage.applyBucketPublicReadAcl();
+    }
 
     // Seed plans if none exist
     await seedPlansIfNeeded();
@@ -92,6 +98,15 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {}, "Server");
+      if (env.objectStorage.enabled) {
+        logger.info(
+          "Object storage: uploads use B2 (S3 API); ensure the dashboard uses NEXT_PUBLIC_API_URL pointing at this server",
+          { bucket: env.objectStorage.bucket, publicBaseUrl: env.objectStorage.publicBaseUrl },
+          "Server"
+        );
+      } else {
+        logger.info("Object storage: disabled — uploads use local disk under /uploads", {}, "Server");
+      }
     });
   } catch (error) {
     logger.error("Failed to start server", error as Error, {}, "Server");

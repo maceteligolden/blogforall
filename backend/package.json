@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1041.0",
     "@getbrevo/brevo": "^4.0.1",
     "@huggingface/inference": "^4.13.11",
     "@types/bcrypt": "^6.0.0",

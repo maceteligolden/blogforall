@@ -3,16 +3,14 @@ import path from "path";
 import fs from "fs";
 import { env } from "../config/env";
 
-// Ensure uploads directory exists
-const uploadsDir = env.upload.dir;
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+const diskDir = env.upload.dir;
+if (!env.objectStorage.enabled && !fs.existsSync(diskDir)) {
+  fs.mkdirSync(diskDir, { recursive: true });
 }
 
-// Configure storage
-const storage = multer.diskStorage({
+const diskStorage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, uploadsDir);
+    cb(null, diskDir);
   },
   filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -21,7 +19,6 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter
 const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
   if (allowedMimes.includes(file.mimetype)) {
@@ -31,7 +28,8 @@ const fileFilter: multer.Options["fileFilter"] = (_req, file, cb) => {
   }
 };
 
-// Configure multer
+const storage = env.objectStorage.enabled ? multer.memoryStorage() : diskStorage;
+
 export const upload = multer({
   storage,
   fileFilter,
@@ -40,8 +38,6 @@ export const upload = multer({
   },
 });
 
-// Middleware for single image upload
 export const uploadSingle = upload.single("image");
 
-// Middleware for multiple image uploads
 export const uploadMultiple = upload.array("images", 10);

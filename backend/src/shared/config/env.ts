@@ -2,6 +2,22 @@
  * Global env configuration. All process.env reads live here; keys documented in .env.example.
  */
 
+import fs from "fs";
+import path from "path";
+import { config as dotenvConfig } from "dotenv";
+
+/** Load .env before reading variables (covers import-order issues and cwd = repo root vs backend/). */
+function loadEnvFiles(): void {
+  const candidates = [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "backend", ".env")];
+  for (const filePath of candidates) {
+    if (fs.existsSync(filePath)) {
+      dotenvConfig({ path: filePath, override: true });
+    }
+  }
+}
+
+loadEnvFiles();
+
 function parseIntEnv(value: string | undefined, defaultValue: number): number {
   const n = parseInt(value ?? "", 10);
   return Number.isFinite(n) ? n : defaultValue;
@@ -10,6 +26,38 @@ function parseIntEnv(value: string | undefined, defaultValue: number): number {
 function parseFloatEnv(value: string | undefined, defaultValue: number): number {
   const n = parseFloat(value ?? "");
   return Number.isFinite(n) ? n : defaultValue;
+}
+
+function resolveObjectStorageConfig() {
+  const s3Endpoint = (process.env.B2_S3_ENDPOINT || "").trim();
+  const region = (process.env.B2_REGION || "").trim() || "us-west-004";
+  const bucket = (process.env.B2_BUCKET || "").trim();
+  const keyId = (process.env.B2_KEY_ID || "").trim();
+  const applicationKey = (process.env.B2_APPLICATION_KEY || "").trim();
+  const publicBaseUrl = (process.env.PUBLIC_ASSET_BASE_URL || "").trim().replace(/\/+$/, "");
+  const required = [s3Endpoint, bucket, keyId, applicationKey, publicBaseUrl];
+  const allSet = required.every((v) => v.length > 0);
+  const anySet = required.some((v) => v.length > 0);
+  if (anySet && !allSet) {
+    const msg =
+      "Incomplete object storage env: set B2_S3_ENDPOINT, B2_BUCKET, B2_KEY_ID, B2_APPLICATION_KEY, PUBLIC_ASSET_BASE_URL (optional B2_REGION, defaults to us-west-004).";
+    if ((process.env.NODE_ENV ?? "development") === "production") {
+      throw new Error(msg);
+    }
+    // eslint-disable-next-line no-console -- logger imports env; avoid circular dependency
+    console.warn(`[env] ${msg} Falling back to local disk uploads.`);
+  }
+  return {
+    enabled: allSet,
+    s3Endpoint,
+    region,
+    bucket,
+    keyId,
+    applicationKey,
+    publicBaseUrl,
+    /** When true, server startup runs S3 PutBucketAcl public-read once (app key must allow bucket ACL). */
+    applyBucketPublicReadAcl: (process.env.B2_APPLY_BUCKET_PUBLIC_READ || "").toLowerCase() === "true",
+  } as const;
 }
 
 const NODE_ENV = process.env.NODE_ENV ?? "development";
@@ -48,6 +96,9 @@ export const env = {
     dir: (process.env.UPLOAD_DIR || "./uploads").trim() || "./uploads",
     maxFileSize: parseIntEnv(process.env.MAX_FILE_SIZE, 5_242_880),
   },
+
+  /** Backblaze B2 via S3-compatible API; when enabled, uploads use memory buffer + PutObject and PUBLIC_ASSET_BASE_URL for returned URLs. */
+  objectStorage: resolveObjectStorageConfig(),
 
   smtp: {
     host: process.env.SMTP_HOST?.trim(),

@@ -1,5 +1,6 @@
 export const API_CONFIG = {
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1",
+  /** Must match backend host + PORT + /api/v1 (see backend/.env PORT and BACKEND_URL). */
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5005/api/v1",
   timeout: 30000,
   headers: {
     "Content-Type": "application/json",

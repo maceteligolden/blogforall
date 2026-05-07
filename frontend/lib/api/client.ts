@@ -11,6 +11,10 @@ const apiClient: AxiosInstance = axios.create({
 // Request interceptor - Add auth token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers["Content-Type"];
+    }
+
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
     if (token && config.headers) {
