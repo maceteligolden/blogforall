@@ -16,6 +16,9 @@ export const API_ENDPOINTS = {
     UPDATE_PROFILE: "/auth/profile",
     CHANGE_PASSWORD: "/auth/change-password",
     UPDATE_SITE_CONTEXT: "/auth/site-context",
+    FORGOT_PASSWORD: "/auth/forgot-password",
+    VERIFY_RESET_CODE: "/auth/verify-reset-code",
+    RESET_PASSWORD: "/auth/reset-password",
   },
   BLOGS: {
     CREATE: (siteId: string) => `/sites/${siteId}/blogs`,

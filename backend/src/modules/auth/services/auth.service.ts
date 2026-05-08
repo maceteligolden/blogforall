@@ -1,4 +1,5 @@
 import { injectable } from "tsyringe";
+import { createHash, randomInt } from "crypto";
 import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
@@ -10,6 +11,9 @@ import {
   LoginInput,
   UpdateProfileInput,
   ChangePasswordInput,
+  ForgotPasswordInput,
+  VerifyResetCodeInput,
+  ResetPasswordInput,
   LoginResponse,
 } from "../interfaces/auth.interface";
 import { User } from "../../../shared/schemas/user.schema";
@@ -331,4 +335,106 @@ export class AuthService {
     await this.userRepository.updatePassword(userId, hashedNewPassword);
     logger.info("Password changed", { userId }, "AuthService");
   }
+
+  /**
+   * Send a single-use 6-digit code to the user's email so they can prove
+   * email ownership before resetting their password. Always resolves
+   * regardless of whether the email exists, to avoid user-enumeration.
+   */
+  async requestPasswordReset(input: ForgotPasswordInput): Promise<void> {
+    const email = input.email.toLowerCase();
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) {
+      logger.info("Password reset requested for unknown email", { email }, "AuthService");
+      return;
+    }
+
+    const code = this.generatePasswordResetCode();
+    const hashedCode = this.hashResetCode(code);
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_CODE_TTL_MS);
+
+    await this.userRepository.setResetCode(user._id!.toString(), hashedCode, expiresAt);
+
+    setImmediate(() => {
+      this.notificationService
+        .createAndSend({
+          channel: NotificationChannel.EMAIL,
+          type: NotificationType.PASSWORD_RESET,
+          recipientEmail: user.email,
+          templateParams: {
+            code,
+            expiresInMinutes: String(PASSWORD_RESET_CODE_TTL_MINUTES),
+            firstName: user.first_name,
+          },
+        })
+        .then(() => {
+          logger.info("Password reset email enqueued", { userId: user._id, email: user.email }, "AuthService");
+        })
+        .catch((error: unknown) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+          logger.error("Password reset email failed", err, { userId: user._id, email: user.email }, "AuthService");
+        });
+    });
+  }
+
+  /**
+   * Validate a reset code without consuming it. Increments attempts on
+   * mismatch; throws BadRequestError when the code is invalid, expired,
+   * or attempts have been exhausted.
+   */
+  async verifyPasswordResetCode(input: VerifyResetCodeInput): Promise<void> {
+    await this.assertResetCodeValid(input.email, input.code);
+  }
+
+  /**
+   * Re-validate the reset code, then set the new password and clear all
+   * reset state. The code is consumed only on a successful reset.
+   */
+  async resetPassword(input: ResetPasswordInput): Promise<void> {
+    const { email, code, new_password } = input;
+    const user = await this.assertResetCodeValid(email, code);
+
+    const hashedNewPassword = await hashPassword(new_password);
+    await this.userRepository.updatePassword(user._id!.toString(), hashedNewPassword);
+    logger.info("Password reset via code", { userId: user._id, email: user.email }, "AuthService");
+  }
+
+  private async assertResetCodeValid(rawEmail: string, code: string): Promise<User> {
+    const email = rawEmail.toLowerCase();
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) {
+      throw new BadRequestError("Invalid or expired code");
+    }
+    if (
+      !user.resetPasswordToken ||
+      !user.resetPasswordExpires ||
+      user.resetPasswordExpires.getTime() <= Date.now()
+    ) {
+      throw new BadRequestError("Invalid or expired code");
+    }
+    if ((user.resetPasswordAttempts ?? 0) >= PASSWORD_RESET_MAX_ATTEMPTS) {
+      throw new BadRequestError("Too many attempts. Request a new code.");
+    }
+
+    const hashedCode = this.hashResetCode(code);
+    if (hashedCode !== user.resetPasswordToken) {
+      const attempts = await this.userRepository.incrementResetAttempts(user._id!.toString());
+      logger.warn("Password reset code mismatch", { userId: user._id, attempts }, "AuthService");
+      throw new BadRequestError("Invalid or expired code");
+    }
+
+    return user;
+  }
+
+  private generatePasswordResetCode(): string {
+    return String(randomInt(0, 1_000_000)).padStart(6, "0");
+  }
+
+  private hashResetCode(code: string): string {
+    return createHash("sha256").update(code).digest("hex");
+  }
 }
+
+const PASSWORD_RESET_CODE_TTL_MINUTES = 15;
+const PASSWORD_RESET_CODE_TTL_MS = PASSWORD_RESET_CODE_TTL_MINUTES * 60 * 1000;
+const PASSWORD_RESET_MAX_ATTEMPTS = 5;

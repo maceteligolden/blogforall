@@ -32,12 +32,35 @@ export class UserRepository {
     });
   }
 
+  async setResetCode(id: string, hashedCode: string, expiresAt: Date): Promise<void> {
+    await User.findByIdAndUpdate(id, {
+      resetPasswordToken: hashedCode,
+      resetPasswordExpires: expiresAt,
+      resetPasswordAttempts: 0,
+      updated_at: new Date(),
+    });
+  }
+
+  async incrementResetAttempts(id: string): Promise<number> {
+    const updated = await User.findByIdAndUpdate(
+      id,
+      { $inc: { resetPasswordAttempts: 1 }, updated_at: new Date() },
+      { new: true }
+    );
+    return updated?.resetPasswordAttempts ?? 0;
+  }
+
+  async clearResetCode(id: string): Promise<void> {
+    await User.findByIdAndUpdate(id, {
+      $set: { resetPasswordAttempts: 0, updated_at: new Date() },
+      $unset: { resetPasswordToken: "", resetPasswordExpires: "" },
+    });
+  }
+
   async updatePassword(id: string, hashedPassword: string): Promise<void> {
     await User.findByIdAndUpdate(id, {
-      password: hashedPassword,
-      resetPasswordToken: undefined,
-      resetPasswordExpires: undefined,
-      updated_at: new Date(),
+      $set: { password: hashedPassword, resetPasswordAttempts: 0, updated_at: new Date() },
+      $unset: { resetPasswordToken: "", resetPasswordExpires: "" },
     });
   }
 }

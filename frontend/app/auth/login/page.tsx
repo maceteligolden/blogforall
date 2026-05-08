@@ -71,7 +71,16 @@ function LoginForm() {
                 />
               </div>
               <div>
-                <Label htmlFor="password" className="text-gray-300">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-gray-300">Password</Label>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/auth/forgot-password")}
+                    className="text-sm font-medium text-primary hover:text-primary/80"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <PasswordInput
                   id="password"
                   name="password"
