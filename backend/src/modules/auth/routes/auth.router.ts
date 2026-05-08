@@ -10,6 +10,9 @@ import {
   changePasswordSchema,
   updateSiteContextSchema,
   refreshTokenBodySchema,
+  forgotPasswordSchema,
+  verifyResetCodeSchema,
+  resetPasswordSchema,
 } from "../validations/auth.validation";
 
 const router = Router();
@@ -19,6 +22,9 @@ const authController = container.resolve(AuthController);
 router.post("/signup", validateBody(signupSchema), authController.signup);
 router.post("/login", validateBody(loginSchema), authController.login);
 router.post("/refresh", validateBody(refreshTokenBodySchema), authController.refresh);
+router.post("/forgot-password", validateBody(forgotPasswordSchema), authController.forgotPassword);
+router.post("/verify-reset-code", validateBody(verifyResetCodeSchema), authController.verifyResetCode);
+router.post("/reset-password", validateBody(resetPasswordSchema), authController.resetPassword);
 
 // Protected routes
 router.post("/logout", authMiddleware, authController.logout);

@@ -3,7 +3,15 @@ import { Request, Response, NextFunction } from "express";
 import { AuthService } from "../services/auth.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
-import type { SignupInput, LoginInput, UpdateProfileInput, ChangePasswordInput } from "../interfaces/auth.interface";
+import type {
+  SignupInput,
+  LoginInput,
+  UpdateProfileInput,
+  ChangePasswordInput,
+  ForgotPasswordInput,
+  VerifyResetCodeInput,
+  ResetPasswordInput,
+} from "../interfaces/auth.interface";
 
 type SignupBody = SignupInput;
 type LoginBody = LoginInput;
@@ -91,6 +99,36 @@ export class AuthController {
       const validatedData = req.validatedBody as { site_id: string };
       const result = await this.authService.updateSiteContext(userId, validatedData.site_id);
       sendSuccess(res, "Site context updated successfully", result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  forgotPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const validatedData = req.validatedBody as ForgotPasswordInput;
+      await this.authService.requestPasswordReset(validatedData);
+      sendSuccess(res, "If an account exists for that email, a code has been sent.");
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  verifyResetCode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const validatedData = req.validatedBody as VerifyResetCodeInput;
+      await this.authService.verifyPasswordResetCode(validatedData);
+      sendSuccess(res, "Code verified");
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const validatedData = req.validatedBody as ResetPasswordInput;
+      await this.authService.resetPassword(validatedData);
+      sendSuccess(res, "Password reset successfully");
     } catch (error) {
       next(error);
     }

@@ -13,6 +13,7 @@ export interface User extends BaseEntity {
   sessionToken?: string | null;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  resetPasswordAttempts?: number;
   stripe_customer_id?: string; // Stripe customer ID for payment processing
   onboarding_completed: boolean; // Whether user has completed onboarding (card + plan)
   terms_accepted_at?: Date; // When user accepted terms at signup (audit)
@@ -66,6 +67,10 @@ const userSchema = new Schema<User>(
     },
     resetPasswordExpires: {
       type: Date,
+    },
+    resetPasswordAttempts: {
+      type: Number,
+      default: 0,
     },
     stripe_customer_id: {
       type: String,

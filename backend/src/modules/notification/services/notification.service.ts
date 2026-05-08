@@ -1,15 +1,18 @@
 import { injectable } from "tsyringe";
 import { NotificationRepository } from "../repositories/notification.repository";
-import { emailQueue } from "../queue/email.queue";
+import { emailQueue, isEmailQueueConnected } from "../queue/email.queue";
 import {
   NotificationChannel,
   NotificationStatus,
   NotificationType,
   EMAIL_TEMPLATE_KEYS,
+  type EmailTemplateKey,
 } from "../../../shared/constants/notification.constant";
 import { generateCorrelationId } from "../../../shared/utils/notification.util";
 import { logger } from "../../../shared/utils/logger";
 import { BadRequestError, AppError } from "../../../shared/errors";
+import { BrevoFacade } from "../../../shared/facade/brevo.facade";
+import { getTemplate } from "../../../shared/services/email-template.registry";
 import type { Notification } from "../../../shared/schemas/notification.schema";
 import type {
   CreateNotificationInput,
@@ -20,7 +23,10 @@ import type {
 
 @injectable()
 export class NotificationService {
-  constructor(private readonly notificationRepository: NotificationRepository) {}
+  constructor(
+    private readonly notificationRepository: NotificationRepository,
+    private readonly brevoFacade: BrevoFacade
+  ) {}
 
   /**
    * PSEUDOCODE:
@@ -56,18 +62,36 @@ export class NotificationService {
         };
         const saved = await this.notificationRepository.save(record as Notification);
         const notificationId = String(saved._id);
-        await emailQueue.add({
-          notificationId,
-          templateKey,
-          recipientEmail: email,
-          correlationId,
-          params: input.templateParams ?? {},
-        });
+        const params = input.templateParams ?? {};
+
         logger.info(
-          "Email notification enqueued",
-          { notificationId, templateKey, correlationId },
+          "Email branch entered",
+          { notificationId, templateKey, correlationId, queueConnected: isEmailQueueConnected },
           "NotificationService"
         );
+
+        if (isEmailQueueConnected) {
+          await emailQueue.add({
+            notificationId,
+            templateKey,
+            recipientEmail: email,
+            correlationId,
+            params,
+          });
+          logger.info(
+            "Email notification enqueued",
+            { notificationId, templateKey, correlationId },
+            "NotificationService"
+          );
+        } else {
+          await this.sendEmailDirect({
+            notificationId,
+            templateKey: templateKey as EmailTemplateKey,
+            recipientEmail: email,
+            correlationId,
+            params,
+          });
+        }
         return { notificationId, correlationId };
       } catch (error: unknown) {
         if (error instanceof AppError) throw error;
@@ -101,6 +125,55 @@ export class NotificationService {
     }
 
     throw new BadRequestError(`Unsupported channel: ${input.channel}`);
+  }
+
+  /**
+   * Direct send via BrevoFacade for environments without Redis.
+   * Mirrors EmailJobProcessor.handle so notification status stays consistent.
+   */
+  private async sendEmailDirect(input: {
+    notificationId: string;
+    templateKey: EmailTemplateKey;
+    recipientEmail: string;
+    correlationId: string;
+    params: Record<string, string>;
+  }): Promise<void> {
+    const { notificationId, templateKey, recipientEmail, correlationId, params } = input;
+    try {
+      const rendered = getTemplate(templateKey, undefined, params);
+      const result = await this.brevoFacade.send({
+        to: recipientEmail,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        correlationId,
+        notificationId,
+        templateId: rendered.brevoTemplateId,
+        templateParams: rendered.brevoParams,
+      });
+      await this.notificationRepository.updateStatus(notificationId, NotificationStatus.SENT, {
+        email_message_id: result.messageId,
+        sent_at: new Date(),
+      });
+      logger.info(
+        "Email sent direct",
+        { notificationId, templateKey, correlationId, messageId: result.messageId },
+        "NotificationService"
+      );
+    } catch (error: unknown) {
+      logger.error(
+        "Email direct send failed",
+        error instanceof Error ? error : new Error(String(error)),
+        { notificationId, templateKey, correlationId },
+        "NotificationService"
+      );
+      await this.notificationRepository.updateStatus(notificationId, NotificationStatus.FAILED, {
+        failed_at: new Date(),
+      });
+      throw error instanceof AppError
+        ? error
+        : new AppError(error instanceof Error ? error.message : "Email direct send failed");
+    }
   }
 
   /**
