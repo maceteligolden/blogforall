@@ -11,7 +11,7 @@ export interface CreateBlogRequest {
   excerpt?: string;
   featured_image?: string;
   images?: string[];
-  status?: "draft" | "published" | "unpublished";
+  status?: "draft" | "scheduled" | "published" | "unpublished";
   category?: string;
   dynamic_forms?: Record<string, unknown>;
   meta?: {
@@ -26,7 +26,7 @@ export interface UpdateBlogRequest extends Partial<CreateBlogRequest> {
 }
 
 export interface BlogQueryParams {
-  status?: "draft" | "published" | "unpublished";
+  status?: "draft" | "scheduled" | "published" | "unpublished";
   search?: string;
   page?: number;
   limit?: number;

@@ -9,6 +9,7 @@ export enum UserPlan {
 
 export enum BlogStatus {
   DRAFT = "draft",
+  SCHEDULED = "scheduled",
   PUBLISHED = "published",
   UNPUBLISHED = "unpublished",
 }

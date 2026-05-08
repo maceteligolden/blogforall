@@ -216,9 +216,11 @@ export default function BlogsPage() {
                       className={`ml-2 px-2 py-1 text-xs rounded capitalize ${
                         blog.status === "published"
                           ? "bg-green-900/30 text-green-400 border border-green-800"
-                          : blog.status === "draft"
-                            ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
-                            : "bg-gray-800 text-gray-400 border border-gray-700"
+                          : blog.status === "scheduled"
+                            ? "bg-amber-900/30 text-amber-400 border border-amber-800"
+                            : blog.status === "draft"
+                              ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
+                              : "bg-gray-800 text-gray-400 border border-gray-700"
                       }`}
                     >
                       {blog.status}
@@ -321,9 +323,11 @@ export default function BlogsPage() {
                         className={`px-2 py-1 text-xs rounded capitalize ${
                           blog.status === "published"
                             ? "bg-green-900/30 text-green-400 border border-green-800"
-                            : blog.status === "draft"
-                              ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
-                              : "bg-gray-800 text-gray-400 border border-gray-700"
+                            : blog.status === "scheduled"
+                              ? "bg-amber-900/30 text-amber-400 border border-amber-800"
+                              : blog.status === "draft"
+                                ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
+                                : "bg-gray-800 text-gray-400 border border-gray-700"
                         }`}
                       >
                         {blog.status}
