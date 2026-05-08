@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { useBlog, useUpdateBlog, useUploadImage } from "@/lib/hooks/use-blog";
 import { BlogService } from "@/lib/api/services/blog.service";
+import { QUERY_KEYS } from "@/lib/api/config";
 import { useCategories } from "@/lib/hooks/use-category";
 import { useBlogReview } from "@/lib/hooks/use-blog-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { blocksToHtml, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
@@ -20,12 +23,13 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { ReviewModeView } from "@/components/blog/review-mode-view";
-import { Sparkles, Calendar, X } from "lucide-react";
+import { Sparkles, Calendar } from "lucide-react";
 import type { ReviewSuggestion } from "@/lib/api/services/blog-review.service";
 
 export default function EditBlogPage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const id = params.id as string;
   const { data: blog, isLoading } = useBlog(id);
   const updateBlog = useUpdateBlog();
@@ -53,7 +57,7 @@ export default function EditBlogPage() {
     content_blocks?: ContentBlock[];
     featured_image: string;
     category: string;
-    status: "draft" | "published" | "unpublished";
+    status: "draft" | "scheduled" | "published" | "unpublished";
     scheduled_at: string;
   }>({
     title: "",
@@ -183,7 +187,7 @@ export default function EditBlogPage() {
               scheduled_at: scheduledDate.toISOString().slice(0, 16),
               _id: schedule._id,
             });
-            if (blog.status === "published") {
+            if (blog.status === "published" || blog.status === "scheduled") {
               setFormData((prev) => ({
                 ...prev,
                 scheduled_at: scheduledDate.toISOString().slice(0, 16),
@@ -265,12 +269,18 @@ export default function EditBlogPage() {
     }
 
     const { scheduled_at, ...blogData } = formData;
+    const willScheduleLater = formData.status === "scheduled";
+    if (willScheduleLater && !scheduled_at) {
+      setError("Pick a schedule date and time, or change status away from Scheduled.");
+      return;
+    }
+    const blogDataForUpdate = willScheduleLater ? { ...blogData, status: "draft" as const } : blogData;
     const excerptText = deriveExcerptFromContent(
       useBlocks ? blocksToHtml(formData.content_blocks as ContentBlock[]) : formData.content
     );
     const payload = useBlocks
       ? {
-          ...blogData,
+          ...blogDataForUpdate,
           excerpt: excerptText,
           content: "",
           content_blocks: (formData.content_blocks || []).map((b, i) => ({
@@ -282,7 +292,7 @@ export default function EditBlogPage() {
             },
           })),
         }
-      : { ...blogData, excerpt: excerptText, content_blocks: undefined };
+      : { ...blogDataForUpdate, excerpt: excerptText, content_blocks: undefined };
     const siteId = (blog as { site_id?: string })?.site_id;
     const dataWithSite = siteId ? { ...payload, site_id: siteId } : payload;
     updateBlog.mutate(
@@ -295,19 +305,22 @@ export default function EditBlogPage() {
           setError(apiMessage ?? "Failed to update blog");
         },
         onSuccess: async () => {
-            const shouldSchedule = formData.status === "published" && scheduled_at;
+            const shouldSchedule = willScheduleLater && scheduled_at;
             let scheduleSideEffectsOk = true;
+            let scheduleChanged = false;
             if (shouldSchedule) {
               try {
                 const scheduleDate = new Date(scheduled_at);
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
                 if (existingSchedule?._id) {
                   await BlogService.unscheduleBlog(id);
                 }
-                await BlogService.scheduleBlog(id, scheduleDate);
+                await BlogService.scheduleBlog(id, scheduleDate, timezone);
                 setExistingSchedule({
                   scheduled_at: scheduled_at,
                   _id: "new",
                 });
+                scheduleChanged = true;
               } catch (scheduleErr: any) {
                 scheduleSideEffectsOk = false;
                 console.error("Failed to schedule blog:", scheduleErr);
@@ -317,11 +330,18 @@ export default function EditBlogPage() {
               try {
                 await BlogService.unscheduleBlog(id);
                 setExistingSchedule(null);
+                scheduleChanged = true;
               } catch (unscheduleErr: any) {
                 scheduleSideEffectsOk = false;
                 console.error("Failed to unschedule blog:", unscheduleErr);
                 setError(unscheduleErr?.response?.data?.message || "Blog updated but unscheduling failed");
               }
+            }
+            if (scheduleChanged) {
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS }),
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS }),
+              ]);
             }
             if (scheduleSideEffectsOk) {
               setSavedFingerprint(formFingerprint(formDataRef.current));
@@ -556,16 +576,17 @@ export default function EditBlogPage() {
                     id="status"
                     value={formData.status}
                     onChange={(e) => {
-                      const status = e.target.value as "draft" | "published" | "unpublished";
+                      const status = e.target.value as "draft" | "scheduled" | "published" | "unpublished";
                       setFormData({
                         ...formData,
                         status,
-                        ...(status !== "published" ? { scheduled_at: "" } : {}),
+                        ...(status !== "scheduled" ? { scheduled_at: "" } : {}),
                       });
                     }}
                     className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
                   >
                     <option value="draft">Draft</option>
+                    <option value="scheduled">Scheduled</option>
                     <option value="published">Published</option>
                     <option value="unpublished">Unpublished</option>
                   </select>
@@ -617,34 +638,21 @@ export default function EditBlogPage() {
                   )}
                 </div>
 
-                {formData.status === "published" && (
+                {formData.status === "scheduled" && (
                   <div>
                     <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       Schedule Publish
                     </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
+                    <div className="mt-1">
+                      <DateTimePicker
                         id="scheduled_at"
-                        type="datetime-local"
                         value={formData.scheduled_at}
-                        onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-                        className="mt-1 bg-black border-gray-700 text-white flex-1"
+                        onChange={(value) => setFormData({ ...formData, scheduled_at: value })}
                         min={new Date().toISOString().slice(0, 16)}
                         disabled={isLoadingSchedule}
+                        aria-label="Schedule publish date and time"
                       />
-                      {formData.scheduled_at && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setFormData({ ...formData, scheduled_at: "" })}
-                          className="text-gray-400 hover:text-white mt-1"
-                          title="Clear schedule"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
                     </div>
                     {formData.scheduled_at && (
                       <p className="mt-1 text-xs text-gray-500">

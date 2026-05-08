@@ -2,14 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { useCreateBlog, useUploadImage } from "@/lib/hooks/use-blog";
 import { BlogService } from "@/lib/api/services/blog.service";
+import { QUERY_KEYS } from "@/lib/api/config";
 import { useCategories } from "@/lib/hooks/use-category";
 import { useBlogReview } from "@/lib/hooks/use-blog-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { blocksToHtml, canSaveContentBlocks, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
@@ -35,6 +38,7 @@ type BlogCreationMode = "write" | "ai-generate";
 export default function NewBlogPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { hasDraft, draftRestored, setDraftRestored, loadDraft, saveDraft, clearDraft } = useBlogDraft();
   const createBlog = useCreateBlog();
   const uploadImage = useUploadImage();
@@ -64,7 +68,7 @@ export default function NewBlogPage() {
     content_blocks?: ContentBlock[];
     featured_image: string;
     category: string;
-    status: "draft" | "published" | "unpublished";
+    status: "draft" | "scheduled" | "published" | "unpublished";
     scheduled_at: string;
   }>({
     title: "",
@@ -516,13 +520,24 @@ export default function NewBlogPage() {
         excerpt: derivedExcerpt(),
       };
       const { scheduled_at, ...blogData } = submitData;
-      createBlog.mutate(blogData, {
+      const willScheduleLater = formData.status === "scheduled";
+      if (willScheduleLater && !scheduled_at) {
+        setError("Pick a schedule date and time, or change status away from Scheduled.");
+        return;
+      }
+      const createPayload = willScheduleLater ? { ...blogData, status: "draft" as const } : blogData;
+      createBlog.mutate(createPayload, {
         onSuccess: async (response) => {
           const blogId = response.data?.data?._id || response.data?._id;
-          if (blogId && formData.status === "published" && scheduled_at) {
+          if (blogId && willScheduleLater && scheduled_at) {
             try {
               const scheduleDate = new Date(scheduled_at);
-              await BlogService.scheduleBlog(blogId, scheduleDate);
+              const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+              await BlogService.scheduleBlog(blogId, scheduleDate, timezone);
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS }),
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS }),
+              ]);
             } catch (scheduleErr: any) {
               console.error("Failed to schedule blog:", scheduleErr);
               setError(scheduleErr?.response?.data?.message || "Blog created but scheduling failed");
@@ -758,16 +773,17 @@ export default function NewBlogPage() {
                     id="status"
                     value={formData.status}
                     onChange={(e) => {
-                      const status = e.target.value as "draft" | "published" | "unpublished";
+                      const status = e.target.value as "draft" | "scheduled" | "published" | "unpublished";
                       setFormData({
                         ...formData,
                         status,
-                        ...(status !== "published" ? { scheduled_at: "" } : {}),
+                        ...(status !== "scheduled" ? { scheduled_at: "" } : {}),
                       });
                     }}
                     className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
                   >
                     <option value="draft">Draft</option>
+                    <option value="scheduled">Scheduled</option>
                     <option value="published">Published</option>
                     <option value="unpublished">Unpublished</option>
                   </select>
@@ -819,20 +835,21 @@ export default function NewBlogPage() {
                   )}
                 </div>
 
-                {formData.status === "published" && (
+                {formData.status === "scheduled" && (
                   <div>
                     <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
                       <Calendar className="w-4 h-4" />
                       Schedule Publish
                     </Label>
-                    <Input
-                      id="scheduled_at"
-                      type="datetime-local"
-                      value={formData.scheduled_at}
-                      onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-                      className="mt-1 bg-black border-gray-700 text-white"
-                      min={new Date().toISOString().slice(0, 16)}
-                    />
+                    <div className="mt-1">
+                      <DateTimePicker
+                        id="scheduled_at"
+                        value={formData.scheduled_at}
+                        onChange={(value) => setFormData({ ...formData, scheduled_at: value })}
+                        min={new Date().toISOString().slice(0, 16)}
+                        aria-label="Schedule publish date and time"
+                      />
+                    </div>
                     {formData.scheduled_at && (
                       <p className="mt-1 text-xs text-gray-500">
                         Will be published on {new Date(formData.scheduled_at).toLocaleString()}
