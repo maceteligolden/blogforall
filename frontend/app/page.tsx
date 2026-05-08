@@ -19,9 +19,6 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.06] via-transparent to-transparent pointer-events-none" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_40%,black_30%,transparent_100%)] pointer-events-none" />
         <div className="relative max-w-3xl mx-auto text-center">
-          <p className="text-sm font-medium text-primary mb-4 tracking-wide uppercase">
-            14-day free trial · No credit card
-          </p>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-5 leading-[1.12]">
             Ship better blog content,
             <br />
@@ -49,12 +46,6 @@ export default function Home() {
                     View plans
                   </Button>
                 </Link>
-                <Link
-                  href="/auth/login"
-                  className="text-sm text-gray-500 hover:text-gray-300 transition-colors sm:ml-1"
-                >
-                  Sign in
-                </Link>
               </>
             )}
             {isAuthenticated && (
@@ -66,12 +57,6 @@ export default function Home() {
             )}
           </div>
         </div>
-      </section>
-
-      <section className="py-12 lg:py-16 px-6 border-y border-gray-800/80">
-        <p className="text-center text-gray-500 text-sm max-w-lg mx-auto">
-          Built for teams who want impact without tool sprawl.
-        </p>
       </section>
 
       <section id="features" className="py-20 lg:py-28 px-6 lg:px-8 border-b border-gray-800/50">
@@ -184,9 +169,6 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.05] via-transparent to-transparent pointer-events-none" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.012)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.012)_1px,transparent_1px)] bg-[size:5rem_5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_35%,black_20%,transparent_100%)] pointer-events-none" />
         <div className="relative max-w-3xl mx-auto text-center">
-          <p className="text-xs sm:text-sm font-medium text-primary tracking-wide uppercase mb-3">
-            14-day free trial · No credit card
-          </p>
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Try it free and publish with confidence</h2>
           <p className="text-gray-400 text-sm sm:text-base max-w-xl mx-auto mb-7">
             Start with a focused workflow for generation, review, and campaign execution. Upgrade only when you are
