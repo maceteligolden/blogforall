@@ -16,7 +16,6 @@ const BREVO_TEMPLATE_IDS: Partial<Record<EmailTemplateKey, number>> = {
   [EMAIL_TEMPLATE_KEYS.SITE_INVITATION]: 1,
   [EMAIL_TEMPLATE_KEYS.PASSWORD_RESET]: 2,
   [EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST]: 3,
-  [EMAIL_TEMPLATE_KEYS.WELCOME]: 4,
 };
 
 /** Variable names expected by Brevo for each template (must match Brevo dashboard). */
