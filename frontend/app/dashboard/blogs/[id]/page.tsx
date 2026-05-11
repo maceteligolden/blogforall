@@ -18,6 +18,7 @@ import { blocksToHtml, getContentBlocksValidationErrors } from "@/lib/utils/cont
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 import { formFingerprint, hasBodyContent, hasTitle } from "@/lib/utils/blog-form-validation";
 import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
+import { contentToBlocks } from "@/lib/utils/content-to-blocks";
 import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
@@ -763,8 +764,9 @@ export default function EditBlogPage() {
                       setFormData({
                         ...formData,
                         title: reviewResult.improved_title || formData.title,
-                        content: improvedContent,
-                        content_blocks: htmlToBlocks(improvedContent),
+                        content: blocksToHtml(contentToBlocks(improvedContent)),
+                        content_type: "html",
+                        content_blocks: contentToBlocks(improvedContent),
                       });
                     } else {
                       // Apply selected suggestions (for now, apply all improvements)
@@ -781,8 +783,9 @@ export default function EditBlogPage() {
                       setFormData({
                         ...formData,
                         title: reviewResult.improved_title || formData.title,
-                        content: improvedContent,
-                        content_blocks: htmlToBlocks(improvedContent),
+                        content: blocksToHtml(contentToBlocks(improvedContent)),
+                        content_type: "html",
+                        content_blocks: contentToBlocks(improvedContent),
                       });
                     }
                     setShowReview(false);
@@ -818,8 +821,9 @@ export default function EditBlogPage() {
                   setFormData({
                     ...formData,
                     title: reviewResult.improved_title || formData.title,
-                    content: improvedContent,
-                    content_blocks: htmlToBlocks(improvedContent),
+                    content: blocksToHtml(contentToBlocks(improvedContent)),
+                    content_type: "html",
+                    content_blocks: contentToBlocks(improvedContent),
                   });
                   setShowComparison(false);
                   setShowReview(false);

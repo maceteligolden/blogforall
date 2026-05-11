@@ -41,6 +41,13 @@ router.post(
   blogGenerationController.analyzePrompt
 );
 router.post(
+  "/generate/stream",
+  authMiddleware,
+  siteParams,
+  validateBody(blogGenerationBodySchema),
+  blogGenerationController.generateBlogStream
+);
+router.post(
   "/generate",
   authMiddleware,
   siteParams,

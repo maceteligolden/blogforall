@@ -65,33 +65,34 @@ export const env = {
     cronInterval: process.env.SCHEDULER_INTERVAL || "*/1 * * * *",
   },
 
-  blogGeneration: {
-    HUGGINGFACE_API_TOKEN: (process.env.HUGGINGFACE_API_TOKEN || "").trim(),
-    GENERATION_MODEL: process.env.BLOG_GENERATION_MODEL || "mistralai/Mistral-7B-Instruct-v0.2",
-    GENERATION_FALLBACK_MODELS: (
-      process.env.BLOG_GENERATION_FALLBACK_MODELS ||
-      "mistralai/Mixtral-8x7B-Instruct-v0.1,meta-llama/Llama-2-7b-chat-hf"
-    )
-      .split(",")
-      .map((m) => m.trim()),
-    ANALYSIS_MODEL: process.env.BLOG_ANALYSIS_MODEL || "mistralai/Mistral-7B-Instruct-v0.2",
-    ANALYSIS_FALLBACK_MODELS: (process.env.BLOG_ANALYSIS_FALLBACK_MODELS || "mistralai/Mixtral-8x7B-Instruct-v0.1")
-      .split(",")
-      .map((m) => m.trim()),
+  /**
+   * Blog AI (LangGraph + OpenAI-compatible chat + optional Tavily search).
+   * Use OPENAI_API_KEY or BLOG_AI_OPENAI_API_KEY.
+   */
+  blogAi: {
+    openaiApiKey: (process.env.BLOG_AI_OPENAI_API_KEY || process.env.OPENAI_API_KEY || "").trim(),
+    /** Chat model for analysis, drafting, and streaming (e.g. gpt-4o-mini). */
+    chatModel: (process.env.BLOG_AI_CHAT_MODEL || "gpt-4o-mini").trim(),
+    /** Optional separate model for review; defaults to chatModel. */
+    reviewModel: (process.env.BLOG_AI_REVIEW_MODEL || process.env.BLOG_AI_CHAT_MODEL || "gpt-4o-mini").trim(),
+    tavilyApiKey: (process.env.TAVILY_API_KEY || "").trim(),
+    /** When false, skip web search even if Tavily key is set. */
+    enableWebSearch: (process.env.BLOG_AI_ENABLE_WEB_SEARCH || "true").toLowerCase() !== "false",
+    maxSearchResults: parseIntEnv(process.env.BLOG_AI_MAX_SEARCH_RESULTS, 8),
+    searchMaxQueryLength: parseIntEnv(process.env.BLOG_AI_SEARCH_MAX_QUERY_LENGTH, 400),
     API_TIMEOUT: parseIntEnv(process.env.BLOG_GENERATION_API_TIMEOUT, 120_000),
     MAX_PROMPT_LENGTH: parseIntEnv(process.env.BLOG_GENERATION_MAX_PROMPT_LENGTH, 2000),
     DEFAULT_MIN_WORDS: parseIntEnv(process.env.BLOG_GENERATION_MIN_WORDS, 1000),
     DEFAULT_MAX_WORDS: parseIntEnv(process.env.BLOG_GENERATION_MAX_WORDS, 2000),
     MIN_CONTENT_LENGTH: parseIntEnv(process.env.BLOG_GENERATION_MIN_CONTENT_LENGTH, 500),
     MAX_CONTENT_LENGTH: parseIntEnv(process.env.BLOG_GENERATION_MAX_CONTENT_LENGTH, 50_000),
-    MAX_RETRIES: parseIntEnv(process.env.BLOG_GENERATION_MAX_RETRIES, 3),
-    INITIAL_RETRY_DELAY: parseIntEnv(process.env.BLOG_GENERATION_INITIAL_RETRY_DELAY, 1000),
-    MAX_RETRY_DELAY: parseIntEnv(process.env.BLOG_GENERATION_MAX_RETRY_DELAY, 10_000),
+    streamDraftTimeoutMs: parseIntEnv(process.env.BLOG_AI_STREAM_DRAFT_TIMEOUT_MS, 180_000),
+    /** In-memory rate limit: max generate/analyze/stream requests per user per window. */
+    rateLimitMaxRequests: parseIntEnv(process.env.BLOG_AI_RATE_LIMIT_MAX, 20),
+    rateLimitWindowMs: parseIntEnv(process.env.BLOG_AI_RATE_LIMIT_WINDOW_MS, 60_000),
   },
 
   blogReview: {
-    HUGGINGFACE_API_TOKEN: (process.env.HUGGINGFACE_API_TOKEN || process.env.HF_TOKEN || "").trim(),
-    REVIEW_MODEL: process.env.BLOG_REVIEW_MODEL || "HuggingFaceTB/SmolLM3-3B",
     API_TIMEOUT: parseIntEnv(process.env.BLOG_REVIEW_API_TIMEOUT, 60_000),
     MAX_CONTENT_LENGTH: parseIntEnv(process.env.BLOG_REVIEW_MAX_LENGTH, 50_000),
   },

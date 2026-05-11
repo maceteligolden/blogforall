@@ -405,11 +405,7 @@ export class AuthService {
     if (!user) {
       throw new BadRequestError("Invalid or expired code");
     }
-    if (
-      !user.resetPasswordToken ||
-      !user.resetPasswordExpires ||
-      user.resetPasswordExpires.getTime() <= Date.now()
-    ) {
+    if (!user.resetPasswordToken || !user.resetPasswordExpires || user.resetPasswordExpires.getTime() <= Date.now()) {
       throw new BadRequestError("Invalid or expired code");
     }
     if ((user.resetPasswordAttempts ?? 0) >= PASSWORD_RESET_MAX_ATTEMPTS) {

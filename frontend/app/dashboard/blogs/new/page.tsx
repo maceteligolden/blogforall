@@ -18,6 +18,7 @@ import { blocksToHtml, canSaveContentBlocks, getContentBlocksValidationErrors } 
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 import { hasBodyContent, hasTitle } from "@/lib/utils/blog-form-validation";
 import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
+import { contentToBlocks } from "@/lib/utils/content-to-blocks";
 import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
@@ -25,11 +26,17 @@ import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { PromptInput } from "@/components/blog/prompt-input";
 import { PromptTemplates } from "@/components/blog/prompt-templates";
 import { PreGenerationConfirmation } from "@/components/blog/pre-generation-confirmation";
+import {
+  BlogAiGenerationSettings,
+  defaultBlogGenerationFormParams,
+} from "@/components/blog/blog-ai-generation-settings";
 import { GenerationProgress, GenerationStage } from "@/components/blog/generation-progress";
 import { ConfirmModal } from "@/components/ui/modal";
 import { useBlogGeneration } from "@/lib/hooks/use-blog-generation";
 import { useBlogDraft } from "@/lib/hooks/use-blog-draft";
 import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
+import type { BlogGenerationFormParams } from "@/lib/utils/blog-ai-generation-params";
+import { formParamsToGenerationHints, mergePromptAnalysisWithForm } from "@/lib/utils/blog-generation-form";
 import { Sparkles, PenTool, Save, Trash2, RotateCcw, Undo2, Keyboard, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 
@@ -44,9 +51,12 @@ export default function NewBlogPage() {
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
   const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult, applyReviewAsync } = useBlogReview();
-  const { analyzePrompt, generateBlog, cancelRequest, isAnalyzing, isGenerating, generationResult } = useBlogGeneration();
+  const { analyzePrompt, generateBlog, cancelRequest, isAnalyzing, isGenerating } = useBlogGeneration();
   const [mode, setMode] = useState<BlogCreationMode>("write");
   const [prompt, setPrompt] = useState("");
+  const [generationParams, setGenerationParams] = useState<BlogGenerationFormParams>(() =>
+    defaultBlogGenerationFormParams()
+  );
   const [promptAnalysis, setPromptAnalysis] = useState<PromptAnalysis | null>(null);
   const [promptError, setPromptError] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -55,6 +65,8 @@ export default function NewBlogPage() {
   const [generationStage, setGenerationStage] = useState<GenerationStage>("analyzing");
   const [autoReviewResult, setAutoReviewResult] = useState<any>(null); // Review from auto-review after generation
   const [showReview, setShowReview] = useState(false);
+  const [reviewPanelTab, setReviewPanelTab] = useState<"content" | "review">("content");
+  const [reviewHasNewInfo, setReviewHasNewInfo] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [previousContent, setPreviousContent] = useState<{
@@ -100,8 +112,10 @@ export default function NewBlogPage() {
 
     setPromptError("");
     try {
-      const analysis = await analyzePrompt(prompt.trim());
-      setPromptAnalysis(analysis);
+      const hints = formParamsToGenerationHints(generationParams);
+      const analysis = await analyzePrompt(prompt.trim(), hints);
+      const merged = mergePromptAnalysisWithForm(analysis, generationParams);
+      setPromptAnalysis(merged);
 
       if (!analysis.is_valid) {
         setPromptError(analysis.rejection_reason || "Invalid prompt");
@@ -114,7 +128,7 @@ export default function NewBlogPage() {
       const errorMessage = err?.response?.data?.message || err?.message || "Failed to analyze prompt. Please try again.";
       setPromptError(errorMessage);
     }
-  }, [prompt, analyzePrompt]);
+  }, [prompt, generationParams, analyzePrompt]);
 
   const handleConfirmGeneration = async (confirmedAnalysis: PromptAnalysis) => {
     setShowConfirmation(false);
@@ -122,10 +136,8 @@ export default function NewBlogPage() {
     setGenerationStage("generating"); // Skip analyzing stage since it's already done
 
     try {
-      // Generate blog content (includes auto-review in backend)
       const generatedData = await generateBlog(prompt.trim(), confirmedAnalysis);
 
-      // Update form data with generated content; convert HTML to blocks for editor
       setFormData((prev) => ({
         ...prev,
         title: generatedData.content.title,
@@ -133,27 +145,18 @@ export default function NewBlogPage() {
         content_blocks: htmlToBlocks(generatedData.content.content),
       }));
 
-      // Stage: Complete (review happens automatically in backend)
       setGenerationStage("complete");
-      
-      // Store auto-review result if available (auto-review from backend)
+
       if (generatedData.review) {
         setAutoReviewResult(generatedData.review);
+        setReviewHasNewInfo(true);
       }
 
-      // Show warning if review failed but generation succeeded
-      if (generatedData.reviewError) {
-        // Don't show error toast - generation was successful
-        // User can manually review using the "Review with AI" button
-        console.warn("Auto-review unavailable:", generatedData.reviewError.message);
-      }
-
-      // Switch to write mode to show the generated content
       setMode("write");
       setShowProgress(false);
-      
-      // Auto-show review if available from generation
+
       if (generatedData.review) {
+        setReviewPanelTab("content");
         setShowReview(true);
       }
     } catch (err: any) {
@@ -215,9 +218,9 @@ export default function NewBlogPage() {
     });
 
     try {
-      // Stage 1: Re-analyze prompt
-      const freshAnalysis = await analyzePrompt(prompt.trim());
-      
+      const hints = formParamsToGenerationHints(generationParams);
+      const freshAnalysis = await analyzePrompt(prompt.trim(), hints);
+
       if (!freshAnalysis.is_valid) {
         setPromptError(freshAnalysis.rejection_reason || "Invalid prompt");
         setShowProgress(false);
@@ -230,14 +233,12 @@ export default function NewBlogPage() {
         return;
       }
 
-      // Update prompt analysis with fresh analysis
-      setPromptAnalysis(freshAnalysis);
+      const merged = mergePromptAnalysisWithForm(freshAnalysis, generationParams);
+      setPromptAnalysis(merged);
 
-      // Stage 2: Generate blog content with fresh analysis
       setGenerationStage("generating");
-      const generatedData = await generateBlog(prompt.trim(), freshAnalysis);
+      const generatedData = await generateBlog(prompt.trim(), merged);
 
-      // Update form data with new generated content
       setFormData({
         ...formData,
         title: generatedData.content.title,
@@ -245,31 +246,16 @@ export default function NewBlogPage() {
         content_blocks: htmlToBlocks(generatedData.content.content),
       });
 
-      // Stage 3: Complete (review happens automatically in backend)
       setGenerationStage("complete");
 
-      // Store auto-review result if available
       if (generatedData.review) {
         setAutoReviewResult(generatedData.review);
+        setReviewHasNewInfo(true);
+        setReviewPanelTab("content");
         setShowReview(true);
       }
 
-      // Show warning if review failed but generation succeeded
-      if (generatedData.reviewError) {
-        // Don't show error toast - generation was successful
-        // User can manually review using the "Review with AI" button
-        console.warn("Auto-review unavailable:", generatedData.reviewError.message);
-      }
-
-      // Close progress modal after a brief moment to show completion
-      setTimeout(() => {
-        setShowProgress(false);
-        toast({
-          title: "Content Regenerated",
-          description: "New content has been generated successfully. You can revert if needed.",
-          variant: "success",
-        });
-      }, 1000); // Short delay just to show completion state
+      setShowProgress(false);
     } catch (err: any) {
       setShowProgress(false);
       setGenerationStage("analyzing"); // Reset to initial stage on error
@@ -320,11 +306,20 @@ export default function NewBlogPage() {
           category: formData.category || undefined,
         },
       });
+      setAutoReviewResult(null);
       setShowReview(true);
+      setReviewHasNewInfo(false);
+      setReviewPanelTab("review");
     } catch (err) {
       // Error handled by hook
     }
   };
+
+  useEffect(() => {
+    if (mode === "write") {
+      setGenerationParams(defaultBlogGenerationFormParams());
+    }
+  }, [mode]);
 
   // Load draft on mount
   useEffect(() => {
@@ -339,6 +334,7 @@ export default function NewBlogPage() {
         setMode(draft.mode);
         setPrompt(draft.prompt);
         setPromptAnalysis(draft.promptAnalysis);
+        setGenerationParams(draft.generationParams ?? defaultBlogGenerationFormParams());
         const d = draft.formData;
         setFormData({
           title: d.title,
@@ -386,13 +382,14 @@ export default function NewBlogPage() {
           mode,
           prompt,
           promptAnalysis,
+          generationParams: mode === "ai-generate" ? generationParams : undefined,
           formData,
         });
       }
     }, 2000); // Save after 2 seconds of inactivity
 
     return () => clearTimeout(timer);
-  }, [mode, prompt, promptAnalysis, formData, draftRestored, saveDraft, clearDraft]);
+  }, [mode, prompt, promptAnalysis, generationParams, formData, draftRestored, saveDraft, clearDraft]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -409,6 +406,7 @@ export default function NewBlogPage() {
             mode,
             prompt,
             promptAnalysis,
+            generationParams: mode === "ai-generate" ? generationParams : undefined,
             formData,
           });
           toast({
@@ -479,6 +477,7 @@ export default function NewBlogPage() {
     saveDraft,
     promptAnalysis,
     handleAnalyzePrompt,
+    generationParams,
     toast,
   ]);
 
@@ -645,16 +644,16 @@ export default function NewBlogPage() {
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <form id="blog-form" onSubmit={handleSubmit} className="space-y-6">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex flex-col gap-10">
+          <form id="blog-form" onSubmit={handleSubmit} className="space-y-6 shrink-0">
           {error && (
             <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="lg:col-span-2 space-y-6 min-w-0">
               {mode === "ai-generate" ? (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
@@ -668,6 +667,11 @@ export default function NewBlogPage() {
                       Browse Templates
                     </Button>
                   </div>
+                  <BlogAiGenerationSettings
+                    value={generationParams}
+                    onChange={setGenerationParams}
+                    disabled={isAnalyzing || isGenerating}
+                  />
                   <PromptInput
                     value={prompt}
                     onChange={setPrompt}
@@ -729,7 +733,79 @@ export default function NewBlogPage() {
                 </div>
               ) : (
                 <>
-                  <div>
+                  {showReview && (reviewResult || autoReviewResult) && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setReviewPanelTab("content");
+                          setReviewHasNewInfo(false);
+                        }}
+                        disabled={isGenerating || isAnalyzing}
+                        className={`${
+                          reviewPanelTab === "content"
+                            ? "bg-purple-600 hover:bg-purple-700 text-white"
+                            : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                        }`}
+                      >
+                        Content
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setReviewPanelTab("review");
+                          setReviewHasNewInfo(false);
+                        }}
+                        disabled={isGenerating || isAnalyzing}
+                        className={`${
+                          reviewPanelTab === "review"
+                            ? "bg-purple-600 hover:bg-purple-700 text-white"
+                            : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                        }`}
+                      >
+                        Review
+                        {reviewHasNewInfo && (
+                          <span className="ml-2 inline-flex items-center rounded bg-purple-900/60 px-2 py-0.5 text-xs font-medium text-purple-100">
+                            New
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  {reviewPanelTab === "review" && showReview && (reviewResult || autoReviewResult) ? (
+                    <BlogReviewCard
+                      reviewResult={reviewResult || autoReviewResult}
+                      originalContent={{
+                        title: formData.title,
+                        content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
+                        excerpt: derivedExcerpt(),
+                      }}
+                      isLoading={false}
+                      onViewComparison={() => setShowComparison(true)}
+                      onApplyReview={async () => {
+                        const result = reviewResult || autoReviewResult;
+                        const improvedContent = result.improved_content || formData.content;
+                        try {
+                          const nextBlocks = contentToBlocks(improvedContent);
+                          setFormData({
+                            ...formData,
+                            title: result.improved_title || formData.title,
+                            content_blocks: nextBlocks,
+                            content: blocksToHtml(nextBlocks),
+                            content_type: "html",
+                          });
+                          setShowReview(false);
+                          setReviewPanelTab("content");
+                          setReviewHasNewInfo(false);
+                        } catch (err) {
+                          // Error handled by hook
+                        }
+                      }}
+                    />
+                  ) : (
+                  <>
+                    <div>
                     <Label htmlFor="title" className="text-gray-300">
                       Title *
                     </Label>
@@ -743,11 +819,11 @@ export default function NewBlogPage() {
                     />
                   </div>
 
-                  <div className="flex-1 min-h-0">
+                  <div className="flex-1 min-h-0 min-w-0">
                     <Label htmlFor="content" className="text-gray-300 mb-2 block">
                       Content *
                     </Label>
-                    <div className="h-[calc(100vh-500px)] min-h-[600px]">
+                    <div className="h-[55vh] min-h-[420px] max-h-[90vh] min-w-0">
                       <BlockEditor
                         value={formData.content_blocks ?? []}
                         onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
@@ -759,11 +835,13 @@ export default function NewBlogPage() {
                       Use + or type / to add blocks. Every image requires a caption.
                     </p>
                   </div>
+                  </>
+                  )}
                 </>
               )}
             </div>
 
-            <div className="lg:col-span-1 space-y-6">
+            <div className="lg:col-span-1 space-y-6 min-w-0 self-start">
               <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 space-y-6">
                 <div>
                   <Label htmlFor="status" className="text-gray-300">
@@ -863,36 +941,7 @@ export default function NewBlogPage() {
 
           </form>
 
-          {/* Review Results */}
-          {showReview && (reviewResult || autoReviewResult) && (
-            <div className="mt-6">
-              <BlogReviewCard
-                reviewResult={reviewResult || autoReviewResult}
-                originalContent={{
-                  title: formData.title,
-                  content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                  excerpt: derivedExcerpt(),
-                }}
-                isLoading={false}
-                onViewComparison={() => setShowComparison(true)}
-                onApplyReview={async (selectedSuggestions, applyAll) => {
-                  const result = reviewResult || autoReviewResult;
-                  const improvedContent = result.improved_content || formData.content;
-                  try {
-                    setFormData({
-                      ...formData,
-                      title: result.improved_title || formData.title,
-                      content: improvedContent,
-                      content_blocks: htmlToBlocks(improvedContent),
-                    });
-                    setShowReview(false);
-                  } catch (err) {
-                    // Error handled by hook
-                  }
-                }}
-              />
-            </div>
-          )}
+          {/* Review section moved into content/review tabs above */}
 
           {/* Comparison Modal */}
           {showComparison && (reviewResult || autoReviewResult) && (
@@ -907,11 +956,14 @@ export default function NewBlogPage() {
               onApplyAll={async () => {
                 const result = reviewResult || autoReviewResult;
                 const improvedContent = result.improved_content || formData.content;
+                  const nextBlocks = contentToBlocks(improvedContent);
+                  const normalizedHtml = blocksToHtml(nextBlocks);
                 setFormData({
                   ...formData,
                   title: result.improved_title || formData.title,
-                  content: improvedContent,
-                  content_blocks: htmlToBlocks(improvedContent),
+                    content: normalizedHtml,
+                    content_type: "html",
+                    content_blocks: nextBlocks,
                 });
                 setShowComparison(false);
                 setShowReview(false);
@@ -925,7 +977,7 @@ export default function NewBlogPage() {
               isOpen={showConfirmation}
               onClose={() => setShowConfirmation(false)}
               onConfirm={handleConfirmGeneration}
-              initialAnalysis={promptAnalysis}
+              initialAnalysis={mergePromptAnalysisWithForm(promptAnalysis, generationParams)}
               isGenerating={isGenerating}
             />
           )}

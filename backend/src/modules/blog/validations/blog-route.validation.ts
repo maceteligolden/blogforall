@@ -29,13 +29,43 @@ export const siteBlogVersionParamSchema = z.object({
 
 export { blogQuerySchema, createBlogSchema, updateBlogSchema, scheduleBlogSchema };
 
+const lengthPresetEnum = z.enum(["short", "medium", "long"]);
+
+const blogGenerationUserHintsSchema = z.object({
+  tone: z.string().max(120).optional(),
+  target_audience: z.string().max(200).optional(),
+  topics_to_explore: z.array(z.string().max(200)).max(20).optional(),
+  word_count: z.number().int().min(300).max(8000).optional(),
+  length_preset: lengthPresetEnum.optional(),
+  purpose: z.string().max(120).optional(),
+  structure: z.string().max(120).optional(),
+});
+
 export const blogGenerationAnalyzeBodySchema = z.object({
   prompt: z.string().min(1, "Prompt is required"),
+  tone: z.string().max(120).optional(),
+  target_audience: z.string().max(200).optional(),
+  topics_to_explore: z.array(z.string().max(200)).max(20).optional(),
+  word_count: z.number().int().min(300).max(8000).optional(),
+  /** If set and `word_count` is omitted, maps to ~800 / ~1500 / ~2500 words. */
+  length_preset: lengthPresetEnum.optional(),
+  purpose: z.string().max(120).optional(),
+  structure: z.string().max(120).optional(),
+  /** Alternative to flat fields */
+  user_params: blogGenerationUserHintsSchema.optional(),
 });
 
 export const blogGenerationBodySchema = z.object({
   prompt: z.string().min(1, "Prompt is required"),
   analysis: z.unknown().optional(),
+  tone: z.string().max(120).optional(),
+  target_audience: z.string().max(200).optional(),
+  topics_to_explore: z.array(z.string().max(200)).max(20).optional(),
+  word_count: z.number().int().min(300).max(8000).optional(),
+  length_preset: lengthPresetEnum.optional(),
+  purpose: z.string().max(120).optional(),
+  structure: z.string().max(120).optional(),
+  user_params: blogGenerationUserHintsSchema.optional(),
 });
 
 /** Review payload when editing an existing draft (optional fields). */

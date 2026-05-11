@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
 import type { ContentBlock } from "@/lib/types/blog";
+import type { BlogGenerationFormParams } from "@/lib/utils/blog-ai-generation-params";
 
 const DRAFT_STORAGE_KEY = "blog_generation_draft";
 const DRAFT_EXPIRY_DAYS = 7; // Drafts expire after 7 days
@@ -9,6 +10,8 @@ interface BlogGenerationDraft {
   mode: "write" | "ai-generate";
   prompt: string;
   promptAnalysis: PromptAnalysis | null;
+  /** AI generation settings form (optional for legacy drafts). */
+  generationParams?: BlogGenerationFormParams;
   formData: {
     title: string;
     content: string;

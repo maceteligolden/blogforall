@@ -41,6 +41,7 @@ export const API_ENDPOINTS = {
       `/sites/${siteId}/blogs/${blogId}/restore/${version}`,
     GENERATE_ANALYZE: (siteId: string) => `/sites/${siteId}/blogs/generate/analyze`,
     GENERATE: (siteId: string) => `/sites/${siteId}/blogs/generate`,
+    GENERATE_STREAM: (siteId: string) => `/sites/${siteId}/blogs/generate/stream`,
     SCHEDULE: (siteId: string, id: string) => `/sites/${siteId}/blogs/${id}/schedule`,
     GET_SCHEDULE: (siteId: string, id: string) => `/sites/${siteId}/blogs/${id}/schedule`,
     UNSCHEDULE: (siteId: string, id: string) => `/sites/${siteId}/blogs/${id}/schedule`,

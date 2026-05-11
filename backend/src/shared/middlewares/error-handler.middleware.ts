@@ -6,7 +6,11 @@ import { logger } from "../utils/logger";
 
 export const errorHandler = (error: Error | AppError, req: Request, res: Response, _next: NextFunction): void => {
   if (error instanceof AppError) {
-    logger.error(error.message, error, { path: req.path, method: req.method }, "ErrorHandler");
+    if (error.statusCode === HttpStatus.UNAUTHORIZED) {
+      logger.warn(error.message, { path: req.path, method: req.method }, "ErrorHandler");
+    } else {
+      logger.error(error.message, error, { path: req.path, method: req.method }, "ErrorHandler");
+    }
     res.status(error.statusCode).json({
       message: error.message,
       ...(!env.isProduction && { stack: error.stack }),
