@@ -13,6 +13,7 @@ import onboardingRouter from "./modules/onboarding/routes/onboarding.router";
 import siteRouter from "./modules/site/routes/site.router";
 import userInvitationsRouter from "./modules/site/routes/user-invitations.router";
 import notificationRouter from "./modules/notification/routes/notification.router";
+import siteOrchestratorRouter from "./modules/orchestrator/routes/site-orchestrator.router";
 
 const router = Router();
 
@@ -51,6 +52,9 @@ router.use("/notifications", notificationRouter);
 
 // Campaign routes (site-scoped, JWT)
 router.use("/sites/:siteId/campaigns", siteCampaignRouter);
+
+// Workspace Orchestrator Agent (site-scoped, JWT)
+router.use("/sites/:siteId/orchestrator", siteOrchestratorRouter);
 
 // User invitation routes (protected with JWT): list and accept/reject by token
 router.use("/invitations", userInvitationsRouter);
