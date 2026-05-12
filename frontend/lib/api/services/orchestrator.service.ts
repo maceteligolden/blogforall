@@ -8,6 +8,16 @@ import type {
   ThreadWithMessages,
 } from "../types/orchestrator.types";
 
+/**
+ * Tool-bearing orchestrator turns can run the full blog-generation pipeline
+ * (research → planner → editor → reviewer), which routinely takes 30-90s and
+ * occasionally up to ~2 min for long posts. The shared apiClient default of
+ * 30 s aborts those turns even though the backend completes successfully and
+ * persists the result; the user just sees "Something went wrong". (debug
+ * session H15.)
+ */
+const ORCHESTRATOR_TURN_TIMEOUT_MS = 180_000;
+
 export class OrchestratorService {
   /**
    * Send one active-mode turn to the orchestrator. Optionally resumes an
@@ -18,10 +28,14 @@ export class OrchestratorService {
     message: string,
     threadId?: string
   ): Promise<ChatTurnResponse> {
-    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.CHAT(siteId), {
-      message,
-      ...(threadId ? { thread_id: threadId } : {}),
-    });
+    const response = await apiClient.post(
+      API_ENDPOINTS.ORCHESTRATOR.CHAT(siteId),
+      {
+        message,
+        ...(threadId ? { thread_id: threadId } : {}),
+      },
+      { timeout: ORCHESTRATOR_TURN_TIMEOUT_MS }
+    );
     return response.data?.data ?? response.data;
   }
 
@@ -32,7 +46,8 @@ export class OrchestratorService {
   static async onboardingChat(siteId: string, message: string): Promise<ChatTurnResponse> {
     const response = await apiClient.post(
       API_ENDPOINTS.ORCHESTRATOR.ONBOARDING_CHAT(siteId),
-      { message }
+      { message },
+      { timeout: ORCHESTRATOR_TURN_TIMEOUT_MS }
     );
     return response.data?.data ?? response.data;
   }

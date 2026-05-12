@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { ChatOpenAI } from "@langchain/openai";
-import { AIMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
+import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 import { env } from "../../../shared/config/env";
 import { BadRequestError } from "../../../shared/errors";
@@ -10,7 +10,8 @@ import type { OrchestratorMessage } from "../../../shared/schemas/orchestrator-m
 import { OrchestratorApprovalKind } from "../../../shared/schemas/orchestrator-approval.schema";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
 import {
-  supervisorDecisionSchema,
+  parseSupervisorDecisionFromRaw,
+  supervisorDecisionRawSchema,
   type SupervisorDecision,
 } from "../interfaces/orchestrator.interface";
 import { renderActiveSystemPrompt, renderOnboardingSystemPrompt } from "./prompts/system";
@@ -88,37 +89,44 @@ export class OrchestratorGraphService {
   async planTurn(input: PlanTurnInput): Promise<PlanTurnOutput> {
     this.assertConfigured();
 
+    // Render the tool manifest with descriptions so the supervisor can pick
+    // the right tool by purpose, not just by guessing names. (debug H12: the
+    // model previously hallucinated `blog_generation` because we only fed it
+    // bare names like `blogs.generateDraft` with no description, then later
+    // claimed in chat that the tool was "unavailable".)
     const availableTools =
       input.mode === "onboarding"
-        ? ["workspace.completeOnboarding"]
-        : this.toolRegistry
-            .manifest()
-            .map((t) => `${t.name}${t.requiresConfirmation ? " (requires confirmation)" : ""}`);
+        ? ["workspace.completeOnboarding — Capture business_type, target_audience, brand_voice, business_goals, seo_priorities, publishing_channels and finalize onboarding."]
+        : this.toolRegistry.manifest().map((t) => {
+            const tag = t.requiresConfirmation ? " (requires confirmation)" : "";
+            return `${t.name}${tag} — ${t.description}`;
+          });
 
+    const nowDate = new Date();
+    const currentTimeIso = nowDate.toISOString();
+    const currentDateHuman = nowDate.toUTCString();
+    const promptCtx = {
+      workspace_name: input.workspaceName,
+      workspace_id: input.workspaceId,
+      workspace_context_json: this.buildContextJson(input.memory),
+      memory_summary: input.memory.memory_summary || "",
+      available_tools: availableTools,
+      current_time_iso: currentTimeIso,
+      current_date_human: currentDateHuman,
+    };
     const systemPromptText =
       input.mode === "onboarding"
-        ? renderOnboardingSystemPrompt({
-            workspace_name: input.workspaceName,
-            workspace_id: input.workspaceId,
-            workspace_context_json: this.buildContextJson(input.memory),
-            memory_summary: input.memory.memory_summary || "",
-            available_tools: availableTools,
-          })
-        : renderActiveSystemPrompt({
-            workspace_name: input.workspaceName,
-            workspace_id: input.workspaceId,
-            workspace_context_json: this.buildContextJson(input.memory),
-            memory_summary: input.memory.memory_summary || "",
-            available_tools: availableTools,
-          });
+        ? renderOnboardingSystemPrompt(promptCtx)
+        : renderActiveSystemPrompt(promptCtx);
 
     const messages = this.buildMessageHistory(systemPromptText, input.history, input.newUserMessage);
 
     const chat = this.buildChat();
-    const planner = chat.withStructuredOutput(supervisorDecisionSchema);
+    const planner = chat.withStructuredOutput(supervisorDecisionRawSchema);
     let decision: SupervisorDecision;
     try {
-      decision = await planner.invoke(messages, { signal: input.signal });
+      const raw = await planner.invoke(messages, { signal: input.signal });
+      decision = parseSupervisorDecisionFromRaw(raw);
     } catch (e) {
       logger.error(
         "Orchestrator supervisor call failed",
@@ -188,12 +196,14 @@ export class OrchestratorGraphService {
         reasoning: decision.reasoning,
         next: "request_confirmation",
         reply: decision.reply,
+        tool: null,
         confirmation: {
           action: toolName,
           payload,
           summary,
           kind: tool.confirmationKind ?? OrchestratorApprovalKind.IN_CHAT_CONFIRMATION,
         },
+        confirmation_decision: null,
         memory_patch: decision.memory_patch,
         onboarding_payload: decision.onboarding_payload,
       };
@@ -264,14 +274,19 @@ export class OrchestratorGraphService {
     toolSummary: string;
     signal?: AbortSignal;
   }): Promise<string> {
+    // We deliberately avoid `ToolMessage` here — see buildMessageHistory's
+    // H11 comment. The supervisor isn't using OpenAI tool-calls, so a
+    // role:"tool" message would be rejected by the API.
     const followUp = [
       ...args.history,
-      new ToolMessage({
-        content: args.toolSummary,
-        tool_call_id: args.toolName,
-      }),
+      new AIMessage(`[Tool '${args.toolName}' result] ${args.toolSummary}`),
       new HumanMessage(
-        "Reply to the user with a concise, natural-language summary of the tool result above. Do not request another tool call. If the result is empty, suggest one specific next step."
+        [
+          "Reply to the user with a concise, natural-language summary of the tool result above.",
+          "Do not request another tool call.",
+          "If the tool result contains a URL (e.g. starts with 'Preview:' or 'http'), surface it verbatim as a markdown link so the user can click it.",
+          "If the result is empty, suggest one specific next step.",
+        ].join(" ")
       ),
     ];
     try {
@@ -336,14 +351,22 @@ export class OrchestratorGraphService {
         case OrchestratorMessageRole.ASSISTANT:
           out.push(new AIMessage(m.content));
           break;
-        case OrchestratorMessageRole.TOOL:
-          out.push(
-            new ToolMessage({
-              content: m.content,
-              tool_call_id: m.tool_name || "tool",
-            })
-          );
+        case OrchestratorMessageRole.TOOL: {
+          // OpenAI requires `role:"tool"` messages to be paired with an
+          // assistant message carrying a `tool_calls` entry that references
+          // the same tool_call_id. Our supervisor uses structured output
+          // (`withStructuredOutput`) and never emits OpenAI-style tool_calls,
+          // so historical tool messages would be orphans and the request
+          // 400s with: "messages with role 'tool' must be a response to a
+          // preceeding message with 'tool_calls'." (debug session H11).
+          //
+          // Replay the tool result as plain assistant context instead. The
+          // model still sees the prior output; it just isn't pretending the
+          // turn was an OpenAI tool-call response.
+          const label = m.tool_name ? `Tool '${m.tool_name}' result` : "Tool result";
+          out.push(new AIMessage(`[${label}] ${m.content}`));
           break;
+        }
         case OrchestratorMessageRole.SYSTEM:
           // Older system messages are merged into the lead system prompt rather
           // than duplicated; skip here.

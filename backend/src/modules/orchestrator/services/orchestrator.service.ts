@@ -21,6 +21,7 @@ import { OrchestratorToolRegistry } from "../ai/tool-registry";
 import {
   serializeApproval,
   type ChatTurnResponse,
+  type OrchestratorTool,
   type SerializedApproval,
   type SupervisorDecision,
 } from "../interfaces/orchestrator.interface";
@@ -166,6 +167,7 @@ export class OrchestratorService {
     }
 
     const memory = await this.memoryRepository.ensureForSite(siteId, userId);
+
     const thread = await this.resolveThread(siteId, userId, input.threadId, mode);
     const history = await this.messageRepository.listByThread(thread._id!.toString(), siteId, {
       limit: env.orchestrator.maxThreadMessages,
@@ -232,12 +234,27 @@ export class OrchestratorService {
     plan: Awaited<ReturnType<OrchestratorGraphService["planTurn"]>>,
     mode: "active" | "onboarding"
   ): Promise<ChatTurnResponse> {
-    const decision = plan.decision;
+    const rawNext = plan.decision.next;
+    let decision = plan.decision;
     let assistantReply = plan.assistant_reply;
     let pendingApproval: OrchestratorApproval | null = null;
     let onboardingCompleted = false;
     let workspaceStatus: "onboarding" | "active" =
       mode === "onboarding" ? "onboarding" : "active";
+
+    // During onboarding the model often chooses `update_memory` with an empty
+    // `reply`, which surfaces only as the generic graph fallback ("I'll update
+    // the workspace memory…") and tends to repeat on the next user turn (see
+    // debug session H6). We still persist `memory_patch`, but coerce the stored
+    // decision to `respond` with a concrete follow-up so the chat advances.
+    if (mode === "onboarding" && rawNext === "update_memory") {
+      const ack =
+        (decision.reply && decision.reply.trim()) ||
+        (assistantReply && assistantReply.trim()) ||
+        "Thanks — I've saved that to your workspace profile. What would you like to refine next — target audience, brand voice, or where you'll publish?";
+      decision = { ...decision, next: "respond", reply: ack };
+      assistantReply = ack;
+    }
 
     if (plan.tool_invocation) {
       await this.messageRepository.create({
@@ -266,7 +283,11 @@ export class OrchestratorService {
       }
     }
 
-    if (decision.next === "update_memory" && decision.memory_patch) {
+    if (
+      rawNext === "update_memory" &&
+      decision.memory_patch &&
+      Object.keys(decision.memory_patch).length > 0
+    ) {
       await this.memoryRepository.update(siteId, decision.memory_patch as never, userId);
     }
 
@@ -310,7 +331,8 @@ export class OrchestratorService {
         mode,
         messagesPruned,
         hadToolCall: !!plan.tool_invocation,
-        decisionNext: plan.decision.next,
+        rawSupervisorNext: rawNext,
+        decisionNext: decision.next,
       },
       "OrchestratorService"
     );
@@ -479,12 +501,83 @@ export class OrchestratorService {
    * is not a tool (e.g. memory_update, scheduled_post_review), specialized
    * handlers in future phases plug in here.
    */
+  /**
+   * Best-effort recovery for confirmations the supervisor stored with a
+   * free-text action (e.g. "publish blog post") or aliased payload keys
+   * (e.g. `blog_id` instead of `id`). The exact-name case is checked first;
+   * fallbacks are limited to a tight allowlist so we never invoke a tool the
+   * user didn't approve.
+   */
+  private recoverConfirmationTarget(approval: OrchestratorApproval): {
+    tool: OrchestratorTool | undefined;
+    normalizedAction: string;
+    normalizedPayload: Record<string, unknown>;
+    recoveryNotes: string[];
+  } {
+    const rawAction = (approval.action || "").trim();
+    const rawPayload = (approval.payload ?? {}) as Record<string, unknown>;
+    const notes: string[] = [];
+
+    // 1. Exact match — the happy path.
+    let tool = this.toolRegistry.get(rawAction);
+    let normalizedAction = rawAction;
+
+    // 2. Free-text action — match against a small allowlist of destructive
+    //    verbs. We only map to gated tools so we never escalate.
+    if (!tool) {
+      const lower = rawAction.toLowerCase();
+      const aliasMap: Array<{ test: RegExp; tool: string }> = [
+        { test: /\b(publish|go live)\b/, tool: "blogs.publish" },
+        { test: /\b(unpublish|take down)\b/, tool: "blogs.unpublish" },
+        { test: /\b(delete|remove).*(blog|post|article)\b/, tool: "blogs.delete" },
+        { test: /\b(delete|remove).*(category|categories|topic|tag)\b/, tool: "categories.delete" },
+        { test: /\b(cancel|stop).*(schedule|publishing)\b/, tool: "blogs.cancelSchedule" },
+      ];
+      for (const alias of aliasMap) {
+        if (alias.test.test(lower)) {
+          const candidate = this.toolRegistry.get(alias.tool);
+          if (candidate) {
+            tool = candidate;
+            normalizedAction = alias.tool;
+            notes.push(`action_alias:${rawAction}->${alias.tool}`);
+            break;
+          }
+        }
+      }
+    }
+
+    // 3. Payload key normalization. The blog tools all use `id`; the
+    //    supervisor often emits `blog_id` / `post_id`. Same for categories.
+    const normalizedPayload: Record<string, unknown> = { ...rawPayload };
+    const keyAliases: Array<[string, string]> = [
+      ["blog_id", "id"],
+      ["post_id", "id"],
+      ["postId", "id"],
+      ["blogId", "id"],
+      ["category_id", "id"],
+      ["categoryId", "id"],
+    ];
+    for (const [from, to] of keyAliases) {
+      if (from in normalizedPayload && !(to in normalizedPayload)) {
+        normalizedPayload[to] = normalizedPayload[from];
+        delete normalizedPayload[from];
+        notes.push(`payload_alias:${from}->${to}`);
+      }
+    }
+
+    return { tool, normalizedAction, normalizedPayload, recoveryNotes: notes };
+  }
+
   private async executeApprovedAction(
     approval: OrchestratorApproval,
     userId: string
   ): Promise<{ ok: boolean; summary: string; data?: unknown }> {
     if (approval.kind === OrchestratorApprovalKind.IN_CHAT_CONFIRMATION) {
-      const tool = this.toolRegistry.get(approval.action);
+      // The supervisor sometimes drifts and stores a free-text description in
+      // `action` (e.g. "publish blog post") or off-schema payload keys (e.g.
+      // `blog_id` instead of `id`). Recover before failing so the user's
+      // explicit "yes" still lands. (Debug H20/H21.)
+      const { tool, normalizedPayload } = this.recoverConfirmationTarget(approval);
       if (!tool) {
         const summary = `Tool '${approval.action}' is not registered.`;
         await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
@@ -498,7 +591,7 @@ export class OrchestratorService {
           siteId: approval.site_id,
           userId,
           threadId: approval.thread_id || "",
-          input: (approval.payload ?? {}) as Record<string, unknown>,
+          input: normalizedPayload,
         });
         await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
           ok: true,
@@ -533,29 +626,98 @@ export class OrchestratorService {
     decision: SupervisorDecision
   ): Promise<void> {
     const payload = (decision.onboarding_payload ?? {}) as Record<string, unknown>;
-    const memoryPatch: Record<string, unknown> = {};
-    if (payload.strategic && typeof payload.strategic === "object") {
-      memoryPatch.strategic = payload.strategic;
-    }
-    if (payload.preferences && typeof payload.preferences === "object") {
-      memoryPatch.preferences = payload.preferences;
-    }
-    if (payload.operational && typeof payload.operational === "object") {
-      memoryPatch.operational = payload.operational;
-    }
-    if (typeof payload.memory_summary === "string") {
-      memoryPatch.memory_summary = payload.memory_summary;
-    }
+    const memoryPatch = this.buildMemoryPatchFromOnboardingPayload(payload);
+
     if (Object.keys(memoryPatch).length > 0) {
       await this.memoryRepository.update(siteId, memoryPatch as never, userId);
     }
     await this.siteService.markSiteActive(siteId, userId);
     await this.threadRepository.markOnboardingComplete(thread._id!.toString(), siteId);
+
     logger.info(
       "Workspace onboarding completed via orchestrator",
       { siteId, userId, threadId: thread._id?.toString() },
       "OrchestratorService"
     );
+  }
+
+  /**
+   * Build a WorkspaceMemory patch from the orchestrator's `onboarding_payload`.
+   *
+   * The supervisor system prompt instructs the LLM to capture strategic fields
+   * at the TOP level of the payload (e.g. `business_type`, `business_goals`,
+   * `target_audience`, ...). We map those into the persisted
+   * `WorkspaceMemory.strategic` / `.preferences` shape.
+   *
+   * Nested forms (`payload.strategic`, `payload.preferences`,
+   * `payload.operational`) are still accepted so future prompt revisions don't
+   * silently drop context.
+   */
+  private buildMemoryPatchFromOnboardingPayload(
+    payload: Record<string, unknown>
+  ): Record<string, unknown> {
+    const patch: Record<string, unknown> = {};
+    const strategic: Record<string, unknown> = {};
+    const preferences: Record<string, unknown> = {};
+    const operational: Record<string, unknown> = {};
+
+    const STRATEGIC_KEYS = [
+      "business_type",
+      "brand_voice",
+      "target_audience",
+      "business_goals",
+      "seo_priorities",
+      "publishing_channels",
+    ] as const;
+    for (const key of STRATEGIC_KEYS) {
+      if (payload[key] !== undefined && payload[key] !== null) {
+        strategic[key] = payload[key];
+      }
+    }
+    if (payload.strategic && typeof payload.strategic === "object" && !Array.isArray(payload.strategic)) {
+      Object.assign(strategic, payload.strategic as Record<string, unknown>);
+    }
+
+    const PREFERENCE_KEYS = ["tone", "default_word_count", "preferred_format"] as const;
+    for (const key of PREFERENCE_KEYS) {
+      if (payload[key] !== undefined && payload[key] !== null) {
+        preferences[key] = payload[key];
+      }
+    }
+    if (
+      payload.preferences &&
+      typeof payload.preferences === "object" &&
+      !Array.isArray(payload.preferences)
+    ) {
+      Object.assign(preferences, payload.preferences as Record<string, unknown>);
+    }
+
+    const OPERATIONAL_KEYS = [
+      "publishing_cadence",
+      "approval_rules",
+      "review_lead_time_hours",
+      "automation_settings",
+    ] as const;
+    for (const key of OPERATIONAL_KEYS) {
+      if (payload[key] !== undefined && payload[key] !== null) {
+        operational[key] = payload[key];
+      }
+    }
+    if (
+      payload.operational &&
+      typeof payload.operational === "object" &&
+      !Array.isArray(payload.operational)
+    ) {
+      Object.assign(operational, payload.operational as Record<string, unknown>);
+    }
+
+    if (Object.keys(strategic).length > 0) patch.strategic = strategic;
+    if (Object.keys(preferences).length > 0) patch.preferences = preferences;
+    if (Object.keys(operational).length > 0) patch.operational = operational;
+    if (typeof payload.memory_summary === "string" && payload.memory_summary.trim()) {
+      patch.memory_summary = payload.memory_summary;
+    }
+    return patch;
   }
 
   // ---------------------------------------------------------------------------

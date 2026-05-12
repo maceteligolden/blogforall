@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import { z } from "zod";
 import { BlogService } from "../../../blog/services/blog.service";
 import { BlogStatus } from "../../../../shared/constants";
+import { env } from "../../../../shared/config/env";
 import type { Blog } from "../../../../shared/schemas/blog.schema";
 import type {
   OrchestratorTool,
@@ -9,6 +10,11 @@ import type {
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
 import { parseToolInput, truncateSummary } from "./_helpers";
+
+function buildBlogPreviewUrl(blogId: string): string {
+  const base = env.frontend.baseUrl.replace(/\/$/, "");
+  return `${base}/dashboard/blogs/${blogId}`;
+}
 
 const BLOG_STATUS_VALUES: BlogStatus[] = [
   BlogStatus.DRAFT,
@@ -130,10 +136,12 @@ export class BlogGetTool implements OrchestratorTool {
     const blog = input.id
       ? await this.blogService.getBlogById(input.id, invocation.siteId)
       : await this.blogService.getBlogBySlug(input.slug!, invocation.siteId);
+    const blogId = blog._id?.toString();
+    const previewUrl = blogId ? buildBlogPreviewUrl(blogId) : undefined;
     return {
-      summary: `Blog '${blog.title}' is currently ${blog.status}. Excerpt: ${(blog.excerpt || "(none)").slice(0, 200)}.`,
+      summary: `Blog '${blog.title}' is currently ${blog.status}. Excerpt: ${(blog.excerpt || "(none)").slice(0, 200)}.${previewUrl ? ` Preview: ${previewUrl}` : ""}`,
       data: {
-        id: blog._id?.toString(),
+        id: blogId,
         title: blog.title,
         slug: blog.slug,
         status: blog.status,
@@ -144,6 +152,7 @@ export class BlogGetTool implements OrchestratorTool {
         created_at: blog.created_at,
         updated_at: blog.updated_at,
         meta: blog.meta,
+        preview_url: previewUrl,
       },
     };
   }

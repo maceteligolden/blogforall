@@ -85,17 +85,12 @@ export default function DashboardLayout({
       }
     }
 
-    // Workspace-level onboarding gate: any site with status="onboarding" must
-    // finish the orchestrator chat before the user can access the dashboard.
-    // Existing sites without a status field are treated as "active" so users
-    // created before this lifecycle was added are not blocked.
-    const onboardingSite =
-      sites.find((s) => s._id === currentSiteId && s.status === "onboarding") ||
-      sites.find((s) => s.status === "onboarding");
-    if (onboardingSite) {
-      if (onboardingSite._id !== currentSiteId) {
-        updateSiteContext(onboardingSite._id);
-      }
+    // Workspace-level onboarding gate: only the **currently selected** workspace
+    // must finish orchestrator onboarding before dashboard routes load. (Do not
+    // redirect just because some *other* workspace is still in onboarding — that
+    // incorrectly hijacked multi-workspace users; see debug log H5/H7.)
+    const currentSite = sites.find((s) => s._id === currentSiteId);
+    if (currentSite && currentSite.status === "onboarding") {
       router.push("/onboarding/create-site?step=chat");
       return;
     }

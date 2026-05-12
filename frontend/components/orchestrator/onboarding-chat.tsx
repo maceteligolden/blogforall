@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import type { ChatTurnResponse } from "@/lib/api/types/orchestrator.types";
+import { QUERY_KEYS } from "@/lib/api/config";
 import { ChatInput } from "./chat-input";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 
@@ -42,6 +44,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -79,6 +82,20 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
       });
       setMessages((prev) => [...prev, ...newMessages]);
       if (res.onboarding_completed) {
+        // The workspace just flipped from "onboarding" to "active" on the backend.
+        // Invalidate the cached sites list and onboarding-status query so the
+        // DashboardLayout gate sees the fresh status the next time it mounts;
+        // otherwise it will redirect the user back into this onboarding chat
+        // with a brand-new thread.
+        try {
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES }),
+            queryClient.invalidateQueries({ queryKey: ["onboarding", "status"] }),
+          ]);
+        } catch {
+          // best-effort; the dashboard layout's own refetchOnMount will still
+          // pick up the new status shortly after navigation.
+        }
         // Give the user a beat to read the final assistant reply before we redirect.
         window.setTimeout(() => onCompleted(), 1200);
       }

@@ -172,8 +172,8 @@ export function AIPanel() {
         });
       }
     } catch (e: unknown) {
-      const apiMessage = (e as { response?: { data?: { message?: string } } })?.response?.data
-        ?.message;
+      const err = e as { response?: { data?: { message?: string } } };
+      const apiMessage = err?.response?.data?.message;
       setError(apiMessage ?? "Something went wrong. Please try again.");
       setOptimisticMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
       if (!overrideText) setInput(text);

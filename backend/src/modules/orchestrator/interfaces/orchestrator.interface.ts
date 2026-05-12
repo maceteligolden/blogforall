@@ -12,19 +12,24 @@ import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.s
  * as structured output. The graph dispatches on `next` and uses the rest of
  * the fields to drive the corresponding side-effect node.
  */
-export const supervisorDecisionSchema = z.object({
+/**
+ * NOTE on schema compatibility with OpenAI structured-outputs (Responses API):
+ *  1. Every JSON-schema property MUST be `required`; optionality is expressed
+ *     via `null` only. So non-mandatory fields below use `.nullable()` rather
+ *     than `.optional()` (the SDK rejects `.optional()` at convert time).
+ *  2. Open-ended object maps (`z.record(z.string(), z.unknown())`) are NOT
+ *     supported — they emit `additionalProperties` without a concrete `type`,
+ *     which OpenAI rejects at request time. The fields whose shape varies per
+ *     tool / memory area are modeled as JSON-encoded **strings** that the
+ *     server parses into `Record<string, unknown>` via `parseSupervisorDecisionFromRaw`.
+ *
+ * `supervisorDecisionRawSchema` is what the LLM emits and what we hand to
+ * `withStructuredOutput`. `SupervisorDecision` (below) is the shape the rest
+ * of the codebase consumes — the variable-shape blobs are already parsed.
+ */
+export const supervisorDecisionRawSchema = z.object({
   /** Free-form chain-of-reasoning. Not surfaced to the user; useful for logs. */
-  reasoning: z.string().max(2000).optional(),
-  /**
-   * Next action:
-   *  - `respond`              : just write a natural-language reply to the user.
-   *  - `call_tool`            : invoke `tool.name` with `tool.input`.
-   *  - `request_confirmation` : pose a yes/no question, persist an approval.
-   *  - `resolve_confirmation` : the latest user turn answered a pending approval.
-   *  - `update_memory`        : write `memory_patch` to WorkspaceMemory.
-   *  - `complete_onboarding`  : flip Site.status to active and end the thread.
-   *  - `end`                  : terminate the turn without further work.
-   */
+  reasoning: z.string().max(2000).nullable(),
   next: z.enum([
     "respond",
     "call_tool",
@@ -34,42 +39,123 @@ export const supervisorDecisionSchema = z.object({
     "complete_onboarding",
     "end",
   ]),
-  /** Final assistant message to surface to the user this turn. */
-  reply: z.string().max(8000).optional(),
-  /** Tool to invoke when `next == "call_tool"`. */
+  reply: z.string().max(8000).nullable(),
   tool: z
     .object({
       name: z.string().min(1),
-      input: z.record(z.string(), z.unknown()),
+      /** JSON-encoded object string. Server parses into Record<string, unknown>. */
+      input_json: z.string(),
     })
-    .optional(),
-  /** Used when `next == "request_confirmation"`. */
+    .nullable(),
   confirmation: z
     .object({
-      /** Tool the confirmation would unlock. */
       action: z.string().min(1),
-      /** Original tool input we'll re-run once approved. */
-      payload: z.record(z.string(), z.unknown()),
-      /** Short human-readable summary of what will happen. */
+      /** JSON-encoded payload (variable shape per tool). */
+      payload_json: z.string(),
       summary: z.string().min(1).max(2000),
       kind: z.nativeEnum(OrchestratorApprovalKind),
     })
-    .optional(),
-  /** True if user's latest message resolved a pending approval. */
+    .nullable(),
   confirmation_decision: z
     .object({
       approval_id: z.string().min(1),
       decision: z.enum(["approved", "rejected"]),
-      note: z.string().max(4000).optional(),
+      note: z.string().max(4000).nullable(),
     })
-    .optional(),
-  /** When `next == "update_memory"`. Only patch what is actually changing. */
-  memory_patch: z.record(z.string(), z.unknown()).optional(),
-  /** When `next == "complete_onboarding"` — full payload to seed memory with. */
-  onboarding_payload: z.record(z.string(), z.unknown()).optional(),
+    .nullable(),
+  /** JSON-encoded patch for WorkspaceMemory (only includes changing fields). */
+  memory_patch_json: z.string().nullable(),
+  /** JSON-encoded payload for `workspace.completeOnboarding`. */
+  onboarding_payload_json: z.string().nullable(),
 });
 
-export type SupervisorDecision = z.infer<typeof supervisorDecisionSchema>;
+export type SupervisorDecisionRaw = z.infer<typeof supervisorDecisionRawSchema>;
+
+/**
+ * Decoded, consumer-facing shape. Variable-shape blobs are already parsed
+ * back to `Record<string, unknown>`. Service-layer code uses this type only.
+ */
+export interface SupervisorDecision {
+  reasoning: string | null;
+  next:
+    | "respond"
+    | "call_tool"
+    | "request_confirmation"
+    | "resolve_confirmation"
+    | "update_memory"
+    | "complete_onboarding"
+    | "end";
+  reply: string | null;
+  tool: {
+    name: string;
+    input: Record<string, unknown>;
+  } | null;
+  confirmation: {
+    action: string;
+    payload: Record<string, unknown>;
+    summary: string;
+    kind: OrchestratorApprovalKind;
+  } | null;
+  confirmation_decision: {
+    approval_id: string;
+    decision: "approved" | "rejected";
+    note: string | null;
+  } | null;
+  memory_patch: Record<string, unknown> | null;
+  onboarding_payload: Record<string, unknown> | null;
+}
+
+/**
+ * Safely parse a JSON object string. Returns `{}` on any error so the
+ * caller can keep going (an empty payload is always safer than throwing
+ * mid-turn over a malformed model emission).
+ */
+function safeParseObject(s: string | null | undefined): Record<string, unknown> {
+  if (!s || typeof s !== "string") return {};
+  try {
+    const v = JSON.parse(s);
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function safeParseObjectOrNull(s: string | null | undefined): Record<string, unknown> | null {
+  if (s === null || s === undefined || s === "") return null;
+  return safeParseObject(s);
+}
+
+/**
+ * Translate the raw LLM emission into the consumer-facing SupervisorDecision,
+ * decoding the four JSON-encoded variable-shape fields.
+ */
+export function parseSupervisorDecisionFromRaw(raw: SupervisorDecisionRaw): SupervisorDecision {
+  return {
+    reasoning: raw.reasoning,
+    next: raw.next,
+    reply: raw.reply,
+    tool: raw.tool
+      ? { name: raw.tool.name, input: safeParseObject(raw.tool.input_json) }
+      : null,
+    confirmation: raw.confirmation
+      ? {
+          action: raw.confirmation.action,
+          payload: safeParseObject(raw.confirmation.payload_json),
+          summary: raw.confirmation.summary,
+          kind: raw.confirmation.kind,
+        }
+      : null,
+    confirmation_decision: raw.confirmation_decision
+      ? {
+          approval_id: raw.confirmation_decision.approval_id,
+          decision: raw.confirmation_decision.decision,
+          note: raw.confirmation_decision.note,
+        }
+      : null,
+    memory_patch: safeParseObjectOrNull(raw.memory_patch_json),
+    onboarding_payload: safeParseObjectOrNull(raw.onboarding_payload_json),
+  };
+}
 
 /**
  * The shape every orchestrator tool must conform to. Tools are thin adapters

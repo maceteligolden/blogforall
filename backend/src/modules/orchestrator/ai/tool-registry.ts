@@ -1,4 +1,4 @@
-import { injectable } from "tsyringe";
+import { singleton } from "tsyringe";
 import type { OrchestratorTool } from "../interfaces/orchestrator.interface";
 
 /**
@@ -7,8 +7,16 @@ import type { OrchestratorTool } from "../interfaces/orchestrator.interface";
  * supervisor can discover them. The registry is intentionally simple — a
  * Map keyed by tool name — so we can reason about tenant-scoping at the
  * call site rather than inside a complex DI container.
+ *
+ * MUST be `@singleton()` (not just `@injectable()`): the bootstrap path
+ * (index.ts → OrchestratorBootstrap.registerAllTools) populates this registry
+ * once at server start, and every subsequent chat request must inject the
+ * SAME instance into `OrchestratorGraphService`. With plain `@injectable()`
+ * tsyringe creates a fresh, empty registry for each resolution and the graph
+ * sees zero tools — see debug session H14, log entries with
+ * `planTurn.available-tools: toolCount: 0`.
  */
-@injectable()
+@singleton()
 export class OrchestratorToolRegistry {
   private readonly tools = new Map<string, OrchestratorTool>();
 

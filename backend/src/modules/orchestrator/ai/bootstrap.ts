@@ -21,6 +21,7 @@ import {
   BlogCreateDraftTool,
   BlogDuplicateTool,
   BlogGenerateDraftTool,
+  BlogReviewTool,
   BlogUpdateTool,
 } from "./tools/blog-write.tools";
 import {
@@ -74,6 +75,7 @@ export class OrchestratorBootstrap {
     private readonly blogUpdate: BlogUpdateTool,
     private readonly blogDuplicate: BlogDuplicateTool,
     private readonly blogGenerateDraft: BlogGenerateDraftTool,
+    private readonly blogReview: BlogReviewTool,
     // Blog publishing tools
     private readonly blogPublish: BlogPublishTool,
     private readonly blogUnpublish: BlogUnpublishTool,
@@ -109,6 +111,7 @@ export class OrchestratorBootstrap {
       this.blogUpdate,
       this.blogDuplicate,
       this.blogGenerateDraft,
+      this.blogReview,
       this.blogPublish,
       this.blogUnpublish,
       this.blogSchedule,

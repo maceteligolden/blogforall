@@ -2,14 +2,26 @@ import { injectable } from "tsyringe";
 import { z } from "zod";
 import { BlogService } from "../../../blog/services/blog.service";
 import { BlogGenerationService } from "../../../blog/services/blog-generation.service";
+import { BlogReviewService } from "../../../blog/services/blog-review.service";
 import { WorkspaceMemoryRepository } from "../../repositories/workspace-memory.repository";
 import { BlogStatus } from "../../../../shared/constants";
+import { env } from "../../../../shared/config/env";
 import type {
   OrchestratorTool,
   OrchestratorToolInvocation,
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
 import { parseToolInput, truncateSummary } from "./_helpers";
+
+/**
+ * Build a stable in-app URL the orchestrator can hand to the user so they can
+ * preview the draft inside the dashboard. Uses the configured FRONTEND_URL so
+ * dev and prod environments both work.
+ */
+function buildBlogPreviewUrl(blogId: string): string {
+  const base = env.frontend.baseUrl.replace(/\/$/, "");
+  return `${base}/dashboard/blogs/${blogId}`;
+}
 
 // -----------------------------------------------------------------------------
 // blogs.createDraft
@@ -48,9 +60,17 @@ export class BlogCreateDraftTool implements OrchestratorTool {
       meta: input.meta,
       status: BlogStatus.DRAFT,
     });
+    const blogId = blog._id?.toString();
+    const previewUrl = blogId ? buildBlogPreviewUrl(blogId) : undefined;
     return {
-      summary: `Draft '${blog.title}' created (id ${blog._id?.toString()}).`,
-      data: { id: blog._id?.toString(), title: blog.title, slug: blog.slug, status: blog.status },
+      summary: `Draft '${blog.title}' created (id ${blogId}).${previewUrl ? ` Preview: ${previewUrl}` : ""}`,
+      data: {
+        id: blogId,
+        title: blog.title,
+        slug: blog.slug,
+        status: blog.status,
+        preview_url: previewUrl,
+      },
     };
   }
 }
@@ -156,9 +176,17 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
     const input = parseToolInput(generateDraftInputSchema, invocation.input, this.name);
     const memory = await this.memoryRepository.ensureForSite(invocation.siteId);
 
+    // Defaults are intentionally generous: previous runs produced very short
+    // drafts (~460 words for an 800-word target) because nothing in the chain
+    // requested a minimum length. (Debug H19.) When the workspace has set its
+    // own preferences they always win.
+    const fallbackTone =
+      memory.preferences.tone || memory.strategic.brand_voice || "professional but approachable";
+    const fallbackWordCount = memory.preferences.default_word_count ?? 1100;
+
     const userParams = {
-      tone: input.tone || memory.preferences.tone,
-      word_count: input.word_count ?? memory.preferences.default_word_count,
+      tone: input.tone || fallbackTone,
+      word_count: input.word_count ?? fallbackWordCount,
       topics_to_explore: input.topics_to_explore,
       target_audience: memory.strategic.target_audience?.join(", ") || undefined,
       purpose: memory.strategic.business_goals?.[0],
@@ -192,9 +220,12 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
       savedBlogId = created._id?.toString();
     }
 
+    const previewUrl = savedBlogId ? buildBlogPreviewUrl(savedBlogId) : undefined;
     return {
       summary: truncateSummary(
-        `Generated '${content.title}' (${content.content.length.toLocaleString()} chars).${savedBlogId ? ` Saved as draft ${savedBlogId}.` : ""}`
+        `Generated '${content.title}' (${content.content.length.toLocaleString()} chars).${
+          savedBlogId ? ` Saved as draft ${savedBlogId}.` : ""
+        }${previewUrl ? ` Preview: ${previewUrl}` : ""}`
       ),
       data: {
         blog_id: savedBlogId,
@@ -203,6 +234,52 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
         review_score: review.overall_score,
         review_summary: review.summary,
         saved_as_draft: !!savedBlogId,
+        preview_url: previewUrl,
+      },
+    };
+  }
+}
+
+// -----------------------------------------------------------------------------
+// blogs.review — run the AI editorial reviewer on an existing draft / published
+// post and return a score plus suggestions. Read-only; no DB writes.
+// -----------------------------------------------------------------------------
+
+const reviewInputSchema = z.object({
+  id: z.string().min(1),
+});
+
+@injectable()
+export class BlogReviewTool implements OrchestratorTool {
+  name = "blogs.review";
+  description =
+    "Run the AI editorial reviewer on an existing blog post (draft, scheduled, or published) and return an overall score and concrete suggestions. Read-only — does not modify the blog.";
+  requiresConfirmation = false;
+  constructor(
+    private readonly blogService: BlogService,
+    private readonly reviewService: BlogReviewService
+  ) {}
+
+  async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
+    const input = parseToolInput(reviewInputSchema, invocation.input, this.name);
+    const blog = await this.blogService.getBlogById(input.id, invocation.siteId);
+    const result = await this.reviewService.reviewBlog(
+      blog.title,
+      blog.content,
+      blog.excerpt,
+      blog.category,
+      blog.content_blocks
+    );
+    return {
+      summary: truncateSummary(
+        `Reviewed '${blog.title}' — overall score ${result.overall_score}/10. ${result.summary}`
+      ),
+      data: {
+        blog_id: input.id,
+        title: blog.title,
+        overall_score: result.overall_score,
+        summary: result.summary,
+        suggestions: result.suggestions,
       },
     };
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils/cn";
 import { Bot, User as UserIcon, Wrench } from "lucide-react";
 import type { OrchestratorMessageRole } from "@/lib/api/types/orchestrator.types";
@@ -9,6 +10,22 @@ export interface ChatMessageProps {
   content: string;
   toolName?: string;
   className?: string;
+}
+
+/**
+ * Wrap bare http(s) URLs in markdown link syntax so react-markdown renders
+ * them as clickable anchors. Skips URLs that are already inside a markdown
+ * link (`[text](url)`) by detecting the preceding `](` substring.
+ */
+function autoLinkBareUrls(input: string): string {
+  if (!input) return input;
+  const urlRe = /(https?:\/\/[^\s)\]]+)/g;
+  return input.replace(urlRe, (match, _url, offset) => {
+    // Look back two chars; if we're inside `](`, the URL is already a link.
+    const prev = typeof offset === "number" ? input.slice(Math.max(0, offset - 2), offset) : "";
+    if (prev === "](") return match;
+    return `[${match}](${match})`;
+  });
 }
 
 /**
@@ -45,13 +62,43 @@ export function ChatMessage({ role, content, toolName, className }: ChatMessageP
       </div>
       <div
         className={cn(
-          "max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed",
+          "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
           isUser
-            ? "bg-primary text-white rounded-tr-sm"
+            ? "bg-primary text-white rounded-tr-sm whitespace-pre-wrap"
             : "bg-gray-900 text-gray-100 border border-gray-800 rounded-tl-sm"
         )}
       >
-        {content}
+        {isUser ? (
+          content
+        ) : (
+          // Assistant replies can include markdown links (e.g. preview URLs)
+          // and short paragraphs. Render them with react-markdown so URLs are
+          // clickable and bullets render. Auto-link bare URLs too.
+          <ReactMarkdown
+            urlTransform={(value) => value}
+            components={{
+              a: ({ href, children }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-primary hover:text-primary/80 break-all"
+                >
+                  {children}
+                </a>
+              ),
+              p: ({ children }) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
+              ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
+              ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
+              li: ({ children }) => <li>{children}</li>,
+              code: ({ children }) => (
+                <code className="px-1 py-0.5 rounded bg-gray-800 text-xs">{children}</code>
+              ),
+            }}
+          >
+            {autoLinkBareUrls(content)}
+          </ReactMarkdown>
+        )}
       </div>
     </div>
   );
