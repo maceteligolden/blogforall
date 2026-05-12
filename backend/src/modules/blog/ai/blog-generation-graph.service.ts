@@ -171,6 +171,60 @@ export class BlogGenerationGraphService {
   }
 
   /**
+   * Revise an existing blog draft using reviewer feedback. Skips the research
+   * and editorial review steps because:
+   *  - we already have content (no need for a fresh research pass)
+   *  - the reviewer IS the editorial pass; their notes drive the revision
+   *
+   * Returns a fresh GeneratedBlogContent. The caller is responsible for
+   * persisting it back to the blog row. Falls back to the original content
+   * if the model returns empty output rather than failing the rework loop.
+   */
+  async regenerateWithFeedback(input: {
+    title: string;
+    content: string;
+    excerpt?: string;
+    feedback: string;
+    userParams?: BlogUserGenerationParams;
+    signal?: AbortSignal;
+  }): Promise<GeneratedBlogContent> {
+    this.assertConfigured();
+    const trimmedFeedback = (input.feedback ?? "").trim();
+    if (!trimmedFeedback) {
+      throw new BadRequestError("Reviewer feedback is required for regeneration.");
+    }
+    const chat = this.getMainChat();
+    const structured = chat.withStructuredOutput(DraftSchema);
+    const prompt = this.buildReworkPrompt({
+      originalTitle: input.title,
+      originalContent: input.content,
+      originalExcerpt: input.excerpt,
+      feedback: trimmedFeedback,
+      userParams: input.userParams,
+    });
+    const out = await structured.invoke([new HumanMessage(prompt)], { signal: input.signal });
+    const revised: GeneratedBlogContent = {
+      title: out.title?.trim() || input.title,
+      content: out.content?.trim() || input.content,
+      excerpt: out.excerpt?.trim() || input.excerpt || "",
+      meta: this.normalizeDraftMeta(out.meta),
+    };
+    if (!revised.content?.trim()) {
+      logger.warn(
+        "Rework regeneration returned empty content; returning original",
+        {},
+        "BlogGenerationGraphService"
+      );
+      return {
+        title: input.title,
+        content: input.content,
+        excerpt: input.excerpt ?? "",
+      };
+    }
+    return revised;
+  }
+
+  /**
    * Stream draft body tokens over SSE; runs merge + research sync first, then streams draft, then review sync.
    */
   async streamGenerate(
@@ -422,6 +476,45 @@ Return structured output matching the schema.`;
       };
       return { review: fallback };
     }
+  }
+
+  private buildReworkPrompt(input: {
+    originalTitle: string;
+    originalContent: string;
+    originalExcerpt?: string;
+    feedback: string;
+    userParams?: BlogUserGenerationParams;
+  }): string {
+    const u = input.userParams ?? {};
+    const hintLines: string[] = [];
+    if (u.tone) hintLines.push(`Tone: ${u.tone}`);
+    if (u.target_audience) hintLines.push(`Audience: ${u.target_audience}`);
+    if (u.word_count) hintLines.push(`Target length: ~${u.word_count} words`);
+    if (u.purpose) hintLines.push(`Purpose: ${u.purpose}`);
+    if (u.structure) hintLines.push(`Structure: ${u.structure}`);
+    const hintBlock = hintLines.length ? hintLines.join("\n") + "\n\n" : "";
+    const excerptBlock = input.originalExcerpt
+      ? `ORIGINAL EXCERPT:\n${input.originalExcerpt}\n\n`
+      : "";
+
+    return `You are an expert editor revising an existing blog draft. Apply the reviewer's feedback faithfully while keeping anything they did NOT ask to change.
+
+${hintBlock}ORIGINAL TITLE: ${input.originalTitle}
+
+${excerptBlock}ORIGINAL CONTENT (HTML):
+${input.originalContent}
+
+REVIEWER FEEDBACK:
+${input.feedback}
+
+Rules:
+- Address every point of the reviewer's feedback.
+- Preserve sections the reviewer did not flag.
+- Keep the HTML structure clean (h2 sections, paragraphs, lists as appropriate).
+- Do not invent statistics, quotes, or sources that were not already present.
+- Update the title only if the feedback explicitly asks for a different angle.
+
+Return structured JSON: title, content (HTML), excerpt (<=150 words), meta.description (<=160 chars), meta.keywords (array).`;
   }
 
   private buildDraftPrompt(prompt: string, analysis: PromptAnalysis, researchNotes: ResearchNote[]): string {

@@ -161,16 +161,54 @@ export class ScheduledPostPrepareService {
   }
 
   /**
-   * Materialize the draft this scheduled post will publish. When `blog_id`
-   * is already set we just sanity-check it exists; when `auto_generate`
-   * is true we call the existing BlogGenerationService and create a draft.
+   * Materialize the draft this scheduled post will publish.
+   *
+   *  - First prepare round, no existing blog: generate from scratch using
+   *    auto_generate prompt + workspace memory.
+   *  - Rework round (rework_comments present) on an existing blog: revise
+   *    the existing draft with regenerateWithFeedback and persist the new
+   *    body back to the same blog row (so the review link's blog_id is
+   *    stable across rounds).
+   *  - Existing blog with no rework comments: nothing to (re)generate;
+   *    just sanity-check it exists.
    */
   private async ensureBlogDraft(post: ScheduledPost): Promise<string> {
+    const memory = await this.workspaceMemoryRepository.findBySiteId(post.site_id);
+    const generationParams = this.buildGenerationParams(memory);
+
     if (post.blog_id) {
       const existing = await this.blogRepository.findById(post.blog_id, post.site_id);
       if (!existing) {
         throw new Error(`Blog ${post.blog_id} not found for scheduled post ${post._id}`);
       }
+
+      const isReworkPass = !!post.rework_comments && post.rework_round > 0;
+      if (!isReworkPass) {
+        return post.blog_id;
+      }
+
+      const revised = await this.blogGenerationService.regenerateWithFeedback({
+        title: existing.title,
+        content: existing.content,
+        excerpt: existing.excerpt,
+        feedback: post.rework_comments!,
+        userParams: generationParams,
+      });
+      await this.blogRepository.update(post.blog_id, post.site_id, {
+        title: revised.title,
+        content: revised.content,
+        excerpt: revised.excerpt,
+        status: BlogStatus.DRAFT,
+      });
+      logger.info(
+        "Rework round regenerated blog draft",
+        {
+          siteId: post.site_id,
+          blogId: post.blog_id,
+          reworkRound: post.rework_round,
+        },
+        "ScheduledPostPrepareService"
+      );
       return post.blog_id;
     }
 
@@ -180,12 +218,6 @@ export class ScheduledPostPrepareService {
       );
     }
 
-    const memory = await this.workspaceMemoryRepository.findBySiteId(post.site_id);
-    const generationParams = {
-      tone: memory?.preferences?.tone,
-      targetAudience: memory?.strategic?.target_audience?.[0],
-      desiredWordCount: memory?.preferences?.default_word_count,
-    };
     const analysis = await this.blogGenerationService.analyzePrompt(
       post.generation_prompt,
       generationParams
@@ -209,6 +241,19 @@ export class ScheduledPostPrepareService {
       status: BlogStatus.DRAFT,
     });
     return blog._id!.toString();
+  }
+
+  /**
+   * Translate WorkspaceMemory into the generation params the blog AI accepts.
+   * Centralised so both fresh-generation and rework paths share the same
+   * tone / audience / word-count signal.
+   */
+  private buildGenerationParams(memory: Awaited<ReturnType<WorkspaceMemoryRepository["findBySiteId"]>>) {
+    return {
+      tone: memory?.preferences?.tone,
+      target_audience: memory?.strategic?.target_audience?.[0],
+      word_count: memory?.preferences?.default_word_count,
+    };
   }
 
   /**

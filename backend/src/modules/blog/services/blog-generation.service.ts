@@ -38,6 +38,24 @@ export class BlogGenerationService {
     return this.graphService.generateFull(prompt, analysis, userParams);
   }
 
+  /**
+   * Revise an existing blog draft using reviewer comments. Used by the
+   * scheduled-post rework loop: a workspace owner asks for changes via the
+   * review email, the orchestrator's prepare service re-runs preparation
+   * for the next rework round, and this method is what produces the new
+   * draft. No research / editorial review is run since the reviewer's
+   * notes ARE the editorial signal.
+   */
+  async regenerateWithFeedback(input: {
+    title: string;
+    content: string;
+    excerpt?: string;
+    feedback: string;
+    userParams?: BlogUserGenerationParams;
+  }): Promise<GeneratedBlogContent> {
+    return this.graphService.regenerateWithFeedback(input);
+  }
+
   streamGenerate(
     prompt: string,
     analysis: PromptAnalysis,
