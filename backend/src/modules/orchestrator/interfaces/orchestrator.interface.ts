@@ -40,7 +40,7 @@ export const supervisorDecisionSchema = z.object({
   tool: z
     .object({
       name: z.string().min(1),
-      input: z.record(z.string(), z.unknown()).default({}),
+      input: z.record(z.string(), z.unknown()),
     })
     .optional(),
   /** Used when `next == "request_confirmation"`. */
@@ -49,7 +49,7 @@ export const supervisorDecisionSchema = z.object({
       /** Tool the confirmation would unlock. */
       action: z.string().min(1),
       /** Original tool input we'll re-run once approved. */
-      payload: z.record(z.string(), z.unknown()).default({}),
+      payload: z.record(z.string(), z.unknown()),
       /** Short human-readable summary of what will happen. */
       summary: z.string().min(1).max(2000),
       kind: z.nativeEnum(OrchestratorApprovalKind),
