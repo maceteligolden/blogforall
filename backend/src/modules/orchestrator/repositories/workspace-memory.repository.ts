@@ -72,6 +72,19 @@ export class WorkspaceMemoryRepository {
   }
 
   /**
+   * Oldest-updated memories first so nightly digest work is spread fairly
+   * across workspaces (each successful digest bumps `updated_at`).
+   */
+  async findBatchForDigest(limit: number): Promise<Pick<WorkspaceMemory, "site_id" | "memory_summary" | "content_summary">[]> {
+    const docs = await WorkspaceMemoryModel.find({})
+      .sort({ updated_at: 1 })
+      .limit(Math.min(limit, 500))
+      .select("site_id memory_summary content_summary")
+      .lean();
+    return docs as Pick<WorkspaceMemory, "site_id" | "memory_summary" | "content_summary">[];
+  }
+
+  /**
    * Delete memory for a workspace. Used when a site is deleted.
    */
   async deleteBySiteId(siteId: string): Promise<void> {

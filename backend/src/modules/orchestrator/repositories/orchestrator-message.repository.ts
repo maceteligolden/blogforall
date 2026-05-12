@@ -53,6 +53,63 @@ export class OrchestratorMessageRepository {
   }
 
   /**
+   * List threads whose message count exceeds `maxKeep`. Used by the nightly
+   * hygiene job as a safety net if inline pruning missed a path.
+   */
+  async findThreadsExceedingMessageCount(
+    maxKeep: number,
+    limitThreads: number
+  ): Promise<{ thread_id: string; site_id: string }[]> {
+    const rows = await OrchestratorMessageModel.aggregate<{ _id: { t: string; s: string } }>([
+      { $group: { _id: { t: "$thread_id", s: "$site_id" }, c: { $sum: 1 } } },
+      { $match: { c: { $gt: maxKeep } } },
+      { $sort: { c: -1 } },
+      { $limit: Math.min(limitThreads, 1000) },
+    ]);
+    return rows.map((r) => ({
+      thread_id: String(r._id.t),
+      site_id: String(r._id.s),
+    }));
+  }
+
+  /**
+   * Keep the latest `maxKeep` messages (by created_at desc, _id desc) and
+   * delete the rest. Returns how many documents were removed.
+   */
+  async pruneThreadToMaxKeep(threadId: string, siteId: string, maxKeep: number): Promise<number> {
+    const keepers = await OrchestratorMessageModel.find({ thread_id: threadId, site_id: siteId })
+      .sort({ created_at: -1, _id: -1 })
+      .limit(maxKeep)
+      .select("_id");
+    const total = await this.countByThread(threadId, siteId);
+    if (total <= maxKeep || keepers.length === 0) return 0;
+    const keeperIds = keepers.map((d) => d._id);
+    const res = await OrchestratorMessageModel.deleteMany({
+      thread_id: threadId,
+      site_id: siteId,
+      _id: { $nin: keeperIds },
+    });
+    return res.deletedCount ?? 0;
+  }
+
+  /**
+   * Recent orchestrator messages for a workspace (all threads), newest first
+   * in the query then caller reverses for chronological rendering.
+   */
+  async listRecentForSite(
+    siteId: string,
+    since: Date,
+    limit: number
+  ): Promise<OrchestratorMessage[]> {
+    return OrchestratorMessageModel.find({
+      site_id: siteId,
+      created_at: { $gte: since },
+    })
+      .sort({ created_at: -1 })
+      .limit(Math.min(limit, 300));
+  }
+
+  /**
    * Find the most recent assistant message that left an unresolved pending
    * approval. Used to resolve in-chat confirmations on the next user turn.
    */

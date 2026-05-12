@@ -114,6 +114,12 @@ export const env = {
     reviewTokenTtlDays: parseIntEnv(process.env.ORCHESTRATOR_REVIEW_TOKEN_TTL_DAYS, 14),
     /** Cron for the weekly publishing digest. Default: Mondays 09:00. */
     weeklyDigestCron: (process.env.ORCHESTRATOR_WEEKLY_DIGEST_CRON || "0 9 * * 1").trim(),
+    /** Nightly job: roll orchestrator chat + tools into workspace_memory.memory_summary. */
+    memoryDigestCron: (process.env.ORCHESTRATOR_MEMORY_DIGEST_CRON || "0 4 * * *").trim(),
+    /** How far back (hours) to read orchestrator messages when building the digest. */
+    memoryDigestLookbackHours: parseIntEnv(process.env.ORCHESTRATOR_MEMORY_DIGEST_LOOKBACK_HOURS, 48),
+    /** Max workspaces processed per digest tick (fair rotation via oldest updated_at first). */
+    memoryDigestMaxSitesPerRun: parseIntEnv(process.env.ORCHESTRATOR_MEMORY_DIGEST_MAX_SITES, 200),
     /** Milliseconds before a pending in-chat confirmation auto-rejects. */
     confirmTimeoutMs: parseIntEnv(process.env.ORCHESTRATOR_CONFIRM_TIMEOUT_MS, 600_000),
     /** Max rework rounds per scheduled post before manual editing is required. */

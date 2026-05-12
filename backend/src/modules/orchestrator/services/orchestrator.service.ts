@@ -171,6 +171,20 @@ export class OrchestratorService {
       limit: env.orchestrator.maxThreadMessages,
     });
 
+    logger.info(
+      "Orchestrator turn started",
+      {
+        component: "orchestrator",
+        event: "turn_start",
+        siteId,
+        userId,
+        threadId: thread._id?.toString(),
+        mode,
+        historyLoaded: history.length,
+      },
+      "OrchestratorService"
+    );
+
     // Sweep any in-chat confirmations that have aged out before planning.
     await this.approvalRepository.expireDue(siteId);
 
@@ -284,6 +298,23 @@ export class OrchestratorService {
 
     await this.threadRepository.touch(thread._id!.toString());
 
+    const messagesPruned = await this.pruneOrchestratorThread(thread._id!.toString(), siteId);
+    logger.info(
+      "Orchestrator turn completed",
+      {
+        component: "orchestrator",
+        event: "turn_complete",
+        siteId,
+        userId,
+        threadId: thread._id?.toString(),
+        mode,
+        messagesPruned,
+        hadToolCall: !!plan.tool_invocation,
+        decisionNext: plan.decision.next,
+      },
+      "OrchestratorService"
+    );
+
     return {
       thread_id: thread._id!.toString(),
       assistant_message: {
@@ -359,6 +390,7 @@ export class OrchestratorService {
         content: reply,
       });
       await this.threadRepository.touch(thread._id!.toString());
+      await this.pruneOrchestratorThread(thread._id!.toString(), siteId);
       return this.buildSimpleResponse(thread, assistant, "active");
     }
 
@@ -407,6 +439,21 @@ export class OrchestratorService {
           : undefined,
     });
     await this.threadRepository.touch(thread._id!.toString());
+
+    const messagesPruned = await this.pruneOrchestratorThread(thread._id!.toString(), siteId);
+    logger.info(
+      "Orchestrator confirmation resolved",
+      {
+        component: "orchestrator",
+        event: "confirmation_resolved",
+        siteId,
+        userId,
+        threadId: thread._id?.toString(),
+        isApprove,
+        messagesPruned,
+      },
+      "OrchestratorService"
+    );
 
     return {
       thread_id: thread._id!.toString(),
@@ -546,6 +593,33 @@ export class OrchestratorService {
       user_id: userId,
       title: "New conversation",
     });
+  }
+
+  /**
+   * Persisted message cap: drop oldest rows so Mongo stays bounded even when
+   * the supervisor loads only the latest N in memory.
+   */
+  private async pruneOrchestratorThread(threadId: string, siteId: string): Promise<number> {
+    const n = await this.messageRepository.pruneThreadToMaxKeep(
+      threadId,
+      siteId,
+      env.orchestrator.maxThreadMessages
+    );
+    if (n > 0) {
+      logger.info(
+        "Orchestrator thread pruned",
+        {
+          component: "orchestrator",
+          event: "thread_pruned",
+          siteId,
+          threadId,
+          messagesDeleted: n,
+          maxKeep: env.orchestrator.maxThreadMessages,
+        },
+        "OrchestratorService"
+      );
+    }
+    return n;
   }
 
   private async assertSiteAccess(siteId: string, userId: string): Promise<void> {
