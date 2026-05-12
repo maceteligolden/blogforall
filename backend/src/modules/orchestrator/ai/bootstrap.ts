@@ -7,6 +7,15 @@ import {
   WorkspaceRenameTool,
   WorkspaceUpdateMemoryTool,
 } from "./tools/workspace.tools";
+import {
+  CategoryAssignToBlogTool,
+  CategoryCreateTool,
+  CategoryDeleteTool,
+  CategoryGetTool,
+  CategoryListTool,
+  CategoryRemoveFromBlogTool,
+  CategoryUpdateTool,
+} from "./tools/category.tools";
 
 /**
  * Boots the orchestrator's tool surface. Called once from server startup
@@ -26,7 +35,15 @@ export class OrchestratorBootstrap {
     private readonly workspaceRename: WorkspaceRenameTool,
     private readonly workspaceGetMemory: WorkspaceGetMemoryTool,
     private readonly workspaceUpdateMemory: WorkspaceUpdateMemoryTool,
-    private readonly workspaceCompleteOnboarding: WorkspaceCompleteOnboardingTool
+    private readonly workspaceCompleteOnboarding: WorkspaceCompleteOnboardingTool,
+    // Category tools
+    private readonly categoryList: CategoryListTool,
+    private readonly categoryGet: CategoryGetTool,
+    private readonly categoryCreate: CategoryCreateTool,
+    private readonly categoryUpdate: CategoryUpdateTool,
+    private readonly categoryDelete: CategoryDeleteTool,
+    private readonly categoryAssignToBlog: CategoryAssignToBlogTool,
+    private readonly categoryRemoveFromBlog: CategoryRemoveFromBlogTool
   ) {}
 
   registerAllTools(): void {
@@ -35,6 +52,13 @@ export class OrchestratorBootstrap {
       this.workspaceGetMemory,
       this.workspaceUpdateMemory,
       this.workspaceCompleteOnboarding,
+      this.categoryList,
+      this.categoryGet,
+      this.categoryCreate,
+      this.categoryUpdate,
+      this.categoryDelete,
+      this.categoryAssignToBlog,
+      this.categoryRemoveFromBlog,
     ];
     for (const tool of tools) {
       this.registry.register(tool);
