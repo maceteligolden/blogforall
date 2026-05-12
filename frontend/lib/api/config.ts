@@ -156,6 +156,15 @@ export const API_ENDPOINTS = {
     APPROVAL_DECIDE: (siteId: string, approvalId: string) =>
       `/sites/${siteId}/orchestrator/approvals/${approvalId}/decide`,
   },
+  /**
+   * Public, token-authenticated scheduled-post review endpoints. Reached
+   * from the weekly digest email link; no JWT, no dashboard required.
+   */
+  SCHEDULED_POST_REVIEW: {
+    CONTEXT: (token: string) => `/scheduled-post-review/${token}`,
+    APPROVE: (token: string) => `/scheduled-post-review/${token}/approve`,
+    REWORK: (token: string) => `/scheduled-post-review/${token}/rework`,
+  },
 };
 
 export const QUERY_KEYS = {
