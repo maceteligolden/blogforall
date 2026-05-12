@@ -30,6 +30,13 @@ import {
   BlogScheduleTool,
   BlogUnpublishTool,
 } from "./tools/blog-publish.tools";
+import { BlogDeleteTool } from "./tools/blog-destructive.tools";
+import {
+  ScheduledCancelTool,
+  ScheduledGetTool,
+  ScheduledListTool,
+  ScheduledUpcomingThisWeekTool,
+} from "./tools/scheduled.tools";
 
 /**
  * Boots the orchestrator's tool surface. Called once from server startup
@@ -72,7 +79,14 @@ export class OrchestratorBootstrap {
     private readonly blogUnpublish: BlogUnpublishTool,
     private readonly blogSchedule: BlogScheduleTool,
     private readonly blogReschedule: BlogRescheduleTool,
-    private readonly blogCancelSchedule: BlogCancelScheduleTool
+    private readonly blogCancelSchedule: BlogCancelScheduleTool,
+    // Destructive
+    private readonly blogDelete: BlogDeleteTool,
+    // Scheduled posts
+    private readonly scheduledList: ScheduledListTool,
+    private readonly scheduledGet: ScheduledGetTool,
+    private readonly scheduledUpcomingThisWeek: ScheduledUpcomingThisWeekTool,
+    private readonly scheduledCancel: ScheduledCancelTool
   ) {}
 
   registerAllTools(): void {
@@ -100,6 +114,11 @@ export class OrchestratorBootstrap {
       this.blogSchedule,
       this.blogReschedule,
       this.blogCancelSchedule,
+      this.blogDelete,
+      this.scheduledList,
+      this.scheduledGet,
+      this.scheduledUpcomingThisWeek,
+      this.scheduledCancel,
     ];
     for (const tool of tools) {
       this.registry.register(tool);
