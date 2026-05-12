@@ -23,6 +23,33 @@ const BREVO_PARAM_NAMES: Partial<Record<EmailTemplateKey, string[]>> = {
   [EMAIL_TEMPLATE_KEYS.PASSWORD_RESET]: ["code", "expiresInMinutes", "firstName"],
   [EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST]: ["authorName", "blogTitle", "commentSnippet", "commentUrl"],
   [EMAIL_TEMPLATE_KEYS.WELCOME]: ["firstName", "loginUrl"],
+  [EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REVIEW]: [
+    "firstName",
+    "siteName",
+    "blogTitle",
+    "scheduledFor",
+    "reviewUrl",
+    "excerpt",
+  ],
+  [EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REWORKED]: [
+    "firstName",
+    "siteName",
+    "blogTitle",
+    "scheduledFor",
+    "reviewUrl",
+    "reworkRound",
+    "excerpt",
+  ],
+  [EMAIL_TEMPLATE_KEYS.WEEKLY_REVIEW_DIGEST]: [
+    "firstName",
+    "siteName",
+    "weekOfLabel",
+    "postCount",
+    // postsHtml / postsText are pre-rendered lists (the registry does this for code-backed
+    // sends; Brevo users will need an equivalent loop in their template).
+    "postsHtml",
+    "postsText",
+  ],
 };
 
 export function getBrevoTemplateId(key: EmailTemplateKey): number | null {
@@ -67,6 +94,15 @@ function getSubjectForTemplate(key: EmailTemplateKey, params: Record<string, str
       return `New comment on "${params.blogTitle ?? "your post"}"`;
     case EMAIL_TEMPLATE_KEYS.WELCOME:
       return `Welcome to Bloggr, ${params.firstName ?? "there"}!`;
+    case EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REVIEW:
+      return `Review needed: "${params.blogTitle ?? "scheduled post"}"`;
+    case EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REWORKED:
+      return `Re-review: "${params.blogTitle ?? "scheduled post"}"`;
+    case EMAIL_TEMPLATE_KEYS.WEEKLY_REVIEW_DIGEST: {
+      const count = params.postCount ?? "0";
+      const site = params.siteName ?? "your workspace";
+      return `${count} post${count === "1" ? "" : "s"} need your review this week — ${site}`;
+    }
     default:
       return "Notification";
   }
@@ -97,6 +133,24 @@ function getCodeBackedTemplate(key: EmailTemplateKey, _locale: string, params: R
         subject: getSubjectForTemplate(key, params),
         html: buildWelcomeHtml(params),
         text: buildWelcomeText(params),
+      };
+    case EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REVIEW:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildScheduledPostReviewHtml(params),
+        text: buildScheduledPostReviewText(params),
+      };
+    case EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REWORKED:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildScheduledPostReworkedHtml(params),
+        text: buildScheduledPostReworkedText(params),
+      };
+    case EMAIL_TEMPLATE_KEYS.WEEKLY_REVIEW_DIGEST:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildWeeklyDigestHtml(params),
+        text: buildWeeklyDigestText(params),
       };
     default:
       return { subject: "Notification", text: "" };
@@ -197,6 +251,123 @@ function buildCommentOnPostText(params: Record<string, string>): string {
   const blogTitle = params.blogTitle ?? "your post";
   const commentUrl = params.commentUrl ?? "#";
   return `${authorName} commented on "${blogTitle}". View: ${commentUrl}`;
+}
+
+function buildScheduledPostReviewHtml(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const siteName = params.siteName ?? "your workspace";
+  const blogTitle = params.blogTitle ?? "a scheduled post";
+  const scheduledFor = params.scheduledFor ?? "soon";
+  const reviewUrl = params.reviewUrl ?? "#";
+  const excerpt = params.excerpt ?? "";
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="margin-bottom: 8px;">Pre-publish review needed</h1>
+  <p style="color: #555; margin-top: 0;">Hi ${escapeHtml(firstName)}, a post is scheduled to go live on <strong>${escapeHtml(siteName)}</strong> and is waiting for your sign-off.</p>
+  <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <div style="font-size: 18px; font-weight: 600; color: #111827;">${escapeHtml(blogTitle)}</div>
+    <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">Scheduled for ${escapeHtml(scheduledFor)}</div>
+    ${excerpt ? `<p style="margin: 12px 0 0; color: #374151;">${escapeHtml(excerpt)}</p>` : ""}
+  </div>
+  <p>
+    <a href="${escapeHtml(reviewUrl)}" style="background: #3b82f6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">Review the draft</a>
+  </p>
+  <p style="color: #6b7280; font-size: 13px;">From the review page you can approve the draft as-is or request changes with a note for the editor. The post will not publish until you approve it.</p>
+</body>
+</html>`;
+}
+
+function buildScheduledPostReviewText(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const siteName = params.siteName ?? "your workspace";
+  const blogTitle = params.blogTitle ?? "a scheduled post";
+  const scheduledFor = params.scheduledFor ?? "soon";
+  const reviewUrl = params.reviewUrl ?? "#";
+  return `Hi ${firstName},
+
+A post on ${siteName} is scheduled to publish on ${scheduledFor} and is waiting for your sign-off:
+
+  "${blogTitle}"
+
+Review and approve (or request changes): ${reviewUrl}
+
+It will not publish until you approve it.`;
+}
+
+function buildScheduledPostReworkedHtml(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const siteName = params.siteName ?? "your workspace";
+  const blogTitle = params.blogTitle ?? "a scheduled post";
+  const scheduledFor = params.scheduledFor ?? "soon";
+  const reviewUrl = params.reviewUrl ?? "#";
+  const excerpt = params.excerpt ?? "";
+  const reworkRound = params.reworkRound ?? "1";
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="margin-bottom: 8px;">Rework ready for re-review</h1>
+  <p style="color: #555; margin-top: 0;">Hi ${escapeHtml(firstName)}, we applied your feedback to <strong>${escapeHtml(siteName)}</strong>'s scheduled post (rework round ${escapeHtml(reworkRound)}).</p>
+  <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 16px 0;">
+    <div style="font-size: 18px; font-weight: 600; color: #111827;">${escapeHtml(blogTitle)}</div>
+    <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">Scheduled for ${escapeHtml(scheduledFor)}</div>
+    ${excerpt ? `<p style="margin: 12px 0 0; color: #374151;">${escapeHtml(excerpt)}</p>` : ""}
+  </div>
+  <p>
+    <a href="${escapeHtml(reviewUrl)}" style="background: #3b82f6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">Review the updated draft</a>
+  </p>
+  <p style="color: #6b7280; font-size: 13px;">You can approve the revised draft or send back another round of changes.</p>
+</body>
+</html>`;
+}
+
+function buildScheduledPostReworkedText(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const siteName = params.siteName ?? "your workspace";
+  const blogTitle = params.blogTitle ?? "a scheduled post";
+  const scheduledFor = params.scheduledFor ?? "soon";
+  const reviewUrl = params.reviewUrl ?? "#";
+  const reworkRound = params.reworkRound ?? "1";
+  return `Hi ${firstName},
+
+We applied your feedback (rework round ${reworkRound}) to "${blogTitle}" on ${siteName} (scheduled ${scheduledFor}).
+
+Re-review: ${reviewUrl}`;
+}
+
+function buildWeeklyDigestHtml(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const siteName = params.siteName ?? "your workspace";
+  const weekOfLabel = params.weekOfLabel ?? "this week";
+  const postCount = params.postCount ?? "0";
+  const postsHtml = params.postsHtml ?? "";
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1 style="margin-bottom: 8px;">${escapeHtml(postCount)} post${postCount === "1" ? "" : "s"} to review</h1>
+  <p style="color: #555; margin-top: 0;">Hi ${escapeHtml(firstName)}, here's what's scheduled on <strong>${escapeHtml(siteName)}</strong> for ${escapeHtml(weekOfLabel)} and still waiting for your sign-off.</p>
+  ${postsHtml || `<p style="color: #6b7280;">Nothing pending right now — you're all caught up.</p>`}
+  <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">Posts will not publish until you approve them from the review page.</p>
+</body>
+</html>`;
+}
+
+function buildWeeklyDigestText(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const siteName = params.siteName ?? "your workspace";
+  const weekOfLabel = params.weekOfLabel ?? "this week";
+  const postCount = params.postCount ?? "0";
+  const postsText = params.postsText ?? "";
+  return `Hi ${firstName},
+
+You have ${postCount} post(s) scheduled on ${siteName} for ${weekOfLabel} that still need approval:
+
+${postsText}
+
+Posts will not publish until you approve them.`;
 }
 
 function escapeHtml(s: string): string {
