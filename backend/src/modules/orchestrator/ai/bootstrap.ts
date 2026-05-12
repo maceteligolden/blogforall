@@ -23,6 +23,13 @@ import {
   BlogGenerateDraftTool,
   BlogUpdateTool,
 } from "./tools/blog-write.tools";
+import {
+  BlogCancelScheduleTool,
+  BlogPublishTool,
+  BlogRescheduleTool,
+  BlogScheduleTool,
+  BlogUnpublishTool,
+} from "./tools/blog-publish.tools";
 
 /**
  * Boots the orchestrator's tool surface. Called once from server startup
@@ -59,7 +66,13 @@ export class OrchestratorBootstrap {
     private readonly blogCreateDraft: BlogCreateDraftTool,
     private readonly blogUpdate: BlogUpdateTool,
     private readonly blogDuplicate: BlogDuplicateTool,
-    private readonly blogGenerateDraft: BlogGenerateDraftTool
+    private readonly blogGenerateDraft: BlogGenerateDraftTool,
+    // Blog publishing tools
+    private readonly blogPublish: BlogPublishTool,
+    private readonly blogUnpublish: BlogUnpublishTool,
+    private readonly blogSchedule: BlogScheduleTool,
+    private readonly blogReschedule: BlogRescheduleTool,
+    private readonly blogCancelSchedule: BlogCancelScheduleTool
   ) {}
 
   registerAllTools(): void {
@@ -82,6 +95,11 @@ export class OrchestratorBootstrap {
       this.blogUpdate,
       this.blogDuplicate,
       this.blogGenerateDraft,
+      this.blogPublish,
+      this.blogUnpublish,
+      this.blogSchedule,
+      this.blogReschedule,
+      this.blogCancelSchedule,
     ];
     for (const tool of tools) {
       this.registry.register(tool);
