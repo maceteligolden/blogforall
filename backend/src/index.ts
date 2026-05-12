@@ -11,6 +11,7 @@ import { seedPlansIfNeeded } from "./shared/utils/seed-plans.util";
 import { env } from "./shared/config/env";
 import { container } from "tsyringe";
 import { PostSchedulerService } from "./modules/campaign/services/post-scheduler.service";
+import { OrchestratorBootstrap } from "./modules/orchestrator/ai/bootstrap";
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
 import { corsMiddleware } from "./shared/middlewares/cors.middleware";
@@ -55,6 +56,10 @@ const startServer = async () => {
 
     // Seed plans if none exist
     await seedPlansIfNeeded();
+
+    // Register Workspace Orchestrator Agent tools before serving traffic so
+    // the chat endpoints can dispatch to them on the first request.
+    container.resolve(OrchestratorBootstrap).registerAllTools();
 
     // Start the post scheduler
     const scheduler = container.resolve(PostSchedulerService);
