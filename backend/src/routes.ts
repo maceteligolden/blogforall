@@ -14,6 +14,7 @@ import siteRouter from "./modules/site/routes/site.router";
 import userInvitationsRouter from "./modules/site/routes/user-invitations.router";
 import notificationRouter from "./modules/notification/routes/notification.router";
 import siteOrchestratorRouter from "./modules/orchestrator/routes/site-orchestrator.router";
+import scheduledPostReviewRouter from "./modules/orchestrator/routes/scheduled-post-review.router";
 
 const router = Router();
 
@@ -55,6 +56,10 @@ router.use("/sites/:siteId/campaigns", siteCampaignRouter);
 
 // Workspace Orchestrator Agent (site-scoped, JWT)
 router.use("/sites/:siteId/orchestrator", siteOrchestratorRouter);
+
+// Public scheduled-post review (token-authenticated; no JWT). Reached from
+// the weekly digest email link to approve or request rework on a draft.
+router.use("/scheduled-post-review", scheduledPostReviewRouter);
 
 // User invitation routes (protected with JWT): list and accept/reject by token
 router.use("/invitations", userInvitationsRouter);
