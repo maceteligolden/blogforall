@@ -97,6 +97,40 @@ export const env = {
     MAX_CONTENT_LENGTH: parseIntEnv(process.env.BLOG_REVIEW_MAX_LENGTH, 50_000),
   },
 
+  /**
+   * Workspace Orchestrator Agent (LangGraph supervisor + DB-backed memory).
+   * Reuses OpenAI key from blogAi; standalone settings tunable independently.
+   */
+  orchestrator: {
+    openaiApiKey: (
+      process.env.ORCHESTRATOR_OPENAI_API_KEY ||
+      process.env.BLOG_AI_OPENAI_API_KEY ||
+      process.env.OPENAI_API_KEY ||
+      ""
+    ).trim(),
+    supervisorModel: (process.env.ORCHESTRATOR_SUPERVISOR_MODEL || "gpt-4o-mini").trim(),
+    memoryDigestModel: (process.env.ORCHESTRATOR_MEMORY_DIGEST_MODEL || "gpt-4o-mini").trim(),
+    API_TIMEOUT: parseIntEnv(process.env.ORCHESTRATOR_API_TIMEOUT, 120_000),
+    /** Hard cap on stored messages per thread before older turns are summarized. */
+    maxThreadMessages: parseIntEnv(process.env.ORCHESTRATOR_MAX_THREAD_MESSAGES, 80),
+    /** Default hours before scheduled_at to prepare a draft and request approval. */
+    reviewLeadTimeHoursDefault: parseIntEnv(process.env.ORCHESTRATOR_REVIEW_LEAD_TIME_HOURS, 72),
+    /** TTL for signed review tokens sent in approval emails. */
+    reviewTokenTtlDays: parseIntEnv(process.env.ORCHESTRATOR_REVIEW_TOKEN_TTL_DAYS, 14),
+    /** Cron for the weekly publishing digest. Default: Mondays 09:00. */
+    weeklyDigestCron: (process.env.ORCHESTRATOR_WEEKLY_DIGEST_CRON || "0 9 * * 1").trim(),
+    /** Milliseconds before a pending in-chat confirmation auto-rejects. */
+    confirmTimeoutMs: parseIntEnv(process.env.ORCHESTRATOR_CONFIRM_TIMEOUT_MS, 600_000),
+    /** Max rework rounds per scheduled post before manual editing is required. */
+    maxReworkRounds: parseIntEnv(process.env.ORCHESTRATOR_MAX_REWORK_ROUNDS, 5),
+    /** Secret used to sign scheduled-post review tokens (falls back to ACCESS_SECRET). */
+    reviewTokenSecret: (
+      process.env.ORCHESTRATOR_REVIEW_TOKEN_SECRET ||
+      process.env.ACCESS_SECRET ||
+      ""
+    ).trim(),
+  },
+
   campaignAgent: {
     HUGGINGFACE_API_TOKEN: (process.env.HUGGINGFACE_API_TOKEN || process.env.HF_TOKEN || "").trim(),
     AGENT_MODEL: process.env.CAMPAIGN_AGENT_MODEL || "HuggingFaceTB/SmolLM3-3B",
