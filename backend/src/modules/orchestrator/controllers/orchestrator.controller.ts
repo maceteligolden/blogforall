@@ -1,41 +1,55 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
-import { sendSuccess } from "../../../shared/helper/response.helper";
-import { HttpStatus } from "../../../shared/constants";
+import { sendSuccess, sendCreated } from "../../../shared/helper/response.helper";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
+import { OrchestratorApprovalStatus } from "../../../shared/schemas/orchestrator-approval.schema";
+import { OrchestratorService } from "../services/orchestrator.service";
+import { serializeApproval } from "../interfaces/orchestrator.interface";
 
-/**
- * Placeholder controller for the Workspace Orchestrator Agent surface.
- *
- * All endpoints currently respond 501 Not Implemented. The full
- * implementation (chat supervisor, threads, approvals, onboarding) lands
- * in Phase 2; this scaffold exists so the router can be mounted now
- * and the frontend can stub against stable routes.
- */
 @injectable()
 export class OrchestratorController {
-  private notImplemented(res: Response, name: string): void {
-    res.status(HttpStatus.NOT_FOUND).json({
-      success: false,
-      message: `Orchestrator endpoint '${name}' is not yet implemented.`,
-    });
-  }
+  constructor(private orchestratorService: OrchestratorService) {}
 
   private siteId(req: Request): string {
     return (req.validatedParams as { siteId: string }).siteId;
   }
 
-  chat = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  /**
+   * POST /sites/:siteId/orchestrator/chat
+   * One active-mode turn. Optionally resumes an existing thread via thread_id.
+   */
+  chat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      this.notImplemented(res, "chat");
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const { thread_id, message } = req.validatedBody as {
+        thread_id?: string;
+        message: string;
+      };
+      const response = await this.orchestratorService.chat({
+        siteId,
+        userId,
+        message,
+        threadId: thread_id,
+      });
+      sendSuccess(res, "OK", response);
     } catch (error) {
       next(error);
     }
   };
 
-  onboardingChat = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  /**
+   * POST /sites/:siteId/orchestrator/onboarding/chat
+   * Onboarding-mode turn. The single canonical onboarding thread is resolved
+   * server-side regardless of any thread_id the client supplies.
+   */
+  onboardingChat = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      this.notImplemented(res, "onboarding.chat");
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const { message } = req.validatedBody as { message: string };
+      const response = await this.orchestratorService.onboardingChat({ siteId, userId, message });
+      sendSuccess(res, "OK", response);
     } catch (error) {
       next(error);
     }
@@ -45,15 +59,20 @@ export class OrchestratorController {
     try {
       const userId = getJwtUserId(req);
       const siteId = this.siteId(req);
-      sendSuccess(res, "Orchestrator threads (stub)", { siteId, userId, threads: [] });
+      const limit = (req.validatedQuery as { limit?: number } | undefined)?.limit;
+      const threads = await this.orchestratorService.listThreads(siteId, userId, limit);
+      sendSuccess(res, "OK", { threads });
     } catch (error) {
       next(error);
     }
   };
 
-  getThread = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getThread = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      this.notImplemented(res, "threads.get");
+      const userId = getJwtUserId(req);
+      const { siteId, threadId } = req.validatedParams as { siteId: string; threadId: string };
+      const data = await this.orchestratorService.getThreadWithMessages(threadId, siteId, userId);
+      sendSuccess(res, "OK", data);
     } catch (error) {
       next(error);
     }
@@ -63,15 +82,35 @@ export class OrchestratorController {
     try {
       const userId = getJwtUserId(req);
       const siteId = this.siteId(req);
-      sendSuccess(res, "Orchestrator approvals (stub)", { siteId, userId, approvals: [] });
+      const { status, limit } = (req.validatedQuery as { status?: string; limit?: number }) ?? {};
+      const approvals = await this.orchestratorService.listApprovals(
+        siteId,
+        userId,
+        status as OrchestratorApprovalStatus | undefined,
+        limit
+      );
+      sendSuccess(res, "OK", { approvals });
     } catch (error) {
       next(error);
     }
   };
 
-  decideApproval = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  decideApproval = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      this.notImplemented(res, "approvals.decide");
+      const userId = getJwtUserId(req);
+      const { siteId, approvalId } = req.validatedParams as { siteId: string; approvalId: string };
+      const { decision, note } = req.validatedBody as {
+        decision: "approved" | "rejected";
+        note?: string;
+      };
+      const approval = await this.orchestratorService.decideApproval(
+        siteId,
+        userId,
+        approvalId,
+        decision,
+        note
+      );
+      sendCreated(res, "Approval decision recorded", { approval: serializeApproval(approval) });
     } catch (error) {
       next(error);
     }
