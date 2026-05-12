@@ -146,6 +146,16 @@ export const API_ENDPOINTS = {
     AGENT_CHAT: (siteId: string) => `/sites/${siteId}/campaigns/agent/chat`,
     AGENT_CREATE_FROM_PROPOSAL: (siteId: string) => `/sites/${siteId}/campaigns/agent/create-from-proposal`,
   },
+  ORCHESTRATOR: {
+    CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/chat`,
+    ONBOARDING_CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/onboarding/chat`,
+    THREADS: (siteId: string) => `/sites/${siteId}/orchestrator/threads`,
+    THREAD: (siteId: string, threadId: string) =>
+      `/sites/${siteId}/orchestrator/threads/${threadId}`,
+    APPROVALS: (siteId: string) => `/sites/${siteId}/orchestrator/approvals`,
+    APPROVAL_DECIDE: (siteId: string, approvalId: string) =>
+      `/sites/${siteId}/orchestrator/approvals/${approvalId}/decide`,
+  },
 };
 
 export const QUERY_KEYS = {
@@ -176,5 +186,13 @@ export const QUERY_KEYS = {
   SCHEDULED_POST: (id: string) => ["scheduled-posts", id],
   MY_SCHEDULED_POSTS: ["scheduled-posts", "my-posts"],
   CAMPAIGN_TEMPLATES: ["campaign-templates"],
+  ORCHESTRATOR_THREADS: (siteId: string) => ["orchestrator", siteId, "threads"],
+  ORCHESTRATOR_THREAD: (siteId: string, threadId: string) => [
+    "orchestrator",
+    siteId,
+    "threads",
+    threadId,
+  ],
+  ORCHESTRATOR_APPROVALS: (siteId: string) => ["orchestrator", siteId, "approvals"],
 };
 
