@@ -45,6 +45,12 @@ export function Navbar() {
               Blogs
             </Link>
             <Link
+              href="/dashboard/approvals"
+              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
+            >
+              Approvals
+            </Link>
+            <Link
               href="/dashboard/api-keys"
               className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
             >
