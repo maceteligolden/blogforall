@@ -15,8 +15,22 @@ export enum PostFrequency {
 }
 
 export enum ScheduledPostStatus {
+  /** Newly created; not yet picked up by the scheduler. */
   PENDING = "pending",
+  /** Scheduler picked it up and the publish window is in the future. */
   SCHEDULED = "scheduled",
+  /**
+   * The pre-publish worker has generated and reviewed a draft. The post is
+   * blocked on a human approval (in-app and/or email weekly digest) before
+   * it can transition to PUBLISHED.
+   */
+  AWAITING_APPROVAL = "awaiting_approval",
+  /**
+   * The approver requested edits (rework). The orchestrator regenerates the
+   * draft using their comments; on success the post returns to
+   * AWAITING_APPROVAL with a fresh review token.
+   */
+  REWORK_REQUESTED = "rework_requested",
   PUBLISHED = "published",
   FAILED = "failed",
   CANCELLED = "cancelled",
