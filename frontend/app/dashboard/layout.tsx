@@ -6,6 +6,8 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { Navbar } from "@/components/layout/navbar";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { AIPanel } from "@/components/orchestrator/ai-panel";
+import { AIPanelProvider } from "@/components/orchestrator/ai-panel-provider";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { SiteService } from "@/lib/api/services/site.service";
 import { useQuery } from "@tanstack/react-query";
@@ -123,10 +125,13 @@ export default function DashboardLayout({
     <ProtectedRoute>
       <NotificationProvider>
         <ToastProvider>
-          <Navbar />
-          <div className="min-h-screen bg-black text-white">
-            {children}
-          </div>
+          <AIPanelProvider>
+            <Navbar />
+            <div className="min-h-screen bg-black text-white">
+              {children}
+            </div>
+            <AIPanel />
+          </AIPanelProvider>
         </ToastProvider>
       </NotificationProvider>
     </ProtectedRoute>
