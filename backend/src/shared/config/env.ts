@@ -7,11 +7,6 @@ function parseIntEnv(value: string | undefined, defaultValue: number): number {
   return Number.isFinite(n) ? n : defaultValue;
 }
 
-function parseFloatEnv(value: string | undefined, defaultValue: number): number {
-  const n = parseFloat(value ?? "");
-  return Number.isFinite(n) ? n : defaultValue;
-}
-
 const NODE_ENV = process.env.NODE_ENV ?? "development";
 
 const NOTIFICATION_RETENTION_DAYS_READ_DEFAULT = 90;
@@ -129,15 +124,6 @@ export const env = {
       process.env.ACCESS_SECRET ||
       ""
     ).trim(),
-  },
-
-  campaignAgent: {
-    HUGGINGFACE_API_TOKEN: (process.env.HUGGINGFACE_API_TOKEN || process.env.HF_TOKEN || "").trim(),
-    AGENT_MODEL: process.env.CAMPAIGN_AGENT_MODEL || "HuggingFaceTB/SmolLM3-3B",
-    MAX_HISTORY_TURNS: parseIntEnv(process.env.CAMPAIGN_AGENT_MAX_HISTORY_TURNS, 20),
-    MAX_TOKENS: parseIntEnv(process.env.CAMPAIGN_AGENT_MAX_TOKENS, 1500),
-    TEMPERATURE: parseFloatEnv(process.env.CAMPAIGN_AGENT_TEMPERATURE, 0.5),
-    SESSION_TTL_MS: parseIntEnv(process.env.CAMPAIGN_AGENT_SESSION_TTL_MS, 7_200_000),
   },
 
   frontend: {

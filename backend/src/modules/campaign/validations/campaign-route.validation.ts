@@ -157,35 +157,3 @@ export const campaignTemplateListQuerySchema = z.object({
   industry: z.string().optional(),
 });
 
-export const agentChatBodySchema = z.object({
-  session_id: z.string().optional(),
-  message: z.string().min(1, "message is required"),
-  site_id: z.string().optional(),
-});
-
-const agentProposalCampaignSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(),
-  goal: z.string().min(1),
-  target_audience: z.string().optional(),
-  start_date: z.string().min(1),
-  end_date: z.string().min(1),
-  posting_frequency: z.nativeEnum(PostFrequency),
-  timezone: z.string().optional(),
-  total_posts_planned: z.number().optional(),
-});
-
-const agentProposalPostSchema = z.object({
-  title: z.string().min(1),
-  scheduled_at: z.string().min(1),
-  timezone: z.string().optional(),
-  generation_prompt: z.string().min(1),
-  content_theme: z.string().optional(),
-});
-
-export const agentCreateFromProposalBodySchema = z.object({
-  proposal: z.object({
-    campaign: agentProposalCampaignSchema,
-    scheduled_posts: z.array(agentProposalPostSchema).min(1),
-  }),
-});

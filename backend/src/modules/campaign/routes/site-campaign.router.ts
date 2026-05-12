@@ -3,7 +3,6 @@ import { container } from "tsyringe";
 import { CampaignController } from "../controllers/campaign.controller";
 import { ScheduledPostController } from "../controllers/scheduled-post.controller";
 import { CampaignTemplateController } from "../controllers/campaign-template.controller";
-import { CampaignAgentController } from "../controllers/campaign-agent.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 import { validateBody, validateParams, validateQuery } from "../../../shared/middlewares/validate.middleware";
 import * as V from "../validations/campaign-route.validation";
@@ -14,7 +13,6 @@ router.use(authMiddleware, validateParams(V.siteIdParamSchema));
 const campaignController = container.resolve(CampaignController);
 const scheduledPostController = container.resolve(ScheduledPostController);
 const templateController = container.resolve(CampaignTemplateController);
-const campaignAgentController = container.resolve(CampaignAgentController);
 
 router.post("/", validateBody(V.createCampaignBodySchema), campaignController.create);
 router.get("/my-campaigns", validateQuery(V.campaignListQuerySchema), campaignController.getUserCampaigns);
@@ -75,13 +73,6 @@ router.put(
 router.delete("/templates/:id", validateParams(V.templateIdParamSchema), templateController.delete);
 router.post("/templates/:id/activate", validateParams(V.templateIdParamSchema), templateController.activate);
 router.post("/templates/:id/deactivate", validateParams(V.templateIdParamSchema), templateController.deactivate);
-
-router.post("/agent/chat", validateBody(V.agentChatBodySchema), campaignAgentController.chat);
-router.post(
-  "/agent/create-from-proposal",
-  validateBody(V.agentCreateFromProposalBodySchema),
-  campaignAgentController.createFromProposal
-);
 
 router.get("/:id/stats", validateParams(V.campaignIdParamSchema), campaignController.getByIdWithStats);
 router.get("/:id", validateParams(V.campaignIdParamSchema), campaignController.getById);
