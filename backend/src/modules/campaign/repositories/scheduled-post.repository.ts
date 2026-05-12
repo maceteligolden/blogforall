@@ -117,6 +117,130 @@ export class ScheduledPostRepository {
       .limit(limit);
   }
 
+  /**
+   * Posts that are eligible for the pre-publish "prepare" phase: they are
+   * still PENDING/SCHEDULED, do not have a `prepared_at` timestamp yet, and
+   * are within `leadTimeMs` of their scheduled publish time. The prepare
+   * worker will (re)generate content if needed, transition them to
+   * AWAITING_APPROVAL, and mint a review token.
+   */
+  async findDueForPreparation(leadTimeMs: number, limit: number = 50): Promise<ScheduledPostType[]> {
+    const horizon = new Date(Date.now() + leadTimeMs);
+    return ScheduledPost.find({
+      status: { $in: [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED] },
+      scheduled_at: { $lte: horizon },
+      $or: [{ prepared_at: { $exists: false } }, { prepared_at: null }],
+    })
+      .sort({ scheduled_at: 1 })
+      .limit(limit);
+  }
+
+  /**
+   * Posts that have human approval and have reached their publish time.
+   * Used by the publish worker; AWAITING_APPROVAL posts without
+   * `approved_at` are intentionally excluded so unreviewed drafts never
+   * auto-publish even after their scheduled time elapses.
+   */
+  async findReadyForPublication(limit: number = 100): Promise<ScheduledPostType[]> {
+    const now = new Date();
+    return ScheduledPost.find({
+      status: ScheduledPostStatus.AWAITING_APPROVAL,
+      approved_at: { $exists: true, $ne: null },
+      scheduled_at: { $lte: now },
+    })
+      .sort({ scheduled_at: 1 })
+      .limit(limit);
+  }
+
+  /**
+   * Atomically transition a scheduled post into the AWAITING_APPROVAL state
+   * once the prepare worker has produced a draft. Returns the updated row,
+   * or null if a concurrent worker already prepared it.
+   */
+  async markPrepared(
+    id: string,
+    siteId: string,
+    update: { blog_id?: string }
+  ): Promise<ScheduledPostType | null> {
+    return ScheduledPost.findOneAndUpdate(
+      {
+        _id: id,
+        site_id: siteId,
+        status: { $in: [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED] },
+      },
+      {
+        $set: {
+          ...update,
+          status: ScheduledPostStatus.AWAITING_APPROVAL,
+          prepared_at: new Date(),
+          updated_at: new Date(),
+          // Clear any prior error so retries don't carry old context forward.
+          error_message: undefined,
+        },
+      },
+      { new: true }
+    );
+  }
+
+  /**
+   * Atomically record the reviewer's approval. Returns null if the post is
+   * not currently AWAITING_APPROVAL (e.g. already approved on another tab).
+   */
+  async markApproved(
+    id: string,
+    siteId: string,
+    approverUserId: string
+  ): Promise<ScheduledPostType | null> {
+    return ScheduledPost.findOneAndUpdate(
+      {
+        _id: id,
+        site_id: siteId,
+        status: ScheduledPostStatus.AWAITING_APPROVAL,
+      },
+      {
+        $set: {
+          approved_at: new Date(),
+          approved_by_user_id: approverUserId,
+          updated_at: new Date(),
+        },
+      },
+      { new: true }
+    );
+  }
+
+  /**
+   * Transition a post into the rework loop. Increments `rework_round` so the
+   * next prepare pass can mint a fresh review token tied to the new round
+   * and so existing tokens (matched against rework_round) are unambiguously
+   * stale.
+   */
+  async markReworkRequested(
+    id: string,
+    siteId: string,
+    comments: string,
+    requesterUserId: string
+  ): Promise<ScheduledPostType | null> {
+    return ScheduledPost.findOneAndUpdate(
+      {
+        _id: id,
+        site_id: siteId,
+        status: ScheduledPostStatus.AWAITING_APPROVAL,
+      },
+      {
+        $set: {
+          status: ScheduledPostStatus.REWORK_REQUESTED,
+          rework_comments: comments,
+          approved_at: undefined,
+          approved_by_user_id: requesterUserId,
+          prepared_at: undefined,
+          updated_at: new Date(),
+        },
+        $inc: { rework_round: 1 },
+      },
+      { new: true }
+    );
+  }
+
   async findByDateRange(siteId: string, startDate: Date, endDate: Date): Promise<ScheduledPostType[]> {
     return ScheduledPost.find({
       site_id: siteId,
