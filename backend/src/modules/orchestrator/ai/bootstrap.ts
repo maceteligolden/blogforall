@@ -17,6 +17,12 @@ import {
   CategoryUpdateTool,
 } from "./tools/category.tools";
 import { BlogGetTool, BlogListTool, BlogStatisticsTool } from "./tools/blog-read.tools";
+import {
+  BlogCreateDraftTool,
+  BlogDuplicateTool,
+  BlogGenerateDraftTool,
+  BlogUpdateTool,
+} from "./tools/blog-write.tools";
 
 /**
  * Boots the orchestrator's tool surface. Called once from server startup
@@ -48,7 +54,12 @@ export class OrchestratorBootstrap {
     // Blog read tools
     private readonly blogList: BlogListTool,
     private readonly blogGet: BlogGetTool,
-    private readonly blogStatistics: BlogStatisticsTool
+    private readonly blogStatistics: BlogStatisticsTool,
+    // Blog write tools
+    private readonly blogCreateDraft: BlogCreateDraftTool,
+    private readonly blogUpdate: BlogUpdateTool,
+    private readonly blogDuplicate: BlogDuplicateTool,
+    private readonly blogGenerateDraft: BlogGenerateDraftTool
   ) {}
 
   registerAllTools(): void {
@@ -67,6 +78,10 @@ export class OrchestratorBootstrap {
       this.blogList,
       this.blogGet,
       this.blogStatistics,
+      this.blogCreateDraft,
+      this.blogUpdate,
+      this.blogDuplicate,
+      this.blogGenerateDraft,
     ];
     for (const tool of tools) {
       this.registry.register(tool);
