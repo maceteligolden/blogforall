@@ -1,5 +1,6 @@
 import { Schema, model } from "mongoose";
 import { BaseEntity } from "../interfaces";
+import { SiteStatus } from "../constants";
 
 export interface Site extends BaseEntity {
   name: string;
@@ -8,6 +9,12 @@ export interface Site extends BaseEntity {
   /** Opaque id for SDKs / public API (not Mongo _id). */
   public_id: string;
   owner: string; // User ID of the site owner
+  /**
+   * Lifecycle status. New sites start as `onboarding` and transition to
+   * `active` once the orchestrator onboarding chat populates workspace memory.
+   * Pre-existing sites without this field default to `active`.
+   */
+  status: SiteStatus;
   created_at: Date;
   updated_at: Date;
 }
@@ -44,6 +51,12 @@ const siteSchema = new Schema<Site>(
     owner: {
       type: String,
       required: true,
+      index: true,
+    },
+    status: {
+      type: String,
+      enum: Object.values(SiteStatus),
+      default: SiteStatus.ACTIVE,
       index: true,
     },
     created_at: {

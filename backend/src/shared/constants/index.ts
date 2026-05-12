@@ -21,6 +21,17 @@ export enum SiteMemberRole {
   VIEWER = "viewer",
 }
 
+/**
+ * Workspace (Site) lifecycle status.
+ * - `onboarding`: site exists but the owner has not yet completed the mandatory
+ *   orchestrator-guided onboarding chat to populate workspace memory.
+ * - `active`: workspace context has been captured; full dashboard is available.
+ */
+export enum SiteStatus {
+  ONBOARDING = "onboarding",
+  ACTIVE = "active",
+}
+
 export enum InvitationStatus {
   PENDING = "pending",
   ACCEPTED = "accepted",
