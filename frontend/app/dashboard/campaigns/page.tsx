@@ -6,8 +6,7 @@ import { Campaign } from "@/lib/api/services/campaign.service";
 import { useCampaigns, useActivateCampaign, usePauseCampaign, useCancelCampaign } from "@/lib/hooks/use-campaign";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
-import Link from "next/link";
-import { Calendar, Plus, Play, Pause, X, Sparkles, MessageSquare } from "lucide-react";
+import { Calendar, Plus, Play, Pause, X, Sparkles } from "lucide-react";
 
 export default function CampaignsPage() {
   const router = useRouter();
@@ -43,15 +42,6 @@ export default function CampaignsPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-display text-white">My Campaigns</h1>
           <div className="flex items-center gap-3">
-            <Link href="/dashboard/campaigns/agent">
-              <Button
-                variant="outline"
-                className="border-gray-700 text-gray-300 hover:bg-gray-800"
-              >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Assistant
-              </Button>
-            </Link>
             <Button
               variant="outline"
               className="border-gray-700 text-gray-300 hover:bg-gray-800"

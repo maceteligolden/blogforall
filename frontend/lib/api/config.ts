@@ -143,8 +143,6 @@ export const API_ENDPOINTS = {
       GET_ONE: (siteId: string, id: string) => `/sites/${siteId}/campaigns/templates/${id}`,
       GET_BY_TYPE: (siteId: string, type: string) => `/sites/${siteId}/campaigns/templates/type/${type}`,
     },
-    AGENT_CHAT: (siteId: string) => `/sites/${siteId}/campaigns/agent/chat`,
-    AGENT_CREATE_FROM_PROPOSAL: (siteId: string) => `/sites/${siteId}/campaigns/agent/create-from-proposal`,
   },
   ORCHESTRATOR: {
     CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/chat`,
