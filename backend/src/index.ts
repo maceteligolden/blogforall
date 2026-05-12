@@ -12,6 +12,7 @@ import { env } from "./shared/config/env";
 import { container } from "tsyringe";
 import { PostSchedulerService } from "./modules/campaign/services/post-scheduler.service";
 import { OrchestratorBootstrap } from "./modules/orchestrator/ai/bootstrap";
+import { WeeklyDigestService } from "./modules/orchestrator/services/weekly-digest.service";
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
 import { corsMiddleware } from "./shared/middlewares/cors.middleware";
@@ -64,6 +65,11 @@ const startServer = async () => {
     // Start the post scheduler
     const scheduler = container.resolve(PostSchedulerService);
     scheduler.start();
+
+    // Start the weekly review digest cron (one email per recipient
+    // rolling up posts that still need pre-publish approval).
+    const weeklyDigest = container.resolve(WeeklyDigestService);
+    weeklyDigest.start();
 
     // Start the email notification queue worker only when Redis is configured
     if (isEmailQueueConnected) {

@@ -153,6 +153,25 @@ export class ScheduledPostRepository {
   }
 
   /**
+   * Posts currently AWAITING_APPROVAL with NO approval yet, scheduled to
+   * publish between `from` and `to`. Used by the weekly digest cron to roll
+   * up "what needs your sign-off this week" across all workspaces.
+   */
+  async findPendingApprovalsInWindow(
+    from: Date,
+    to: Date,
+    limit: number = 500
+  ): Promise<ScheduledPostType[]> {
+    return ScheduledPost.find({
+      status: ScheduledPostStatus.AWAITING_APPROVAL,
+      $or: [{ approved_at: { $exists: false } }, { approved_at: null }],
+      scheduled_at: { $gte: from, $lte: to },
+    })
+      .sort({ user_id: 1, site_id: 1, scheduled_at: 1 })
+      .limit(limit);
+  }
+
+  /**
    * Atomically transition a scheduled post into the AWAITING_APPROVAL state
    * once the prepare worker has produced a draft. Returns the updated row,
    * or null if a concurrent worker already prepared it.
