@@ -3,6 +3,11 @@ import { env } from "../../../shared/config/env";
 import { logger } from "../../../shared/utils/logger";
 import { BlogStatus } from "../../../shared/constants";
 import {
+  EMAIL_TEMPLATE_KEYS,
+  NotificationChannel,
+  NotificationType,
+} from "../../../shared/constants/notification.constant";
+import {
   OrchestratorApprovalKind,
   OrchestratorApprovalStatus,
 } from "../../../shared/schemas/orchestrator-approval.schema";
@@ -14,6 +19,9 @@ import { BlogGenerationService } from "../../blog/services/blog-generation.servi
 import { WorkspaceMemoryRepository } from "../repositories/workspace-memory.repository";
 import { OrchestratorApprovalRepository } from "../repositories/orchestrator-approval.repository";
 import { ScheduledPostReviewTokenRepository } from "../repositories/scheduled-post-review-token.repository";
+import { NotificationService } from "../../notification/services/notification.service";
+import { UserRepository } from "../../auth/repositories/user.repository";
+import { SiteRepository } from "../../site/repositories/site.repository";
 
 const PREPARE_BATCH_SIZE = 10;
 
@@ -46,7 +54,10 @@ export class ScheduledPostPrepareService {
     private readonly blogGenerationService: BlogGenerationService,
     private readonly workspaceMemoryRepository: WorkspaceMemoryRepository,
     private readonly approvalRepository: OrchestratorApprovalRepository,
-    private readonly reviewTokenRepository: ScheduledPostReviewTokenRepository
+    private readonly reviewTokenRepository: ScheduledPostReviewTokenRepository,
+    private readonly notificationService: NotificationService,
+    private readonly userRepository: UserRepository,
+    private readonly siteRepository: SiteRepository
   ) {}
 
   /**
@@ -141,9 +152,28 @@ export class ScheduledPostPrepareService {
         "ScheduledPostPrepareService"
       );
 
-      // The raw token is intentionally returned for the email job to consume.
-      // We do NOT log it. Phase 7's WeeklyDigestService will read it from the
-      // emit hook (or refetch via the review token repo).
+      // Best-effort: send the per-post review email. Email failures are
+      // not fatal because the approval is already on the dashboard and
+      // the weekly digest will re-surface this post anyway.
+      try {
+        await this.sendReviewEmailForPost({
+          post: prepared,
+          rawToken: raw,
+          blogId,
+          isRework: prepared.rework_round > 0,
+        });
+      } catch (emailErr) {
+        logger.warn(
+          "Failed to send pre-publish review email",
+          {
+            scheduledPostId,
+            siteId,
+            error: emailErr instanceof Error ? emailErr.message : String(emailErr),
+          },
+          "ScheduledPostPrepareService"
+        );
+      }
+
       return { scheduledPostId, ok: true, reason: raw ? "token-issued" : "ok" };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -270,6 +300,68 @@ export class ScheduledPostPrepareService {
    */
   async triggerSweep(): Promise<void> {
     await this.sweep();
+  }
+
+  /**
+   * Send the per-post review email (or rework re-review email) to the
+   * workspace owner. Looks up the owner via the user repository and the
+   * site via the site repository for display copy. Falls back to safe
+   * defaults so a missing site name never blocks the email.
+   */
+  private async sendReviewEmailForPost(input: {
+    post: ScheduledPost;
+    rawToken: string;
+    blogId: string;
+    isRework: boolean;
+  }): Promise<void> {
+    const { post, rawToken, blogId, isRework } = input;
+    const [user, site, blog] = await Promise.all([
+      this.userRepository.findById(post.user_id),
+      this.siteRepository.findById(post.site_id),
+      this.blogRepository.findById(blogId, post.site_id),
+    ]);
+    if (!user?.email) {
+      logger.warn(
+        "Skipping review email: workspace owner has no email on file",
+        { scheduledPostId: post._id?.toString(), siteId: post.site_id },
+        "ScheduledPostPrepareService"
+      );
+      return;
+    }
+
+    const reviewUrl = `${env.frontend.baseUrl.replace(/\/$/, "")}/review/${rawToken}`;
+    const scheduledFor = post.scheduled_at.toLocaleString("en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    const templateKey = isRework
+      ? EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REWORKED
+      : EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REVIEW;
+    const notificationType = isRework
+      ? NotificationType.SCHEDULED_POST_REWORKED
+      : NotificationType.SCHEDULED_POST_REVIEW;
+
+    await this.notificationService.createAndSend({
+      channel: NotificationChannel.EMAIL,
+      type: notificationType,
+      recipientEmail: user.email,
+      templateKey,
+      templateParams: {
+        firstName: user.first_name || user.email.split("@")[0] || "there",
+        siteName: site?.name || "your workspace",
+        blogTitle: blog?.title || post.title || "scheduled post",
+        scheduledFor,
+        reviewUrl,
+        excerpt: (blog?.excerpt || "").trim().slice(0, 240),
+        ...(isRework ? { reworkRound: String(post.rework_round) } : {}),
+      },
+      payload: {
+        site_id: post.site_id,
+        scheduled_post_id: post._id?.toString(),
+        blog_id: blogId,
+        rework_round: post.rework_round,
+      },
+    });
   }
 
   /**
