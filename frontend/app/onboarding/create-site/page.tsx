@@ -1,33 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { useCreateSiteMutations } from "@/lib/hooks/use-create-site-mutations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProtectedRoute } from "@/components/protected-route";
+import { SiteService } from "@/lib/api/services/site.service";
+import { OnboardingChat } from "@/components/orchestrator/onboarding-chat";
+import { QUERY_KEYS } from "@/lib/api/config";
+import { useAuthStore } from "@/lib/store/auth.store";
+import { useAuth } from "@/lib/hooks/use-auth";
 
+type WizardStep = "details" | "chat";
+
+/**
+ * Two-step site bootstrap.
+ *
+ *  - Step 1 ("details"): collect the workspace name + description and create
+ *    the site. The backend marks the new site as status="onboarding".
+ *  - Step 2 ("chat"): hand the user off to the orchestrator's onboarding chat
+ *    to capture strategic / operational / voice context. When the orchestrator
+ *    flips the site to "active" we route on to the invite step.
+ *
+ * The page is also reachable mid-onboarding: if the user already has a
+ * workspace that is still in the onboarding state (e.g. they refreshed during
+ * chat), we skip step 1 and resume the chat directly.
+ */
 export default function CreateSitePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { currentSiteId } = useAuthStore();
+  const { updateSiteContext } = useAuth();
+
+  const [step, setStep] = useState<WizardStep>("details");
+  const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [error, setError] = useState<string>("");
 
-  const { skipMutation, createSiteMutation } = useCreateSiteMutations({ onError: setError });
+  // If we land here with an existing onboarding-state workspace, resume the chat.
+  const { data: sites } = useQuery({
+    queryKey: QUERY_KEYS.SITES,
+    queryFn: () => SiteService.getSites(),
+    retry: false,
+  });
+
+  useEffect(() => {
+    const requestedStep = searchParams.get("step");
+    if (!sites || sites.length === 0) return;
+    const onboardingSite =
+      sites.find((s) => s._id === currentSiteId && s.status === "onboarding") ||
+      sites.find((s) => s.status === "onboarding");
+    if (onboardingSite) {
+      updateSiteContext(onboardingSite._id);
+      setActiveSiteId(onboardingSite._id);
+      setStep("chat");
+      return;
+    }
+    if (requestedStep === "chat" && currentSiteId) {
+      setActiveSiteId(currentSiteId);
+      setStep("chat");
+    }
+  }, [sites, currentSiteId, searchParams, updateSiteContext]);
+
+  const { skipMutation, createSiteMutation } = useCreateSiteMutations({
+    onError: setError,
+    onSiteReady: (site) => {
+      setActiveSiteId(site._id);
+      setStep("chat");
+    },
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-
     if (!name.trim()) {
       setError("Site name is required");
       return;
     }
-
     createSiteMutation.mutate({
       name: name.trim(),
       description: description.trim() || undefined,
     });
   };
+
+  const handleOnboardingCompleted = () => {
+    router.push("/onboarding/invite");
+  };
+
+  if (step === "chat" && activeSiteId) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-black text-white flex flex-col">
+          <div className="max-w-3xl mx-auto w-full flex-1 flex flex-col px-4 py-6">
+            <div className="text-center mb-4">
+              <h1 className="text-3xl font-bold">Finish workspace setup</h1>
+              <p className="text-gray-400 text-sm mt-1">
+                Chat with the orchestrator to capture your goals, audience, and voice.
+              </p>
+            </div>
+            <div className="flex-1 rounded-2xl border border-gray-800 overflow-hidden">
+              <OnboardingChat
+                siteId={activeSiteId}
+                onCompleted={handleOnboardingCompleted}
+              />
+            </div>
+          </div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
@@ -38,7 +123,8 @@ export default function CreateSitePage() {
               Create Your First Site
             </h1>
             <p className="text-xl text-gray-400">
-              Get started by creating a site to organize your blogs
+              Step 1 of 2 — name your workspace. Next, the orchestrator will ask a few questions
+              to tailor content to your business.
             </p>
           </div>
 
@@ -91,14 +177,14 @@ export default function CreateSitePage() {
                   disabled={skipMutation.isPending}
                   className="border-gray-700 text-gray-300 hover:bg-gray-800"
                 >
-                  {skipMutation.isPending ? "Skipping..." : "Skip for now"}
+                  {skipMutation.isPending ? "Skipping..." : "Use a default name"}
                 </Button>
                 <Button
                   type="submit"
                   disabled={createSiteMutation.isPending || !name.trim()}
                   className="bg-primary hover:bg-primary/90 text-white px-8"
                 >
-                  {createSiteMutation.isPending ? "Creating..." : "Create workspace"}
+                  {createSiteMutation.isPending ? "Creating..." : "Continue to setup chat"}
                 </Button>
               </div>
             </form>
@@ -106,7 +192,7 @@ export default function CreateSitePage() {
 
           <div className="mt-8 text-center">
             <p className="text-sm text-gray-400">
-              You can create additional workspaces later from the dashboard
+              You can create additional workspaces later from the dashboard.
             </p>
           </div>
         </div>
