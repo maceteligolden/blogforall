@@ -6,6 +6,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import type { ChatTurnResponse } from "@/lib/api/types/orchestrator.types";
 import { QUERY_KEYS } from "@/lib/api/config";
+import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
+import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
+import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 import { ChatInput } from "./chat-input";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 
@@ -45,6 +48,11 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { data: tokenUsage } = useTokenUsage();
+  const invalidateTokenUsage = useInvalidateTokenUsage();
+  const { showFromError } = useTokenExhaustion();
+  const tokensExhausted =
+    tokenUsage && !tokenUsage.unlimited && tokenUsage.available <= 0;
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -99,10 +107,16 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
         // Give the user a beat to read the final assistant reply before we redirect.
         window.setTimeout(() => onCompleted(), 1200);
       }
+      invalidateTokenUsage();
     } catch (e: unknown) {
-      const apiMessage = (e as { response?: { data?: { message?: string } } })?.response?.data
-        ?.message;
-      setError(apiMessage ?? "Something went wrong. Please try again.");
+      if (showFromError(e)) {
+        invalidateTokenUsage();
+        setError("Daily AI token limit reached.");
+      } else {
+        const apiMessage = (e as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message;
+        setError(apiMessage ?? "Something went wrong. Please try again.");
+      }
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
       setInput(text);
     } finally {
@@ -112,16 +126,19 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
 
   return (
     <div className="flex flex-col h-full w-full bg-black text-white">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-800">
-        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+            <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-tight">Workspace setup</p>
+            <p className="text-xs text-gray-400 leading-tight">
+              Tell the orchestrator about your goals so it can tailor content for you.
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-semibold leading-tight">Workspace setup</p>
-          <p className="text-xs text-gray-400 leading-tight">
-            Tell the orchestrator about your goals so it can tailor content for you.
-          </p>
-        </div>
+        <TokenUsageBadge compact />
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
@@ -141,9 +158,13 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
           value={input}
           onChange={setInput}
           onSubmit={handleSend}
-          disabled={isSending}
+          disabled={isSending || !!tokensExhausted}
           autoFocus
-          placeholder="Tell me about your business, audience, and goals..."
+          placeholder={
+            tokensExhausted
+              ? "Daily AI token limit reached"
+              : "Tell me about your business, audience, and goals..."
+          }
         />
         <p className="mt-2 text-xs text-gray-500">
           When the orchestrator has enough context it will finish setup and unlock your dashboard.

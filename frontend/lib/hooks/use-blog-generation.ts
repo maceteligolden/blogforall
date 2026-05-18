@@ -6,9 +6,13 @@ import {
   GenerateBlogResponse,
 } from "@/lib/api/services/blog-generation.service";
 import { useToast } from "@/components/ui/toast";
+import { useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
+import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
 
 export function useBlogGeneration() {
   const { toast } = useToast();
+  const invalidateTokenUsage = useInvalidateTokenUsage();
+  const { showFromError } = useTokenExhaustion();
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const analyzePromptMutation = useMutation({
@@ -30,6 +34,7 @@ export function useBlogGeneration() {
       };
     }) => BlogGenerationService.analyzePrompt(prompt, { signal, ...hints }),
     onSuccess: () => {
+      invalidateTokenUsage();
       toast({
         title: "Success",
         description: "Prompt analyzed successfully",
@@ -39,6 +44,10 @@ export function useBlogGeneration() {
     onError: (error: unknown) => {
       const err = error as { name?: string; code?: string; response?: { data?: { message?: string } } };
       if (err?.name === "AbortError" || err?.code === "ERR_CANCELED") {
+        return;
+      }
+      if (showFromError(error)) {
+        invalidateTokenUsage();
         return;
       }
       const message = err?.response?.data?.message || (err as Error)?.message || "Failed to analyze prompt";
@@ -61,6 +70,7 @@ export function useBlogGeneration() {
       signal?: AbortSignal;
     }) => BlogGenerationService.generateBlog(prompt, analysis, signal),
     onSuccess: () => {
+      invalidateTokenUsage();
       toast({
         title: "Success",
         description: "Blog content generated successfully",
@@ -70,6 +80,10 @@ export function useBlogGeneration() {
     onError: (error: unknown) => {
       const err = error as { name?: string; code?: string; response?: { data?: { message?: string } } };
       if (err?.name === "AbortError" || err?.code === "ERR_CANCELED") {
+        return;
+      }
+      if (showFromError(error)) {
+        invalidateTokenUsage();
         return;
       }
       const message = err?.response?.data?.message || (err as Error)?.message || "Failed to generate blog content";

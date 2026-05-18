@@ -18,6 +18,8 @@ import { OrchestratorApprovalRepository } from "../repositories/orchestrator-app
 import { WorkspaceMemoryRepository } from "../repositories/workspace-memory.repository";
 import { OrchestratorGraphService } from "../ai/orchestrator-graph.service";
 import { OrchestratorToolRegistry } from "../ai/tool-registry";
+import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
+import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
 import {
   serializeApproval,
   type ChatTurnResponse,
@@ -31,6 +33,7 @@ interface BaseTurnInput {
   userId: string;
   message: string;
   threadId?: string;
+  requestId?: string;
 }
 
 /**
@@ -57,7 +60,8 @@ export class OrchestratorService {
     private readonly approvalRepository: OrchestratorApprovalRepository,
     private readonly memoryRepository: WorkspaceMemoryRepository,
     private readonly toolRegistry: OrchestratorToolRegistry,
-    private readonly siteService: SiteService
+    private readonly siteService: SiteService,
+    private readonly tokenEnforcement: TokenEnforcementService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -200,27 +204,51 @@ export class OrchestratorService {
       return this.resolveConfirmationFromText(siteId, userId, thread, pendingApproval, message);
     }
 
-    // Persist the user's turn before planning so a crash doesn't lose input.
-    await this.messageRepository.create({
-      thread_id: thread._id!.toString(),
-      site_id: siteId,
-      role: OrchestratorMessageRole.USER,
-      content: message,
+    const feature =
+      mode === "onboarding"
+        ? TokenLedgerFeature.ORCHESTRATOR_ONBOARDING
+        : TokenLedgerFeature.ORCHESTRATOR_CHAT;
+
+    const contextText = JSON.stringify({
+      strategic: memory.strategic,
+      preferences: memory.preferences,
+      memory_summary: memory.memory_summary,
+      historyCount: history.length,
     });
 
-    const plan = await this.graphService.planTurn({
-      siteId,
+    return this.tokenEnforcement.runWithReservation({
       userId,
-      threadId: thread._id!.toString(),
-      workspaceName: site.name,
-      workspaceId: siteId,
-      mode,
-      memory,
-      history,
-      newUserMessage: message,
-    });
+      siteId,
+      feature,
+      requestId: input.requestId,
+      estimate: {
+        feature,
+        promptText: message,
+        contextText,
+      },
+      fn: async () => {
+        await this.messageRepository.create({
+          thread_id: thread._id!.toString(),
+          site_id: siteId,
+          role: OrchestratorMessageRole.USER,
+          content: message,
+        });
 
-    return this.applyPlan(siteId, userId, thread, plan, mode);
+        const plan = await this.graphService.planTurn({
+          siteId,
+          userId,
+          threadId: thread._id!.toString(),
+          workspaceName: site.name,
+          workspaceId: siteId,
+          mode,
+          memory,
+          history,
+          newUserMessage: message,
+        });
+
+        return this.applyPlan(siteId, userId, thread, plan, mode);
+      },
+    });
   }
 
   /**

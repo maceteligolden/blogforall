@@ -8,19 +8,31 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
+import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
 
 export function useBlogReview() {
   const { toast } = useToast();
+  const invalidateTokenUsage = useInvalidateTokenUsage();
+  const { showFromError } = useTokenExhaustion();
   const queryClient = useQueryClient();
   const currentSiteId = useAuthStore((s) => s.currentSiteId);
 
   const reviewMutation = useMutation({
     mutationFn: ({ blogId, data }: { blogId?: string; data?: ReviewBlogRequest }) =>
       BlogReviewService.reviewBlog(blogId, data),
-    onError: (error: any) => {
+    onSuccess: () => {
+      invalidateTokenUsage();
+    },
+    onError: (error: unknown) => {
+      if (showFromError(error)) {
+        invalidateTokenUsage();
+        return;
+      }
+      const err = error as { response?: { data?: { message?: string } } };
       toast({
         title: "Review Failed",
-        description: error.response?.data?.message || "Failed to review blog post",
+        description: err.response?.data?.message || "Failed to review blog post",
         variant: "error",
       });
     },

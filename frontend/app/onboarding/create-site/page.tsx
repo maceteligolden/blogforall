@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { ProtectedRoute } from "@/components/protected-route";
 import { SiteService } from "@/lib/api/services/site.service";
 import { OnboardingChat } from "@/components/orchestrator/onboarding-chat";
+import { TokenExhaustionProvider } from "@/components/usage/token-exhaustion-provider";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -103,10 +104,12 @@ export default function CreateSitePage() {
               </p>
             </div>
             <div className="flex-1 rounded-2xl border border-gray-800 overflow-hidden">
-              <OnboardingChat
-                siteId={activeSiteId}
-                onCompleted={handleOnboardingCompleted}
-              />
+              <TokenExhaustionProvider>
+                <OnboardingChat
+                  siteId={activeSiteId}
+                  onCompleted={handleOnboardingCompleted}
+                />
+              </TokenExhaustionProvider>
             </div>
           </div>
         </div>

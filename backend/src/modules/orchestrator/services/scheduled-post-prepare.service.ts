@@ -22,6 +22,8 @@ import { ScheduledPostReviewTokenRepository } from "../repositories/scheduled-po
 import { NotificationService } from "../../notification/services/notification.service";
 import { UserRepository } from "../../auth/repositories/user.repository";
 import { SiteRepository } from "../../site/repositories/site.repository";
+import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
+import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
 
 const PREPARE_BATCH_SIZE = 10;
 
@@ -57,7 +59,8 @@ export class ScheduledPostPrepareService {
     private readonly reviewTokenRepository: ScheduledPostReviewTokenRepository,
     private readonly notificationService: NotificationService,
     private readonly userRepository: UserRepository,
-    private readonly siteRepository: SiteRepository
+    private readonly siteRepository: SiteRepository,
+    private readonly tokenEnforcement: TokenEnforcementService
   ) {}
 
   /**
@@ -217,29 +220,44 @@ export class ScheduledPostPrepareService {
         return post.blog_id;
       }
 
-      const revised = await this.blogGenerationService.regenerateWithFeedback({
-        title: existing.title,
-        content: existing.content,
-        excerpt: existing.excerpt,
-        feedback: post.rework_comments!,
-        userParams: generationParams,
-      });
-      await this.blogRepository.update(post.blog_id, post.site_id, {
-        title: revised.title,
-        content: revised.content,
-        excerpt: revised.excerpt,
-        status: BlogStatus.DRAFT,
-      });
-      logger.info(
-        "Rework round regenerated blog draft",
-        {
-          siteId: post.site_id,
-          blogId: post.blog_id,
-          reworkRound: post.rework_round,
+      const requestId = `cron:scheduled-prepare:${post._id}:rework:${post.rework_round}`;
+      return this.tokenEnforcement.runWithReservation({
+        userId: post.user_id,
+        siteId: post.site_id,
+        feature: TokenLedgerFeature.SCHEDULED_BLOG_PREPARE,
+        requestId,
+        estimate: {
+          feature: TokenLedgerFeature.SCHEDULED_BLOG_PREPARE,
+          promptText: post.rework_comments ?? "",
+          contextText: existing.content,
+          wordCount: generationParams?.word_count,
         },
-        "ScheduledPostPrepareService"
-      );
-      return post.blog_id;
+        fn: async () => {
+          const revised = await this.blogGenerationService.regenerateWithFeedback({
+            title: existing.title,
+            content: existing.content,
+            excerpt: existing.excerpt,
+            feedback: post.rework_comments!,
+            userParams: generationParams,
+          });
+          await this.blogRepository.update(post.blog_id!, post.site_id, {
+            title: revised.title,
+            content: revised.content,
+            excerpt: revised.excerpt,
+            status: BlogStatus.DRAFT,
+          });
+          logger.info(
+            "Rework round regenerated blog draft",
+            {
+              siteId: post.site_id,
+              blogId: post.blog_id,
+              reworkRound: post.rework_round,
+            },
+            "ScheduledPostPrepareService"
+          );
+          return post.blog_id!;
+        },
+      });
     }
 
     if (!post.auto_generate || !post.generation_prompt) {
@@ -248,29 +266,42 @@ export class ScheduledPostPrepareService {
       );
     }
 
-    const analysis = await this.blogGenerationService.analyzePrompt(
-      post.generation_prompt,
-      generationParams
-    );
-    if (!analysis.is_valid) {
-      throw new Error(
-        `Generation prompt was rejected: ${analysis.rejection_reason ?? "unknown reason"}`
-      );
-    }
-    const generated = await this.blogGenerationService.generateBlogContent(
-      post.generation_prompt,
-      analysis,
-      generationParams
-    );
+    const requestId = `cron:scheduled-prepare:${post._id}:generate`;
+    return this.tokenEnforcement.runWithReservation({
+      userId: post.user_id,
+      siteId: post.site_id,
+      feature: TokenLedgerFeature.SCHEDULED_BLOG_PREPARE,
+      requestId,
+      estimate: {
+        feature: TokenLedgerFeature.SCHEDULED_BLOG_PREPARE,
+        promptText: post.generation_prompt,
+        wordCount: generationParams?.word_count,
+      },
+      fn: async () => {
+        const analysis = await this.blogGenerationService.analyzePrompt(
+          post.generation_prompt!,
+          generationParams
+        );
+        if (!analysis.is_valid) {
+          throw new Error(
+            `Generation prompt was rejected: ${analysis.rejection_reason ?? "unknown reason"}`
+          );
+        }
+        const generated = await this.blogGenerationService.generateBlogContent(
+          post.generation_prompt!,
+          analysis,
+          generationParams
+        );
 
-    const blog = await this.blogService.createBlog(post.user_id, post.site_id, {
-      title: post.title || generated.title,
-      content: generated.content,
-      excerpt: generated.excerpt,
-      // Prepared content stays as a draft until the reviewer approves.
-      status: BlogStatus.DRAFT,
+        const blog = await this.blogService.createBlog(post.user_id, post.site_id, {
+          title: post.title || generated.title,
+          content: generated.content,
+          excerpt: generated.excerpt,
+          status: BlogStatus.DRAFT,
+        });
+        return blog._id!.toString();
+      },
     });
-    return blog._id!.toString();
   }
 
   /**

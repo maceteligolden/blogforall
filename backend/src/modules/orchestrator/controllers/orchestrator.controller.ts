@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { sendSuccess, sendCreated } from "../../../shared/helper/response.helper";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
+import { getRequestIdFromHeaders } from "../../../shared/utils/request-id";
 import { OrchestratorApprovalStatus } from "../../../shared/schemas/orchestrator-approval.schema";
 import { OrchestratorService } from "../services/orchestrator.service";
 import { serializeApproval } from "../interfaces/orchestrator.interface";
@@ -31,7 +32,12 @@ export class OrchestratorController {
         userId,
         message,
         threadId: thread_id,
+        requestId: getRequestIdFromHeaders(req),
       });
+      const requestId = getRequestIdFromHeaders(req);
+      if (requestId) {
+        res.setHeader("X-Request-Id", requestId);
+      }
       sendSuccess(res, "OK", response);
     } catch (error) {
       next(error);
@@ -48,7 +54,16 @@ export class OrchestratorController {
       const userId = getJwtUserId(req);
       const siteId = this.siteId(req);
       const { message } = req.validatedBody as { message: string };
-      const response = await this.orchestratorService.onboardingChat({ siteId, userId, message });
+      const response = await this.orchestratorService.onboardingChat({
+        siteId,
+        userId,
+        message,
+        requestId: getRequestIdFromHeaders(req),
+      });
+      const requestId = getRequestIdFromHeaders(req);
+      if (requestId) {
+        res.setHeader("X-Request-Id", requestId);
+      }
       sendSuccess(res, "OK", response);
     } catch (error) {
       next(error);

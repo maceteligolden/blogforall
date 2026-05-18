@@ -16,6 +16,9 @@ import type {
 import { ChatInput } from "./chat-input";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 import { useAIPanel } from "./ai-panel-provider";
+import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
+import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
+import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
 
 interface PendingTurn {
   userText: string;
@@ -59,6 +62,11 @@ export function AIPanel() {
   const { isOpen, close, threadId, setThreadId } = useAIPanel();
   const { currentSiteId } = useAuthStore();
   const queryClient = useQueryClient();
+  const { data: tokenUsage } = useTokenUsage();
+  const invalidateTokenUsage = useInvalidateTokenUsage();
+  const { showFromError } = useTokenExhaustion();
+  const tokensExhausted =
+    tokenUsage && !tokenUsage.unlimited && tokenUsage.available <= 0;
 
   const [input, setInput] = useState("");
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
@@ -171,10 +179,16 @@ export function AIPanel() {
           queryKey: QUERY_KEYS.ORCHESTRATOR_APPROVALS(currentSiteId),
         });
       }
+      invalidateTokenUsage();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { message?: string } } };
-      const apiMessage = err?.response?.data?.message;
-      setError(apiMessage ?? "Something went wrong. Please try again.");
+      if (showFromError(e)) {
+        invalidateTokenUsage();
+        setError("Daily AI token limit reached.");
+      } else {
+        const err = e as { response?: { data?: { message?: string } } };
+        const apiMessage = err?.response?.data?.message;
+        setError(apiMessage ?? "Something went wrong. Please try again.");
+      }
       setOptimisticMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
       if (!overrideText) setInput(text);
     } finally {
@@ -260,6 +274,7 @@ export function AIPanel() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <TokenUsageBadge compact />
             <button
               onClick={handleNewThread}
               aria-label="Start new conversation"
@@ -337,9 +352,13 @@ export function AIPanel() {
             value={input}
             onChange={setInput}
             onSubmit={() => handleSend()}
-            disabled={!!pending || !currentSiteId}
+            disabled={!!pending || !currentSiteId || tokensExhausted}
             autoFocus
-            placeholder="Ask the orchestrator to act on this workspace..."
+            placeholder={
+              tokensExhausted
+                ? "Daily AI token limit reached — resets when your window rolls over"
+                : "Ask the orchestrator to act on this workspace..."
+            }
           />
           <p className="mt-2 text-xs text-gray-500">
             Destructive actions (delete, publish, unpublish) always ask for an in-chat

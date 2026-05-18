@@ -1,5 +1,7 @@
 import { injectable } from "tsyringe";
 import { ChatOpenAI } from "@langchain/openai";
+import { createChatOpenAI } from "../../../shared/ai/create-chat-openai";
+import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
 import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 import { env } from "../../../shared/config/env";
@@ -66,7 +68,10 @@ export interface PlanTurnOutput {
  */
 @injectable()
 export class OrchestratorGraphService {
-  constructor(private readonly toolRegistry: OrchestratorToolRegistry) {}
+  constructor(
+    private readonly toolRegistry: OrchestratorToolRegistry,
+    private readonly tokenEnforcement: TokenEnforcementService
+  ) {}
 
   assertConfigured(): void {
     if (!env.orchestrator.openaiApiKey) {
@@ -77,11 +82,10 @@ export class OrchestratorGraphService {
   }
 
   private buildChat(): ChatOpenAI {
-    return new ChatOpenAI({
+    return createChatOpenAI({
       apiKey: env.orchestrator.openaiApiKey,
       model: env.orchestrator.supervisorModel,
       timeout: env.orchestrator.API_TIMEOUT,
-      maxRetries: 1,
       temperature: 0.3,
     });
   }
@@ -215,12 +219,14 @@ export class OrchestratorGraphService {
     }
 
     try {
-      const result = await tool.run({
-        siteId: input.siteId,
-        userId: input.userId,
-        threadId: input.threadId,
-        input: decision.tool!.input,
-      });
+      const result = await this.tokenEnforcement.runNested(() =>
+        tool.run({
+          siteId: input.siteId,
+          userId: input.userId,
+          threadId: input.threadId,
+          input: decision.tool!.input,
+        })
+      );
       const reply = await this.summarizeToolResult({
         chat,
         systemPromptText,

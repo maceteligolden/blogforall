@@ -15,6 +15,7 @@ import userInvitationsRouter from "./modules/site/routes/user-invitations.router
 import notificationRouter from "./modules/notification/routes/notification.router";
 import siteOrchestratorRouter from "./modules/orchestrator/routes/site-orchestrator.router";
 import scheduledPostReviewRouter from "./modules/orchestrator/routes/scheduled-post-review.router";
+import usageRouter from "./modules/token-ledger/routes/usage.router";
 
 const router = Router();
 
@@ -63,5 +64,8 @@ router.use("/scheduled-post-review", scheduledPostReviewRouter);
 
 // User invitation routes (protected with JWT): list and accept/reject by token
 router.use("/invitations", userInvitationsRouter);
+
+// Account-level token usage (protected with JWT)
+router.use("/usage", usageRouter);
 
 export { router as routes };

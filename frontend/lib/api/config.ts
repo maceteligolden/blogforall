@@ -144,6 +144,9 @@ export const API_ENDPOINTS = {
       GET_BY_TYPE: (siteId: string, type: string) => `/sites/${siteId}/campaigns/templates/type/${type}`,
     },
   },
+  USAGE: {
+    TOKENS: "/usage/tokens",
+  },
   ORCHESTRATOR: {
     CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/chat`,
     ONBOARDING_CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/onboarding/chat`,
@@ -201,5 +204,6 @@ export const QUERY_KEYS = {
     threadId,
   ],
   ORCHESTRATOR_APPROVALS: (siteId: string) => ["orchestrator", siteId, "approvals"],
+  TOKEN_USAGE: ["usage", "tokens"],
 };
 

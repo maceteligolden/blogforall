@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import * as cron from "node-cron";
-import { ChatOpenAI } from "@langchain/openai";
+import { createChatOpenAI } from "../../../shared/ai/create-chat-openai";
 import { HumanMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { env } from "../../../shared/config/env";
@@ -9,6 +9,9 @@ import { OrchestratorMessageRole } from "../../../shared/schemas/orchestrator-me
 import type { OrchestratorMessage } from "../../../shared/schemas/orchestrator-message.schema";
 import { WorkspaceMemoryRepository } from "../repositories/workspace-memory.repository";
 import { OrchestratorMessageRepository } from "../repositories/orchestrator-message.repository";
+import { SiteRepository } from "../../site/repositories/site.repository";
+import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
+import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
 
 const digestSchema = z.object({
   memory_summary: z
@@ -35,7 +38,9 @@ export class MemoryDigestService {
 
   constructor(
     private readonly workspaceMemoryRepository: WorkspaceMemoryRepository,
-    private readonly messageRepository: OrchestratorMessageRepository
+    private readonly messageRepository: OrchestratorMessageRepository,
+    private readonly siteRepository: SiteRepository,
+    private readonly tokenEnforcement: TokenEnforcementService
   ) {}
 
   start(): void {
@@ -149,14 +154,50 @@ export class MemoryDigestService {
       return false;
     }
 
+    const site = await this.siteRepository.findById(siteId);
+    if (!site?.owner) {
+      return false;
+    }
+
     const chronological = [...recent].reverse();
     const transcript = this.formatTranscript(chronological);
 
-    const chat = new ChatOpenAI({
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const requestId = `cron:memory-digest:${siteId}:${dateKey}`;
+
+    return this.tokenEnforcement.runWithReservation({
+      userId: site.owner,
+      siteId,
+      feature: TokenLedgerFeature.MEMORY_DIGEST,
+      requestId,
+      estimate: {
+        feature: TokenLedgerFeature.MEMORY_DIGEST,
+        promptText: transcript,
+        contextText: priorMemorySummary,
+      },
+      fn: async () => {
+        return this.runDigestLlm(
+          siteId,
+          priorMemorySummary,
+          priorContentSummary,
+          transcript,
+          chronological
+        );
+      },
+    });
+  }
+
+  private async runDigestLlm(
+    siteId: string,
+    priorMemorySummary: string,
+    priorContentSummary: string,
+    transcript: string,
+    _chronological: OrchestratorMessage[]
+  ): Promise<boolean> {
+    const chat = createChatOpenAI({
       apiKey: env.orchestrator.openaiApiKey,
       model: env.orchestrator.memoryDigestModel,
       timeout: env.orchestrator.API_TIMEOUT,
-      maxRetries: 1,
       temperature: 0.2,
     });
     const structured = chat.withStructuredOutput(digestSchema);

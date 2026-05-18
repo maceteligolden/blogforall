@@ -8,6 +8,9 @@ import { getJwtUserId } from "../../../shared/utils/jwt-user";
 import type { z } from "zod";
 import type { PromptAnalysis } from "../services/blog-generation.service";
 import { assertBlogAiRateLimit } from "../../../shared/utils/blog-ai-rate-limit";
+import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
+import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
+import { getRequestIdFromHeaders } from "../../../shared/utils/request-id";
 import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant";
 import type { BlogUserGenerationParams } from "../ai/types";
 import { blogGenerationAnalyzeBodySchema, blogGenerationBodySchema } from "../validations/blog-route.validation";
@@ -89,7 +92,10 @@ function userParamsFromGenerateBody(body: GenerateBody): BlogUserGenerationParam
 
 @injectable()
 export class BlogGenerationController {
-  constructor(private blogGenerationService: BlogGenerationService) {}
+  constructor(
+    private blogGenerationService: BlogGenerationService,
+    private tokenEnforcement: TokenEnforcementService
+  ) {}
 
   analyzePrompt = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -97,7 +103,18 @@ export class BlogGenerationController {
       assertBlogAiRateLimit(userId);
       const body = req.validatedBody as AnalyzeBody;
       const userParams = userParamsFromAnalyzeBody(body);
-      const analysis = await this.blogGenerationService.analyzePrompt(body.prompt.trim(), userParams);
+      const prompt = body.prompt.trim();
+      const analysis = await this.tokenEnforcement.runWithReservation({
+        userId,
+        feature: TokenLedgerFeature.BLOG_ANALYZE,
+        requestId: getRequestIdFromHeaders(req),
+        estimate: {
+          feature: TokenLedgerFeature.BLOG_ANALYZE,
+          promptText: prompt,
+          wordCount: userParams?.word_count,
+        },
+        fn: () => this.blogGenerationService.analyzePrompt(prompt, userParams),
+      });
       sendSuccess(res, "Prompt analyzed successfully", analysis);
     } catch (error) {
       next(error);
@@ -112,21 +129,39 @@ export class BlogGenerationController {
       const { prompt, analysis: rawAnalysis } = body;
       const userParams = userParamsFromGenerateBody(body);
 
-      let promptAnalysis = rawAnalysis as PromptAnalysis | undefined;
-      if (!promptAnalysis) {
-        promptAnalysis = await this.blogGenerationService.analyzePrompt(prompt.trim(), userParams);
-      }
+      const trimmedPrompt = prompt.trim();
+      const wordCount = userParams?.word_count;
 
-      if (!promptAnalysis.is_valid) {
-        return next(
-          new BadRequestError(
-            promptAnalysis.rejection_reason ||
-              "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
-          )
-        );
-      }
-
-      const full = await this.blogGenerationService.generateWithReview(prompt.trim(), promptAnalysis, userParams);
+      const full = await this.tokenEnforcement.runWithReservation({
+        userId,
+        feature: TokenLedgerFeature.BLOG_GENERATE,
+        requestId: getRequestIdFromHeaders(req),
+        estimate: {
+          feature: TokenLedgerFeature.BLOG_GENERATE,
+          promptText: trimmedPrompt,
+          wordCount,
+        },
+        fn: async () => {
+          let promptAnalysis = rawAnalysis as PromptAnalysis | undefined;
+          if (!promptAnalysis) {
+            promptAnalysis = await this.blogGenerationService.analyzePrompt(
+              trimmedPrompt,
+              userParams
+            );
+          }
+          if (!promptAnalysis.is_valid) {
+            throw new BadRequestError(
+              promptAnalysis.rejection_reason ||
+                "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
+            );
+          }
+          return this.blogGenerationService.generateWithReview(
+            trimmedPrompt,
+            promptAnalysis,
+            userParams
+          );
+        },
+      });
       logger.info(
         "Blog generated with review",
         { title: full.content.title, overallScore: full.review.overall_score },
@@ -154,47 +189,67 @@ export class BlogGenerationController {
       const body = req.validatedBody as GenerateBody;
       const { prompt, analysis: rawAnalysis } = body;
       const userParams = userParamsFromGenerateBody(body);
+      const trimmedPrompt = prompt.trim();
 
-      let promptAnalysis = rawAnalysis as PromptAnalysis | undefined;
-      if (!promptAnalysis) {
-        promptAnalysis = await this.blogGenerationService.analyzePrompt(prompt.trim(), userParams);
-      }
+      await this.tokenEnforcement.runWithReservation({
+        userId,
+        feature: TokenLedgerFeature.BLOG_GENERATE,
+        requestId: getRequestIdFromHeaders(req),
+        estimate: {
+          feature: TokenLedgerFeature.BLOG_GENERATE,
+          promptText: trimmedPrompt,
+          wordCount: userParams?.word_count,
+        },
+        fn: async () => {
+          let promptAnalysis = rawAnalysis as PromptAnalysis | undefined;
+          if (!promptAnalysis) {
+            promptAnalysis = await this.blogGenerationService.analyzePrompt(
+              trimmedPrompt,
+              userParams
+            );
+          }
 
-      if (!promptAnalysis.is_valid) {
-        return next(
-          new BadRequestError(
-            promptAnalysis.rejection_reason ||
-              "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
-          )
-        );
-      }
+          if (!promptAnalysis.is_valid) {
+            throw new BadRequestError(
+              promptAnalysis.rejection_reason ||
+                "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
+            );
+          }
 
-      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-      res.setHeader("Cache-Control", "no-cache, no-transform");
-      res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-Accel-Buffering", "no");
-      const flush = (res as Response & { flushHeaders?: () => void }).flushHeaders?.bind(res);
-      flush?.();
+          res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+          res.setHeader("Cache-Control", "no-cache, no-transform");
+          res.setHeader("Connection", "keep-alive");
+          res.setHeader("X-Accel-Buffering", "no");
+          const flush = (res as Response & { flushHeaders?: () => void }).flushHeaders?.bind(res);
+          flush?.();
 
-      const ac = new AbortController();
-      const onClose = () => ac.abort();
-      req.on("close", onClose);
-      const streamDeadline = setTimeout(() => ac.abort(), BlogAiConfig.streamDraftTimeoutMs);
+          const ac = new AbortController();
+          const onClose = () => ac.abort();
+          req.on("close", onClose);
+          const streamDeadline = setTimeout(() => ac.abort(), BlogAiConfig.streamDraftTimeoutMs);
 
-      const emit = (event: string, data: unknown) => {
-        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-      };
+          const emit = (event: string, data: unknown) => {
+            res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+          };
 
-      try {
-        await this.blogGenerationService.streamGenerate(prompt.trim(), promptAnalysis, userParams, ac.signal, emit);
-        res.end();
-      } catch (err) {
-        emit("error", { message: (err as Error).message });
-        res.end();
-      } finally {
-        clearTimeout(streamDeadline);
-        req.off("close", onClose);
-      }
+          try {
+            await this.blogGenerationService.streamGenerate(
+              trimmedPrompt,
+              promptAnalysis!,
+              userParams,
+              ac.signal,
+              emit
+            );
+            res.end();
+          } catch (err) {
+            emit("error", { message: (err as Error).message });
+            res.end();
+          } finally {
+            clearTimeout(streamDeadline);
+            req.off("close", onClose);
+          }
+        },
+      });
     } catch (error) {
       next(error);
     }

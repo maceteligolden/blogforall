@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
 import { ChatOpenAI } from "@langchain/openai";
+import { createChatOpenAI } from "../../../shared/ai/create-chat-openai";
 import { HumanMessage } from "@langchain/core/messages";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
@@ -63,21 +64,19 @@ export class BlogGenerationGraphService {
   }
 
   private getMainChat(): ChatOpenAI {
-    return new ChatOpenAI({
+    return createChatOpenAI({
       apiKey: BlogAiConfig.openaiApiKey,
       model: BlogAiConfig.chatModel,
       timeout: BlogAiConfig.API_TIMEOUT,
-      maxRetries: 1,
       temperature: 0.35,
     });
   }
 
   private getReviewChat(): ChatOpenAI {
-    return new ChatOpenAI({
+    return createChatOpenAI({
       apiKey: BlogAiConfig.openaiApiKey,
       model: BlogAiConfig.reviewModel,
       timeout: BlogAiConfig.API_TIMEOUT,
-      maxRetries: 1,
       temperature: 0.25,
     });
   }

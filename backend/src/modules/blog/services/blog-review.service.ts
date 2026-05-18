@@ -1,5 +1,6 @@
 import { injectable } from "tsyringe";
 import { ChatOpenAI } from "@langchain/openai";
+import { createChatOpenAI } from "../../../shared/ai/create-chat-openai";
 import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant";
 import { BlogReviewConfig } from "../../../shared/constants/blog-review.constant";
 import { logger } from "../../../shared/utils/logger";
@@ -23,11 +24,10 @@ export class BlogReviewService {
         "AI review service is not configured. Set OPENAI_API_KEY or BLOG_AI_OPENAI_API_KEY in the server environment."
       );
     }
-    return new ChatOpenAI({
+    return createChatOpenAI({
       apiKey: BlogAiConfig.openaiApiKey,
       model: BlogAiConfig.reviewModel,
       timeout: BlogReviewConfig.API_TIMEOUT,
-      maxRetries: 1,
       temperature: 0.3,
     });
   }

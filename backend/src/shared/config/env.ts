@@ -144,6 +144,12 @@ export const env = {
     defaultName: (process.env.WORKSPACE_DEFAULT_NAME || WORKSPACE_DEFAULT_NAME_DEFAULT).trim(),
     invitationExpiryDays: parseIntEnv(process.env.INVITATION_EXPIRY_DAYS, INVITATION_EXPIRY_DAYS_DEFAULT),
   },
+  tokenLedger: {
+    defaultDailyFree: parseIntEnv(process.env.TOKEN_LEDGER_DEFAULT_DAILY_FREE, 100_000),
+    activeRequestTtlMs: parseIntEnv(process.env.TOKEN_LEDGER_ACTIVE_REQUEST_TTL_MS, 600_000),
+    windowMs: parseIntEnv(process.env.TOKEN_LEDGER_WINDOW_MS, 86_400_000),
+  },
+
   notification: {
     brevoApiKey: (process.env.BREVO_API_KEY || "").trim(),
     brevoSenderEmail: (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || "noreply@bloggr.com").trim(),

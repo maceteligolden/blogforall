@@ -9,12 +9,16 @@ import { blocksToHtml } from "../../../shared/utils/content-blocks.util";
 import type { ContentBlock } from "../../../shared/schemas/blog.schema";
 import type { UpdateBlogInput } from "../interfaces/blog.interface";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
+import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
+import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
+import { getRequestIdFromHeaders } from "../../../shared/utils/request-id";
 
 @injectable()
 export class BlogReviewController {
   constructor(
     private blogReviewService: BlogReviewService,
-    private blogService: BlogService
+    private blogService: BlogService,
+    private tokenEnforcement: TokenEnforcementService
   ) {}
 
   reviewBlog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -67,13 +71,23 @@ export class BlogReviewController {
         reviewContent = blocksToHtml(content_blocks as ContentBlock[]);
       }
 
-      const reviewResult = await this.blogReviewService.reviewBlog(
-        reviewTitle,
-        reviewContent,
-        reviewExcerpt,
-        reviewCategory,
-        content_blocks as ContentBlock[] | undefined
-      );
+      const reviewResult = await this.tokenEnforcement.runWithReservation({
+        userId,
+        feature: TokenLedgerFeature.BLOG_REVIEW,
+        requestId: getRequestIdFromHeaders(req),
+        estimate: {
+          feature: TokenLedgerFeature.BLOG_REVIEW,
+          promptText: `${reviewTitle}\n${reviewContent}`,
+        },
+        fn: () =>
+          this.blogReviewService.reviewBlog(
+            reviewTitle,
+            reviewContent,
+            reviewExcerpt,
+            reviewCategory,
+            content_blocks as ContentBlock[] | undefined
+          ),
+      });
 
       sendSuccess(res, "Blog review completed", reviewResult);
     } catch (error) {

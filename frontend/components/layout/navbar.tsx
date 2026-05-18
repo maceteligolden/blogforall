@@ -8,6 +8,7 @@ import { User, CreditCard, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { SiteSwitcher } from "@/components/sites/site-switcher";
 import { useAIPanel } from "@/components/orchestrator/ai-panel-provider";
+import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -60,7 +61,7 @@ export function Navbar() {
 
           {/* Right Side */}
           <div className="flex items-center space-x-4 relative z-[9999]">
-            {/* Workspace Orchestrator AI panel trigger */}
+            <TokenUsageBadge className="hidden sm:inline-flex" compact />
             <button
               onClick={() => openAIPanel()}
               className="hidden sm:flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"

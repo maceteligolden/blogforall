@@ -36,6 +36,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
           apiCallsPerMonth: 10000,
           storageGB: 1,
           maxSitesAllowed: 1,
+          dailyTokens: 300_000,
         },
         features: [
           "Up to 10 blog posts",
@@ -56,6 +57,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
           apiCallsPerMonth: 100000,
           storageGB: 10,
           maxSitesAllowed: 3,
+          dailyTokens: 1_000_000,
         },
         features: [
           "Up to 50 blog posts",
@@ -77,6 +79,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
           apiCallsPerMonth: -1,
           storageGB: -1,
           maxSitesAllowed: -1,
+          dailyTokens: -1,
         },
         features: [
           "Unlimited blog posts",
@@ -145,6 +148,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
         apiCallsPerMonth: 1000,
         storageGB: 0.5,
         maxSitesAllowed: 1,
+        dailyTokens: 100_000,
       },
       features: ["Up to 3 blog posts", "1,000 API calls/month", "0.5 GB storage", "Basic features"],
       isActive: true,
