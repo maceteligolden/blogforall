@@ -18,8 +18,9 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Bloggr - Blog Management Platform",
-  description: "Create, manage, and publish blogs with API access",
+  title: "Bloggr - AI Blog Workspace",
+  description:
+    "AI-overseen blog workspace with context-aware generation, campaign planning, and scheduling—control your content strategy through conversation.",
 };
 
 export default function RootLayout({

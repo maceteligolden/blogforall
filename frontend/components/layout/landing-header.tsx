@@ -16,6 +16,12 @@ export function LandingHeader() {
           </Link>
           <div className="flex items-center gap-8">
             <Link
+              href="/#orchestrator"
+              className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline"
+            >
+              AI workspace
+            </Link>
+            <Link
               href="/#features"
               className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline"
             >
