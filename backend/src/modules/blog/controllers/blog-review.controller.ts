@@ -43,10 +43,6 @@ export class BlogReviewController {
           return next(new NotFoundError("Blog not found"));
         }
 
-        if (blog.status !== BlogStatus.DRAFT) {
-          return next(new ForbiddenError("Only draft blog posts can be reviewed"));
-        }
-
         if (blog.author !== userId) {
           return next(new ForbiddenError("You can only review your own blog posts"));
         }

@@ -48,6 +48,8 @@ export default function EditBlogPage() {
     isRestoring,
   } = useBlogReview();
   const [showReview, setShowReview] = useState(false);
+  const [reviewPanelTab, setReviewPanelTab] = useState<"content" | "review">("content");
+  const [reviewHasNewInfo, setReviewHasNewInfo] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
   const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<Set<string>>(new Set());
@@ -219,12 +221,6 @@ export default function EditBlogPage() {
       return;
     }
 
-    // Only allow review for draft posts
-    if (blog?.status !== "draft") {
-      setError("Only draft blog posts can be reviewed");
-      return;
-    }
-
     try {
       setAppliedSuggestionIds(new Set());
       await reviewBlogAsync({
@@ -238,6 +234,8 @@ export default function EditBlogPage() {
         },
       });
       setShowReview(true);
+      setReviewPanelTab("review");
+      setReviewHasNewInfo(false);
     } catch (err) {
       // Error handled by hook
     }
@@ -412,6 +410,9 @@ export default function EditBlogPage() {
     );
   }
 
+  const canApplyReviewSuggestions = blog?.status === "draft";
+  const canReviewNow = hasTitle(formData.title) && hasBodyContent(formData);
+
   if (!blog) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -447,17 +448,15 @@ export default function EditBlogPage() {
             >
               Cancel
             </Button>
-            {blog?.status === "draft" && (
-              <Button
-                type="button"
-                className="bg-purple-600 hover:bg-purple-700 text-white border-0"
-                onClick={handleReview}
-                disabled={isReviewing || !hasTitle(formData.title) || !hasBodyContent(formData)}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {isReviewing ? "Reviewing..." : "Review with AI"}
-              </Button>
-            )}
+            <Button
+              type="button"
+              className="bg-purple-600 hover:bg-purple-700 text-white border-0 shrink-0"
+              onClick={handleReview}
+              disabled={isReviewing || !canReviewNow}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              {isReviewing ? "Reviewing..." : "Review with AI"}
+            </Button>
             <Button
               type="submit"
               form="blog-form"
@@ -534,41 +533,167 @@ export default function EditBlogPage() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <div>
-                <Label htmlFor="title" className="text-gray-300">
-                  Title *
-                </Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="mt-1 bg-black border-gray-700 text-white"
-                  required
-                  maxLength={200}
-                />
-              </div>
-
-              <div className="flex-1 min-h-0">
-                <Label htmlFor="content" className="text-gray-300 mb-2 block">
-                  Content *
-                </Label>
-                <div className="h-[calc(100vh-500px)] min-h-[600px]">
-                  <BlockEditor
-                    value={formData.content_blocks ?? []}
-                    onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
-                    placeholder="Start writing your blog post..."
-                    onUploadImage={handleEditorImageUpload}
-                  />
+            <div className="lg:col-span-2 space-y-6 min-w-0">
+              {showReview && reviewResult && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setReviewPanelTab("content");
+                      setReviewHasNewInfo(false);
+                    }}
+                    className={
+                      reviewPanelTab === "content"
+                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                        : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                    }
+                  >
+                    Content
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setReviewPanelTab("review");
+                      setReviewHasNewInfo(false);
+                    }}
+                    className={
+                      reviewPanelTab === "review"
+                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                        : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                    }
+                  >
+                    Review
+                    {reviewHasNewInfo && (
+                      <span className="ml-2 inline-flex items-center rounded bg-purple-900/60 px-2 py-0.5 text-xs font-medium text-purple-100">
+                        New
+                      </span>
+                    )}
+                  </Button>
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  Use + or type / to add blocks. Every image requires a caption.
-                </p>
-              </div>
+              )}
+
+              {reviewPanelTab === "review" && showReview && reviewResult ? (
+                <div className="space-y-4">
+                  {canApplyReviewSuggestions && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setReviewMode(true)}
+                        className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                      >
+                        Enter review mode
+                      </Button>
+                      <span className="text-sm text-gray-500">
+                        Apply suggestions in context and use version history to undo
+                      </span>
+                    </div>
+                  )}
+                  <BlogReviewCard
+                    reviewResult={reviewResult}
+                    originalContent={{
+                      title: formData.title,
+                      content: formData.content_blocks?.length
+                        ? blocksToHtml(formData.content_blocks)
+                        : formData.content,
+                      excerpt: derivedExcerpt(),
+                    }}
+                    isLoading={false}
+                    onViewComparison={() => setShowComparison(true)}
+                    {...(canApplyReviewSuggestions
+                      ? {
+                          onApplyReview: async (_selectedSuggestions, applyAll) => {
+                            try {
+                              await applyReviewAsync({
+                                blogId: id,
+                                data: {
+                                  improved_content: reviewResult.improved_content,
+                                  improved_title: reviewResult.improved_title,
+                                  improved_excerpt: reviewResult.improved_excerpt,
+                                },
+                              });
+                              const improvedContent =
+                                reviewResult.improved_content ||
+                                (formData.content_blocks?.length
+                                  ? blocksToHtml(formData.content_blocks)
+                                  : formData.content);
+                              setFormData({
+                                ...formData,
+                                title: reviewResult.improved_title || formData.title,
+                                content: blocksToHtml(contentToBlocks(improvedContent)),
+                                content_type: "html",
+                                content_blocks: contentToBlocks(improvedContent),
+                              });
+                              setShowReview(false);
+                              setReviewPanelTab("content");
+                              setReviewHasNewInfo(false);
+                            } catch (err) {
+                              // Error handled by hook
+                            }
+                          },
+                        }
+                      : {})}
+                  />
+                  {!canApplyReviewSuggestions && (
+                    <p className="text-sm text-gray-500">
+                      Save this post as a draft to apply AI suggestions to the live content.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="title" className="text-gray-300">
+                      Title *
+                    </Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="mt-1 bg-black border-gray-700 text-white"
+                      required
+                      maxLength={200}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-h-0 min-w-0">
+                    <Label htmlFor="content" className="text-gray-300 mb-2 block">
+                      Content *
+                    </Label>
+                    <div className="h-[calc(100vh-500px)] min-h-[600px]">
+                      <BlockEditor
+                        value={formData.content_blocks ?? []}
+                        onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
+                        placeholder="Start writing your blog post..."
+                        onUploadImage={handleEditorImageUpload}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Use + or type / to add blocks. Every image requires a caption.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="lg:col-span-1 space-y-6">
               <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 space-y-6">
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0"
+                    onClick={handleReview}
+                    disabled={isReviewing || !canReviewNow}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {isReviewing ? "Reviewing..." : "Review with AI"}
+                  </Button>
+                  {!canApplyReviewSuggestions && (
+                    <p className="text-xs text-gray-500">
+                      AI review is available for any status. Apply suggestions after saving as a draft.
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label htmlFor="status" className="text-gray-300">
                     Status
@@ -722,83 +847,8 @@ export default function EditBlogPage() {
           </div>
           </form>
 
-          {/* Review Results */}
-
-          {showReview && reviewResult && !reviewMode && (
-            <div className="mt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setReviewMode(true)}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                >
-                  Enter review mode
-                </Button>
-                <span className="text-sm text-gray-500">
-                  Apply suggestions in context and use version history to undo
-                </span>
-              </div>
-              <BlogReviewCard
-                reviewResult={reviewResult}
-                originalContent={{
-                  title: formData.title,
-                  content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                  excerpt: derivedExcerpt(),
-                }}
-                isLoading={false}
-                onViewComparison={() => setShowComparison(true)}
-                onApplyReview={async (selectedSuggestions, applyAll) => {
-                  try {
-                    if (applyAll) {
-                      // Apply all improvements
-                      await applyReviewAsync({
-                        blogId: id,
-                        data: {
-                          improved_content: reviewResult.improved_content,
-                          improved_title: reviewResult.improved_title,
-                          improved_excerpt: reviewResult.improved_excerpt,
-                        },
-                      });
-                      const improvedContent = reviewResult.improved_content || (formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content);
-                      setFormData({
-                        ...formData,
-                        title: reviewResult.improved_title || formData.title,
-                        content: blocksToHtml(contentToBlocks(improvedContent)),
-                        content_type: "html",
-                        content_blocks: contentToBlocks(improvedContent),
-                      });
-                    } else {
-                      // Apply selected suggestions (for now, apply all improvements)
-                      // TODO: Implement selective application based on selected suggestions
-                      await applyReviewAsync({
-                        blogId: id,
-                        data: {
-                          improved_content: reviewResult.improved_content,
-                          improved_title: reviewResult.improved_title,
-                          improved_excerpt: reviewResult.improved_excerpt,
-                        },
-                      });
-                      const improvedContent = reviewResult.improved_content || (formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content);
-                      setFormData({
-                        ...formData,
-                        title: reviewResult.improved_title || formData.title,
-                        content: blocksToHtml(contentToBlocks(improvedContent)),
-                        content_type: "html",
-                        content_blocks: contentToBlocks(improvedContent),
-                      });
-                    }
-                    setShowReview(false);
-                  } catch (err) {
-                    // Error handled by hook
-                  }
-                }}
-              />
-            </div>
-          )}
-
           {/* Comparison Modal */}
-          {showComparison && reviewResult && (
+          {showComparison && reviewResult && canApplyReviewSuggestions && (
             <BlogReviewComparison
               original={{
                 title: formData.title,
@@ -827,6 +877,8 @@ export default function EditBlogPage() {
                   });
                   setShowComparison(false);
                   setShowReview(false);
+                  setReviewPanelTab("content");
+                  setReviewHasNewInfo(false);
                 } catch (err) {
                   // Error handled by hook
                 }

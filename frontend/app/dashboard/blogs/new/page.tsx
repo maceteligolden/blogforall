@@ -317,23 +317,71 @@ export default function NewBlogPage() {
       return;
     }
 
+    setError("");
     try {
-      await reviewBlogAsync({
+      const res = await reviewBlogAsync({
         data: {
           title: formData.title,
           content: contentForReview,
           excerpt: derivedExcerpt() || undefined,
           category: formData.category || undefined,
+          content_blocks: useBlocks ? formData.content_blocks : undefined,
         },
       });
-      setAutoReviewResult(null);
+      const payload = res?.data?.data;
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
+        body: JSON.stringify({
+          sessionId: "bc88ec",
+          hypothesisId: "H1-H3",
+          location: "blogs/new/page.tsx:handleReview",
+          message: "create page review completed",
+          data: {
+            mode,
+            hasPayload: !!payload,
+            overallScore: payload?.overall_score,
+            suggestionCount: payload?.suggestions?.length ?? 0,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      if (payload) {
+        setAutoReviewResult(payload);
+      } else {
+        setAutoReviewResult(null);
+      }
       setShowReview(true);
       setReviewHasNewInfo(false);
       setReviewPanelTab("review");
+      if (mode === "ai-generate" && (formData.title || hasBodyContent(formData))) {
+        setMode("write");
+      }
     } catch (err) {
-      // Error handled by hook
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
+        body: JSON.stringify({
+          sessionId: "bc88ec",
+          hypothesisId: "H4",
+          location: "blogs/new/page.tsx:handleReview:error",
+          message: "create page review failed",
+          data: {
+            status: (err as { response?: { status?: number } })?.response?.status,
+            apiMessage: (err as { response?: { data?: { message?: string } } })?.response?.data
+              ?.message,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     }
   };
+
+  const activeReviewResult = reviewResult || autoReviewResult;
 
   useEffect(() => {
     if (mode === "write") {
@@ -609,64 +657,65 @@ export default function NewBlogPage() {
             { label: "Create New Blog" },
           ]}
         />
-          <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-display text-white">Create New Blog</h1>
-          
-          {/* Mode Toggle */}
-          <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-800">
-            <button
-              type="button"
-              onClick={() => setMode("write")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                mode === "write"
-                  ? "bg-purple-600 text-white"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              <PenTool className="w-4 h-4" />
-              <span className="text-sm font-medium">Write</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("ai-generate");
-                generationTracker.typeSelected({ generation_type: "ai-generate" });
-              }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                mode === "ai-generate"
-                  ? "bg-purple-600 text-white"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-medium">AI Generate</span>
-            </button>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button
-              type="button"
-              className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-              onClick={() => router.push("/dashboard/blogs")}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="bg-purple-600 hover:bg-purple-700 text-white border-0"
-              onClick={handleReview}
-              disabled={isReviewing || !canReviewForm}
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              {isReviewing ? "Reviewing..." : "Review with AI"}
-            </Button>
-            <Button
-              type="submit"
-              form="blog-form"
-              className="bg-primary hover:bg-primary/90 text-white"
-              disabled={createBlog.isPending || !canSubmitWriteForm}
-            >
-              {createBlog.isPending ? "Creating..." : "Create Blog"}
-            </Button>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <h1 className="text-2xl font-display text-white shrink-0">Create New Blog</h1>
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-wrap">
+            <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => setMode("write")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                  mode === "write"
+                    ? "bg-purple-600 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <PenTool className="w-4 h-4" />
+                <span className="text-sm font-medium">Write</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("ai-generate");
+                  generationTracker.typeSelected({ generation_type: "ai-generate" });
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                  mode === "ai-generate"
+                    ? "bg-purple-600 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="text-sm font-medium">AI Generate</span>
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <Button
+                type="button"
+                className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                onClick={() => router.push("/dashboard/blogs")}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-purple-600 hover:bg-purple-700 text-white border-0 shrink-0"
+                onClick={handleReview}
+                disabled={isReviewing || !canReviewForm}
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                {isReviewing ? "Reviewing..." : "Review with AI"}
+              </Button>
+              <Button
+                type="submit"
+                form="blog-form"
+                className="bg-primary hover:bg-primary/90 text-white shrink-0"
+                disabled={createBlog.isPending || !canSubmitWriteForm}
+              >
+                {createBlog.isPending ? "Creating..." : "Create Blog"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -682,7 +731,79 @@ export default function NewBlogPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <div className="lg:col-span-2 space-y-6 min-w-0">
-              {mode === "ai-generate" ? (
+              {showReview && activeReviewResult && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setReviewPanelTab("content");
+                      setReviewHasNewInfo(false);
+                    }}
+                    disabled={isGenerating || isAnalyzing}
+                    className={
+                      reviewPanelTab === "content"
+                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                        : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                    }
+                  >
+                    Content
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setReviewPanelTab("review");
+                      setReviewHasNewInfo(false);
+                    }}
+                    disabled={isGenerating || isAnalyzing}
+                    className={
+                      reviewPanelTab === "review"
+                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                        : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                    }
+                  >
+                    Review
+                    {reviewHasNewInfo && (
+                      <span className="ml-2 inline-flex items-center rounded bg-purple-900/60 px-2 py-0.5 text-xs font-medium text-purple-100">
+                        New
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {reviewPanelTab === "review" && showReview && activeReviewResult ? (
+                <BlogReviewCard
+                  reviewResult={activeReviewResult}
+                  originalContent={{
+                    title: formData.title,
+                    content: formData.content_blocks?.length
+                      ? blocksToHtml(formData.content_blocks)
+                      : formData.content,
+                    excerpt: derivedExcerpt(),
+                  }}
+                  isLoading={isReviewing}
+                  onViewComparison={() => setShowComparison(true)}
+                  onApplyReview={async () => {
+                    const result = activeReviewResult;
+                    const improvedContent = result.improved_content || formData.content;
+                    try {
+                      const nextBlocks = contentToBlocks(improvedContent);
+                      setFormData({
+                        ...formData,
+                        title: result.improved_title || formData.title,
+                        content_blocks: nextBlocks,
+                        content: blocksToHtml(nextBlocks),
+                        content_type: "html",
+                      });
+                      setShowReview(false);
+                      setReviewPanelTab("content");
+                      setReviewHasNewInfo(false);
+                    } catch (err) {
+                      // Error handled by hook
+                    }
+                  }}
+                />
+              ) : mode === "ai-generate" ? (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-white">AI Blog Generation</h3>
@@ -761,79 +882,7 @@ export default function NewBlogPage() {
                 </div>
               ) : (
                 <>
-                  {showReview && (reviewResult || autoReviewResult) && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setReviewPanelTab("content");
-                          setReviewHasNewInfo(false);
-                        }}
-                        disabled={isGenerating || isAnalyzing}
-                        className={`${
-                          reviewPanelTab === "content"
-                            ? "bg-purple-600 hover:bg-purple-700 text-white"
-                            : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                        }`}
-                      >
-                        Content
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          setReviewPanelTab("review");
-                          setReviewHasNewInfo(false);
-                        }}
-                        disabled={isGenerating || isAnalyzing}
-                        className={`${
-                          reviewPanelTab === "review"
-                            ? "bg-purple-600 hover:bg-purple-700 text-white"
-                            : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                        }`}
-                      >
-                        Review
-                        {reviewHasNewInfo && (
-                          <span className="ml-2 inline-flex items-center rounded bg-purple-900/60 px-2 py-0.5 text-xs font-medium text-purple-100">
-                            New
-                          </span>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-
-                  {reviewPanelTab === "review" && showReview && (reviewResult || autoReviewResult) ? (
-                    <BlogReviewCard
-                      reviewResult={reviewResult || autoReviewResult}
-                      originalContent={{
-                        title: formData.title,
-                        content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                        excerpt: derivedExcerpt(),
-                      }}
-                      isLoading={false}
-                      onViewComparison={() => setShowComparison(true)}
-                      onApplyReview={async () => {
-                        const result = reviewResult || autoReviewResult;
-                        const improvedContent = result.improved_content || formData.content;
-                        try {
-                          const nextBlocks = contentToBlocks(improvedContent);
-                          setFormData({
-                            ...formData,
-                            title: result.improved_title || formData.title,
-                            content_blocks: nextBlocks,
-                            content: blocksToHtml(nextBlocks),
-                            content_type: "html",
-                          });
-                          setShowReview(false);
-                          setReviewPanelTab("content");
-                          setReviewHasNewInfo(false);
-                        } catch (err) {
-                          // Error handled by hook
-                        }
-                      }}
-                    />
-                  ) : (
-                  <>
-                    <div>
+                  <div>
                     <Label htmlFor="title" className="text-gray-300">
                       Title *
                     </Label>
@@ -863,14 +912,28 @@ export default function NewBlogPage() {
                       Use + or type / to add blocks. Every image requires a caption.
                     </p>
                   </div>
-                  </>
-                  )}
                 </>
               )}
             </div>
 
             <div className="lg:col-span-1 space-y-6 min-w-0 self-start">
               <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 space-y-6">
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0"
+                    onClick={handleReview}
+                    disabled={isReviewing || !canReviewForm}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {isReviewing ? "Reviewing..." : "Review with AI"}
+                  </Button>
+                  {!canReviewForm && (
+                    <p className="text-xs text-gray-500">
+                      Add a title and content to run an AI review.
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label htmlFor="status" className="text-gray-300">
                     Status
@@ -972,17 +1035,17 @@ export default function NewBlogPage() {
           {/* Review section moved into content/review tabs above */}
 
           {/* Comparison Modal */}
-          {showComparison && (reviewResult || autoReviewResult) && (
+          {showComparison && activeReviewResult && (
             <BlogReviewComparison
               original={{
                 title: formData.title,
                 content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
                 excerpt: derivedExcerpt(),
               }}
-              reviewResult={reviewResult || autoReviewResult}
+              reviewResult={activeReviewResult}
               onClose={() => setShowComparison(false)}
               onApplyAll={async () => {
-                const result = reviewResult || autoReviewResult;
+                const result = activeReviewResult;
                 const improvedContent = result.improved_content || formData.content;
                   const nextBlocks = contentToBlocks(improvedContent);
                   const normalizedHtml = blocksToHtml(nextBlocks);

@@ -199,30 +199,6 @@ export class OrchestratorService {
 
     const memory = await this.memoryRepository.ensureForSite(siteId, userId);
 
-    // #region agent log
-    if (mode === "onboarding") {
-      const s = memory.strategic;
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-        body: JSON.stringify({
-          sessionId: "bc88ec",
-          hypothesisId: "H4",
-          location: "orchestrator.service.ts:runTurn:memory-loaded",
-          message: "onboarding workspace memory snapshot",
-          data: {
-            hasBusinessType: !!s.business_type?.trim(),
-            audienceCount: s.target_audience?.length ?? 0,
-            hasBrandVoice: !!s.brand_voice?.trim(),
-            goalsCount: s.business_goals?.length ?? 0,
-            memorySummaryLen: (memory.memory_summary ?? "").length,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    }
-    // #endregion
-
     const thread = await this.resolveThread(siteId, userId, input.threadId, mode);
     const history = await this.messageRepository.listByThread(thread._id!.toString(), siteId, {
       limit: env.orchestrator.maxThreadMessages,
@@ -390,30 +366,6 @@ export class OrchestratorService {
         assistantReply = repaired.reply;
         decision = { ...decision, next: "respond", reply: assistantReply };
       }
-      // #region agent log
-      const t = assistantReply.trim();
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-        body: JSON.stringify({
-          sessionId: "bc88ec",
-          runId: "post-fix",
-          hypothesisId: "H2-fix",
-          location: "orchestrator.service.ts:applyPlan:onboarding-final",
-          message: "onboarding final assistant reply after interview repair",
-          data: {
-            rawNext,
-            decisionNext: decision.next,
-            replyLen: t.length,
-            hasQuestionMark: t.includes("?"),
-            interviewRepaired: repaired.repaired,
-            nextField: repaired.nextField,
-            replyPreview: t.slice(0, 160),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
     }
 
     if (decision.next === "complete_onboarding" && mode === "onboarding") {

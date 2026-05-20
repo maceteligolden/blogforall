@@ -4,6 +4,7 @@ import {
   ReviewBlogRequest,
   ApplyReviewRequest,
   ApplyOneRequest,
+  type BlogReviewResult,
 } from "@/lib/api/services/blog-review.service";
 import { useToast } from "@/components/ui/toast";
 import { QUERY_KEYS } from "@/lib/api/config";
@@ -116,7 +117,8 @@ export function useBlogReview() {
     reviewBlog: reviewMutation.mutate,
     reviewBlogAsync: reviewMutation.mutateAsync,
     isReviewing: reviewMutation.isPending,
-    reviewResult: reviewMutation.data?.data?.data,
+    reviewResult:
+      reviewMutation.data?.data?.data ?? (reviewMutation.data?.data as BlogReviewResult | undefined),
     applyReview: applyReviewMutation.mutate,
     applyReviewAsync: applyReviewMutation.mutateAsync,
     isApplying: applyReviewMutation.isPending,
