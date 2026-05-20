@@ -93,6 +93,23 @@ export class OrchestratorController {
     }
   };
 
+  renameThread = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const { siteId, threadId } = req.validatedParams as { siteId: string; threadId: string };
+      const { title } = req.validatedBody as { title: string };
+      const thread = await this.orchestratorService.renameThread(
+        threadId,
+        siteId,
+        userId,
+        title
+      );
+      sendSuccess(res, "Thread renamed", { thread });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   listApprovals = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = getJwtUserId(req);

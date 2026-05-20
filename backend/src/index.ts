@@ -7,7 +7,7 @@ import { logger } from "./shared/utils/logger";
 import { errorHandler } from "./shared/middlewares/error-handler.middleware";
 import { requestLogger } from "./shared/middlewares/request-logger.middleware";
 import { routes } from "./routes";
-import { seedPlansIfNeeded } from "./shared/utils/seed-plans.util";
+import { seedPlansIfNeeded, syncFreePlanTokenLimit } from "./shared/utils/seed-plans.util";
 import { env } from "./shared/config/env";
 import { container } from "tsyringe";
 import { PostSchedulerService } from "./modules/campaign/services/post-scheduler.service";
@@ -65,6 +65,7 @@ const startServer = async () => {
 
     // Seed plans if none exist
     await seedPlansIfNeeded();
+    await syncFreePlanTokenLimit();
 
     // Register Workspace Orchestrator Agent tools before serving traffic so
     // the chat endpoints can dispatch to them on the first request.

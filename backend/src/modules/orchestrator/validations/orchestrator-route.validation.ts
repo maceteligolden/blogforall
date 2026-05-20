@@ -50,6 +50,14 @@ export const threadListQuerySchema = z.object({
     .optional(),
 });
 
+export const renameThreadBodySchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, "Title is required")
+    .max(120, "Title must be at most 120 characters"),
+});
+
 export const approvalListQuerySchema = z.object({
   status: z.enum(["pending", "approved", "rejected", "executed", "expired"]).optional(),
   limit: z

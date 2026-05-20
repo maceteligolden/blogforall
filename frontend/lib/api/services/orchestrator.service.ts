@@ -65,6 +65,18 @@ export class OrchestratorService {
     return response.data?.data ?? response.data;
   }
 
+  static async renameThread(
+    siteId: string,
+    threadId: string,
+    title: string
+  ): Promise<OrchestratorThread> {
+    const response = await apiClient.patch(API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId), {
+      title,
+    });
+    const data = response.data?.data ?? response.data;
+    return data?.thread ?? data;
+  }
+
   static async listApprovals(
     siteId: string,
     status?: OrchestratorApprovalStatus,

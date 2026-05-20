@@ -27,6 +27,8 @@ import {
   type SerializedApproval,
   type SupervisorDecision,
 } from "../interfaces/orchestrator.interface";
+import { ensureOnboardingInterviewReply } from "../utils/onboarding-interview.helper";
+import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
 import {
   captureServerEvent,
   ServerAnalyticsEvents,
@@ -115,6 +117,27 @@ export class OrchestratorService {
     return { thread, messages };
   }
 
+  async renameThread(
+    threadId: string,
+    siteId: string,
+    userId: string,
+    title: string
+  ): Promise<OrchestratorThread> {
+    await this.assertSiteAccess(siteId, userId);
+    const thread = await this.threadRepository.findById(threadId, siteId);
+    if (!thread) {
+      throw new NotFoundError("Thread not found");
+    }
+    if (thread.user_id !== userId) {
+      throw new ForbiddenError("You do not have access to this thread");
+    }
+    const updated = await this.threadRepository.rename(threadId, siteId, title);
+    if (!updated) {
+      throw new NotFoundError("Thread not found");
+    }
+    return updated;
+  }
+
   async listApprovals(
     siteId: string,
     userId: string,
@@ -175,6 +198,30 @@ export class OrchestratorService {
     }
 
     const memory = await this.memoryRepository.ensureForSite(siteId, userId);
+
+    // #region agent log
+    if (mode === "onboarding") {
+      const s = memory.strategic;
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
+        body: JSON.stringify({
+          sessionId: "bc88ec",
+          hypothesisId: "H4",
+          location: "orchestrator.service.ts:runTurn:memory-loaded",
+          message: "onboarding workspace memory snapshot",
+          data: {
+            hasBusinessType: !!s.business_type?.trim(),
+            audienceCount: s.target_audience?.length ?? 0,
+            hasBrandVoice: !!s.brand_voice?.trim(),
+            goalsCount: s.business_goals?.length ?? 0,
+            memorySummaryLen: (memory.memory_summary ?? "").length,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }
+    // #endregion
 
     const thread = await this.resolveThread(siteId, userId, input.threadId, mode);
     const history = await this.messageRepository.listByThread(thread._id!.toString(), siteId, {
@@ -250,7 +297,12 @@ export class OrchestratorService {
           newUserMessage: message,
         });
 
-        return this.applyPlan(siteId, userId, thread, plan, mode);
+        const historyForApply = await this.messageRepository.listByThread(
+          thread._id!.toString(),
+          siteId,
+          { limit: env.orchestrator.maxThreadMessages }
+        );
+        return this.applyPlan(siteId, userId, thread, plan, mode, memory, historyForApply);
       },
     });
   }
@@ -264,7 +316,9 @@ export class OrchestratorService {
     userId: string,
     thread: OrchestratorThread,
     plan: Awaited<ReturnType<OrchestratorGraphService["planTurn"]>>,
-    mode: "active" | "onboarding"
+    mode: "active" | "onboarding",
+    workspaceMemory?: WorkspaceMemory,
+    threadHistory?: OrchestratorMessage[]
   ): Promise<ChatTurnResponse> {
     const rawNext = plan.decision.next;
     let decision = plan.decision;
@@ -315,12 +369,51 @@ export class OrchestratorService {
       }
     }
 
+    const hasMemoryPatch =
+      !!decision.memory_patch && Object.keys(decision.memory_patch).length > 0;
     if (
-      rawNext === "update_memory" &&
-      decision.memory_patch &&
-      Object.keys(decision.memory_patch).length > 0
+      hasMemoryPatch &&
+      (rawNext === "update_memory" || (mode === "onboarding" && decision.next !== "complete_onboarding"))
     ) {
       await this.memoryRepository.update(siteId, decision.memory_patch as never, userId);
+    }
+
+    if (mode === "onboarding" && decision.next !== "complete_onboarding" && workspaceMemory) {
+      const memoryAfterPatch =
+        (await this.memoryRepository.findBySiteId(siteId)) ?? workspaceMemory;
+      const repaired = ensureOnboardingInterviewReply(
+        assistantReply,
+        memoryAfterPatch,
+        threadHistory
+      );
+      if (repaired.repaired) {
+        assistantReply = repaired.reply;
+        decision = { ...decision, next: "respond", reply: assistantReply };
+      }
+      // #region agent log
+      const t = assistantReply.trim();
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
+        body: JSON.stringify({
+          sessionId: "bc88ec",
+          runId: "post-fix",
+          hypothesisId: "H2-fix",
+          location: "orchestrator.service.ts:applyPlan:onboarding-final",
+          message: "onboarding final assistant reply after interview repair",
+          data: {
+            rawNext,
+            decisionNext: decision.next,
+            replyLen: t.length,
+            hasQuestionMark: t.includes("?"),
+            interviewRepaired: repaired.repaired,
+            nextField: repaired.nextField,
+            replyPreview: t.slice(0, 160),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     }
 
     if (decision.next === "complete_onboarding" && mode === "onboarding") {

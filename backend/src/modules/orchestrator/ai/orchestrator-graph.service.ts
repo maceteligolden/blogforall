@@ -18,6 +18,7 @@ import {
 } from "../interfaces/orchestrator.interface";
 import { renderActiveSystemPrompt, renderOnboardingSystemPrompt } from "./prompts/system";
 import { OrchestratorToolRegistry } from "./tool-registry";
+import { formatOnboardingProgress } from "../utils/onboarding-interview.helper";
 
 export interface PlanTurnInput {
   siteId: string;
@@ -114,6 +115,8 @@ export class OrchestratorGraphService {
       workspace_id: input.workspaceId,
       workspace_context_json: this.buildContextJson(input.memory),
       memory_summary: input.memory.memory_summary || "",
+      onboarding_progress:
+        input.mode === "onboarding" ? formatOnboardingProgress(input.memory) : undefined,
       available_tools: availableTools,
       current_time_iso: currentTimeIso,
       current_date_human: currentDateHuman,
@@ -155,11 +158,61 @@ export class OrchestratorGraphService {
       "OrchestratorGraphService"
     );
 
+    // #region agent log
+    if (input.mode === "onboarding") {
+      const replyText = (decision.reply ?? "").trim();
+      const ctxLen = promptCtx.workspace_context_json.length;
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
+        body: JSON.stringify({
+          sessionId: "bc88ec",
+          hypothesisId: "H1-H5",
+          location: "orchestrator-graph.service.ts:planTurn:post-decision",
+          message: "onboarding supervisor decision",
+          data: {
+            next: decision.next,
+            replyLen: replyText.length,
+            hasQuestionMark: replyText.includes("?"),
+            replyPreview: replyText.slice(0, 160),
+            workspaceContextJsonLen: ctxLen,
+            historyCount: input.history.length,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }
+    // #endregion
+
     if (decision.next !== "call_tool") {
+      const assistantReply = this.fallbackReply(decision);
+      // #region agent log
+      if (input.mode === "onboarding") {
+        const t = assistantReply.trim();
+        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
+          body: JSON.stringify({
+            sessionId: "bc88ec",
+            hypothesisId: "H1-H2",
+            location: "orchestrator-graph.service.ts:planTurn:assistant_reply",
+            message: "onboarding assistant_reply before persist",
+            data: {
+              next: decision.next,
+              replyLen: t.length,
+              hasQuestionMark: t.includes("?"),
+              usedFallback: !(decision.reply && decision.reply.trim()),
+              replyPreview: t.slice(0, 160),
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      }
+      // #endregion
       return {
         decision,
         tool_invocation: null,
-        assistant_reply: this.fallbackReply(decision),
+        assistant_reply: assistantReply,
       };
     }
 

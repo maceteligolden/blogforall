@@ -2,6 +2,7 @@ import "reflect-metadata";
 import "dotenv/config";
 import { connectDatabase } from "../src/shared/database";
 import { PlanModel } from "../src/shared/schemas/plan.schema";
+import { FREE_PLAN_DAILY_TOKENS } from "../src/shared/utils/seed-plans.util";
 import { StripeFacade } from "../src/shared/facade/stripe.facade";
 import { container } from "tsyringe";
 
@@ -124,6 +125,7 @@ async function seedPlans() {
         apiCallsPerMonth: 1000,
         storageGB: 0.5,
         maxSitesAllowed: 1,
+        dailyTokens: FREE_PLAN_DAILY_TOKENS,
       },
       features: [
         "Up to 3 blog posts",
@@ -140,7 +142,11 @@ async function seedPlans() {
       await freePlan.save();
       console.log(`✓ Created plan: Free`);
     } else {
-      console.log(`Plan "Free" already exists, skipping...`);
+      await PlanModel.updateOne(
+        { name: freePlanData.name },
+        { $set: { "limits.dailyTokens": FREE_PLAN_DAILY_TOKENS, isActive: true } }
+      );
+      console.log(`Plan "Free" already exists, synced dailyTokens to ${FREE_PLAN_DAILY_TOKENS}`);
     }
 
     console.log("\n✅ Plan seeding completed! Active plans: Free, Starter, Professional, Enterprise.");

@@ -7,6 +7,35 @@ import { logger } from "./logger";
 /** Plan names that match the landing page; only these are kept active and seeded. */
 const LANDING_PLAN_NAMES = ["Free", "Starter", "Professional", "Enterprise"] as const;
 
+/** Daily AI token cap for the Free tier — synced on every boot for existing deployments. */
+export const FREE_PLAN_DAILY_TOKENS = 400_000;
+
+/**
+ * Idempotently set Free plan dailyTokens so existing users pick up limit changes
+ * without a manual Mongo migration.
+ */
+export async function syncFreePlanTokenLimit(): Promise<void> {
+  try {
+    const result = await PlanModel.updateOne(
+      { name: "Free" },
+      { $set: { "limits.dailyTokens": FREE_PLAN_DAILY_TOKENS } }
+    );
+    if (result.matchedCount === 0) {
+      logger.info('Plan "Free" not found; skip daily token sync', {}, "PlanSeeder");
+      return;
+    }
+    if (result.modifiedCount > 0) {
+      logger.info(
+        `Synced Free plan dailyTokens to ${FREE_PLAN_DAILY_TOKENS}`,
+        {},
+        "PlanSeeder"
+      );
+    }
+  } catch (error) {
+    logger.error("Failed to sync Free plan daily token limit", error as Error, {}, "PlanSeeder");
+  }
+}
+
 export async function seedPlansIfNeeded(): Promise<void> {
   try {
     await PlanModel.updateMany({ name: { $nin: LANDING_PLAN_NAMES } }, { $set: { isActive: false } });
@@ -148,7 +177,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
         apiCallsPerMonth: 1000,
         storageGB: 0.5,
         maxSitesAllowed: 1,
-        dailyTokens: 100_000,
+        dailyTokens: FREE_PLAN_DAILY_TOKENS,
       },
       features: ["Up to 3 blog posts", "1,000 API calls/month", "0.5 GB storage", "Basic features"],
       isActive: true,
@@ -157,8 +186,11 @@ export async function seedPlansIfNeeded(): Promise<void> {
     try {
       const existingFree = await PlanModel.findOne({ name: freePlanData.name });
       if (existingFree) {
-        await PlanModel.updateOne({ name: freePlanData.name }, { $set: { isActive: true } });
-        logger.info(`Plan "Free" already exists, ensured active`, {}, "PlanSeeder");
+        await PlanModel.updateOne(
+          { name: freePlanData.name },
+          { $set: { isActive: true, "limits.dailyTokens": FREE_PLAN_DAILY_TOKENS } }
+        );
+        logger.info(`Plan "Free" already exists, ensured active and token limit`, {}, "PlanSeeder");
       } else {
         const freePlan = new PlanModel(freePlanData);
         await freePlan.save();

@@ -145,7 +145,7 @@ export const env = {
     invitationExpiryDays: parseIntEnv(process.env.INVITATION_EXPIRY_DAYS, INVITATION_EXPIRY_DAYS_DEFAULT),
   },
   tokenLedger: {
-    defaultDailyFree: parseIntEnv(process.env.TOKEN_LEDGER_DEFAULT_DAILY_FREE, 100_000),
+    defaultDailyFree: parseIntEnv(process.env.TOKEN_LEDGER_DEFAULT_DAILY_FREE, 400_000),
     activeRequestTtlMs: parseIntEnv(process.env.TOKEN_LEDGER_ACTIVE_REQUEST_TTL_MS, 600_000),
     windowMs: parseIntEnv(process.env.TOKEN_LEDGER_WINDOW_MS, 86_400_000),
   },

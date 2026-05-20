@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
 import { useCreateSiteMutations } from "@/lib/hooks/use-create-site-mutations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ConfirmModal } from "@/components/ui/modal";
 import { ProtectedRoute } from "@/components/protected-route";
+import { AuthService } from "@/lib/api/services/auth.service";
 import { SiteService } from "@/lib/api/services/site.service";
 import { OnboardingChat } from "@/components/orchestrator/onboarding-chat";
 import { TokenExhaustionProvider } from "@/components/usage/token-exhaustion-provider";
@@ -35,7 +38,8 @@ type WizardStep = "details" | "chat";
 export default function CreateSitePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { currentSiteId } = useAuthStore();
+  const queryClient = useQueryClient();
+  const { currentSiteId, setCurrentSiteId, setTokens, refreshToken } = useAuthStore();
   const { updateSiteContext } = useAuth();
 
   const [step, setStep] = useState<WizardStep>("details");
@@ -43,6 +47,8 @@ export default function CreateSitePage() {
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelError, setCancelError] = useState<string>("");
 
   useOnboardingDropoff(step === "chat" ? "orchestrator_chat" : "workspace_details");
 
@@ -79,6 +85,42 @@ export default function CreateSitePage() {
     },
   });
 
+  const activeSiteName =
+    sites?.find((s) => s._id === activeSiteId)?.name ?? "this workspace";
+
+  const cancelSetupMutation = useMutation({
+    mutationFn: async (siteId: string) => {
+      const siteName = sites?.find((s) => s._id === siteId)?.name;
+      await SiteService.deleteSite(siteId);
+      workspaceTracker.deleted({ workspace_name: siteName });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
+      const remaining = await SiteService.getSites();
+      const nextSite =
+        remaining.find((s) => s.status === "active") ?? remaining[0] ?? null;
+      if (nextSite) {
+        const response = await AuthService.updateSiteContext(nextSite._id);
+        const accessToken = response.data?.data?.access_token;
+        if (accessToken && refreshToken) {
+          setTokens(accessToken, refreshToken);
+        } else {
+          setCurrentSiteId(nextSite._id);
+        }
+      } else {
+        setCurrentSiteId(null);
+      }
+    },
+    onSuccess: () => {
+      setShowCancelConfirm(false);
+      setCancelError("");
+      router.push("/dashboard");
+    },
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response
+        ?.data?.message;
+      setCancelError(apiMessage ?? "Could not cancel setup. Please try again.");
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -100,15 +142,32 @@ export default function CreateSitePage() {
   if (step === "chat" && activeSiteId) {
     return (
       <ProtectedRoute>
-        <div className="min-h-screen bg-black text-white flex flex-col">
-          <div className="max-w-3xl mx-auto w-full flex-1 flex flex-col px-4 py-6">
-            <div className="text-center mb-4">
+        <div className="h-dvh overflow-hidden bg-black text-white flex flex-col">
+          <div className="max-w-3xl mx-auto w-full flex-1 flex flex-col min-h-0 px-4 py-4 md:py-6">
+            <button
+              type="button"
+              onClick={() => {
+                setCancelError("");
+                setShowCancelConfirm(true);
+              }}
+              disabled={cancelSetupMutation.isPending}
+              className="shrink-0 inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors text-sm mb-4 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+              Back
+            </button>
+            <div className="shrink-0 text-center mb-4">
               <h1 className="text-3xl font-bold">Finish workspace setup</h1>
               <p className="text-gray-400 text-sm mt-1">
                 Chat with the orchestrator to capture your goals, audience, and voice.
               </p>
             </div>
-            <div className="flex-1 rounded-2xl border border-gray-800 overflow-hidden">
+            {cancelError && !showCancelConfirm && (
+              <div className="shrink-0 rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200 mb-4">
+                {cancelError}
+              </div>
+            )}
+            <div className="flex-1 min-h-0 rounded-2xl border border-gray-800 overflow-hidden">
               <TokenExhaustionProvider>
                 <OnboardingChat
                   siteId={activeSiteId}
@@ -118,6 +177,32 @@ export default function CreateSitePage() {
             </div>
           </div>
         </div>
+
+        <ConfirmModal
+          isOpen={showCancelConfirm}
+          onClose={() => {
+            if (!cancelSetupMutation.isPending) {
+              setShowCancelConfirm(false);
+              setCancelError("");
+            }
+          }}
+          onConfirm={() => {
+            setCancelError("");
+            cancelSetupMutation.mutate(activeSiteId);
+          }}
+          title="Cancel workspace setup?"
+          message={`Going back will cancel workspace setup and permanently delete "${activeSiteName}". Any chat progress will be lost. You can create a new workspace later.`}
+          confirmText="Yes, cancel setup"
+          cancelText="Continue setup"
+          variant="danger"
+          closeOnConfirm={false}
+          isConfirming={cancelSetupMutation.isPending}
+        />
+        {cancelError && showCancelConfirm && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[10060] max-w-md w-full mx-4 rounded-md bg-red-900/90 border border-red-800 p-3 text-sm text-red-200 shadow-lg">
+            {cancelError}
+          </div>
+        )}
       </ProtectedRoute>
     );
   }

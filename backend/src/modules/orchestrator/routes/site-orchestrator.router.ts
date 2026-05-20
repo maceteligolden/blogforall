@@ -36,6 +36,12 @@ router.post(
 
 router.get("/threads", validateQuery(V.threadListQuerySchema), controller.listThreads);
 router.get("/threads/:threadId", validateParams(V.threadIdParamSchema), controller.getThread);
+router.patch(
+  "/threads/:threadId",
+  validateParams(V.threadIdParamSchema),
+  validateBody(V.renameThreadBodySchema),
+  controller.renameThread
+);
 
 router.get("/approvals", validateQuery(V.approvalListQuerySchema), controller.listApprovals);
 router.post(

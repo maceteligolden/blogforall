@@ -24,10 +24,8 @@ const WELCOME_MESSAGE: UIMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Welcome to your new workspace. I'm the workspace orchestrator. " +
-    "To get you set up I'll ask a few quick questions about your business, " +
-    "audience, voice, and how often you'd like to publish. " +
-    "Whenever you're ready, tell me a little about what this workspace is for.",
+    "Welcome to your new workspace. I'll ask a few quick questions to tailor content for you — " +
+    "one topic at a time. To start: what does your business do, in one sentence?",
 };
 
 export interface OnboardingChatProps {
@@ -128,8 +126,8 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-black text-white">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 gap-3">
+    <div className="flex flex-col h-full min-h-0 w-full bg-black text-white">
+      <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-800 gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
             <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
@@ -144,7 +142,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
         <TokenUsageBadge compact />
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-6 space-y-4">
         {messages.map((m) => (
           <ChatMessage key={m.id} role={m.role} content={m.content} toolName={m.toolName} />
         ))}
@@ -156,7 +154,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
         )}
       </div>
 
-      <div className="px-4 py-3 border-t border-gray-800">
+      <div className="shrink-0 px-4 py-3 border-t border-gray-800">
         <ChatInput
           value={input}
           onChange={setInput}
@@ -169,7 +167,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
               : "Tell me about your business, audience, and goals..."
           }
         />
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-gray-500 hidden sm:block">
           When the orchestrator has enough context it will finish setup and unlock your dashboard.
         </p>
       </div>

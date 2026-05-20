@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Sparkles, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Pencil, Plus, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 import { useAuthStore } from "@/lib/store/auth.store";
@@ -74,7 +74,11 @@ export function AIPanel() {
   const [pending, setPending] = useState<PendingTurn | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingApproval, setPendingApproval] = useState<OrchestratorApproval | null>(null);
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
 
   const threadsQuery = useQuery({
     queryKey: currentSiteId ? QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId) : ["orchestrator", "threads", "none"],
@@ -105,7 +109,89 @@ export function AIPanel() {
     setPending(null);
     setError(null);
     setPendingApproval(null);
+    setEditingThreadId(null);
+    setEditTitle("");
+    setRenameError(null);
   }, [isOpen, threadId]);
+
+  const renameThreadMutation = useMutation({
+    mutationFn: ({ threadId: id, title }: { threadId: string; title: string }) =>
+      OrchestratorService.renameThread(currentSiteId as string, id, title),
+    onSuccess: (updated) => {
+      if (!currentSiteId) return;
+      setEditingThreadId(null);
+      setEditTitle("");
+      setRenameError(null);
+      queryClient.setQueryData(
+        QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, updated._id),
+        (old: { thread: { title: string }; messages: unknown[] } | undefined) =>
+          old ? { ...old, thread: { ...old.thread, title: updated.title } } : old
+      );
+      queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId),
+      });
+    },
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
+      setRenameError(apiMessage ?? "Could not rename conversation.");
+    },
+  });
+
+  useEffect(() => {
+    if (editingThreadId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [editingThreadId]);
+
+  const activeThreadTitle =
+    threadQuery.data?.thread?.title ??
+    threadsQuery.data?.find((t) => t._id === threadId)?.title ??
+    "New conversation";
+
+  const startRenameThread = (id: string, currentTitle: string) => {
+    if (pending) return;
+    setEditingThreadId(id);
+    setEditTitle(currentTitle || "New conversation");
+    setRenameError(null);
+    renameThreadMutation.reset();
+  };
+
+  const cancelRename = () => {
+    setEditingThreadId(null);
+    setEditTitle("");
+    setRenameError(null);
+    renameThreadMutation.reset();
+  };
+
+  const submitRename = () => {
+    if (!editingThreadId || !currentSiteId) return;
+    const trimmed = editTitle.trim();
+    if (!trimmed) {
+      setRenameError("Name cannot be empty");
+      return;
+    }
+    const original =
+      threadsQuery.data?.find((t) => t._id === editingThreadId)?.title ??
+      (editingThreadId === threadId ? activeThreadTitle : "");
+    if ((original || "New conversation") === trimmed) {
+      cancelRename();
+      return;
+    }
+    setRenameError(null);
+    renameThreadMutation.mutate({ threadId: editingThreadId, title: trimmed });
+  };
+
+  const handleRenameKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitRename();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelRename();
+    }
+  };
 
   useEffect(() => {
     const latest = threadQuery.data?.messages?.find(
@@ -210,6 +296,7 @@ export function AIPanel() {
     setOptimisticMessages([]);
     setPendingApproval(null);
     setError(null);
+    cancelRename();
   };
 
   if (!isOpen) return null;
@@ -249,21 +336,102 @@ export function AIPanel() {
               No conversations yet. Send your first message.
             </p>
           )}
-          {threadsQuery.data?.map((t) => (
-            <button
-              key={t._id}
-              onClick={() => setThreadId(t._id)}
-              className={cn(
-                "w-full text-left px-4 py-2.5 border-l-2 transition-colors",
-                t._id === threadId
-                  ? "border-primary bg-primary/10 text-white"
-                  : "border-transparent text-gray-300 hover:bg-gray-900"
-              )}
-            >
-              <p className="text-sm font-medium truncate">{t.title || "New conversation"}</p>
-              <p className="text-xs text-gray-500">{formatThreadTimestamp(t.last_activity_at)}</p>
-            </button>
-          ))}
+          {threadsQuery.data?.map((t) => {
+            const displayTitle = t.title || "New conversation";
+            const isEditing = editingThreadId === t._id;
+            const isSaving = isEditing && renameThreadMutation.isPending;
+
+            if (isEditing) {
+              if (t._id === threadId) {
+                return (
+                  <div
+                    key={t._id}
+                    className="px-4 py-2.5 border-l-2 border-primary bg-primary/10 text-white"
+                  >
+                    <p className="text-sm font-medium truncate">{editTitle}</p>
+                    <p className="text-xs text-gray-500">Renaming in header…</p>
+                  </div>
+                );
+              }
+              return (
+                <div
+                  key={t._id}
+                  className="px-3 py-2.5 border-l-2 border-primary bg-primary/10 text-gray-300"
+                >
+                  <div className="flex items-center gap-1">
+                    <input
+                      ref={renameInputRef}
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onKeyDown={handleRenameKeyDown}
+                      disabled={isSaving}
+                      aria-label="Conversation name"
+                      className="flex-1 min-w-0 px-2 py-1 text-sm bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:border-primary disabled:opacity-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitRename}
+                      disabled={isSaving}
+                      aria-label="Save conversation name"
+                      className="p-1 rounded text-primary hover:bg-gray-800 disabled:opacity-60"
+                    >
+                      <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelRename}
+                      disabled={isSaving}
+                      aria-label="Cancel rename"
+                      className="p-1 rounded text-gray-400 hover:bg-gray-800 disabled:opacity-60"
+                    >
+                      <X className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                  {renameError && (
+                    <p className="mt-1 text-xs text-red-400" role="alert">
+                      {renameError}
+                    </p>
+                  )}
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={t._id}
+                className={cn(
+                  "group flex items-center border-l-2 transition-colors",
+                  t._id === threadId
+                    ? "border-primary bg-primary/10"
+                    : "border-transparent hover:bg-gray-900"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setThreadId(t._id)}
+                  className="flex-1 min-w-0 text-left px-4 py-2.5 text-gray-300 hover:text-white"
+                >
+                  <p className="text-sm font-medium truncate">{displayTitle}</p>
+                  <p className="text-xs text-gray-500">
+                    {formatThreadTimestamp(t.last_activity_at)}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startRenameThread(t._id, displayTitle);
+                  }}
+                  disabled={!!pending}
+                  aria-label={`Rename ${displayTitle}`}
+                  className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-2 mr-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-40"
+                >
+                  <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </aside>
 
@@ -273,10 +441,63 @@ export function AIPanel() {
             <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">
-                {threadQuery.data?.thread?.title ?? "New conversation"}
-              </p>
+            <div className="min-w-0 flex-1">
+              {threadId && editingThreadId === threadId ? (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={renameInputRef}
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onKeyDown={handleRenameKeyDown}
+                      disabled={renameThreadMutation.isPending}
+                      aria-label="Conversation name"
+                      className="flex-1 min-w-0 max-w-xs px-2 py-1 text-sm font-semibold bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:border-primary disabled:opacity-60"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitRename}
+                      disabled={renameThreadMutation.isPending}
+                      aria-label="Save conversation name"
+                      className="p-1 rounded text-primary hover:bg-gray-800 disabled:opacity-60"
+                    >
+                      <Check className="w-4 h-4" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelRename}
+                      disabled={renameThreadMutation.isPending}
+                      aria-label="Cancel rename"
+                      className="p-1 rounded text-gray-400 hover:bg-gray-800 disabled:opacity-60"
+                    >
+                      <X className="w-4 h-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                  {renameError && (
+                    <p className="text-xs text-red-400" role="alert">
+                      {renameError}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">
+                    {threadId ? activeThreadTitle : "New conversation"}
+                  </p>
+                  {threadId && (
+                    <button
+                      type="button"
+                      onClick={() => startRenameThread(threadId, activeThreadTitle)}
+                      disabled={!!pending}
+                      aria-label="Rename conversation"
+                      className="shrink-0 p-1 rounded text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-40"
+                    >
+                      <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-gray-500">
                 Workspace orchestrator — full-screen mode
               </p>
