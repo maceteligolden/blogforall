@@ -48,8 +48,8 @@ export function useAuth() {
         const sites = await SiteService.getSites();
         if (sites.length === 0) {
           router.push("/onboarding/create-site");
-        } else if (typeof window !== "undefined" && !localStorage.getItem("blogforall_invite_prompt_seen")) {
-          router.push("/onboarding/invite");
+        } else if (sites.some((s) => s.status === "onboarding")) {
+          router.push("/onboarding/create-site?step=chat");
         } else {
           router.push("/dashboard");
         }
@@ -69,18 +69,26 @@ export function useAuth() {
     onMutate: () => {
       authTracker.signupStarted();
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      const { tokens, user: userData, requiresSiteCreation } = response.data.data;
+      setTokens(tokens.access_token, tokens.refresh_token);
+      setUser(userData);
       authTracker.signupCompleted();
+
       if (typeof window !== "undefined") {
         const inviteToken = sessionStorage.getItem("blogforall_signup_invite_token");
         sessionStorage.removeItem("blogforall_signup_invite_token");
         if (inviteToken) {
-          const returnUrl = `/invitations/accept?token=${encodeURIComponent(inviteToken)}`;
-          router.push(`/auth/login?message=Account created. Sign in to continue.&redirect=${encodeURIComponent(returnUrl)}`);
+          router.push(`/invitations/accept?token=${encodeURIComponent(inviteToken)}`);
           return;
         }
       }
-      router.push("/auth/login?message=Account created successfully. Please sign in to continue.");
+
+      if (requiresSiteCreation) {
+        router.push("/onboarding/create-site");
+        return;
+      }
+      router.push("/onboarding/create-site?step=chat");
     },
     onError: (error: unknown) => {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";

@@ -29,7 +29,7 @@ type WizardStep = "details" | "chat";
  *    the site. The backend marks the new site as status="onboarding".
  *  - Step 2 ("chat"): hand the user off to the orchestrator's onboarding chat
  *    to capture strategic / operational / voice context. When the orchestrator
- *    flips the site to "active" we route on to the invite step.
+ *    flips the site to "active" we route to the dashboard.
  *
  * The page is also reachable mid-onboarding: if the user already has a
  * workspace that is still in the onboarding state (e.g. they refreshed during
@@ -42,7 +42,8 @@ export default function CreateSitePage() {
   const { currentSiteId, setCurrentSiteId, setTokens, refreshToken } = useAuthStore();
   const { updateSiteContext } = useAuth();
 
-  const [step, setStep] = useState<WizardStep>("details");
+  const wantsChatStep = searchParams.get("step") === "chat";
+  const [step, setStep] = useState<WizardStep>(wantsChatStep ? "chat" : "details");
   const [activeSiteId, setActiveSiteId] = useState<string | null>(null);
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
@@ -53,14 +54,24 @@ export default function CreateSitePage() {
   useOnboardingDropoff(step === "chat" ? "orchestrator_chat" : "workspace_details");
 
   // If we land here with an existing onboarding-state workspace, resume the chat.
-  const { data: sites } = useQuery({
+  const { data: sites, isLoading: sitesLoading } = useQuery({
     queryKey: QUERY_KEYS.SITES,
     queryFn: () => SiteService.getSites(),
     retry: false,
   });
 
   useEffect(() => {
+    if (wantsChatStep && currentSiteId && !activeSiteId) {
+      setActiveSiteId(currentSiteId);
+    }
+  }, [wantsChatStep, currentSiteId, activeSiteId]);
+
+  useEffect(() => {
     const requestedStep = searchParams.get("step");
+    if (!sitesLoading && sites && sites.length === 0 && step === "chat") {
+      setStep("details");
+      return;
+    }
     if (!sites || sites.length === 0) return;
     const onboardingSite =
       sites.find((s) => s._id === currentSiteId && s.status === "onboarding") ||
@@ -75,7 +86,7 @@ export default function CreateSitePage() {
       setActiveSiteId(currentSiteId);
       setStep("chat");
     }
-  }, [sites, currentSiteId, searchParams, updateSiteContext]);
+  }, [sites, sitesLoading, currentSiteId, searchParams, step, updateSiteContext]);
 
   const { skipMutation, createSiteMutation } = useCreateSiteMutations({
     onError: setError,
@@ -136,8 +147,18 @@ export default function CreateSitePage() {
   };
 
   const handleOnboardingCompleted = () => {
-    router.push("/onboarding/invite");
+    router.push("/dashboard");
   };
+
+  if (step === "chat" && !activeSiteId && sitesLoading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <p className="text-gray-400">Loading workspace setup...</p>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   if (step === "chat" && activeSiteId) {
     return (

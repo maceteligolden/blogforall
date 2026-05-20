@@ -38,7 +38,7 @@ export interface OnboardingChatProps {
  * workspace's single onboarding thread and the supervisor is only allowed to
  * call workspace.completeOnboarding, so we don't render tool-call controls or
  * thread switching here. When the API reports onboarding_completed we hand
- * off to the parent which usually routes to the invite step or the dashboard.
+ * off to the parent which routes to the dashboard when setup is complete.
  */
 export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
   const [messages, setMessages] = useState<UIMessage[]>([WELCOME_MESSAGE]);

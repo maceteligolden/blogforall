@@ -14,7 +14,7 @@ interface UseCreateSiteMutationsOptions {
    * Called after a site is successfully created (either by createSiteMutation
    * or skipMutation). The create-site page uses this to transition into the
    * orchestrator-led onboarding chat instead of routing away. When omitted,
-   * the legacy behaviour of pushing straight to /onboarding/invite is used.
+   * the legacy behaviour of pushing straight to /dashboard is used.
    */
   onSiteReady?: (site: Site) => void;
 }
@@ -37,7 +37,7 @@ export function useCreateSiteMutations(options: UseCreateSiteMutationsOptions = 
           return;
         }
       }
-      router.push("/onboarding/invite");
+      router.push("/dashboard");
     },
     onError: (err: unknown) => {
       const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -55,7 +55,7 @@ export function useCreateSiteMutations(options: UseCreateSiteMutationsOptions = 
         onSiteReady(newSite);
         return;
       }
-      router.push("/onboarding/invite");
+      router.push("/dashboard");
     },
     onError: (err: unknown) => {
       const res = err as { response?: { data?: { message?: string } }; code?: string; message?: string };

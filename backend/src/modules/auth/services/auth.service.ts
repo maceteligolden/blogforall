@@ -4,7 +4,8 @@ import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
 import { BadRequestError, UnauthorizedError, NotFoundError } from "../../../shared/errors";
-import { UserPlan, UserRole } from "../../../shared/constants";
+import { UserPlan, UserRole, SiteStatus } from "../../../shared/constants";
+import { Site } from "../../../shared/schemas/site.schema";
 import { logger } from "../../../shared/utils/logger";
 import {
   SignupInput,
@@ -48,9 +49,9 @@ export class AuthService {
    * 5. TRY create free subscription; on failure LOG and continue
    * 6. TRY ensure default workspace; on failure LOG and continue
    * 7. TRY send welcome email via NotificationService (async queue); on failure LOG and continue
-   * 8. LOG success and RETURN user
+   * 8. LOG success and RETURN LoginResponse (auto-login tokens)
    */
-  async signup(input: SignupInput): Promise<User> {
+  async signup(input: SignupInput): Promise<LoginResponse> {
     const { email, password, first_name, last_name, phone_number, terms_version } = input;
 
     const formattedEmail = email.toLocaleLowerCase();
@@ -139,7 +140,8 @@ export class AuthService {
       properties: { plan_type: user.plan },
     });
 
-    return user;
+    const userSites = await this.siteService.getSitesByUser(userId);
+    return this.buildLoginResponse(user, userSites);
   }
 
   /**
@@ -168,38 +170,12 @@ export class AuthService {
     }
 
     const userSites = await this.siteService.getSitesByUser(user._id!.toString());
-    const hasSites = userSites.length > 0;
-    const defaultSiteId = hasSites ? userSites[0]._id!.toString() : undefined;
-
-    const tokenPayload = {
-      userId: user._id!.toString(),
-      email: user.email,
-      currentSiteId: defaultSiteId,
-      role: user.role ?? UserRole.USER,
-    };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
-
-    // Update session token
-    await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
-
-    logger.info("User logged in successfully", { userId: user._id, email, hasSites }, "AuthService");
-
-    return {
-      tokens: {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      },
-      user: {
-        id: user._id!.toString(),
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        plan: user.plan,
-        role: user.role ?? UserRole.USER,
-      },
-      requiresSiteCreation: !hasSites,
-    };
+    logger.info(
+      "User logged in successfully",
+      { userId: user._id, email, hasSites: userSites.length > 0 },
+      "AuthService"
+    );
+    return this.buildLoginResponse(user, userSites);
   }
 
   /**
@@ -442,6 +418,43 @@ export class AuthService {
 
   private hashResetCode(code: string): string {
     return createHash("sha256").update(code).digest("hex");
+  }
+
+  /** Prefer an in-progress onboarding workspace for JWT site context, else first site. */
+  private resolveCurrentSiteId(sites: Site[]): string | undefined {
+    if (sites.length === 0) return undefined;
+    const onboardingSite = sites.find((s) => s.status === SiteStatus.ONBOARDING);
+    return (onboardingSite ?? sites[0])._id!.toString();
+  }
+
+  private async buildLoginResponse(user: User, sites: Site[]): Promise<LoginResponse> {
+    const hasSites = sites.length > 0;
+    const currentSiteId = this.resolveCurrentSiteId(sites);
+    const tokenPayload = {
+      userId: user._id!.toString(),
+      email: user.email,
+      currentSiteId,
+      role: user.role ?? UserRole.USER,
+    };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+    await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
+
+    return {
+      tokens: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      },
+      user: {
+        id: user._id!.toString(),
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        plan: user.plan,
+        role: user.role ?? UserRole.USER,
+      },
+      requiresSiteCreation: !hasSites,
+    };
   }
 }
 

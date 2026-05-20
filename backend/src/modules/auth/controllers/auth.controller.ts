@@ -24,8 +24,8 @@ export class AuthController {
   signup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const validatedData = req.validatedBody as SignupBody;
-      await this.authService.signup(validatedData);
-      sendCreated(res, "User created successfully");
+      const result = await this.authService.signup(validatedData);
+      sendCreated(res, "User created successfully", result);
     } catch (error) {
       next(error);
     }

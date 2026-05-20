@@ -15,7 +15,10 @@ async function resolvePostOnboardingPath(): Promise<string> {
     if (siteList.length === 0) {
       return "/onboarding/create-site";
     }
-    return "/onboarding/invite";
+    if (siteList.some((s) => s.status === "onboarding")) {
+      return "/onboarding/create-site?step=chat";
+    }
+    return "/dashboard";
   } catch {
     return "/onboarding/create-site";
   }
