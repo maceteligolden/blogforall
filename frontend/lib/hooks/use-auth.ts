@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "../store/auth.store";
 import { AuthService, LoginRequest, SignupRequest, ChangePasswordRequest } from "../api/services/auth.service";
 import { OnboardingService } from "../api/services/onboarding.service";
+import { authTracker } from "../analytics/flows/auth.tracker";
 
 export function useAuth() {
   const router = useRouter();
@@ -10,10 +11,14 @@ export function useAuth() {
 
   const loginMutation = useMutation({
     mutationFn: (data: LoginRequest) => AuthService.login(data),
+    onMutate: () => {
+      authTracker.loginStarted();
+    },
     onSuccess: async (response) => {
       const { tokens, user: userData, requiresSiteCreation } = response.data.data;
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
+      authTracker.loginSuccess({ userId: userData.id, planType: userData.plan });
 
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
@@ -32,8 +37,11 @@ export function useAuth() {
       try {
         const onboardingStatus = await OnboardingService.getStatus();
         if (onboardingStatus.requiresOnboarding) {
-          router.push("/onboarding");
-          return;
+          try {
+            await OnboardingService.skip();
+          } catch {
+            // Continue with workspace setup even if skip fails
+          }
         }
 
         const { SiteService } = await import("../api/services/site.service");
@@ -46,18 +54,23 @@ export function useAuth() {
           router.push("/dashboard");
         }
       } catch {
-        router.push("/onboarding");
+        router.push("/onboarding/create-site");
       }
     },
     onError: (error: unknown) => {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Invalid email or password";
+      authTracker.loginFailed({ error_message: message });
       console.error("Login failed:", message);
     },
   });
 
   const signupMutation = useMutation({
     mutationFn: (data: SignupRequest) => AuthService.signup(data),
+    onMutate: () => {
+      authTracker.signupStarted();
+    },
     onSuccess: () => {
+      authTracker.signupCompleted();
       if (typeof window !== "undefined") {
         const inviteToken = sessionStorage.getItem("blogforall_signup_invite_token");
         sessionStorage.removeItem("blogforall_signup_invite_token");
@@ -71,6 +84,7 @@ export function useAuth() {
     },
     onError: (error: unknown) => {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";
+      authTracker.signupFailed({ error_message: message });
       console.error("Signup failed:", message);
       throw error; // Re-throw to allow component to handle
     },
@@ -79,10 +93,12 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: () => AuthService.logout(),
     onSuccess: () => {
+      authTracker.logout();
       clearAuth();
       router.push("/auth/login");
     },
     onError: () => {
+      authTracker.logout();
       clearAuth();
       router.push("/auth/login");
     },

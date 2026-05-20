@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { CreateSiteDialog } from "./create-site-dialog";
+import { workspaceTracker } from "@/lib/analytics/flows/workspace.tracker";
 
 export function SiteSwitcher() {
   const [showDropdown, setShowDropdown] = useState(false);
@@ -35,6 +36,7 @@ export function SiteSwitcher() {
     mutationFn: ({ id, name }: { id: string; name: string }) =>
       SiteService.updateSite(id, { name }),
     onSuccess: (updated, variables) => {
+      workspaceTracker.updated({ workspace_name: variables.name });
       queryClient.setQueryData(QUERY_KEYS.SITE(variables.id), updated);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
       setEditingSiteId(null);
@@ -83,6 +85,11 @@ export function SiteSwitcher() {
 
   const handleSiteSelect = (siteId: string) => {
     if (siteId !== currentSiteId) {
+      const site = sites.find((s) => s._id === siteId);
+      workspaceTracker.switched({
+        previous_workspace_id: currentSiteId ?? undefined,
+        workspace_name: site?.name,
+      });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOGS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CATEGORIES });
       updateSiteContext(siteId);

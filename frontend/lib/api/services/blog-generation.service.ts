@@ -158,10 +158,13 @@ export class BlogGenerationService {
     }
     const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.BLOGS.GENERATE_STREAM(siteId)}`;
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    const { getCorrelationHeaders } = await import("@/lib/observability/request-headers");
+    const correlation = getCorrelationHeaders();
     const res = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...correlation,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({

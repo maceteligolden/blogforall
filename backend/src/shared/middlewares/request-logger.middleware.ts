@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { logger } from "../utils/logger";
+import { getRequestIdFromContext } from "../observability/request-context";
 
 export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
   const start = Date.now();
@@ -12,6 +13,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
       statusCode: res.statusCode,
       ip: req.ip || req.socket.remoteAddress,
       userAgent: req.headers["user-agent"],
+      requestId: getRequestIdFromContext(req),
     };
 
     // Include access key ID if present (for API key requests)

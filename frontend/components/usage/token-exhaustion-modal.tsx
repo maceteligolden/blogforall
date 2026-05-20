@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 
@@ -69,19 +68,10 @@ export function TokenExhaustionModal({
 
 function ExhaustionModalFooter({ onClose }: { onClose: () => void }) {
   return (
-    <div className="flex flex-col sm:flex-row gap-2 sm:justify-end w-full">
-      <Button
-        variant="outline"
-        onClick={onClose}
-        className="border-gray-700 text-gray-300 hover:bg-gray-800"
-      >
-        Close
+    <div className="flex justify-end w-full">
+      <Button onClick={onClose} className="bg-primary hover:bg-primary/90 text-white">
+        OK
       </Button>
-      <Link href="/dashboard/billing" onClick={onClose}>
-        <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white">
-          Upgrade plan
-        </Button>
-      </Link>
     </div>
   );
 }

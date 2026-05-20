@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Users } from "lucide-react";
+import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 
 const INVITE_PROMPT_SEEN_KEY = "blogforall_invite_prompt_seen";
 
@@ -13,9 +14,11 @@ export default function OnboardingInvitePage() {
 
   useEffect(() => {
     localStorage.setItem(INVITE_PROMPT_SEEN_KEY, "true");
+    onboardingTracker.invitePromptViewed();
   }, []);
 
   const handleSkip = () => {
+    onboardingTracker.invitePromptSkipped();
     router.push("/dashboard");
   };
 

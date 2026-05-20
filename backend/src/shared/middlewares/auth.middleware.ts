@@ -3,6 +3,9 @@ import jwt from "jsonwebtoken";
 import { UnauthorizedError, ForbiddenError } from "../errors";
 import { verifyAccessToken } from "../utils/token";
 import { UserRole } from "../constants";
+import { AppLogger } from "../observability/logger";
+import { ObservabilityFlow } from "../observability/flows";
+import { setRequestContextUserId } from "../observability/request-context";
 
 declare global {
   namespace Express {
@@ -48,8 +51,10 @@ export const authMiddleware = (req: Request, _res: Response, next: NextFunction)
       role: decoded.role,
     };
 
+    setRequestContextUserId(userId);
     next();
   } catch (error) {
+    AppLogger.warn("Authentication failed", { flow: ObservabilityFlow.AUTH, path: req.path }, "AuthMiddleware");
     if (error instanceof jwt.TokenExpiredError) {
       return next(new UnauthorizedError("Token expired"));
     }

@@ -150,6 +150,29 @@ export const env = {
     windowMs: parseIntEnv(process.env.TOKEN_LEDGER_WINDOW_MS, 86_400_000),
   },
 
+  sentry: {
+    dsn: (process.env.SENTRY_DSN || "").trim(),
+    environment: (process.env.SENTRY_ENVIRONMENT || NODE_ENV).trim(),
+    tracesSampleRate: parseFloat(
+      process.env.SENTRY_TRACES_SAMPLE_RATE ??
+        (NODE_ENV === "production" ? "0.1" : "1.0")
+    ),
+    enabled:
+      process.env.SENTRY_ENABLED === undefined
+        ? Boolean((process.env.SENTRY_DSN || "").trim())
+        : process.env.SENTRY_ENABLED.toLowerCase() !== "false",
+  },
+
+  posthog: {
+    apiKey: (process.env.POSTHOG_API_KEY || "").trim(),
+    host: (process.env.POSTHOG_HOST || "https://us.i.posthog.com").trim(),
+    environment: (process.env.POSTHOG_ENVIRONMENT || NODE_ENV).trim(),
+    enabled:
+      process.env.POSTHOG_ENABLED === undefined
+        ? Boolean((process.env.POSTHOG_API_KEY || "").trim())
+        : process.env.POSTHOG_ENABLED.toLowerCase() !== "false",
+  },
+
   notification: {
     brevoApiKey: (process.env.BREVO_API_KEY || "").trim(),
     brevoSenderEmail: (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || "noreply@bloggr.com").trim(),

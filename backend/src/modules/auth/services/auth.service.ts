@@ -23,6 +23,11 @@ import { SiteService } from "../../site/services/site.service";
 import { NotificationService } from "../../notification/services/notification.service";
 import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 import { env } from "../../../shared/config/env";
+import {
+  captureServerEvent,
+  identifyServerUser,
+  ServerAnalyticsEvents,
+} from "../../../shared/analytics/posthog.server";
 
 @injectable()
 export class AuthService {
@@ -74,6 +79,7 @@ export class AuthService {
       phone_number,
       plan: UserPlan.FREE,
       stripe_customer_id: stripeCustomerId,
+      onboarding_completed: true,
       terms_accepted_at: new Date(),
       terms_version: terms_version ?? undefined,
     });
@@ -125,6 +131,14 @@ export class AuthService {
     });
 
     logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");
+
+    const userId = user._id!.toString();
+    identifyServerUser(userId, { email: user.email, plan: user.plan });
+    captureServerEvent(ServerAnalyticsEvents.USER_SIGNED_UP, {
+      userId,
+      properties: { plan_type: user.plan },
+    });
+
     return user;
   }
 

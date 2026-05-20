@@ -19,6 +19,7 @@ import { useAIPanel } from "./ai-panel-provider";
 import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
 import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
+import { orchestratorTracker } from "@/lib/analytics/flows/orchestrator.tracker";
 
 interface PendingTurn {
   userText: string;
@@ -93,6 +94,12 @@ export function AIPanel() {
   });
 
   useEffect(() => {
+    if (isOpen) {
+      orchestratorTracker.opened();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen) return;
     setOptimisticMessages([]);
     setPending(null);
@@ -143,6 +150,7 @@ export function AIPanel() {
     };
     setOptimisticMessages((prev) => [...prev, userMsg]);
     setPending({ userText: text });
+    orchestratorTracker.messageSent({ thread_id: threadId ?? undefined });
     try {
       const res: ChatTurnResponse = await OrchestratorService.chat(
         currentSiteId,
@@ -151,6 +159,7 @@ export function AIPanel() {
       );
       const newOptimistic: OptimisticMessage[] = [];
       for (const call of res.tool_calls ?? []) {
+        orchestratorTracker.toolExecuted({ tool_name: call.tool, thread_id: res.thread_id });
         newOptimistic.push({
           id: `tool-${Date.now()}-${newOptimistic.length}`,
           role: "tool",
@@ -327,7 +336,13 @@ export function AIPanel() {
               <div className="flex gap-2 mt-3">
                 <Button
                   size="sm"
-                  onClick={() => handleSend("yes")}
+                  onClick={() => {
+                    orchestratorTracker.approvalDecided({
+                      decision: "approved",
+                      tool_name: pendingApproval.action,
+                    });
+                    handleSend("yes");
+                  }}
                   disabled={!!pending}
                   className="bg-primary text-white hover:bg-primary/90"
                 >
@@ -336,7 +351,13 @@ export function AIPanel() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => handleSend("no")}
+                  onClick={() => {
+                    orchestratorTracker.approvalDecided({
+                      decision: "rejected",
+                      tool_name: pendingApproval.action,
+                    });
+                    handleSend("no");
+                  }}
                   disabled={!!pending}
                   className="border-gray-700 text-gray-200 hover:bg-gray-800"
                 >

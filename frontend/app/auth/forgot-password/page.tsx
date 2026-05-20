@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AuthPageHeader } from "@/components/auth/auth-page-header";
 import { usePasswordReset } from "@/lib/hooks/use-password-reset";
+import { authTracker } from "@/lib/analytics/flows/auth.tracker";
 
 type Step = "email" | "code" | "password" | "done";
 
@@ -45,10 +46,12 @@ export default function ForgotPasswordPage() {
       return;
     }
     try {
+      authTracker.passwordResetStarted();
       await forgotPassword({ email });
       setStep("code");
       setInfo("If an account exists for that email, a code has been sent.");
     } catch (err) {
+      authTracker.passwordResetFailed({ error_message: getApiErrorMessage(err, "Could not request a reset code. Please try again.") });
       setError(getApiErrorMessage(err, "Could not request a reset code. Please try again."));
     }
   };
@@ -94,8 +97,10 @@ export default function ForgotPasswordPage() {
     }
     try {
       await resetPassword({ email, code, new_password: newPassword });
+      authTracker.passwordResetCompleted();
       setStep("done");
     } catch (err) {
+      authTracker.passwordResetFailed({ error_message: getApiErrorMessage(err, "Could not reset your password") });
       setError(getApiErrorMessage(err, "Could not reset your password"));
     }
   };

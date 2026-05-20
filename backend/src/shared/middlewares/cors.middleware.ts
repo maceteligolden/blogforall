@@ -35,7 +35,10 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction) 
   }
 
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, x-access-key-id, x-secret-key");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-access-key-id, x-secret-key, x-request-id, x-session-id, sentry-trace, baggage"
+  );
   res.header("Access-Control-Allow-Credentials", "true");
 
   if (req.method === "OPTIONS") {

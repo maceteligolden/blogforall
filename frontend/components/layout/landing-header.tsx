@@ -21,9 +21,6 @@ export function LandingHeader() {
             >
               Features
             </Link>
-            <Link href="/pricing" className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline">
-              Pricing
-            </Link>
             <Link href="/docs" className="text-sm text-gray-400 hover:text-white transition-colors">
               Docs
             </Link>

@@ -15,7 +15,7 @@ export interface User extends BaseEntity {
   resetPasswordExpires?: Date;
   resetPasswordAttempts?: number;
   stripe_customer_id?: string; // Stripe customer ID for payment processing
-  onboarding_completed: boolean; // Whether user has completed onboarding (card + plan)
+  onboarding_completed: boolean; // Whether initial account setup is complete (free plan assigned)
   terms_accepted_at?: Date; // When user accepted terms at signup (audit)
   terms_version?: string; // Terms version accepted (e.g. "2025-01") for audit
 }

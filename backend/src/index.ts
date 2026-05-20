@@ -1,6 +1,6 @@
 import "reflect-metadata";
+import "./instrument";
 import express from "express";
-import "dotenv/config";
 import path from "path";
 import { connectDatabase } from "./shared/database";
 import { logger } from "./shared/utils/logger";
@@ -17,7 +17,9 @@ import { MemoryDigestService } from "./modules/orchestrator/services/memory-dige
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
 import { corsMiddleware } from "./shared/middlewares/cors.middleware";
+import { requestContextMiddleware } from "./shared/middlewares/request-context.middleware";
 import { backfillSitePublicIds } from "./shared/utils/backfill-site-public-ids";
+import { setupExpressErrorHandler, isSentryEnabled } from "./shared/observability/sentry";
 
 const app = express();
 const PORT = env.port;
@@ -25,7 +27,8 @@ const PORT = env.port;
 // Serve uploaded images statically (before other middlewares to avoid conflicts)
 app.use("/uploads", express.static(path.join(process.cwd(), env.upload.dir)));
 
-// Middlewares
+// Middlewares — requestContext first for correlation (requestId, Sentry scope)
+app.use(requestContextMiddleware);
 app.use(requestLogger);
 
 // Webhook routes need raw body for Stripe signature verification
@@ -46,7 +49,11 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/v1", routes);
 
-// Error handler (must be last)
+if (isSentryEnabled()) {
+  setupExpressErrorHandler(app);
+}
+
+// Custom error handler (must be last)
 app.use(errorHandler);
 
 // Start server

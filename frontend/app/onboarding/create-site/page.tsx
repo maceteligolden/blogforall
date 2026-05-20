@@ -14,6 +14,8 @@ import { TokenExhaustionProvider } from "@/components/usage/token-exhaustion-pro
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { workspaceTracker } from "@/lib/analytics/flows/workspace.tracker";
+import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 
 type WizardStep = "details" | "chat";
 
@@ -41,6 +43,8 @@ export default function CreateSitePage() {
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [error, setError] = useState<string>("");
+
+  useOnboardingDropoff(step === "chat" ? "orchestrator_chat" : "workspace_details");
 
   // If we land here with an existing onboarding-state workspace, resume the chat.
   const { data: sites } = useQuery({
@@ -82,6 +86,7 @@ export default function CreateSitePage() {
       setError("Site name is required");
       return;
     }
+    workspaceTracker.creationStarted();
     createSiteMutation.mutate({
       name: name.trim(),
       description: description.trim() || undefined,

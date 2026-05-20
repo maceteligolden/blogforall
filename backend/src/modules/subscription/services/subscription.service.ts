@@ -9,6 +9,7 @@ import { SUBSCRIPTION_CONSTANTS } from "../../../shared/constants/subscription.c
 import User from "../../../shared/schemas/user.schema";
 import { CardRepository } from "../../billing/repositories/card.repository";
 import { isCardExpired } from "../../../shared/utils/card.util";
+import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 
 @injectable()
 export class SubscriptionService {
@@ -53,16 +54,40 @@ export class SubscriptionService {
   }
 
   /**
-   * Create free subscription for new user
+   * Resolve the free tier plan (lowest price active plan).
    */
-  async createFreeSubscription(userId: string): Promise<Subscription> {
+  async getFreePlan(): Promise<Plan> {
     const plans = await this.planRepository.fetchActivePlans();
     if (!plans || plans.length === 0) {
       throw new NotFoundError("No active plans found. Please create a plan first.");
     }
+    const sortedPlans = [...plans].sort((a, b) => a.price - b.price);
+    return sortedPlans[0];
+  }
 
-    const sortedPlans = plans.sort((a, b) => a.price - b.price);
-    const defaultPlan = sortedPlans[0];
+  private isFreePlan(plan: Plan): boolean {
+    return plan.price === 0 || plan.interval === "free";
+  }
+
+  private assertPaidPlansDisabled(plan: Plan): void {
+    if (!this.isFreePlan(plan)) {
+      throw new BadRequestError("Plan changes are not available. All accounts use the free plan.");
+    }
+  }
+
+  /**
+   * Plans visible to the user (free-only: current plan only).
+   */
+  async getPlansForUser(userId: string): Promise<Plan[]> {
+    const { plan } = await this.getActiveSubscription(userId);
+    return [plan];
+  }
+
+  /**
+   * Create free subscription for new user
+   */
+  async createFreeSubscription(userId: string): Promise<Subscription> {
+    const defaultPlan = await this.getFreePlan();
 
     const now = new Date();
     const TIME_IN_MS = SUBSCRIPTION_CONSTANTS.FREE_PLAN_DURATION_DAYS * 24 * 60 * 60 * 1000;
@@ -81,13 +106,7 @@ export class SubscriptionService {
    * Downgrade subscription to free plan
    */
   async downgradeToFree(subscriptionId: string): Promise<void> {
-    const plans = await this.planRepository.fetchActivePlans();
-    if (!plans || plans.length === 0) {
-      throw new NotFoundError("No active plans found.");
-    }
-
-    const sortedPlans = plans.sort((a, b) => a.price - b.price);
-    const defaultPlan = sortedPlans[0];
+    const defaultPlan = await this.getFreePlan();
 
     const now = new Date();
     const TIME_IN_MS = SUBSCRIPTION_CONSTANTS.FREE_PLAN_DURATION_DAYS * 24 * 60 * 60 * 1000;
@@ -129,13 +148,27 @@ export class SubscriptionService {
       throw new NotFoundError("Plan not found or inactive");
     }
 
+    this.assertPaidPlansDisabled(newPlan);
+
+    const previousPlan = await this.planRepository.findById(subscription.planId);
+    const previousPlanName = previousPlan?.name ?? subscription.planId;
+
     if (subscription.planId === newPlanId) {
       throw new BadRequestError("You are already on this plan");
     }
 
     // If changing to free plan
     if (newPlan.interval === "free" || newPlan.price === 0) {
-      return await this.downgradeToFreePlan(userId, subscription._id!);
+      const downgraded = await this.downgradeToFreePlan(userId, subscription._id!);
+      captureServerEvent(ServerAnalyticsEvents.SUBSCRIPTION_CHANGED, {
+        userId,
+        properties: {
+          previous_plan: previousPlanName,
+          new_plan: newPlan.name,
+          plan_id: newPlanId,
+        },
+      });
+      return downgraded;
     }
 
     // If current plan is free, need to create Stripe subscription
@@ -218,6 +251,14 @@ export class SubscriptionService {
       if (!updated) {
         throw new NotFoundError("Subscription not found");
       }
+      captureServerEvent(ServerAnalyticsEvents.SUBSCRIPTION_CHANGED, {
+        userId,
+        properties: {
+          previous_plan: previousPlanName,
+          new_plan: newPlan.name,
+          plan_id: newPlanId,
+        },
+      });
       return updated;
     }
 
@@ -270,6 +311,16 @@ export class SubscriptionService {
     if (!updated) {
       throw new NotFoundError("Subscription not found");
     }
+
+    captureServerEvent(ServerAnalyticsEvents.SUBSCRIPTION_CHANGED, {
+      userId,
+      properties: {
+        previous_plan: previousPlanName,
+        new_plan: newPlan.name,
+        plan_id: newPlanId,
+      },
+    });
+
     return updated;
   }
 
@@ -282,24 +333,7 @@ export class SubscriptionService {
       throw new NotFoundError("Subscription not found");
     }
 
-    if (subscription.status === SubscriptionStatus.FREE) {
-      throw new BadRequestError("Cannot cancel free subscription");
-    }
-
-    if (subscription.providerSubscriptionId) {
-      // Set cancel_at_period_end in Stripe (don't cancel immediately)
-      await this.stripeFacade.setCancelAtPeriodEnd(subscription.providerSubscriptionId, true);
-    }
-
-    // Update to cancel at period end
-    const updated = await this.subscriptionRepository.update(subscription._id!, {
-      cancelAtPeriodEnd: true,
-      // Don't change status to CANCELLED yet - it's still active until period end
-    });
-    if (!updated) {
-      throw new NotFoundError("Subscription not found");
-    }
-    return updated;
+    throw new BadRequestError("Subscription cancellation is not available. All accounts use the free plan.");
   }
 
   /**
@@ -334,9 +368,7 @@ export class SubscriptionService {
    * Downgrade to free plan
    */
   private async downgradeToFreePlan(_userId: string, subscriptionId: string): Promise<Subscription> {
-    const plans = await this.planRepository.fetchActivePlans();
-    const sortedPlans = plans.sort((a, b) => a.price - b.price);
-    const freePlan = sortedPlans[0];
+    const freePlan = await this.getFreePlan();
 
     // Cancel Stripe subscription if exists
     const subscription = await this.subscriptionRepository.findById(subscriptionId);

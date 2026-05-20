@@ -2,15 +2,33 @@ import { Request, Response, NextFunction } from "express";
 import { AppError, AiConcurrencyError, TokenLimitExceededError } from "../errors";
 import { HttpStatus } from "../constants";
 import { env } from "../config/env";
-import { logger } from "../utils/logger";
+import { AppLogger } from "../observability/logger";
+import { captureSentryException } from "../observability/sentry";
+import { getRequestIdFromContext } from "../observability/request-context";
 
 export const errorHandler = (error: Error | AppError, req: Request, res: Response, _next: NextFunction): void => {
+  const requestId = getRequestIdFromContext(req);
+  const baseMeta = { path: req.path, method: req.method, requestId };
+
   if (error instanceof AppError) {
     if (error.statusCode === HttpStatus.UNAUTHORIZED) {
-      logger.warn(error.message, { path: req.path, method: req.method }, "ErrorHandler");
+      AppLogger.warn(error.message, baseMeta, "ErrorHandler");
+    } else if (error instanceof TokenLimitExceededError || error instanceof AiConcurrencyError) {
+      AppLogger.warn(error.message, { ...baseMeta, code: error.code }, "ErrorHandler");
     } else {
-      logger.error(error.message, error, { path: req.path, method: req.method }, "ErrorHandler");
+      AppLogger.error(error.message, error, baseMeta, "ErrorHandler");
     }
+
+    if (!(error instanceof TokenLimitExceededError) && !(error instanceof AiConcurrencyError)) {
+      if (error.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+        captureSentryException(error, {
+          level: "error",
+          tags: { requestId: requestId ?? "unknown" },
+          extra: baseMeta,
+        });
+      }
+    }
+
     const body: Record<string, unknown> = {
       message: error.message,
       ...(!env.isProduction && { stack: error.stack }),
@@ -22,14 +40,26 @@ export const errorHandler = (error: Error | AppError, req: Request, res: Respons
     if (error instanceof AiConcurrencyError) {
       body.code = error.code;
     }
+    if (requestId) {
+      body.request_id = requestId;
+    }
     res.status(error.statusCode).json(body);
     return;
   }
 
-  // Unknown errors
-  logger.error("Unhandled error", error, { path: req.path, method: req.method }, "ErrorHandler");
+  AppLogger.critical("Unhandled error", error, baseMeta, "ErrorHandler");
+
+  if (!res.headersSent) {
+    captureSentryException(error, {
+      level: "fatal",
+      tags: { requestId: requestId ?? "unknown" },
+      extra: baseMeta,
+    });
+  }
+
   res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
     message: "Internal server error",
+    ...(requestId ? { request_id: requestId } : {}),
     ...(!env.isProduction && { stack: error.stack }),
   });
 };

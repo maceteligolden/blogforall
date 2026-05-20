@@ -27,6 +27,10 @@ import {
   type SerializedApproval,
   type SupervisorDecision,
 } from "../interfaces/orchestrator.interface";
+import {
+  captureServerEvent,
+  ServerAnalyticsEvents,
+} from "../../../shared/analytics/posthog.server";
 
 interface BaseTurnInput {
   siteId: string;
@@ -323,6 +327,10 @@ export class OrchestratorService {
       await this.completeOnboarding(siteId, userId, thread, decision);
       onboardingCompleted = true;
       workspaceStatus = "active";
+      captureServerEvent(ServerAnalyticsEvents.WORKSPACE_ONBOARDING_COMPLETED, {
+        userId,
+        workspaceId: siteId,
+      });
     }
 
     const assistant = await this.messageRepository.create({

@@ -7,6 +7,8 @@ import {
   SessionRefreshFailedError,
   shouldSkipProactiveTokenRefresh,
 } from "./token-refresh";
+import { getCorrelationHeaders } from "../observability/request-headers";
+import { captureApiError } from "../observability/capture-api-error";
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_CONFIG.baseURL,
@@ -29,8 +31,13 @@ apiClient.interceptors.request.use(
     }
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (config.headers) {
+      const correlation = getCorrelationHeaders();
+      config.headers["X-Request-Id"] = correlation["X-Request-Id"];
+      config.headers["X-Session-Id"] = correlation["X-Session-Id"];
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
 
     return config;
@@ -87,6 +94,11 @@ apiClient.interceptors.response.use(
         return Promise.reject(refreshError);
       }
     }
+
+    captureApiError(error, {
+      url: originalRequest?.url,
+      method: originalRequest?.method?.toUpperCase(),
+    });
 
     return Promise.reject(error);
   }

@@ -39,6 +39,7 @@ import type { BlogGenerationFormParams } from "@/lib/utils/blog-ai-generation-pa
 import { formParamsToGenerationHints, mergePromptAnalysisWithForm } from "@/lib/utils/blog-generation-form";
 import { Sparkles, PenTool, Save, Trash2, RotateCcw, Undo2, Keyboard, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
+import { generationTracker } from "@/lib/analytics/flows/generation.tracker";
 
 type BlogCreationMode = "write" | "ai-generate";
 
@@ -96,6 +97,22 @@ export default function NewBlogPage() {
     mode === "write" && hasTitle(formData.title) && hasBodyContent(formData);
   const canReviewForm = hasTitle(formData.title) && hasBodyContent(formData);
 
+  useEffect(() => {
+    generationTracker.viewed();
+  }, []);
+
+  useEffect(() => {
+    const onLeave = () => {
+      if (isAnalyzing || isGenerating) {
+        generationTracker.abandoned({
+          stage: generationStage === "generating" ? "generate" : "analyze",
+        });
+      }
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [isAnalyzing, isGenerating, generationStage]);
+
   const getContentHtml = () =>
     formData.content_blocks != null && formData.content_blocks.length > 0
       ? blocksToHtml(formData.content_blocks)
@@ -132,6 +149,7 @@ export default function NewBlogPage() {
 
   const handleConfirmGeneration = async (confirmedAnalysis: PromptAnalysis) => {
     setShowConfirmation(false);
+    generationTracker.confirmed({ generation_type: "ai-generate" });
     setShowProgress(true);
     setGenerationStage("generating"); // Skip analyzing stage since it's already done
 
@@ -199,6 +217,8 @@ export default function NewBlogPage() {
       setPromptError("Cannot regenerate without a valid prompt and analysis");
       return;
     }
+
+    generationTracker.retry({ is_retry: true });
 
     // Store current content as backup before regenerating
     if (formData.title || formData.content || formData.content_blocks?.length) {
@@ -527,6 +547,11 @@ export default function NewBlogPage() {
       const createPayload = willScheduleLater ? { ...blogData, status: "draft" as const } : blogData;
       createBlog.mutate(createPayload, {
         onSuccess: async (response) => {
+          if (formData.status === "published") {
+            generationTracker.blogPublished();
+          } else {
+            generationTracker.blogSaved();
+          }
           const blogId = response.data?.data?._id || response.data?._id;
           if (blogId && willScheduleLater && scheduled_at) {
             try {
@@ -603,7 +628,10 @@ export default function NewBlogPage() {
             </button>
             <button
               type="button"
-              onClick={() => setMode("ai-generate")}
+              onClick={() => {
+                setMode("ai-generate");
+                generationTracker.typeSelected({ generation_type: "ai-generate" });
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
                 mode === "ai-generate"
                   ? "bg-purple-600 text-white"

@@ -7,6 +7,7 @@ import { Loader2, CreditCard } from "lucide-react";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { loadStripe, StripeElementsOptions } from "@stripe/stripe-js";
 import { BillingService } from "@/lib/api/services/billing.service";
+import { billingTracker } from "@/lib/analytics/flows/billing.tracker";
 import { useToast } from "@/components/ui/toast";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
@@ -71,6 +72,8 @@ function AddCardForm({
       if (setupIntent?.status === "succeeded" && setupIntent.payment_method) {
         // Confirm the card on the backend
         await BillingService.confirmCard(setupIntent.payment_method as string);
+
+        billingTracker.paymentMethodAdded();
 
         toast({
           title: "Success",

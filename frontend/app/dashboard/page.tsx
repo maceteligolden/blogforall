@@ -3,9 +3,9 @@
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useBlogs } from "@/lib/hooks/use-blog";
 import { useApiKeys } from "@/lib/hooks/use-api-key";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useQuery } from "@tanstack/react-query";
 import { SubscriptionService } from "@/lib/api/services/subscription.service";
@@ -26,11 +26,6 @@ export default function DashboardPage() {
 
   const activePlanName =
     subscriptionData?.plan?.name ?? user?.plan ?? "Free";
-  const isFreePlan =
-    subscriptionData?.plan?.price === 0 ||
-    subscriptionData?.plan?.interval === "free" ||
-    subscriptionData?.subscription?.status === "free";
-
   const isLoading = authLoading || blogsLoading || keysLoading;
   const blogsList = Array.isArray(blogs) ? blogs : [];
   const totalBlogs = blogsList.length;
@@ -56,26 +51,6 @@ export default function DashboardPage() {
         
         {/* Main Content */}
         <main className="py-8">
-          {/* Free Plan Banner */}
-          {isFreePlan && (
-            <div className="mb-8 bg-gradient-to-r from-primary/20 to-blue-900/20 border border-primary/30 rounded-lg p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-white mb-1">You&apos;re on the Free Plan</h3>
-                  <p className="text-sm text-gray-300">
-                    Upgrade to unlock more features, higher limits, and priority support. Choose a plan that fits your needs.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => router.push("/dashboard/subscription")}
-                  className="bg-primary hover:bg-primary/90 text-white whitespace-nowrap"
-                >
-                  Upgrade Plan
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Welcome Section */}
           <div className="mb-12">
             <h2 className="text-4xl font-display mb-2 tracking-tight">Welcome back, {user?.first_name}!</h2>

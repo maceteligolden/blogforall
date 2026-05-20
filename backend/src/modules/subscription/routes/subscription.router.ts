@@ -8,7 +8,7 @@ import { changePlanBodySchema } from "../validations/subscription.validation";
 const router = Router();
 const subscriptionController = container.resolve(SubscriptionController);
 
-router.get("/plans", subscriptionController.getPlans);
+router.get("/plans", authMiddleware, subscriptionController.getPlans);
 router.get("/", authMiddleware, subscriptionController.getSubscription);
 router.post("/change-plan", authMiddleware, validateBody(changePlanBodySchema), subscriptionController.changePlan);
 router.post("/cancel", authMiddleware, subscriptionController.cancelSubscription);

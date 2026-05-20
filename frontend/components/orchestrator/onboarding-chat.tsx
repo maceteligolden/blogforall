@@ -8,6 +8,7 @@ import type { ChatTurnResponse } from "@/lib/api/types/orchestrator.types";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
 import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
+import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 import { ChatInput } from "./chat-input";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
@@ -72,6 +73,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
     };
     setMessages((prev) => [...prev, userMsg]);
     setIsSending(true);
+    onboardingTracker.stepCompleted({ step: "chat_message", onboarding_type: "workspace_setup" });
     try {
       const res: ChatTurnResponse = await OrchestratorService.onboardingChat(siteId, text);
       const newMessages: UIMessage[] = [];
@@ -90,6 +92,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
       });
       setMessages((prev) => [...prev, ...newMessages]);
       if (res.onboarding_completed) {
+        onboardingTracker.workspaceOnboardingCompleted({ onboarding_type: "workspace_setup" });
         // The workspace just flipped from "onboarding" to "active" on the backend.
         // Invalidate the cached sites list and onboarding-status query so the
         // DashboardLayout gate sees the fresh status the next time it mounts;

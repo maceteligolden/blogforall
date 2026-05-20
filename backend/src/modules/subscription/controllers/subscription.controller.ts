@@ -22,9 +22,10 @@ export class SubscriptionController {
     }
   };
 
-  getPlans = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getPlans = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const plans = await this.subscriptionService.getActivePlans();
+      const userId = getJwtUserId(req);
+      const plans = await this.subscriptionService.getPlansForUser(userId);
       sendSuccess(res, "Plans retrieved successfully", plans);
     } catch (error) {
       next(error);

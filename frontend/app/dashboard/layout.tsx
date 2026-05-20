@@ -62,9 +62,12 @@ export default function DashboardLayout({
       return;
     }
 
-    // First check onboarding
     if (onboardingStatus?.requiresOnboarding) {
-      router.push("/onboarding");
+      void OnboardingService.skip()
+        .catch(() => undefined)
+        .finally(() => {
+          router.replace("/onboarding/create-site");
+        });
       return;
     }
 

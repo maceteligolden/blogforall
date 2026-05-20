@@ -134,7 +134,7 @@ export class PostSchedulerService {
     const scheduledPost = await this.scheduledPostRepository.findById(scheduledPostId);
 
     if (!scheduledPost) {
-      logger.error(`Scheduled post not found: ${scheduledPostId}`, {}, "PostSchedulerService");
+      logger.error(`Scheduled post not found: ${scheduledPostId}`, undefined, {}, "PostSchedulerService");
       return;
     }
 
@@ -168,6 +168,7 @@ export class PostSchedulerService {
       );
       logger.error(
         `Scheduled post ${scheduledPostId} exceeded max retry attempts`,
+        undefined,
         {},
         "PostSchedulerService"
       );

@@ -1,7 +1,10 @@
 import { injectable } from "tsyringe";
 import { randomUUID } from "crypto";
 import { env } from "../../../shared/config/env";
-import { logger } from "../../../shared/utils/logger";
+import { AppLogger } from "../../../shared/observability/logger";
+import { ObservabilityFlow } from "../../../shared/observability/flows";
+import { logTokenEvent } from "../../../shared/observability/token-events";
+import { getRequestIdFromContext } from "../../../shared/observability/request-context";
 import {
   TokenLedgerEntryStatus,
   TOKEN_WINDOW_MS,
@@ -105,8 +108,15 @@ export class TokenEnforcementService {
       );
     }
 
-    const requestId = args.requestId ?? randomUUID();
+    const requestId = args.requestId ?? getRequestIdFromContext() ?? randomUUID();
     const estimatedTokens = this.estimationService.estimate(args.estimate);
+    logTokenEvent("token_estimate_calculated", {
+      userId: args.userId,
+      requestId,
+      feature: args.feature,
+      siteId: args.siteId,
+      estimatedTokens,
+    });
     const startedAt = Date.now();
 
     const existing = await this.ledgerRepository.findEntryByRequestId(requestId);
@@ -161,10 +171,14 @@ export class TokenEnforcementService {
         durationMs: Date.now() - startedAt,
         errorMessage: error instanceof Error ? error.message : String(error),
       }).catch((finalizeErr) => {
-        logger.error(
+        AppLogger.critical(
           "Token finalize after failure errored",
           finalizeErr as Error,
-          { requestId, userId: args.userId },
+          {
+            flow: ObservabilityFlow.TOKEN_RECONCILE,
+            requestId,
+            userId: args.userId,
+          },
           "TokenEnforcementService"
         );
       });
@@ -214,6 +228,11 @@ export class TokenEnforcementService {
         now.getTime() >= ledger.window_start.getTime() + windowMs;
 
       if (windowExpired) {
+        logTokenEvent("token_window_reset", {
+          userId: args.userId,
+          requestId: args.requestId,
+          allocation,
+        });
         ledger = (await this.ledgerRepository.updateLedger(
           args.userId,
           {
@@ -268,6 +287,15 @@ export class TokenEnforcementService {
 
       if (args.estimatedTokens > available) {
         const resetAt = new Date(ledger.window_start.getTime() + windowMs);
+        logTokenEvent("token_rejected", {
+          userId: args.userId,
+          requestId: args.requestId,
+          feature: args.feature,
+          estimatedTokens: args.estimatedTokens,
+          availableTokens: available,
+          usedTokens: used,
+          reservedTokens: reserved,
+        });
         throw new TokenLimitExceededError(
           "Token limit reached. Try again after your daily window resets.",
           resetAt
@@ -314,6 +342,13 @@ export class TokenEnforcementService {
         },
         session
       );
+    });
+
+    logTokenEvent("token_reserved", {
+      userId: args.userId,
+      requestId: args.requestId,
+      feature: args.feature,
+      estimatedTokens: args.estimatedTokens,
     });
   }
 
@@ -373,22 +408,35 @@ export class TokenEnforcementService {
       );
     });
 
-    logger.info(
-      "Token ledger finalized",
-      {
-        component: "token-ledger",
-        event: "token_ledger_finalized",
+    if (args.success) {
+      logTokenEvent("token_reconciled", {
         userId: args.userId,
         requestId: args.requestId,
-        estimated: args.reservedTokens,
-        reserved: args.reservedTokens,
-        actual,
+        reservedTokens: args.reservedTokens,
+        actualTokens: actual,
         delta,
         durationMs: args.durationMs,
-        success: args.success,
-      },
-      "TokenEnforcementService"
-    );
+      });
+      if (delta < 0) {
+        logTokenEvent("token_refund_applied", {
+          userId: args.userId,
+          requestId: args.requestId,
+          refundTokens: -delta,
+        });
+      }
+    } else {
+      AppLogger.critical(
+        "Token reconciliation failed",
+        args.errorMessage ? new Error(args.errorMessage) : undefined,
+        {
+          flow: ObservabilityFlow.TOKEN_RECONCILE,
+          userId: args.userId,
+          requestId: args.requestId,
+          actualTokens: actual,
+        },
+        "TokenEnforcementService"
+      );
+    }
   }
 
   /** Mark nested tool execution so child LLM calls bill to parent ALS context. */

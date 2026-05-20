@@ -117,7 +117,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
           } catch (stripeError) {
             logger.warn(
               `Failed to create Stripe product/price for ${planData.name}, creating plan without Stripe`,
-              stripeError as Error,
+              { err: stripeError instanceof Error ? stripeError.message : String(stripeError) },
               "PlanSeeder"
             );
           }

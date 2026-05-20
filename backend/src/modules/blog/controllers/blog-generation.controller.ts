@@ -10,7 +10,11 @@ import type { PromptAnalysis } from "../services/blog-generation.service";
 import { assertBlogAiRateLimit } from "../../../shared/utils/blog-ai-rate-limit";
 import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
 import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
-import { getRequestIdFromHeaders } from "../../../shared/utils/request-id";
+import {
+  getRequestIdFromContext,
+  setRequestContextFlow,
+} from "../../../shared/observability/request-context";
+import { ObservabilityFlow } from "../../../shared/observability/flows";
 import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant";
 import type { BlogUserGenerationParams } from "../ai/types";
 import { blogGenerationAnalyzeBodySchema, blogGenerationBodySchema } from "../validations/blog-route.validation";
@@ -99,6 +103,7 @@ export class BlogGenerationController {
 
   analyzePrompt = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      setRequestContextFlow(ObservabilityFlow.BLOG_GENERATION);
       const userId = getJwtUserId(req);
       assertBlogAiRateLimit(userId);
       const body = req.validatedBody as AnalyzeBody;
@@ -107,7 +112,7 @@ export class BlogGenerationController {
       const analysis = await this.tokenEnforcement.runWithReservation({
         userId,
         feature: TokenLedgerFeature.BLOG_ANALYZE,
-        requestId: getRequestIdFromHeaders(req),
+        requestId: getRequestIdFromContext(req),
         estimate: {
           feature: TokenLedgerFeature.BLOG_ANALYZE,
           promptText: prompt,
@@ -123,6 +128,7 @@ export class BlogGenerationController {
 
   generateBlog = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      setRequestContextFlow(ObservabilityFlow.BLOG_GENERATION);
       const userId = getJwtUserId(req);
       assertBlogAiRateLimit(userId);
       const body = req.validatedBody as GenerateBody;
@@ -135,7 +141,7 @@ export class BlogGenerationController {
       const full = await this.tokenEnforcement.runWithReservation({
         userId,
         feature: TokenLedgerFeature.BLOG_GENERATE,
-        requestId: getRequestIdFromHeaders(req),
+        requestId: getRequestIdFromContext(req),
         estimate: {
           feature: TokenLedgerFeature.BLOG_GENERATE,
           promptText: trimmedPrompt,
@@ -184,6 +190,7 @@ export class BlogGenerationController {
    */
   generateBlogStream = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      setRequestContextFlow(ObservabilityFlow.BLOG_GENERATION);
       const userId = getJwtUserId(req);
       assertBlogAiRateLimit(userId);
       const body = req.validatedBody as GenerateBody;
@@ -194,7 +201,7 @@ export class BlogGenerationController {
       await this.tokenEnforcement.runWithReservation({
         userId,
         feature: TokenLedgerFeature.BLOG_GENERATE,
-        requestId: getRequestIdFromHeaders(req),
+        requestId: getRequestIdFromContext(req),
         estimate: {
           feature: TokenLedgerFeature.BLOG_GENERATE,
           promptText: trimmedPrompt,

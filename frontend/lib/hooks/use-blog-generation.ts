@@ -8,12 +8,16 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
 import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
+import { generationTracker } from "@/lib/analytics/flows/generation.tracker";
+import { extractApiErrorCode } from "@/lib/analytics/extract-error-code";
 
 export function useBlogGeneration() {
   const { toast } = useToast();
   const invalidateTokenUsage = useInvalidateTokenUsage();
   const { showFromError } = useTokenExhaustion();
   const abortControllerRef = useRef<AbortController | null>(null);
+  const analyzeStartedAtRef = useRef<number | null>(null);
+  const generateStartedAtRef = useRef<number | null>(null);
 
   const analyzePromptMutation = useMutation({
     mutationFn: ({
@@ -46,6 +50,13 @@ export function useBlogGeneration() {
       if (err?.name === "AbortError" || err?.code === "ERR_CANCELED") {
         return;
       }
+      const duration_ms =
+        analyzeStartedAtRef.current != null ? Date.now() - analyzeStartedAtRef.current : undefined;
+      generationTracker.failed({
+        stage: "analyze",
+        error_code: extractApiErrorCode(error),
+        duration_ms,
+      });
       if (showFromError(error)) {
         invalidateTokenUsage();
         return;
@@ -69,8 +80,17 @@ export function useBlogGeneration() {
       analysis?: PromptAnalysis;
       signal?: AbortSignal;
     }) => BlogGenerationService.generateBlog(prompt, analysis, signal),
-    onSuccess: () => {
+    onSuccess: (response) => {
       invalidateTokenUsage();
+      const duration_ms =
+        generateStartedAtRef.current != null ? Date.now() - generateStartedAtRef.current : 0;
+      const content = response?.data?.data?.content?.content;
+      const wordCount = content?.split(/\s+/).filter(Boolean).length;
+      generationTracker.success({
+        stage: "generate",
+        duration_ms,
+        word_count: wordCount,
+      });
       toast({
         title: "Success",
         description: "Blog content generated successfully",
@@ -82,6 +102,13 @@ export function useBlogGeneration() {
       if (err?.name === "AbortError" || err?.code === "ERR_CANCELED") {
         return;
       }
+      const duration_ms =
+        generateStartedAtRef.current != null ? Date.now() - generateStartedAtRef.current : undefined;
+      generationTracker.failed({
+        stage: "generate",
+        error_code: extractApiErrorCode(error),
+        duration_ms,
+      });
       if (showFromError(error)) {
         invalidateTokenUsage();
         return;
@@ -116,6 +143,8 @@ export function useBlogGeneration() {
   ): Promise<PromptAnalysis> => {
     cancelRequest();
     abortControllerRef.current = new AbortController();
+    analyzeStartedAtRef.current = Date.now();
+    generationTracker.started({ stage: "analyze", prompt_length: prompt.length });
     const response = await analyzePromptMutation.mutateAsync({
       prompt,
       signal: abortControllerRef.current.signal,
@@ -127,6 +156,8 @@ export function useBlogGeneration() {
   const generateBlog = async (prompt: string, analysis?: PromptAnalysis): Promise<GenerateBlogResponse> => {
     cancelRequest();
     abortControllerRef.current = new AbortController();
+    generateStartedAtRef.current = Date.now();
+    generationTracker.started({ stage: "generate", prompt_length: prompt.length });
     const response = await generateBlogMutation.mutateAsync({
       prompt,
       analysis,

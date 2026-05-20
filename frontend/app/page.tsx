@@ -35,15 +35,7 @@ export default function Home() {
               <>
                 <Link href="/auth/signup">
                   <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-base font-semibold rounded-lg shadow-lg shadow-primary/20">
-                    Start free trial
-                  </Button>
-                </Link>
-                <Link href="/pricing">
-                  <Button
-                    variant="outline"
-                    className="border border-gray-600 text-gray-300 hover:bg-gray-800/80 hover:text-white px-8 py-6 text-base font-medium rounded-lg"
-                  >
-                    View plans
+                    Start free
                   </Button>
                 </Link>
               </>
@@ -171,25 +163,14 @@ export default function Home() {
         <div className="relative max-w-3xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Try it free and publish with confidence</h2>
           <p className="text-gray-400 text-sm sm:text-base max-w-xl mx-auto mb-7">
-            Start with a focused workflow for generation, review, and campaign execution. Upgrade only when you are
-            ready.
+            Start with a focused workflow for generation, review, and campaign execution.
           </p>
           {!isAuthenticated ? (
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/auth/signup">
-                <Button className="bg-primary hover:bg-primary/90 text-white px-7 py-5 text-sm font-semibold rounded-lg shadow-lg shadow-primary/25 w-full sm:w-auto">
-                  Start free trial
-                </Button>
-              </Link>
-              <Link href="/pricing">
-                <Button
-                  variant="outline"
-                  className="border border-gray-600 text-gray-300 hover:bg-gray-800/80 hover:text-white px-7 py-5 text-sm rounded-lg w-full sm:w-auto"
-                >
-                  See pricing
-                </Button>
-              </Link>
-            </div>
+            <Link href="/auth/signup">
+              <Button className="bg-primary hover:bg-primary/90 text-white px-7 py-5 text-sm font-semibold rounded-lg shadow-lg shadow-primary/25 w-full sm:w-auto">
+                Start free
+              </Button>
+            </Link>
           ) : (
             <Link href="/dashboard">
               <Button className="bg-primary hover:bg-primary/90 text-white px-7 py-5 text-sm font-semibold rounded-lg shadow-lg shadow-primary/25">

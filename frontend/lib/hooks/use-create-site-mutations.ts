@@ -6,6 +6,7 @@ import { SiteService } from "@/lib/api/services/site.service";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { QUERY_KEYS } from "@/lib/api/config";
 import type { CreateSiteRequest, Site } from "@/lib/api/types/site.types";
+import { workspaceTracker } from "@/lib/analytics/flows/workspace.tracker";
 
 interface UseCreateSiteMutationsOptions {
   onError?: (message: string) => void;
@@ -29,6 +30,7 @@ export function useCreateSiteMutations(options: UseCreateSiteMutationsOptions = 
     onSuccess: async ({ site }) => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
       if (site) {
+        workspaceTracker.created({ workspace_name: site.name });
         updateSiteContext(site._id);
         if (onSiteReady) {
           onSiteReady(site);
@@ -47,6 +49,7 @@ export function useCreateSiteMutations(options: UseCreateSiteMutationsOptions = 
     mutationFn: (data: CreateSiteRequest) => SiteService.createSite(data),
     onSuccess: async (newSite) => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
+      workspaceTracker.created({ workspace_name: newSite.name });
       updateSiteContext(newSite._id);
       if (onSiteReady) {
         onSiteReady(newSite);
