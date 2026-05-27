@@ -14,6 +14,8 @@ import { PostSchedulerService } from "./modules/campaign/services/post-scheduler
 import { OrchestratorBootstrap } from "./modules/orchestrator/ai/bootstrap";
 import { WeeklyDigestService } from "./modules/orchestrator/services/weekly-digest.service";
 import { MemoryDigestService } from "./modules/orchestrator/services/memory-digest.service";
+import { CampaignProgressEmailService } from "./modules/campaign/services/campaign-progress-email.service";
+import { CampaignProgressReportCronService } from "./modules/campaign/services/campaign-progress-report-cron.service";
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
 import { corsMiddleware } from "./shared/middlewares/cors.middleware";
@@ -82,6 +84,12 @@ const startServer = async () => {
 
     const memoryDigest = container.resolve(MemoryDigestService);
     memoryDigest.start();
+
+    const campaignProgressReportCron = container.resolve(CampaignProgressReportCronService);
+    campaignProgressReportCron.start();
+
+    const campaignProgressEmail = container.resolve(CampaignProgressEmailService);
+    campaignProgressEmail.start();
 
     // Start the email notification queue worker only when Redis is configured
     if (isEmailQueueConnected) {

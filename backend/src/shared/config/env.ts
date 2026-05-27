@@ -60,6 +60,11 @@ export const env = {
     cronInterval: process.env.SCHEDULER_INTERVAL || "*/1 * * * *",
   },
 
+  campaign: {
+    progressReportCron: (process.env.CAMPAIGN_PROGRESS_REPORT_CRON || "0 7 * * *").trim(),
+    progressEmailCron: (process.env.CAMPAIGN_PROGRESS_EMAIL_CRON || "0 8 * * *").trim(),
+  },
+
   /**
    * Blog AI (LangGraph + OpenAI-compatible chat + optional Tavily search).
    * Use OPENAI_API_KEY or BLOG_AI_OPENAI_API_KEY.

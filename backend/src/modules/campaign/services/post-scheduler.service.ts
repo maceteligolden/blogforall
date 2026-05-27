@@ -4,7 +4,13 @@ import { ScheduledPostRepository } from "../repositories/scheduled-post.reposito
 import { CampaignRepository } from "../repositories/campaign.repository";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { BlogService } from "../../blog/services/blog.service";
-import { ScheduledPostStatus, CampaignStatus } from "../../../shared/constants/campaign.constant";
+import {
+  ScheduledPostStatus,
+  CampaignStatus,
+  CampaignLifecycleStatus,
+  CampaignPostItemStatus,
+} from "../../../shared/constants/campaign.constant";
+import { CampaignPostItemRepository } from "../repositories/campaign-post-item.repository";
 import { BlogStatus } from "../../../shared/constants";
 import { logger } from "../../../shared/utils/logger";
 import { env } from "../../../shared/config/env";
@@ -37,7 +43,8 @@ export class PostSchedulerService {
     private campaignRepository: CampaignRepository,
     private blogRepository: BlogRepository,
     private blogService: BlogService,
-    private prepareService: ScheduledPostPrepareService
+    private prepareService: ScheduledPostPrepareService,
+    private campaignPostItemRepository: CampaignPostItemRepository
   ) {}
 
   /**
@@ -154,6 +161,47 @@ export class PostSchedulerService {
         "PostSchedulerService"
       );
       return;
+    }
+
+    if (scheduledPost.campaign_id) {
+      const campaign = await this.campaignRepository.findById(
+        scheduledPost.campaign_id,
+        scheduledPost.site_id
+      );
+      const paused =
+        campaign?.lifecycle_status === CampaignLifecycleStatus.PAUSED ||
+        campaign?.status === CampaignStatus.PAUSED;
+      if (paused) {
+        logger.info(
+          "Skipping publish — campaign is paused",
+          { scheduledPostId, campaignId: scheduledPost.campaign_id },
+          "PostSchedulerService"
+        );
+        return;
+      }
+      const itemId = scheduledPost.metadata?.campaign_post_item_id as string | undefined;
+      if (itemId) {
+        const item = await this.campaignPostItemRepository.findById(
+          itemId,
+          scheduledPost.site_id
+        );
+        if (item?.dependencies?.length) {
+          for (const depId of item.dependencies) {
+            const dep = await this.campaignPostItemRepository.findById(
+              depId,
+              scheduledPost.site_id
+            );
+            if (dep && dep.status !== CampaignPostItemStatus.PUBLISHED) {
+              logger.info(
+                "Skipping publish — dependency not yet published",
+                { scheduledPostId, dependencyId: depId },
+                "PostSchedulerService"
+              );
+              return;
+            }
+          }
+        }
+      }
     }
 
     const now = new Date();

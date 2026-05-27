@@ -1,6 +1,9 @@
 import { injectable } from "tsyringe";
 import { z } from "zod";
 import { BlogService } from "../../../blog/services/blog.service";
+import { ScheduledPostRepository } from "../../../campaign/repositories/scheduled-post.repository";
+import { CampaignPostItemRepository } from "../../../campaign/repositories/campaign-post-item.repository";
+import { assertBlogNotCampaignImmediatePublish } from "../../../campaign/utils/campaign-publish-guard";
 import { OrchestratorApprovalKind } from "../../../../shared/schemas/orchestrator-approval.schema";
 import type {
   OrchestratorTool,
@@ -30,10 +33,20 @@ export class BlogPublishTool implements OrchestratorTool {
     "Publish a blog post immediately (no schedule). Destructive: confirmation is required.";
   requiresConfirmation = true;
   confirmationKind = OrchestratorApprovalKind.IN_CHAT_CONFIRMATION;
-  constructor(private readonly blogService: BlogService) {}
+  constructor(
+    private readonly blogService: BlogService,
+    private readonly scheduledPostRepository: ScheduledPostRepository,
+    private readonly campaignPostItemRepository: CampaignPostItemRepository
+  ) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(publishInputSchema, invocation.input, this.name);
+    await assertBlogNotCampaignImmediatePublish(
+      input.id,
+      invocation.siteId,
+      this.scheduledPostRepository,
+      this.campaignPostItemRepository
+    );
     const blog = await this.blogService.publishBlog(input.id, invocation.siteId, invocation.userId);
     return {
       summary: `Published '${blog.title}'.`,

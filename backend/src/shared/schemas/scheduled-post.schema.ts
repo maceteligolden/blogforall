@@ -21,6 +21,7 @@ export interface ScheduledPost extends BaseEntity {
     campaign_goal?: string; // Campaign goal context for generation
     target_audience?: string; // Target audience for generation
     content_theme?: string; // Content theme for this specific post
+    campaign_post_item_id?: string;
   };
   /**
    * Pre-publish review fields. Driven by the orchestrator's prepare/publish

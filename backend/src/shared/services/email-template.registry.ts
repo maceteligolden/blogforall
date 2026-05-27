@@ -103,6 +103,8 @@ function getSubjectForTemplate(key: EmailTemplateKey, params: Record<string, str
       const site = params.siteName ?? "your workspace";
       return `${count} post${count === "1" ? "" : "s"} need your review this week — ${site}`;
     }
+    case EMAIL_TEMPLATE_KEYS.CAMPAIGN_DAILY_PROGRESS_REPORT:
+      return `Campaign update: ${params.campaignName ?? "Campaign"} — ${params.reportDate ?? "today"}`;
     default:
       return "Notification";
   }
@@ -151,6 +153,12 @@ function getCodeBackedTemplate(key: EmailTemplateKey, _locale: string, params: R
         subject: getSubjectForTemplate(key, params),
         html: buildWeeklyDigestHtml(params),
         text: buildWeeklyDigestText(params),
+      };
+    case EMAIL_TEMPLATE_KEYS.CAMPAIGN_DAILY_PROGRESS_REPORT:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildCampaignProgressHtml(params),
+        text: buildCampaignProgressText(params),
       };
     default:
       return { subject: "Notification", text: "" };
@@ -368,6 +376,41 @@ You have ${postCount} post(s) scheduled on ${siteName} for ${weekOfLabel} that s
 ${postsText}
 
 Posts will not publish until you approve them.`;
+}
+
+function buildCampaignProgressHtml(params: Record<string, string>): string {
+  const campaignName = params.campaignName ?? "Campaign";
+  const narrative = params.narrativeSummary ?? "";
+  const highlights = params.highlights ?? "";
+  const risks = params.risks ?? "";
+  const ctaUrl = params.ctaUrl ?? "#";
+  const pct = params.percentComplete ?? "0";
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1>${escapeHtml(campaignName)} — daily progress</h1>
+  <p><strong>${escapeHtml(pct)}%</strong> complete. Health: ${escapeHtml(params.healthStatus ?? "unknown")}.</p>
+  <p>${escapeHtml(narrative)}</p>
+  ${highlights ? `<p><strong>Highlights:</strong> ${escapeHtml(highlights)}</p>` : ""}
+  ${risks ? `<p style="color:#b45309;"><strong>Attention:</strong> ${escapeHtml(risks)}</p>` : ""}
+  ${params.pendingCount && params.pendingCount !== "0" ? `<p>${escapeHtml(params.pendingCount)} post(s) awaiting your approval before publish.</p>` : ""}
+  <p><a href="${escapeHtml(ctaUrl)}" style="color:#2563eb;">View full report</a></p>
+</body>
+</html>`;
+}
+
+function buildCampaignProgressText(params: Record<string, string>): string {
+  return `${params.campaignName ?? "Campaign"} — ${params.reportDate ?? ""}
+
+${params.narrativeSummary ?? ""}
+
+Progress: ${params.percentComplete ?? "0"}%
+Highlights: ${params.highlights ?? "—"}
+Risks: ${params.risks ?? "—"}
+Pending approvals: ${params.pendingCount ?? "0"}
+
+View report: ${params.ctaUrl ?? ""}`;
 }
 
 function escapeHtml(s: string): string {

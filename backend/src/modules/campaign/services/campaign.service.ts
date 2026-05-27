@@ -10,7 +10,14 @@ import {
   CampaignWithStats,
 } from "../interfaces/campaign.interface";
 import { Campaign } from "../../../shared/schemas/campaign.schema";
-import { CampaignStatus, ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
+import {
+  CampaignStatus,
+  ScheduledPostStatus,
+  CampaignLifecycleStatus,
+  CampaignContentAutonomy,
+  CampaignPublishingMode,
+  CampaignApprovalPolicy,
+} from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
 
 @injectable()
@@ -38,6 +45,11 @@ export class CampaignService {
       user_id: userId,
       site_id: siteId,
       status: CampaignStatus.DRAFT,
+      lifecycle_status: CampaignLifecycleStatus.DRAFT,
+      content_autonomy: CampaignContentAutonomy.ASSISTED,
+      publishing_mode: CampaignPublishingMode.SCHEDULED_HITL,
+      approval_policy: CampaignApprovalPolicy.REQUIRE_PRE_PUBLISH_APPROVAL,
+      notifications: { daily_progress_email: true },
       timezone,
       posts_published: 0,
     });

@@ -22,6 +22,8 @@ export enum OrchestratorApprovalKind {
   SCHEDULED_POST_REVIEW = "scheduled_post_review",
   /** Campaign proposal awaiting confirmation before creation. */
   CAMPAIGN_PROPOSAL = "campaign_proposal",
+  /** Campaign content roadmap awaiting approval before activation. */
+  CAMPAIGN_ROADMAP_APPROVAL = "campaign_roadmap_approval",
 }
 
 /**

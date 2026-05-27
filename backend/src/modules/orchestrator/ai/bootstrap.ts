@@ -38,6 +38,14 @@ import {
   ScheduledListTool,
   ScheduledUpcomingThisWeekTool,
 } from "./tools/scheduled.tools";
+import {
+  CampaignListTool,
+  CampaignGetTool,
+  CampaignGenerateRoadmapTool,
+  CampaignGetProgressReportTool,
+  CampaignGetHealthTool,
+  CampaignScheduleAdditionalPostsTool,
+} from "./tools/campaign.tools";
 
 /**
  * Boots the orchestrator's tool surface. Called once from server startup
@@ -88,7 +96,13 @@ export class OrchestratorBootstrap {
     private readonly scheduledList: ScheduledListTool,
     private readonly scheduledGet: ScheduledGetTool,
     private readonly scheduledUpcomingThisWeek: ScheduledUpcomingThisWeekTool,
-    private readonly scheduledCancel: ScheduledCancelTool
+    private readonly scheduledCancel: ScheduledCancelTool,
+    private readonly campaignList: CampaignListTool,
+    private readonly campaignGet: CampaignGetTool,
+    private readonly campaignGenerateRoadmap: CampaignGenerateRoadmapTool,
+    private readonly campaignGetProgressReport: CampaignGetProgressReportTool,
+    private readonly campaignGetHealth: CampaignGetHealthTool,
+    private readonly campaignScheduleAdditionalPosts: CampaignScheduleAdditionalPostsTool
   ) {}
 
   registerAllTools(): void {
@@ -122,6 +136,12 @@ export class OrchestratorBootstrap {
       this.scheduledGet,
       this.scheduledUpcomingThisWeek,
       this.scheduledCancel,
+      this.campaignList,
+      this.campaignGet,
+      this.campaignGenerateRoadmap,
+      this.campaignGetProgressReport,
+      this.campaignGetHealth,
+      this.campaignScheduleAdditionalPosts,
     ];
     for (const tool of tools) {
       this.registry.register(tool);

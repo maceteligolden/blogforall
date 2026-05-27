@@ -45,6 +45,14 @@ export default function CampaignsPage() {
             <Button
               variant="outline"
               className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              onClick={() => router.push("/dashboard/campaigns/reports")}
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Daily reports
+            </Button>
+            <Button
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
               onClick={() => router.push("/dashboard/campaigns/templates")}
             >
               <Sparkles className="w-4 h-4 mr-2" />

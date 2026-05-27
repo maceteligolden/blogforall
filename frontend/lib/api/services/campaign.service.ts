@@ -275,4 +275,54 @@ export class CampaignService {
     const siteId = this.requireSiteId();
     return apiClient.get(API_ENDPOINTS.CAMPAIGNS.TEMPLATES.GET_BY_TYPE(siteId, type));
   }
+
+  static async planCampaign(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PLAN(siteId, id), null);
+  }
+
+  static async getRoadmap(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.ROADMAP(siteId, id));
+  }
+
+  static async approveRoadmap(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ROADMAP_APPROVE(siteId, id), null);
+  }
+
+  static async rejectRoadmap(id: string, reason?: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ROADMAP_REJECT(siteId, id), { reason });
+  }
+
+  static async getCampaignHealth(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.HEALTH(siteId, id));
+  }
+
+  static async getLatestProgressReport(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.PROGRESS_LATEST(siteId, id));
+  }
+
+  static async listProgressReports(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.PROGRESS_REPORTS(siteId, id));
+  }
+
+  static async generateProgressReport(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PROGRESS_GENERATE(siteId, id), null);
+  }
+
+  static async listCampaignEvents(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.EVENTS(siteId, id));
+  }
+
+  static async getSiteReportsInbox() {
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.REPORTS_INBOX(siteId));
+  }
 }

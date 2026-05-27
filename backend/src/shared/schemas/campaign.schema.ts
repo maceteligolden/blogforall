@@ -1,5 +1,14 @@
 import { Schema, model } from "mongoose";
-import { CampaignStatus, PostFrequency } from "../constants/campaign.constant";
+import {
+  CampaignStatus,
+  PostFrequency,
+  CampaignType,
+  CampaignLifecycleStatus,
+  CampaignHealthStatus,
+  CampaignContentAutonomy,
+  CampaignPublishingMode,
+  CampaignApprovalPolicy,
+} from "../constants/campaign.constant";
 import { BaseEntity } from "../interfaces";
 
 export interface Campaign extends BaseEntity {
@@ -10,6 +19,22 @@ export interface Campaign extends BaseEntity {
   goal: string; // Campaign goal (e.g., "Increase signups", "Product launch")
   target_audience?: string; // Target audience description
   status: CampaignStatus;
+  lifecycle_status?: CampaignLifecycleStatus;
+  campaign_type?: CampaignType;
+  health_status?: CampaignHealthStatus;
+  health_computed_at?: Date;
+  health_reasons?: string[];
+  content_autonomy?: CampaignContentAutonomy;
+  publishing_mode?: CampaignPublishingMode;
+  approval_policy?: CampaignApprovalPolicy;
+  primary_topics?: string[];
+  cta_strategy?: {
+    primary_cta?: string;
+    secondary_cta?: string;
+  };
+  notifications?: {
+    daily_progress_email?: boolean;
+  };
   start_date: Date;
   end_date: Date;
   posting_frequency: PostFrequency;
@@ -71,6 +96,48 @@ const campaignSchema = new Schema<Campaign>(
       enum: Object.values(CampaignStatus),
       default: CampaignStatus.DRAFT,
       index: true,
+    },
+    lifecycle_status: {
+      type: String,
+      enum: Object.values(CampaignLifecycleStatus),
+      default: CampaignLifecycleStatus.DRAFT,
+      index: true,
+    },
+    campaign_type: {
+      type: String,
+      enum: Object.values(CampaignType),
+      default: CampaignType.CUSTOM,
+    },
+    health_status: {
+      type: String,
+      enum: Object.values(CampaignHealthStatus),
+      default: CampaignHealthStatus.UNKNOWN,
+      index: true,
+    },
+    health_computed_at: { type: Date },
+    health_reasons: { type: [String], default: [] },
+    content_autonomy: {
+      type: String,
+      enum: Object.values(CampaignContentAutonomy),
+      default: CampaignContentAutonomy.ASSISTED,
+    },
+    publishing_mode: {
+      type: String,
+      enum: Object.values(CampaignPublishingMode),
+      default: CampaignPublishingMode.SCHEDULED_HITL,
+    },
+    approval_policy: {
+      type: String,
+      enum: Object.values(CampaignApprovalPolicy),
+      default: CampaignApprovalPolicy.REQUIRE_PRE_PUBLISH_APPROVAL,
+    },
+    primary_topics: { type: [String], default: [] },
+    cta_strategy: {
+      primary_cta: { type: String },
+      secondary_cta: { type: String },
+    },
+    notifications: {
+      daily_progress_email: { type: Boolean, default: true },
     },
     start_date: {
       type: Date,
@@ -161,20 +228,39 @@ const campaignSchema = new Schema<Campaign>(
 // Update updated_at before saving
 campaignSchema.pre("save", function (next) {
   this.updated_at = new Date();
-
-  // Auto-update status based on dates
-  const now = new Date();
-  if (this.status === CampaignStatus.ACTIVE) {
-    if (this.end_date < now) {
-      this.status = CampaignStatus.COMPLETED;
-    }
+  if (!this.lifecycle_status) {
+    this.lifecycle_status = legacyStatusToLifecycle(this.status);
   }
-
+  const now = new Date();
+  const activeLifecycle =
+    this.lifecycle_status === CampaignLifecycleStatus.ACTIVE ||
+    this.status === CampaignStatus.ACTIVE;
+  if (activeLifecycle && this.end_date < now) {
+    this.status = CampaignStatus.COMPLETED;
+    this.lifecycle_status = CampaignLifecycleStatus.COMPLETED;
+  }
   next();
 });
 
+function legacyStatusToLifecycle(status: CampaignStatus): CampaignLifecycleStatus {
+  switch (status) {
+    case CampaignStatus.ACTIVE:
+      return CampaignLifecycleStatus.ACTIVE;
+    case CampaignStatus.PAUSED:
+      return CampaignLifecycleStatus.PAUSED;
+    case CampaignStatus.COMPLETED:
+      return CampaignLifecycleStatus.COMPLETED;
+    case CampaignStatus.CANCELLED:
+      return CampaignLifecycleStatus.ARCHIVED;
+    default:
+      return CampaignLifecycleStatus.DRAFT;
+  }
+}
+
 // Indexes for efficient queries
 campaignSchema.index({ site_id: 1, user_id: 1, status: 1 });
+campaignSchema.index({ site_id: 1, lifecycle_status: 1 });
+campaignSchema.index({ site_id: 1, health_status: 1 });
 campaignSchema.index({ site_id: 1, status: 1, start_date: 1 });
 campaignSchema.index({ site_id: 1, start_date: 1, end_date: 1 });
 campaignSchema.index({ status: 1, start_date: 1, end_date: 1 }); // For scheduler queries

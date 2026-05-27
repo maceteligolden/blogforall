@@ -62,6 +62,10 @@ export const campaignListQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
+export const rejectRoadmapBodySchema = z.object({
+  reason: z.string().max(1000).optional(),
+});
+
 export const campaignDateRangeQuerySchema = z
   .object({
     start_date: z.coerce.date(),

@@ -23,6 +23,8 @@ export enum NotificationType {
   SCHEDULED_POST_REWORKED = "scheduled_post_reworked",
   /** Weekly digest of pending approvals across the workspace. */
   WEEKLY_REVIEW_DIGEST = "weekly_review_digest",
+  /** Daily campaign progress report for active initiatives. */
+  CAMPAIGN_DAILY_PROGRESS_REPORT = "campaign_daily_progress_report",
 }
 
 export enum NotificationStatus {
@@ -49,6 +51,7 @@ export const EMAIL_TEMPLATE_KEYS = {
   SCHEDULED_POST_REWORKED: "scheduled_post_reworked",
   /** Weekly digest of pending pre-publish approvals. */
   WEEKLY_REVIEW_DIGEST: "weekly_review_digest",
+  CAMPAIGN_DAILY_PROGRESS_REPORT: "campaign_daily_progress_report",
 } as const;
 
 export type EmailTemplateKey = (typeof EMAIL_TEMPLATE_KEYS)[keyof typeof EMAIL_TEMPLATE_KEYS];

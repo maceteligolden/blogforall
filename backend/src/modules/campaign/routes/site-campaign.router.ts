@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { container } from "tsyringe";
 import { CampaignController } from "../controllers/campaign.controller";
+import { CampaignFeatureController } from "../controllers/campaign-feature.controller";
 import { ScheduledPostController } from "../controllers/scheduled-post.controller";
 import { CampaignTemplateController } from "../controllers/campaign-template.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
@@ -11,6 +12,7 @@ const router = Router({ mergeParams: true });
 router.use(authMiddleware, validateParams(V.siteIdParamSchema));
 
 const campaignController = container.resolve(CampaignController);
+const campaignFeatureController = container.resolve(CampaignFeatureController);
 const scheduledPostController = container.resolve(ScheduledPostController);
 const templateController = container.resolve(CampaignTemplateController);
 
@@ -73,6 +75,40 @@ router.put(
 router.delete("/templates/:id", validateParams(V.templateIdParamSchema), templateController.delete);
 router.post("/templates/:id/activate", validateParams(V.templateIdParamSchema), templateController.activate);
 router.post("/templates/:id/deactivate", validateParams(V.templateIdParamSchema), templateController.deactivate);
+
+router.get("/reports/inbox", campaignFeatureController.siteReportsInbox);
+
+router.post("/:id/plan", validateParams(V.campaignIdParamSchema), campaignFeatureController.plan);
+router.get("/:id/roadmap", validateParams(V.campaignIdParamSchema), campaignFeatureController.getRoadmap);
+router.post(
+  "/:id/roadmap/approve",
+  validateParams(V.campaignIdParamSchema),
+  campaignFeatureController.approveRoadmap
+);
+router.post(
+  "/:id/roadmap/reject",
+  validateParams(V.campaignIdParamSchema),
+  validateBody(V.rejectRoadmapBodySchema),
+  campaignFeatureController.rejectRoadmap
+);
+router.get("/:id/health", validateParams(V.campaignIdParamSchema), campaignFeatureController.getHealth);
+router.get(
+  "/:id/progress-reports/latest",
+  validateParams(V.campaignIdParamSchema),
+  campaignFeatureController.getProgressLatest
+);
+router.get(
+  "/:id/progress-reports",
+  validateParams(V.campaignIdParamSchema),
+  campaignFeatureController.listProgress
+);
+router.post(
+  "/:id/progress-reports/generate",
+  validateParams(V.campaignIdParamSchema),
+  campaignFeatureController.generateProgress
+);
+router.get("/:id/memory", validateParams(V.campaignIdParamSchema), campaignFeatureController.getMemory);
+router.get("/:id/events", validateParams(V.campaignIdParamSchema), campaignFeatureController.listEvents);
 
 router.get("/:id/stats", validateParams(V.campaignIdParamSchema), campaignController.getByIdWithStats);
 router.get("/:id", validateParams(V.campaignIdParamSchema), campaignController.getById);

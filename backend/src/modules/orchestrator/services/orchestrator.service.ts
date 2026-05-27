@@ -33,6 +33,7 @@ import {
   captureServerEvent,
   ServerAnalyticsEvents,
 } from "../../../shared/analytics/posthog.server";
+import { CampaignRoadmapService } from "../../campaign/services/campaign-roadmap.service";
 
 interface BaseTurnInput {
   siteId: string;
@@ -67,7 +68,8 @@ export class OrchestratorService {
     private readonly memoryRepository: WorkspaceMemoryRepository,
     private readonly toolRegistry: OrchestratorToolRegistry,
     private readonly siteService: SiteService,
-    private readonly tokenEnforcement: TokenEnforcementService
+    private readonly tokenEnforcement: TokenEnforcementService,
+    private readonly campaignRoadmapService: CampaignRoadmapService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -690,9 +692,49 @@ export class OrchestratorService {
       }
     }
 
-    // Approvals raised by the scheduled-post review flow and campaign-proposal
-    // tools are executed by their owning services (Phase 6/7); we just mark
-    // the approval as executed here without running anything.
+    if (approval.kind === OrchestratorApprovalKind.CAMPAIGN_ROADMAP_APPROVAL) {
+      const campaignId = String(approval.payload?.campaign_id ?? "");
+      if (!campaignId) {
+        const summary = "Campaign roadmap approval is missing campaign_id.";
+        await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
+          ok: false,
+          error: summary,
+        });
+        return { ok: false, summary };
+      }
+      try {
+        const data = await this.campaignRoadmapService.approveRoadmap(
+          campaignId,
+          approval.site_id,
+          userId
+        );
+        const summary = "Campaign roadmap approved and schedule materialized.";
+        await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
+          ok: true,
+          summary,
+          data,
+        });
+        return { ok: true, summary, data };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
+          ok: false,
+          error: msg,
+        });
+        return { ok: false, summary: msg };
+      }
+    }
+
+    if (approval.kind === OrchestratorApprovalKind.CAMPAIGN_PROPOSAL) {
+      const summary = `Campaign proposal recorded (${approval.action}).`;
+      await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
+        ok: true,
+        summary,
+      });
+      return { ok: true, summary };
+    }
+
+    // Scheduled-post review approvals are executed via the review service / UI.
     await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
       ok: true,
       summary: `Approval recorded for ${approval.action}.`,

@@ -13,6 +13,11 @@ import {
 } from "../../../shared/schemas/orchestrator-approval.schema";
 import type { ScheduledPost } from "../../../shared/schemas/scheduled-post.schema";
 import { ScheduledPostRepository } from "../../campaign/repositories/scheduled-post.repository";
+import { CampaignRepository } from "../../campaign/repositories/campaign.repository";
+import {
+  CampaignLifecycleStatus,
+  CampaignStatus,
+} from "../../../shared/constants/campaign.constant";
 import { BlogService } from "../../blog/services/blog.service";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { BlogGenerationService } from "../../blog/services/blog-generation.service";
@@ -60,7 +65,8 @@ export class ScheduledPostPrepareService {
     private readonly notificationService: NotificationService,
     private readonly userRepository: UserRepository,
     private readonly siteRepository: SiteRepository,
-    private readonly tokenEnforcement: TokenEnforcementService
+    private readonly tokenEnforcement: TokenEnforcementService,
+    private readonly campaignRepository: CampaignRepository
   ) {}
 
   /**
@@ -104,6 +110,16 @@ export class ScheduledPostPrepareService {
     if (post.prepared_at) {
       // Already prepared; let the publish worker / reviewer take it from here.
       return { scheduledPostId, ok: true, reason: "Already prepared" };
+    }
+
+    if (post.campaign_id) {
+      const campaign = await this.campaignRepository.findById(post.campaign_id, siteId);
+      const paused =
+        campaign?.lifecycle_status === CampaignLifecycleStatus.PAUSED ||
+        campaign?.status === CampaignStatus.PAUSED;
+      if (paused) {
+        return { scheduledPostId, ok: false, reason: "Campaign is paused" };
+      }
     }
 
     try {
