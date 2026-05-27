@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
@@ -35,7 +35,7 @@ type WizardStep = "details" | "chat";
  * workspace that is still in the onboarding state (e.g. they refreshed during
  * chat), we skip step 1 and resume the chat directly.
  */
-export default function CreateSitePage() {
+function CreateSitePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -312,5 +312,19 @@ export default function CreateSitePage() {
         </div>
       </div>
     </ProtectedRoute>
+  );
+}
+
+export default function CreateSitePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      }
+    >
+      <CreateSitePageContent />
+    </Suspense>
   );
 }

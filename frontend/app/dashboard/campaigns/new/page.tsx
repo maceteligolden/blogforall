@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { CreateCampaignRequest, CampaignService, CampaignTemplate } from "@/lib/api/services/campaign.service";
@@ -13,7 +13,7 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { addDays } from "date-fns";
 
-export default function NewCampaignPage() {
+function NewCampaignPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("template");
@@ -508,5 +508,19 @@ export default function NewCampaignPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function NewCampaignPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">
+          Loading...
+        </div>
+      }
+    >
+      <NewCampaignPageContent />
+    </Suspense>
   );
 }
