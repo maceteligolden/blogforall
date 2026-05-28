@@ -13,7 +13,8 @@
     "lint:fix": "eslint \"src/**/*.ts\" --fix",
     "format": "prettier --write \"src/**/*.ts\" --ignore-unknown",
     "format:check": "prettier --check \"src/**/*.ts\"",
-    "migrate:multi-site": "ts-node scripts/migrate-to-multi-site.ts"
+    "migrate:multi-site": "ts-node scripts/migrate-to-multi-site.ts",
+    "seed:admin": "ts-node scripts/seed-platform-admin.ts"
   },
   "keywords": [],
   "author": "",

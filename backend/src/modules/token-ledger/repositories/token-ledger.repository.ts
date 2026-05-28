@@ -136,4 +136,100 @@ export class TokenLedgerRepository {
   entryStatusReserved = TokenLedgerEntryStatus.RESERVED;
   entryStatusFailed = TokenLedgerEntryStatus.FAILED;
   entryStatusReleased = TokenLedgerEntryStatus.RELEASED;
+
+  async getTotalUsageTokens(): Promise<number> {
+    const rows = await TokenLedgerEntryModel.aggregate<{ total: number }>([
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: {
+              $ifNull: ["$actual_tokens", "$estimated_tokens"],
+            },
+          },
+        },
+      },
+    ]);
+    return rows[0]?.total ?? 0;
+  }
+
+  async getDailyUsage(input: { from?: Date; to?: Date }): Promise<Array<{ date: string; tokens: number }>> {
+    const match: Record<string, unknown> = {};
+    if (input.from || input.to) {
+      match.created_at = {};
+      if (input.from) (match.created_at as Record<string, unknown>).$gte = input.from;
+      if (input.to) (match.created_at as Record<string, unknown>).$lte = input.to;
+    }
+
+    const rows = await TokenLedgerEntryModel.aggregate<{ _id: string; tokens: number }>([
+      { $match: match },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$created_at" } },
+          tokens: { $sum: { $ifNull: ["$actual_tokens", "$estimated_tokens"] } },
+        },
+      },
+      { $sort: { _id: -1 } },
+    ]);
+
+    return rows.map((r) => ({ date: r._id, tokens: r.tokens }));
+  }
+
+  async getDailyUsageByUser(input: {
+    from?: Date;
+    to?: Date;
+  }): Promise<Array<{ date: string; user_id: string; tokens: number }>> {
+    const match: Record<string, unknown> = {};
+    if (input.from || input.to) {
+      match.created_at = {};
+      if (input.from) (match.created_at as Record<string, unknown>).$gte = input.from;
+      if (input.to) (match.created_at as Record<string, unknown>).$lte = input.to;
+    }
+
+    const rows = await TokenLedgerEntryModel.aggregate<{ _id: { date: string; user_id: string }; tokens: number }>([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: "%Y-%m-%d", date: "$created_at" } },
+            user_id: "$user_id",
+          },
+          tokens: { $sum: { $ifNull: ["$actual_tokens", "$estimated_tokens"] } },
+        },
+      },
+      { $sort: { "_id.date": -1 } },
+    ]);
+
+    return rows.map((r) => ({
+      date: r._id.date,
+      user_id: r._id.user_id,
+      tokens: r.tokens,
+    }));
+  }
+
+  async getUsageTotalsByUsers(
+    userIds: string[],
+    input: { from?: Date; to?: Date }
+  ): Promise<Record<string, number>> {
+    if (!userIds.length) return {};
+    const match: Record<string, unknown> = { user_id: { $in: userIds } };
+    if (input.from || input.to) {
+      match.created_at = {};
+      if (input.from) (match.created_at as Record<string, unknown>).$gte = input.from;
+      if (input.to) (match.created_at as Record<string, unknown>).$lte = input.to;
+    }
+    const rows = await TokenLedgerEntryModel.aggregate<{ _id: string; tokens: number }>([
+      { $match: match },
+      {
+        $group: {
+          _id: "$user_id",
+          tokens: { $sum: { $ifNull: ["$actual_tokens", "$estimated_tokens"] } },
+        },
+      },
+    ]);
+    return rows.reduce<Record<string, number>>((acc, row) => {
+      acc[row._id] = row.tokens;
+      return acc;
+    }, {});
+  }
 }

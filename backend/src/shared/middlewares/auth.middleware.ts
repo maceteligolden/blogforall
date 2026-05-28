@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { UnauthorizedError, ForbiddenError } from "../errors";
 import { verifyAccessToken } from "../utils/token";
-import { UserRole } from "../constants";
+import { UserRole, isPlatformAdminRole } from "../constants";
 import { AppLogger } from "../observability/logger";
 import { ObservabilityFlow } from "../observability/flows";
 import { setRequestContextUserId } from "../observability/request-context";
@@ -71,12 +71,25 @@ export const authMiddleware = (req: Request, _res: Response, next: NextFunction)
  * 2. IF req.user.role !== UserRole.ADMIN THEN next(ForbiddenError)
  * 3. ELSE next()
  */
-export const requireAdmin = (req: Request, _res: Response, next: NextFunction): void => {
+export const requirePlatformAdmin = (req: Request, _res: Response, next: NextFunction): void => {
   if (!req.user) {
     return next(new UnauthorizedError("Authentication required"));
   }
-  if (req.user.role !== UserRole.ADMIN) {
-    return next(new ForbiddenError("Admin access required"));
+  if (!isPlatformAdminRole(req.user.role)) {
+    return next(new ForbiddenError("Platform admin access required"));
+  }
+  next();
+};
+
+/** Alias for requirePlatformAdmin — accepts admin and super_admin. */
+export const requireAdmin = requirePlatformAdmin;
+
+export const requireSuperAdmin = (req: Request, _res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    return next(new UnauthorizedError("Authentication required"));
+  }
+  if (req.user.role !== UserRole.SUPER_ADMIN) {
+    return next(new ForbiddenError("Super admin access required"));
   }
   next();
 };

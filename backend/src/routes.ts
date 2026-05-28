@@ -16,11 +16,15 @@ import notificationRouter from "./modules/notification/routes/notification.route
 import siteOrchestratorRouter from "./modules/orchestrator/routes/site-orchestrator.router";
 import scheduledPostReviewRouter from "./modules/orchestrator/routes/scheduled-post-review.router";
 import usageRouter from "./modules/token-ledger/routes/usage.router";
+import adminRouter from "./modules/admin/routes/admin.router";
 
 const router = Router();
 
 // Auth routes
 router.use("/auth", authRouter);
+
+// Platform admin routes
+router.use("/admin", adminRouter);
 
 // Blog routes (site-scoped: GET siteId in path; POST/PUT body validated on router)
 router.use("/sites/:siteId/blogs", siteBlogRouter);

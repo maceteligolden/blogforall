@@ -1,5 +1,6 @@
 import { injectable } from "tsyringe";
 import User, { User as UserType } from "../../../shared/schemas/user.schema";
+import { UserRole } from "../../../shared/constants";
 
 @injectable()
 export class UserRepository {
@@ -14,6 +15,34 @@ export class UserRepository {
 
   async findById(id: string): Promise<UserType | null> {
     return User.findById(id);
+  }
+
+  async findByIds(ids: string[]): Promise<UserType[]> {
+    if (!ids.length) return [];
+    return User.find({ _id: { $in: ids } });
+  }
+
+  async findUsersForAdminList(input: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<{ data: UserType[]; total: number }> {
+    const { page, limit, search } = input;
+    const skip = (page - 1) * limit;
+    const query: Record<string, unknown> = { role: UserRole.USER };
+    if (search) {
+      query.$or = [
+        { email: { $regex: search, $options: "i" } },
+        { first_name: { $regex: search, $options: "i" } },
+        { last_name: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      User.find(query).sort({ created_at: -1 }).skip(skip).limit(limit),
+      User.countDocuments(query),
+    ]);
+    return { data, total };
   }
 
   async update(id: string, updateData: Partial<UserType>): Promise<UserType | null> {

@@ -1,6 +1,12 @@
 export enum UserRole {
   USER = "user",
   ADMIN = "admin",
+  SUPER_ADMIN = "super_admin",
+}
+
+/** Platform-level admin roles (JWT `role`), not site workspace roles. */
+export function isPlatformAdminRole(role: string | undefined): boolean {
+  return role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
 }
 
 export enum UserPlan {

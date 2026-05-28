@@ -4,7 +4,7 @@ import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
 import { BadRequestError, UnauthorizedError, NotFoundError } from "../../../shared/errors";
-import { UserPlan, UserRole, SiteStatus } from "../../../shared/constants";
+import { UserPlan, UserRole, SiteStatus, isPlatformAdminRole } from "../../../shared/constants";
 import { Site } from "../../../shared/schemas/site.schema";
 import { logger } from "../../../shared/utils/logger";
 import {
@@ -175,6 +175,35 @@ export class AuthService {
       { userId: user._id, email, hasSites: userSites.length > 0 },
       "AuthService"
     );
+    return this.buildLoginResponse(user, userSites);
+  }
+
+  /**
+   * Platform admin login — same credential check as login, but rejects
+   * non-platform roles and never forces site onboarding.
+   */
+  async loginPlatformAdmin(input: LoginInput): Promise<LoginResponse> {
+    const { email, password } = input;
+
+    const user = await this.userRepository.findByEmail(email.toLowerCase());
+    if (!user) {
+      logger.warn("Failed platform admin login - user not found", { email }, "AuthService");
+      throw new UnauthorizedError("Invalid credentials");
+    }
+
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      logger.warn("Failed platform admin login - invalid password", { email }, "AuthService");
+      throw new UnauthorizedError("Invalid credentials");
+    }
+
+    if (!isPlatformAdminRole(user.role)) {
+      logger.warn("Failed platform admin login - not a platform admin", { email }, "AuthService");
+      throw new UnauthorizedError("Invalid credentials");
+    }
+
+    const userSites = await this.siteService.getSitesByUser(user._id!.toString());
+    logger.info("Platform admin logged in", { userId: user._id, email, role: user.role }, "AuthService");
     return this.buildLoginResponse(user, userSites);
   }
 
@@ -440,6 +469,8 @@ export class AuthService {
     const refreshToken = generateRefreshToken(tokenPayload);
     await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
 
+    const role = user.role ?? UserRole.USER;
+
     return {
       tokens: {
         access_token: accessToken,
@@ -451,9 +482,9 @@ export class AuthService {
         first_name: user.first_name,
         last_name: user.last_name,
         plan: user.plan,
-        role: user.role ?? UserRole.USER,
+        role,
       },
-      requiresSiteCreation: !hasSites,
+      requiresSiteCreation: isPlatformAdminRole(role) ? false : !hasSites,
     };
   }
 }
