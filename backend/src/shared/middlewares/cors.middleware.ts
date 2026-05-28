@@ -43,7 +43,7 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction) 
   if (rawOrigin && isAllowed) {
     // Prefer the configured env/default origin value when matched.
     // For dev localhost regex allowance, fall back to the request origin.
-    res.header("Access-Control-Allow-Origin", matchedConfiguredOrigin ?? rawOrigin);
+    res.header("Access-Control-Allow-Origin", "*");
     res.header("Vary", "Origin");
   }
 
