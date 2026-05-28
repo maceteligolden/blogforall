@@ -149,6 +149,14 @@ export const env = {
     defaultName: (process.env.WORKSPACE_DEFAULT_NAME || WORKSPACE_DEFAULT_NAME_DEFAULT).trim(),
     invitationExpiryDays: parseIntEnv(process.env.INVITATION_EXPIRY_DAYS, INVITATION_EXPIRY_DAYS_DEFAULT),
   },
+  adminSeed: {
+    onStart: (process.env.ADMIN_SEED_ON_START || "false").toLowerCase() === "true",
+    email: process.env.ADMIN_SEED_EMAIL?.trim(),
+    password: process.env.ADMIN_SEED_PASSWORD,
+    firstName: process.env.ADMIN_SEED_FIRST_NAME?.trim(),
+    lastName: process.env.ADMIN_SEED_LAST_NAME?.trim(),
+    role: process.env.ADMIN_SEED_ROLE?.trim(),
+  },
   tokenLedger: {
     defaultDailyFree: parseIntEnv(process.env.TOKEN_LEDGER_DEFAULT_DAILY_FREE, 400_000),
     activeRequestTtlMs: parseIntEnv(process.env.TOKEN_LEDGER_ACTIVE_REQUEST_TTL_MS, 600_000),

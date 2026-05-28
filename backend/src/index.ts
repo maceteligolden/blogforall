@@ -22,6 +22,7 @@ import { corsMiddleware } from "./shared/middlewares/cors.middleware";
 import { requestContextMiddleware } from "./shared/middlewares/request-context.middleware";
 import { backfillSitePublicIds } from "./shared/utils/backfill-site-public-ids";
 import { setupExpressErrorHandler, isSentryEnabled } from "./shared/observability/sentry";
+import { seedPlatformAdminIfNeeded } from "./shared/utils/seed-platform-admin.util";
 
 const app = express();
 const PORT = env.port;
@@ -68,6 +69,16 @@ const startServer = async () => {
     // Seed plans if none exist
     await seedPlansIfNeeded();
     await syncFreePlanTokenLimit();
+
+    if (env.adminSeed.onStart) {
+      await seedPlatformAdminIfNeeded({
+        email: env.adminSeed.email,
+        password: env.adminSeed.password,
+        firstName: env.adminSeed.firstName,
+        lastName: env.adminSeed.lastName,
+        roleRaw: env.adminSeed.role,
+      });
+    }
 
     // Register Workspace Orchestrator Agent tools before serving traffic so
     // the chat endpoints can dispatch to them on the first request.
