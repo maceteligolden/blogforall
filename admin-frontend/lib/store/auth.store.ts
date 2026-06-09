@@ -46,20 +46,6 @@ export const useAuthStore = create<AuthState>()(
           expires.setDate(expires.getDate() + 7);
           document.cookie = `auth-token=${accessToken}; path=/; expires=${expires.toUTCString()}; SameSite=Lax`;
         }
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d03c4e" },
-          body: JSON.stringify({
-            sessionId: "d03c4e",
-            hypothesisId: "A",
-            location: "auth.store.ts:setTokens",
-            message: "setTokens called",
-            data: { hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         set({ accessToken, refreshToken, isAuthenticated: true });
       },
 
@@ -92,27 +78,6 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
-      onRehydrateStorage: () => (state, err) => {
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d03c4e" },
-          body: JSON.stringify({
-            sessionId: "d03c4e",
-            hypothesisId: "A",
-            location: "auth.store.ts:onRehydrateStorage",
-            message: "Zustand persist rehydration finished",
-            data: {
-              error: err ? String(err) : null,
-              isAuthenticated: state?.isAuthenticated ?? false,
-              hasAccessToken: !!state?.accessToken,
-              hasUser: !!state?.user,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-      },
     }
   )
 );

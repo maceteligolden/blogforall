@@ -63,26 +63,6 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDatabase();
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d03c4e" },
-      body: JSON.stringify({
-        sessionId: "d03c4e",
-        runId: "cors-preflight",
-        hypothesisId: "H5",
-        location: "index.ts:67",
-        message: "Backend startup env snapshot for CORS",
-        data: {
-          nodeEnv: env.nodeEnv,
-          frontendUrlRaw: process.env.FRONTEND_URL ?? null,
-          frontendUrls: env.frontend.urls,
-          frontendBaseUrl: env.frontend.baseUrl,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
 
     await backfillSitePublicIds();
 

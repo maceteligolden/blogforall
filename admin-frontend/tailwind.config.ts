@@ -1,7 +1,9 @@
 import type { Config } from "tailwindcss";
+import bloggrPreset from "../design-tokens/tailwind.preset";
 
 const config: Config = {
   darkMode: ["class"],
+  presets: [bloggrPreset],
   content: [
     "./pages/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -10,29 +12,6 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      colors: {
-        primary: {
-          DEFAULT: "#1e40af", // Netflix-inspired blue
-          50: "#eff6ff",
-          100: "#dbeafe",
-          200: "#bfdbfe",
-          300: "#93c5fd",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
-          700: "#1e40af",
-          800: "#1e3a8a",
-          900: "#1e3a8a",
-        },
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
@@ -51,4 +30,3 @@ const config: Config = {
 };
 
 export default config;
-

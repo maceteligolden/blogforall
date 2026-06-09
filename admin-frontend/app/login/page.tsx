@@ -20,24 +20,6 @@ function LoginForm() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d03c4e" },
-      body: JSON.stringify({
-        sessionId: "d03c4e",
-        runId: "netlify-404",
-        hypothesisId: "H2",
-        location: "admin-frontend/app/login/page.tsx:24",
-        message: "Login page rendered",
-        data: { path: window.location.pathname, host: window.location.host },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, []);
-
-  useEffect(() => {
     if (isAuthenticated) {
       const redirect = searchParams.get("redirect") || "/";
       router.push(redirect.startsWith("/") ? redirect : "/");

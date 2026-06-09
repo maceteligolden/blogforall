@@ -222,28 +222,6 @@ export class OrchestratorGraphService {
     }
 
     try {
-      // #region agent log
-      {
-        const ti = decision.tool!.input ?? {};
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-          body: JSON.stringify({
-            sessionId: "bc88ec",
-            runId: "schedule-posts",
-            hypothesisId: "F",
-            location: "orchestrator-graph.service.ts:call_tool:before",
-            message: "tool invoke",
-            data: {
-              toolName,
-              inputKeys: Object.keys(ti),
-              decisionNext: decision.next,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-      }
-      // #endregion
       const result = await this.tokenEnforcement.runNested(() =>
         tool.run({
           siteId: input.siteId,
@@ -273,21 +251,6 @@ export class OrchestratorGraphService {
       };
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-        body: JSON.stringify({
-          sessionId: "bc88ec",
-          runId: "schedule-posts",
-          hypothesisId: "G",
-          location: "orchestrator-graph.service.ts:call_tool:error",
-          message: "tool errored",
-          data: { toolName, errorMessage: errorMessage.slice(0, 200) },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       logger.warn(
         "Orchestrator tool errored",
         { siteId: input.siteId, threadId: input.threadId, tool: toolName, error: errorMessage },

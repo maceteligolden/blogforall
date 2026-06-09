@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { StatCard, StatCardGrid } from "@/components/dashboard/stat-card";
 import { useAdminStats } from "@/lib/hooks/use-admin-stats";
 import { useAuthStore } from "@/lib/store/auth.store";
@@ -10,24 +9,6 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const { data: stats, isLoading, isError, refetch } = useAdminStats();
   const user = useAuthStore((s) => s.user);
-
-  useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d03c4e" },
-      body: JSON.stringify({
-        sessionId: "d03c4e",
-        runId: "netlify-404",
-        hypothesisId: "H2",
-        location: "admin-frontend/app/(protected)/page.tsx:16",
-        message: "Dashboard page rendered",
-        data: { path: window.location.pathname, host: window.location.host },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, []);
 
   return (
     <div className="space-y-8">

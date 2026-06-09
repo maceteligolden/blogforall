@@ -96,50 +96,12 @@ export class CampaignGenerateRoadmapTool implements OrchestratorTool {
   ) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-      body: JSON.stringify({
-        sessionId: "bc88ec",
-        runId: "pre-fix",
-        hypothesisId: "A",
-        location: "campaign.tools.ts:generateRoadmap:entry",
-        message: "raw tool input keys",
-        data: {
-          inputKeys: Object.keys(invocation.input ?? {}),
-          hasCampaignId: "campaign_id" in (invocation.input ?? {}),
-          hasId: "id" in (invocation.input ?? {}),
-          threadId: invocation.threadId ? "set" : "empty",
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     const resolved = await resolveCampaignIdForTool(
       this.campaignRepository,
       invocation.siteId,
       invocation.userId,
       invocation.input ?? {}
     );
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-      body: JSON.stringify({
-        sessionId: "bc88ec",
-        runId: "post-fix",
-        hypothesisId: "C",
-        location: "campaign.tools.ts:generateRoadmap:resolved",
-        message: "campaign id resolution",
-        data: {
-          resolved: !!resolved,
-          resolution: resolved?.resolution ?? null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     if (!resolved) {
       throw new Error(
         "campaign_id is required. Call campaigns.list to get the campaign id, or pass name/goal that uniquely matches one campaign in this workspace."
@@ -267,22 +229,6 @@ export class CampaignScheduleAdditionalPostsTool implements OrchestratorTool {
   ) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-      body: JSON.stringify({
-        sessionId: "bc88ec",
-        runId: "schedule-posts",
-        hypothesisId: "H",
-        location: "campaign.tools.ts:scheduleAdditionalPosts:entry",
-        message: "batch schedule entry",
-        data: { inputKeys: Object.keys(invocation.input ?? {}) },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
     const parsed = parseToolInput(
       scheduleAdditionalSchema,
       normalizeCampaignToolInput(invocation.input ?? {}),
@@ -396,22 +342,6 @@ export class CampaignScheduleAdditionalPostsTool implements OrchestratorTool {
         title,
       });
     }
-
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-      body: JSON.stringify({
-        sessionId: "bc88ec",
-        runId: "schedule-posts",
-        hypothesisId: "H",
-        location: "campaign.tools.ts:scheduleAdditionalPosts:done",
-        message: "batch schedule created",
-        data: { count: created.length, campaignId, anchorId: anchor._id?.toString() },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
 
     return {
       summary: truncateSummary(

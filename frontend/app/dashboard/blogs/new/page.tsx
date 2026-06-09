@@ -329,25 +329,6 @@ export default function NewBlogPage() {
         },
       });
       const payload = res?.data?.data;
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-        body: JSON.stringify({
-          sessionId: "bc88ec",
-          hypothesisId: "H1-H3",
-          location: "blogs/new/page.tsx:handleReview",
-          message: "create page review completed",
-          data: {
-            mode,
-            hasPayload: !!payload,
-            overallScore: payload?.overall_score,
-            suggestionCount: payload?.suggestions?.length ?? 0,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       if (payload) {
         setAutoReviewResult(payload);
       } else {
@@ -360,24 +341,6 @@ export default function NewBlogPage() {
         setMode("write");
       }
     } catch (err) {
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "bc88ec" },
-        body: JSON.stringify({
-          sessionId: "bc88ec",
-          hypothesisId: "H4",
-          location: "blogs/new/page.tsx:handleReview:error",
-          message: "create page review failed",
-          data: {
-            status: (err as { response?: { status?: number } })?.response?.status,
-            apiMessage: (err as { response?: { data?: { message?: string } } })?.response?.data
-              ?.message,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
     }
   };
 
