@@ -1,28 +1,17 @@
-# Backend Dockerfile (Development)
+# Development Dockerfile — hot reload via ts-node (local Docker only)
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Install nodemon and ts-node globally for hot-reload
-RUN npm install -g nodemon ts-node
+RUN corepack enable && npm install -g nodemon ts-node
 
-# Copy package files
-COPY package.json yarn.lock* package-lock.json* ./
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 
-# Install all dependencies (including dev dependencies)
-RUN if [ -f yarn.lock ]; then yarn install; else npm install; fi
-
-# Copy source code
 COPY . .
 
-# Create uploads directory if it doesn't exist
 RUN mkdir -p uploads
 
-# Compile TypeScript so dist/ matches src/ (Dokploy runs dist, not ts-node)
-RUN npx tsc
-
-# Expose port
 EXPOSE 3006
 
-# Start the application in development mode with hot-reload
-CMD ["node", "dist/src/index.js"]
+CMD ["nodemon", "src/index.ts"]

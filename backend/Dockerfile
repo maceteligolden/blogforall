@@ -1,28 +1,36 @@
-# Backend Dockerfile (Development)
-FROM node:20-alpine
+# Production Dockerfile — multi-stage, low memory footprint for small VPS (Dokploy)
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install nodemon and ts-node globally for hot-reload
-RUN npm install -g nodemon ts-node
+RUN corepack enable
 
-# Copy package files
-COPY package.json yarn.lock* package-lock.json* ./
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
 
-# Install all dependencies (including dev dependencies)
-RUN if [ -f yarn.lock ]; then yarn install; else npm install; fi
+COPY tsconfig.json tsconfig.build.json ./
+COPY src ./src
 
-# Copy source code
-COPY . .
+# Lighter compile for Docker (no source maps) on memory-constrained VPS
+RUN yarn exec tsc -p tsconfig.build.json
 
-# Create uploads directory if it doesn't exist
+FROM node:20-alpine AS production
+
+WORKDIR /app
+
+RUN corepack enable
+
+ENV NODE_ENV=production
+
+COPY package.json yarn.lock ./
+
+# Runtime image: skip devDependencies (eslint, jest, ts-node, etc.)
+RUN yarn install --frozen-lockfile --production && yarn cache clean
+
+COPY --from=builder /app/dist ./dist
+
 RUN mkdir -p uploads
 
-# Compile TypeScript so dist/ matches src/ (Dokploy runs dist, not ts-node)
-RUN npx tsc
-
-# Expose port
 EXPOSE 3005
 
-# Start the application
 CMD ["node", "dist/src/index.js"]

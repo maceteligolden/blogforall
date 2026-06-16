@@ -23,32 +23,14 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction) 
     normalizedOrigin !== undefined && allowedOrigins.has(normalizedOrigin);
 
   if (req.method === "OPTIONS" || !isAllowed) {
-    const debugData = {
+    logger.info("CORS decision", {
       method: req.method,
       path: req.path,
       rawOrigin: rawOrigin ?? null,
       normalizedOrigin: normalizedOrigin ?? null,
       isAllowed,
       allowedOrigins: [...allowedOrigins],
-    };
-
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d1eb59" },
-      body: JSON.stringify({
-        sessionId: "d1eb59",
-        runId: "cors-fix",
-        hypothesisId: isAllowed ? "C" : rawOrigin ? "B" : "D",
-        location: "cors.middleware.ts:request",
-        message: isAllowed ? "CORS preflight allowed" : "CORS request denied or missing origin",
-        data: debugData,
-        timestamp: Date.now(),
-      }),
-    }).catch(() => undefined);
-    // #endregion
-
-    logger.info("CORS decision", debugData);
+    });
   }
 
   if (isAllowed && rawOrigin) {
@@ -69,30 +51,8 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction) 
   next();
 };
 
-const startupAllowedOrigins = [...getAllowedOrigins()];
-
-// #region agent log
-fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-  method: "POST",
-  headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "d1eb59" },
-  body: JSON.stringify({
-    sessionId: "d1eb59",
-    runId: "cors-fix",
-    hypothesisId: "F",
-    location: "cors.middleware.ts:startup",
-    message: "CORS startup config",
-    data: {
-      frontendUrlEnvSet: Boolean(process.env.FRONTEND_URL),
-      allowedOrigins: startupAllowedOrigins,
-      nodeEnv: env.nodeEnv,
-    },
-    timestamp: Date.now(),
-  }),
-}).catch(() => undefined);
-// #endregion
-
 logger.info("CORS startup config", {
   frontendUrlEnvSet: Boolean(process.env.FRONTEND_URL),
-  allowedOrigins: startupAllowedOrigins,
+  allowedOrigins: [...getAllowedOrigins()],
   nodeEnv: env.nodeEnv,
 });
