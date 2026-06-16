@@ -1,29 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { useBlog, useUpdateBlog, useUploadImage } from "@/lib/hooks/use-blog";
 import { BlogService } from "@/lib/api/services/blog.service";
+import { QUERY_KEYS } from "@/lib/api/config";
 import { useCategories } from "@/lib/hooks/use-category";
 import { useBlogReview } from "@/lib/hooks/use-blog-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { blocksToHtml, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
+import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
+import { formFingerprint, hasBodyContent, hasTitle } from "@/lib/utils/blog-form-validation";
 import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
+import { contentToBlocks } from "@/lib/utils/content-to-blocks";
 import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { ReviewModeView } from "@/components/blog/review-mode-view";
-import { Sparkles, Calendar, X } from "lucide-react";
+import { Sparkles, Calendar } from "lucide-react";
 import type { ReviewSuggestion } from "@/lib/api/services/blog-review.service";
 
 export default function EditBlogPage() {
   const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const id = params.id as string;
   const { data: blog, isLoading } = useBlog(id);
   const updateBlog = useUpdateBlog();
@@ -41,6 +48,8 @@ export default function EditBlogPage() {
     isRestoring,
   } = useBlogReview();
   const [showReview, setShowReview] = useState(false);
+  const [reviewPanelTab, setReviewPanelTab] = useState<"content" | "review">("content");
+  const [reviewHasNewInfo, setReviewHasNewInfo] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
   const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<Set<string>>(new Set());
@@ -49,24 +58,94 @@ export default function EditBlogPage() {
     content: string;
     content_type: "html" | "markdown";
     content_blocks?: ContentBlock[];
-    excerpt: string;
     featured_image: string;
     category: string;
-    status: "draft" | "published" | "unpublished";
+    status: "draft" | "scheduled" | "published" | "unpublished";
     scheduled_at: string;
   }>({
     title: "",
     content: "",
     content_type: "html",
-    excerpt: "",
     featured_image: "",
     category: "",
     status: "draft",
     scheduled_at: "",
   });
+
+  const getContentHtml = () =>
+    Array.isArray(formData.content_blocks) && formData.content_blocks.length > 0
+      ? blocksToHtml(formData.content_blocks as ContentBlock[])
+      : formData.content;
+
+  const derivedExcerpt = () => deriveExcerptFromContent(getContentHtml());
   const [error, setError] = useState("");
   const [existingSchedule, setExistingSchedule] = useState<{ scheduled_at: string; _id?: string } | null>(null);
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(false);
+  const [savedFingerprint, setSavedFingerprint] = useState<string | null>(null);
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
+  const baselineCapturedForIdRef = useRef<string>("");
+
+  useEffect(() => {
+    baselineCapturedForIdRef.current = "";
+    setSavedFingerprint(null);
+  }, [id]);
+
+  useEffect(() => {
+    if (!blog || isLoading || isLoadingSchedule) return;
+    if (baselineCapturedForIdRef.current === id) return;
+    const frame = requestAnimationFrame(() => {
+      if (baselineCapturedForIdRef.current === id) return;
+      setSavedFingerprint(formFingerprint(formDataRef.current));
+      baselineCapturedForIdRef.current = id;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [blog, isLoading, isLoadingSchedule, id]);
+
+  const compareFields = useMemo(
+    () => ({
+      title: formData.title,
+      content: formData.content,
+      content_blocks: formData.content_blocks,
+      featured_image: formData.featured_image,
+      category: formData.category,
+      status: formData.status,
+      scheduled_at: formData.scheduled_at,
+    }),
+    [
+      formData.title,
+      formData.content,
+      formData.content_blocks,
+      formData.featured_image,
+      formData.category,
+      formData.status,
+      formData.scheduled_at,
+    ]
+  );
+
+  const isDirty =
+    savedFingerprint != null && formFingerprint(compareFields) !== savedFingerprint;
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const showPrefix = isDirty && !updateBlog.isPending;
+    if (showPrefix) {
+      if (!document.title.startsWith("(*) ")) {
+        document.title = `(*) ${document.title}`;
+      }
+    } else if (document.title.startsWith("(*) ")) {
+      document.title = document.title.slice(4);
+    }
+  }, [isDirty, updateBlog.isPending]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof document === "undefined") return;
+      if (document.title.startsWith("(*) ")) {
+        document.title = document.title.slice(4);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (blog) {
@@ -90,7 +169,6 @@ export default function EditBlogPage() {
         content: blog.content || "",
         content_type: blog.content_type || "html",
         content_blocks,
-        excerpt: blog.excerpt || "",
         featured_image: blog.featured_image || "",
         category: categoryId,
         status: blog.status || "draft",
@@ -112,10 +190,12 @@ export default function EditBlogPage() {
               scheduled_at: scheduledDate.toISOString().slice(0, 16),
               _id: schedule._id,
             });
-            setFormData((prev) => ({
-              ...prev,
-              scheduled_at: scheduledDate.toISOString().slice(0, 16),
-            }));
+            if (blog.status === "published" || blog.status === "scheduled") {
+              setFormData((prev) => ({
+                ...prev,
+                scheduled_at: scheduledDate.toISOString().slice(0, 16),
+              }));
+            }
           } else {
             setExistingSchedule(null);
           }
@@ -141,12 +221,6 @@ export default function EditBlogPage() {
       return;
     }
 
-    // Only allow review for draft posts
-    if (blog?.status !== "draft") {
-      setError("Only draft blog posts can be reviewed");
-      return;
-    }
-
     try {
       setAppliedSuggestionIds(new Set());
       await reviewBlogAsync({
@@ -154,12 +228,14 @@ export default function EditBlogPage() {
         data: {
           title: formData.title,
           content: contentForReview,
-          excerpt: formData.excerpt || undefined,
+          excerpt: derivedExcerpt() || undefined,
           category: formData.category || undefined,
           content_blocks: useBlocks ? formData.content_blocks : undefined,
         },
       });
       setShowReview(true);
+      setReviewPanelTab("review");
+      setReviewHasNewInfo(false);
     } catch (err) {
       // Error handled by hook
     }
@@ -192,9 +268,19 @@ export default function EditBlogPage() {
     }
 
     const { scheduled_at, ...blogData } = formData;
+    const willScheduleLater = formData.status === "scheduled";
+    if (willScheduleLater && !scheduled_at) {
+      setError("Pick a schedule date and time, or change status away from Scheduled.");
+      return;
+    }
+    const blogDataForUpdate = willScheduleLater ? { ...blogData, status: "draft" as const } : blogData;
+    const excerptText = deriveExcerptFromContent(
+      useBlocks ? blocksToHtml(formData.content_blocks as ContentBlock[]) : formData.content
+    );
     const payload = useBlocks
       ? {
-          ...blogData,
+          ...blogDataForUpdate,
+          excerpt: excerptText,
           content: "",
           content_blocks: (formData.content_blocks || []).map((b, i) => ({
             id: (b as { id?: string; _id?: string }).id ?? (b as { _id?: string })._id ?? `block-${i}`,
@@ -205,43 +291,59 @@ export default function EditBlogPage() {
             },
           })),
         }
-      : { ...blogData, content_blocks: undefined };
+      : { ...blogDataForUpdate, excerpt: excerptText, content_blocks: undefined };
     const siteId = (blog as { site_id?: string })?.site_id;
     const dataWithSite = siteId ? { ...payload, site_id: siteId } : payload;
     updateBlog.mutate(
       { id, data: dataWithSite },
       {
-        onError: (err: { response?: { data?: { message?: string } } }) => {
-          const msg = err?.response?.data?.message ?? "Failed to update blog";
-          setError(msg);
+        onError: (error: Error) => {
+          const apiMessage = (
+            error as Error & { response?: { data?: { message?: string } } }
+          ).response?.data?.message;
+          setError(apiMessage ?? "Failed to update blog");
         },
         onSuccess: async () => {
-            // Handle scheduling
-            if (scheduled_at) {
+            const shouldSchedule = willScheduleLater && scheduled_at;
+            let scheduleSideEffectsOk = true;
+            let scheduleChanged = false;
+            if (shouldSchedule) {
               try {
                 const scheduleDate = new Date(scheduled_at);
-                // If there's an existing schedule, unschedule first
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
                 if (existingSchedule?._id) {
                   await BlogService.unscheduleBlog(id);
                 }
-                await BlogService.scheduleBlog(id, scheduleDate);
+                await BlogService.scheduleBlog(id, scheduleDate, timezone);
                 setExistingSchedule({
                   scheduled_at: scheduled_at,
                   _id: "new",
                 });
+                scheduleChanged = true;
               } catch (scheduleErr: any) {
+                scheduleSideEffectsOk = false;
                 console.error("Failed to schedule blog:", scheduleErr);
                 setError(scheduleErr?.response?.data?.message || "Blog updated but scheduling failed");
               }
             } else if (existingSchedule?._id) {
-              // If scheduled_at is cleared but there was an existing schedule, unschedule
               try {
                 await BlogService.unscheduleBlog(id);
                 setExistingSchedule(null);
+                scheduleChanged = true;
               } catch (unscheduleErr: any) {
+                scheduleSideEffectsOk = false;
                 console.error("Failed to unschedule blog:", unscheduleErr);
                 setError(unscheduleErr?.response?.data?.message || "Blog updated but unscheduling failed");
               }
+            }
+            if (scheduleChanged) {
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS }),
+                queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS }),
+              ]);
+            }
+            if (scheduleSideEffectsOk) {
+              setSavedFingerprint(formFingerprint(formDataRef.current));
             }
           },
         }
@@ -308,6 +410,9 @@ export default function EditBlogPage() {
     );
   }
 
+  const canApplyReviewSuggestions = blog?.status === "draft";
+  const canReviewNow = hasTitle(formData.title) && hasBodyContent(formData);
+
   if (!blog) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
@@ -343,27 +448,39 @@ export default function EditBlogPage() {
             >
               Cancel
             </Button>
-            {blog?.status === "draft" && (
-              <Button
-                type="button"
-                className="bg-purple-600 hover:bg-purple-700 text-white border-0"
-                onClick={handleReview}
-                disabled={isReviewing || !formData.title || !(formData.content_blocks?.length ? true : formData.content?.trim())}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {isReviewing ? "Reviewing..." : "Review with AI"}
-              </Button>
-            )}
+            <Button
+              type="button"
+              className="bg-purple-600 hover:bg-purple-700 text-white border-0 shrink-0"
+              onClick={handleReview}
+              disabled={isReviewing || !canReviewNow}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              {isReviewing ? "Reviewing..." : "Review with AI"}
+            </Button>
             <Button
               type="submit"
               form="blog-form"
               className="bg-primary hover:bg-primary/90 text-white"
-              disabled={updateBlog.isPending}
+              disabled={
+                updateBlog.isPending ||
+                savedFingerprint === null ||
+                !isDirty ||
+                !hasTitle(formData.title) ||
+                !hasBodyContent(formData)
+              }
             >
               {updateBlog.isPending ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </div>
+        {isDirty && !updateBlog.isPending && (
+          <div
+            className="mt-3 rounded-md border border-amber-800/60 bg-amber-950/40 px-4 py-2 text-sm text-amber-100/90"
+            role="status"
+          >
+            You have unsaved changes
+          </div>
+        )}
       </div>
 
       <main className="flex-1 overflow-y-auto">
@@ -371,14 +488,21 @@ export default function EditBlogPage() {
           {reviewMode && reviewResult ? (
             <ReviewModeView
               title={formData.title}
-              excerpt={formData.excerpt}
+              excerpt={derivedExcerpt()}
               content={formData.content}
               content_blocks={formData.content_blocks}
               reviewResult={reviewResult}
               appliedSuggestionIds={appliedSuggestionIds}
               onApplySuggestion={async (suggestion: ReviewSuggestion) => {
                 const sid = suggestion.id ?? String(reviewResult.suggestions.indexOf(suggestion));
-                const target = suggestion.target ?? (formData.title.includes(suggestion.original) ? "title" : formData.excerpt.includes(suggestion.original) ? "excerpt" : "content");
+                const ex = derivedExcerpt();
+                const target =
+                  suggestion.target ??
+                  (formData.title.includes(suggestion.original)
+                    ? "title"
+                    : ex.includes(suggestion.original)
+                      ? "excerpt"
+                      : "content");
                 try {
                   await applyOneAsync({
                     blogId: id,
@@ -409,41 +533,167 @@ export default function EditBlogPage() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <div>
-                <Label htmlFor="title" className="text-gray-300">
-                  Title *
-                </Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="mt-1 bg-black border-gray-700 text-white"
-                  required
-                  maxLength={200}
-                />
-              </div>
-
-              <div className="flex-1 min-h-0">
-                <Label htmlFor="content" className="text-gray-300 mb-2 block">
-                  Content *
-                </Label>
-                <div className="h-[calc(100vh-500px)] min-h-[600px]">
-                  <BlockEditor
-                    value={formData.content_blocks ?? []}
-                    onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
-                    placeholder="Start writing your blog post..."
-                    onUploadImage={handleEditorImageUpload}
-                  />
+            <div className="lg:col-span-2 space-y-6 min-w-0">
+              {showReview && reviewResult && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setReviewPanelTab("content");
+                      setReviewHasNewInfo(false);
+                    }}
+                    className={
+                      reviewPanelTab === "content"
+                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                        : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                    }
+                  >
+                    Content
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setReviewPanelTab("review");
+                      setReviewHasNewInfo(false);
+                    }}
+                    className={
+                      reviewPanelTab === "review"
+                        ? "bg-purple-600 hover:bg-purple-700 text-white"
+                        : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                    }
+                  >
+                    Review
+                    {reviewHasNewInfo && (
+                      <span className="ml-2 inline-flex items-center rounded bg-purple-900/60 px-2 py-0.5 text-xs font-medium text-purple-100">
+                        New
+                      </span>
+                    )}
+                  </Button>
                 </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  Use + or type / to add blocks. Every image requires a caption.
-                </p>
-              </div>
+              )}
+
+              {reviewPanelTab === "review" && showReview && reviewResult ? (
+                <div className="space-y-4">
+                  {canApplyReviewSuggestions && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setReviewMode(true)}
+                        className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                      >
+                        Enter review mode
+                      </Button>
+                      <span className="text-sm text-gray-500">
+                        Apply suggestions in context and use version history to undo
+                      </span>
+                    </div>
+                  )}
+                  <BlogReviewCard
+                    reviewResult={reviewResult}
+                    originalContent={{
+                      title: formData.title,
+                      content: formData.content_blocks?.length
+                        ? blocksToHtml(formData.content_blocks)
+                        : formData.content,
+                      excerpt: derivedExcerpt(),
+                    }}
+                    isLoading={false}
+                    onViewComparison={() => setShowComparison(true)}
+                    {...(canApplyReviewSuggestions
+                      ? {
+                          onApplyReview: async (_selectedSuggestions, applyAll) => {
+                            try {
+                              await applyReviewAsync({
+                                blogId: id,
+                                data: {
+                                  improved_content: reviewResult.improved_content,
+                                  improved_title: reviewResult.improved_title,
+                                  improved_excerpt: reviewResult.improved_excerpt,
+                                },
+                              });
+                              const improvedContent =
+                                reviewResult.improved_content ||
+                                (formData.content_blocks?.length
+                                  ? blocksToHtml(formData.content_blocks)
+                                  : formData.content);
+                              setFormData({
+                                ...formData,
+                                title: reviewResult.improved_title || formData.title,
+                                content: blocksToHtml(contentToBlocks(improvedContent)),
+                                content_type: "html",
+                                content_blocks: contentToBlocks(improvedContent),
+                              });
+                              setShowReview(false);
+                              setReviewPanelTab("content");
+                              setReviewHasNewInfo(false);
+                            } catch (err) {
+                              // Error handled by hook
+                            }
+                          },
+                        }
+                      : {})}
+                  />
+                  {!canApplyReviewSuggestions && (
+                    <p className="text-sm text-gray-500">
+                      Save this post as a draft to apply AI suggestions to the live content.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="title" className="text-gray-300">
+                      Title *
+                    </Label>
+                    <Input
+                      id="title"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="mt-1 bg-black border-gray-700 text-white"
+                      required
+                      maxLength={200}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-h-0 min-w-0">
+                    <Label htmlFor="content" className="text-gray-300 mb-2 block">
+                      Content *
+                    </Label>
+                    <div className="h-[calc(100vh-500px)] min-h-[600px]">
+                      <BlockEditor
+                        value={formData.content_blocks ?? []}
+                        onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
+                        placeholder="Start writing your blog post..."
+                        onUploadImage={handleEditorImageUpload}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Use + or type / to add blocks. Every image requires a caption.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="lg:col-span-1 space-y-6">
               <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 space-y-6">
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0"
+                    onClick={handleReview}
+                    disabled={isReviewing || !canReviewNow}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    {isReviewing ? "Reviewing..." : "Review with AI"}
+                  </Button>
+                  {!canApplyReviewSuggestions && (
+                    <p className="text-xs text-gray-500">
+                      AI review is available for any status. Apply suggestions after saving as a draft.
+                    </p>
+                  )}
+                </div>
                 <div>
                   <Label htmlFor="status" className="text-gray-300">
                     Status
@@ -451,15 +701,18 @@ export default function EditBlogPage() {
                   <select
                     id="status"
                     value={formData.status}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const status = e.target.value as "draft" | "scheduled" | "published" | "unpublished";
                       setFormData({
                         ...formData,
-                        status: e.target.value as "draft" | "published" | "unpublished",
-                      })
-                    }
+                        status,
+                        ...(status !== "scheduled" ? { scheduled_at: "" } : {}),
+                      });
+                    }}
                     className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
                   >
                     <option value="draft">Draft</option>
+                    <option value="scheduled">Scheduled</option>
                     <option value="published">Published</option>
                     <option value="unpublished">Unpublished</option>
                   </select>
@@ -488,20 +741,6 @@ export default function EditBlogPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="excerpt" className="text-gray-300">
-                    Excerpt
-                  </Label>
-                  <textarea
-                    id="excerpt"
-                    value={formData.excerpt}
-                    onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
-                    className="mt-1 flex min-h-[100px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-                    maxLength={500}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">{formData.excerpt.length}/500</p>
-                </div>
-
-                <div>
                   <Label htmlFor="featured_image" className="text-gray-300">
                     Featured Image
                   </Label>
@@ -525,45 +764,34 @@ export default function EditBlogPage() {
                   )}
                 </div>
 
-                <div>
-                  <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Schedule Publish
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="scheduled_at"
-                      type="datetime-local"
-                      value={formData.scheduled_at}
-                      onChange={(e) => setFormData({ ...formData, scheduled_at: e.target.value })}
-                      className="mt-1 bg-black border-gray-700 text-white flex-1"
-                      min={new Date().toISOString().slice(0, 16)}
-                      disabled={isLoadingSchedule}
-                    />
+                {formData.status === "scheduled" && (
+                  <div>
+                    <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Schedule Publish
+                    </Label>
+                    <div className="mt-1">
+                      <DateTimePicker
+                        id="scheduled_at"
+                        value={formData.scheduled_at}
+                        onChange={(value) => setFormData({ ...formData, scheduled_at: value })}
+                        min={new Date().toISOString().slice(0, 16)}
+                        disabled={isLoadingSchedule}
+                        aria-label="Schedule publish date and time"
+                      />
+                    </div>
                     {formData.scheduled_at && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setFormData({ ...formData, scheduled_at: "" })}
-                        className="text-gray-400 hover:text-white mt-1"
-                        title="Clear schedule"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Will be published on {new Date(formData.scheduled_at).toLocaleString()}
+                      </p>
+                    )}
+                    {existingSchedule && !formData.scheduled_at && (
+                      <p className="mt-1 text-xs text-amber-500">
+                        Currently scheduled for {new Date(existingSchedule.scheduled_at).toLocaleString()}
+                      </p>
                     )}
                   </div>
-                  {formData.scheduled_at && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Will be published on {new Date(formData.scheduled_at).toLocaleString()}
-                    </p>
-                  )}
-                  {existingSchedule && !formData.scheduled_at && (
-                    <p className="mt-1 text-xs text-amber-500">
-                      Currently scheduled for {new Date(existingSchedule.scheduled_at).toLocaleString()}
-                    </p>
-                  )}
-                </div>
+                )}
 
                 {/* Version history - undo after apply-one or apply all */}
                 {((blog as { version_history?: { version: number; created_at: Date }[] })?.version_history?.length ??
@@ -619,88 +847,13 @@ export default function EditBlogPage() {
           </div>
           </form>
 
-          {/* Review Results */}
-
-          {showReview && reviewResult && !reviewMode && (
-            <div className="mt-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setReviewMode(true)}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800"
-                >
-                  Enter review mode
-                </Button>
-                <span className="text-sm text-gray-500">
-                  Apply suggestions in context and use version history to undo
-                </span>
-              </div>
-              <BlogReviewCard
-                reviewResult={reviewResult}
-                originalContent={{
-                  title: formData.title,
-                  content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                  excerpt: formData.excerpt,
-                }}
-                isLoading={false}
-                onViewComparison={() => setShowComparison(true)}
-                onApplyReview={async (selectedSuggestions, applyAll) => {
-                  try {
-                    if (applyAll) {
-                      // Apply all improvements
-                      await applyReviewAsync({
-                        blogId: id,
-                        data: {
-                          improved_content: reviewResult.improved_content,
-                          improved_title: reviewResult.improved_title,
-                          improved_excerpt: reviewResult.improved_excerpt,
-                        },
-                      });
-                      const improvedContent = reviewResult.improved_content || (formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content);
-                      setFormData({
-                        ...formData,
-                        title: reviewResult.improved_title || formData.title,
-                        content: improvedContent,
-                        content_blocks: htmlToBlocks(improvedContent),
-                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
-                      });
-                    } else {
-                      // Apply selected suggestions (for now, apply all improvements)
-                      // TODO: Implement selective application based on selected suggestions
-                      await applyReviewAsync({
-                        blogId: id,
-                        data: {
-                          improved_content: reviewResult.improved_content,
-                          improved_title: reviewResult.improved_title,
-                          improved_excerpt: reviewResult.improved_excerpt,
-                        },
-                      });
-                      const improvedContent = reviewResult.improved_content || (formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content);
-                      setFormData({
-                        ...formData,
-                        title: reviewResult.improved_title || formData.title,
-                        content: improvedContent,
-                        content_blocks: htmlToBlocks(improvedContent),
-                        excerpt: reviewResult.improved_excerpt || formData.excerpt,
-                      });
-                    }
-                    setShowReview(false);
-                  } catch (err) {
-                    // Error handled by hook
-                  }
-                }}
-              />
-            </div>
-          )}
-
           {/* Comparison Modal */}
-          {showComparison && reviewResult && (
+          {showComparison && reviewResult && canApplyReviewSuggestions && (
             <BlogReviewComparison
               original={{
                 title: formData.title,
                 content: formData.content_blocks?.length ? blocksToHtml(formData.content_blocks) : formData.content,
-                excerpt: formData.excerpt,
+                excerpt: derivedExcerpt(),
               }}
               reviewResult={reviewResult}
               onClose={() => setShowComparison(false)}
@@ -718,12 +871,14 @@ export default function EditBlogPage() {
                   setFormData({
                     ...formData,
                     title: reviewResult.improved_title || formData.title,
-                    content: improvedContent,
-                    content_blocks: htmlToBlocks(improvedContent),
-                    excerpt: reviewResult.improved_excerpt || formData.excerpt,
+                    content: blocksToHtml(contentToBlocks(improvedContent)),
+                    content_type: "html",
+                    content_blocks: contentToBlocks(improvedContent),
                   });
                   setShowComparison(false);
                   setShowReview(false);
+                  setReviewPanelTab("content");
+                  setReviewHasNewInfo(false);
                 } catch (err) {
                   // Error handled by hook
                 }

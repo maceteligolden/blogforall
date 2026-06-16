@@ -1,26 +1,37 @@
 import "reflect-metadata";
+import "./instrument";
 import express from "express";
-import "dotenv/config";
 import path from "path";
 import { connectDatabase } from "./shared/database";
 import { logger } from "./shared/utils/logger";
 import { errorHandler } from "./shared/middlewares/error-handler.middleware";
 import { requestLogger } from "./shared/middlewares/request-logger.middleware";
 import { routes } from "./routes";
-import { seedPlansIfNeeded } from "./shared/utils/seed-plans.util";
+import { seedPlansIfNeeded, syncFreePlanTokenLimit } from "./shared/utils/seed-plans.util";
 import { env } from "./shared/config/env";
 import { container } from "tsyringe";
 import { PostSchedulerService } from "./modules/campaign/services/post-scheduler.service";
+import { OrchestratorBootstrap } from "./modules/orchestrator/ai/bootstrap";
+import { WeeklyDigestService } from "./modules/orchestrator/services/weekly-digest.service";
+import { MemoryDigestService } from "./modules/orchestrator/services/memory-digest.service";
+import { CampaignProgressEmailService } from "./modules/campaign/services/campaign-progress-email.service";
+import { CampaignProgressReportCronService } from "./modules/campaign/services/campaign-progress-report-cron.service";
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
+import { corsMiddleware } from "./shared/middlewares/cors.middleware";
+import { requestContextMiddleware } from "./shared/middlewares/request-context.middleware";
+import { backfillSitePublicIds } from "./shared/utils/backfill-site-public-ids";
+import { setupExpressErrorHandler, isSentryEnabled } from "./shared/observability/sentry";
+import { seedPlatformAdminIfNeeded } from "./shared/utils/seed-platform-admin.util";
 
 const app = express();
 const PORT = env.port;
 
 // Serve uploaded images statically (before other middlewares to avoid conflicts)
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static(path.join(process.cwd(), env.upload.dir)));
 
-// Middlewares
+// Middlewares — requestContext first for correlation (requestId, Sentry scope)
+app.use(requestContextMiddleware);
 app.use(requestLogger);
 
 // Webhook routes need raw body for Stripe signature verification
@@ -32,57 +43,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // CORS
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  // Default allowed origins for development
-  const defaultOrigins = [
-    "http://localhost:3000",
-    "http://localhost:3002",
-    "http://localhost:3001",
-    "https://blogforall-ij6u.onrender.com",
-  ];
-
-  const allowedOrigins = env.frontend.urls.length > 0 ? [...env.frontend.urls, ...defaultOrigins] : defaultOrigins;
-
-  // Remove duplicates
-  const uniqueOrigins = [...new Set(allowedOrigins)];
-
-  // In development, allow any localhost origin or configured origins
-  if (process.env.NODE_ENV === "development") {
-    if (
-      origin &&
-      (uniqueOrigins.includes(origin) || (origin.includes("localhost") && origin.match(/^http:\/\/localhost:\d+$/)))
-    ) {
-      res.header("Access-Control-Allow-Origin", origin);
-    } else if (origin) {
-      res.header("Access-Control-Allow-Origin", "*");
-    }
-  } else {
-    // In production, only allow configured origins
-    if (origin && uniqueOrigins.includes(origin)) {
-      res.header("Access-Control-Allow-Origin", origin);
-    }
-  }
-
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, x-access-key-id, x-secret-key");
-  res.header("Access-Control-Allow-Credentials", "true");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-  next();
-});
+app.use(corsMiddleware);
 
 // Routes
-app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "BlogForAll API is running" });
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", message: "Bloggr API is running" });
 });
 
 app.use("/api/v1", routes);
 
-// Error handler (must be last)
+if (isSentryEnabled()) {
+  setupExpressErrorHandler(app);
+}
+
+// Custom error handler (must be last)
 app.use(errorHandler);
 
 // Start server
@@ -90,12 +64,43 @@ const startServer = async () => {
   try {
     await connectDatabase();
 
+    await backfillSitePublicIds();
+
     // Seed plans if none exist
     await seedPlansIfNeeded();
+    await syncFreePlanTokenLimit();
+
+    if (env.adminSeed.onStart) {
+      await seedPlatformAdminIfNeeded({
+        email: env.adminSeed.email,
+        password: env.adminSeed.password,
+        firstName: env.adminSeed.firstName,
+        lastName: env.adminSeed.lastName,
+        roleRaw: env.adminSeed.role,
+      });
+    }
+
+    // Register Workspace Orchestrator Agent tools before serving traffic so
+    // the chat endpoints can dispatch to them on the first request.
+    container.resolve(OrchestratorBootstrap).registerAllTools();
 
     // Start the post scheduler
     const scheduler = container.resolve(PostSchedulerService);
     scheduler.start();
+
+    // Start the weekly review digest cron (one email per recipient
+    // rolling up posts that still need pre-publish approval).
+    const weeklyDigest = container.resolve(WeeklyDigestService);
+    weeklyDigest.start();
+
+    const memoryDigest = container.resolve(MemoryDigestService);
+    memoryDigest.start();
+
+    const campaignProgressReportCron = container.resolve(CampaignProgressReportCronService);
+    campaignProgressReportCron.start();
+
+    const campaignProgressEmail = container.resolve(CampaignProgressEmailService);
+    campaignProgressEmail.start();
 
     // Start the email notification queue worker only when Redis is configured
     if (isEmailQueueConnected) {

@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { env } from "../config/env";
 
 export interface TokenPayload {
   userId: string;
@@ -8,7 +9,7 @@ export interface TokenPayload {
 }
 
 export const generateAccessToken = (payload: TokenPayload): string => {
-  const secret = process.env.ACCESS_SECRET;
+  const secret = env.jwt.accessSecret;
   if (!secret) {
     throw new Error("ACCESS_SECRET is not defined");
   }
@@ -16,7 +17,7 @@ export const generateAccessToken = (payload: TokenPayload): string => {
 };
 
 export const generateRefreshToken = (payload: TokenPayload): string => {
-  const secret = process.env.REFRESH_SECRET;
+  const secret = env.jwt.refreshSecret;
   if (!secret) {
     throw new Error("REFRESH_SECRET is not defined");
   }
@@ -28,7 +29,7 @@ export const verifyToken = (token: string, secret: string): TokenPayload => {
 };
 
 export const verifyAccessToken = (token: string): TokenPayload => {
-  const secret = process.env.ACCESS_SECRET;
+  const secret = env.jwt.accessSecret;
   if (!secret) {
     throw new Error("ACCESS_SECRET is not defined");
   }
@@ -36,7 +37,7 @@ export const verifyAccessToken = (token: string): TokenPayload => {
 };
 
 export const verifyRefreshToken = (token: string): TokenPayload => {
-  const secret = process.env.REFRESH_SECRET;
+  const secret = env.jwt.refreshSecret;
   if (!secret) {
     throw new Error("REFRESH_SECRET is not defined");
   }

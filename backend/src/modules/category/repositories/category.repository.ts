@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import Category, { Category as CategoryType } from "../../../shared/schemas/category.schema";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
+import { mongooseDocToPlain } from "../../../shared/utils/mongoose-plain.util";
 
 @injectable()
 export class CategoryRepository {
@@ -67,6 +68,18 @@ export class CategoryRepository {
       query.is_active = filters.is_active;
     }
     return Category.find(query).sort({ name: 1 });
+  }
+
+  async countBySiteIds(siteIds: string[]): Promise<Record<string, number>> {
+    if (!siteIds.length) return {};
+    const rows = await Category.aggregate<{ _id: string; count: number }>([
+      { $match: { site_id: { $in: siteIds } } },
+      { $group: { _id: "$site_id", count: { $sum: 1 } } },
+    ]);
+    return rows.reduce<Record<string, number>>((acc, row) => {
+      acc[row._id] = row.count;
+      return acc;
+    }, {});
   }
 
   async findBySlug(slug: string, siteId: string): Promise<CategoryType | null> {
@@ -141,7 +154,7 @@ export class CategoryRepository {
 
     // Create map of all categories
     categories.forEach((cat) => {
-      const catObj = (cat as any).toObject ? (cat as any).toObject() : { ...(cat as any) };
+      const catObj = mongooseDocToPlain(cat);
       categoryMap.set(cat._id!.toString(), { ...catObj, children: [] });
     });
 

@@ -4,24 +4,47 @@ import { ScheduledPostRepository } from "../repositories/scheduled-post.reposito
 import { CampaignRepository } from "../repositories/campaign.repository";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { BlogService } from "../../blog/services/blog.service";
-import { BlogGenerationService } from "../../blog/services/blog-generation.service";
-import { ScheduledPostStatus, CampaignStatus } from "../../../shared/constants/campaign.constant";
+import {
+  ScheduledPostStatus,
+  CampaignStatus,
+  CampaignLifecycleStatus,
+  CampaignPostItemStatus,
+} from "../../../shared/constants/campaign.constant";
+import { CampaignPostItemRepository } from "../repositories/campaign-post-item.repository";
 import { BlogStatus } from "../../../shared/constants";
 import { logger } from "../../../shared/utils/logger";
+import { env } from "../../../shared/config/env";
 import { NotFoundError } from "../../../shared/errors";
+import { ScheduledPostPrepareService } from "../../orchestrator/services/scheduled-post-prepare.service";
 
+/**
+ * Cron-driven scheduler for blog publication. Split across two phases so the
+ * Workspace Orchestrator can enforce human-in-the-loop review before any post
+ * goes live:
+ *
+ *  - prepare phase: delegated to ScheduledPostPrepareService. Picks up posts
+ *    inside the review lead time, materializes a draft if needed, and
+ *    transitions them to AWAITING_APPROVAL with a fresh review token.
+ *  - publish phase: this service. Only publishes posts that are
+ *    AWAITING_APPROVAL with an approved_at timestamp set by the human
+ *    reviewer (via the email link or the approvals UI).
+ *
+ * Posts past their scheduled_at without approval stay AWAITING_APPROVAL
+ * instead of auto-publishing.
+ */
 @injectable()
 export class PostSchedulerService {
   private cronJob: cron.ScheduledTask | null = null;
   private readonly MAX_RETRY_ATTEMPTS = 3;
-  private readonly SCHEDULE_INTERVAL = process.env.SCHEDULER_INTERVAL || "*/1 * * * *"; // Every minute by default
+  private readonly SCHEDULE_INTERVAL = env.scheduler.cronInterval;
 
   constructor(
     private scheduledPostRepository: ScheduledPostRepository,
     private campaignRepository: CampaignRepository,
     private blogRepository: BlogRepository,
     private blogService: BlogService,
-    private blogGenerationService: BlogGenerationService
+    private prepareService: ScheduledPostPrepareService,
+    private campaignPostItemRepository: CampaignPostItemRepository
   ) {}
 
   /**
@@ -35,6 +58,10 @@ export class PostSchedulerService {
 
     // Run every minute by default (configurable via SCHEDULER_INTERVAL env var)
     this.cronJob = cron.schedule(this.SCHEDULE_INTERVAL, async () => {
+      // Prepare drafts that are inside the review lead time first; then
+      // publish approved posts. Order matters: a post that approval came in
+      // for since the last tick will be picked up by the publish pass.
+      await this.runPreparePhase();
       await this.processScheduledPosts();
     });
 
@@ -53,42 +80,71 @@ export class PostSchedulerService {
   }
 
   /**
-   * Process all pending scheduled posts that are due
+   * Delegate to the prepare service; isolated here so a prepare-phase failure
+   * cannot prevent the publish phase from running.
    */
-  private async processScheduledPosts(): Promise<void> {
+  private async runPreparePhase(): Promise<void> {
     try {
-      const now = new Date();
-      const pendingPosts = await this.scheduledPostRepository.findPendingPosts(100); // Process up to 100 at a time
-
-      if (pendingPosts.length === 0) {
-        return; // No posts to process
-      }
-
-      logger.info(`Processing ${pendingPosts.length} scheduled posts`, {}, "PostSchedulerService");
-
-      // Process posts in parallel (with concurrency limit)
-      const batchSize = 10;
-      for (let i = 0; i < pendingPosts.length; i += batchSize) {
-        const batch = pendingPosts.slice(i, i + batchSize);
-        await Promise.allSettled(batch.map((post) => this.executeScheduledPost(post._id!.toString())));
-      }
+      await this.prepareService.sweep();
     } catch (error) {
-      logger.error("Error processing scheduled posts", error as Error, {}, "PostSchedulerService");
+      logger.error(
+        "Error in scheduled post prepare phase",
+        error as Error,
+        {},
+        "PostSchedulerService"
+      );
     }
   }
 
   /**
-   * Execute a single scheduled post
+   * Publish posts that are AWAITING_APPROVAL with an approved_at timestamp
+   * and have reached their scheduled_at. Posts past their scheduled time
+   * without approval stay AWAITING_APPROVAL — they do NOT auto-publish.
+   */
+  private async processScheduledPosts(): Promise<void> {
+    try {
+      const readyPosts = await this.scheduledPostRepository.findReadyForPublication(100);
+
+      if (readyPosts.length === 0) {
+        return;
+      }
+
+      logger.info(
+        `Publishing ${readyPosts.length} approved scheduled post(s)`,
+        {},
+        "PostSchedulerService"
+      );
+
+      const batchSize = 10;
+      for (let i = 0; i < readyPosts.length; i += batchSize) {
+        const batch = readyPosts.slice(i, i + batchSize);
+        await Promise.allSettled(
+          batch.map((post) => this.executeScheduledPost(post._id!.toString()))
+        );
+      }
+    } catch (error) {
+      logger.error("Error processing scheduled posts", error, {}, "PostSchedulerService");
+    }
+  }
+
+  /**
+   * Publish a single approved scheduled post. Pre-conditions enforced:
+   *  - post exists and is AWAITING_APPROVAL
+   *  - approved_at is set (HITL gate)
+   *  - scheduled_at has passed
+   *  - retry budget has not been exhausted
+   *
+   * Content generation moved to ScheduledPostPrepareService; this method is
+   * now purely a publication step.
    */
   async executeScheduledPost(scheduledPostId: string): Promise<void> {
     const scheduledPost = await this.scheduledPostRepository.findById(scheduledPostId);
 
     if (!scheduledPost) {
-      logger.error(`Scheduled post not found: ${scheduledPostId}`, {}, "PostSchedulerService");
+      logger.error(`Scheduled post not found: ${scheduledPostId}`, undefined, {}, "PostSchedulerService");
       return;
     }
 
-    // Skip if already published or cancelled
     if (
       scheduledPost.status === ScheduledPostStatus.PUBLISHED ||
       scheduledPost.status === ScheduledPostStatus.CANCELLED
@@ -96,111 +152,128 @@ export class PostSchedulerService {
       return;
     }
 
-    // Check if it's time to publish
-    const now = new Date();
-    if (scheduledPost.scheduled_at > now) {
-      return; // Not yet time to publish
+    // HITL gate: never publish without explicit human approval, even past
+    // scheduled_at.
+    if (!scheduledPost.approved_at) {
+      logger.warn(
+        "Skipping unapproved scheduled post",
+        { scheduledPostId, status: scheduledPost.status },
+        "PostSchedulerService"
+      );
+      return;
     }
 
-    // Check retry limit
+    if (scheduledPost.campaign_id) {
+      const campaign = await this.campaignRepository.findById(
+        scheduledPost.campaign_id,
+        scheduledPost.site_id
+      );
+      const paused =
+        campaign?.lifecycle_status === CampaignLifecycleStatus.PAUSED ||
+        campaign?.status === CampaignStatus.PAUSED;
+      if (paused) {
+        logger.info(
+          "Skipping publish — campaign is paused",
+          { scheduledPostId, campaignId: scheduledPost.campaign_id },
+          "PostSchedulerService"
+        );
+        return;
+      }
+      const itemId = scheduledPost.metadata?.campaign_post_item_id as string | undefined;
+      if (itemId) {
+        const item = await this.campaignPostItemRepository.findById(
+          itemId,
+          scheduledPost.site_id
+        );
+        if (item?.dependencies?.length) {
+          for (const depId of item.dependencies) {
+            const dep = await this.campaignPostItemRepository.findById(
+              depId,
+              scheduledPost.site_id
+            );
+            if (dep && dep.status !== CampaignPostItemStatus.PUBLISHED) {
+              logger.info(
+                "Skipping publish — dependency not yet published",
+                { scheduledPostId, dependencyId: depId },
+                "PostSchedulerService"
+              );
+              return;
+            }
+          }
+        }
+      }
+    }
+
+    const now = new Date();
+    if (scheduledPost.scheduled_at > now) {
+      return;
+    }
+
     if (scheduledPost.publish_attempts >= this.MAX_RETRY_ATTEMPTS) {
       await this.scheduledPostRepository.markAsFailed(
         scheduledPostId,
         `Failed after ${this.MAX_RETRY_ATTEMPTS} attempts`
       );
-      logger.error(`Scheduled post ${scheduledPostId} exceeded max retry attempts`, {}, "PostSchedulerService");
+      logger.error(
+        `Scheduled post ${scheduledPostId} exceeded max retry attempts`,
+        undefined,
+        {},
+        "PostSchedulerService"
+      );
       return;
     }
 
     try {
-      // Increment attempt count
       await this.scheduledPostRepository.incrementAttempts(scheduledPostId);
 
-      let blogId: string | undefined;
-
-      if (scheduledPost.blog_id) {
-        // Case 1: Blog already exists, just publish it
-        blogId = scheduledPost.blog_id;
-        const blog = await this.blogRepository.findById(blogId, scheduledPost.site_id);
-
-        if (!blog) {
-          throw new NotFoundError(`Blog ${blogId} not found for scheduled post ${scheduledPostId}`);
-        }
-
-        // Publish the blog if not already published
-        if (blog.status !== BlogStatus.PUBLISHED) {
-          await this.blogService.publishBlog(blogId, scheduledPost.site_id, scheduledPost.user_id);
-          logger.info(`Published blog ${blogId} for scheduled post ${scheduledPostId}`, {}, "PostSchedulerService");
-        }
-      } else if (scheduledPost.auto_generate && scheduledPost.generation_prompt) {
-        // Case 2: Auto-generate blog content and then publish
-        logger.info(`Generating content for scheduled post ${scheduledPostId}`, {}, "PostSchedulerService");
-
-        try {
-          // Analyze prompt first
-          const analysis = await this.blogGenerationService.analyzePrompt(scheduledPost.generation_prompt);
-
-          if (!analysis.is_valid) {
-            throw new Error(`Invalid generation prompt: ${analysis.rejection_reason || "Unknown error"}`);
-          }
-
-          // Generate blog content
-          const generatedContent = await this.blogGenerationService.generateBlogContent(
-            scheduledPost.generation_prompt,
-            analysis
-          );
-
-          // Create the blog post
-          const blog = await this.blogService.createBlog(scheduledPost.user_id, scheduledPost.site_id, {
-            title: scheduledPost.title || generatedContent.title,
-            content: generatedContent.content,
-            excerpt: generatedContent.excerpt,
-            status: BlogStatus.PUBLISHED, // Publish directly
-          });
-
-          blogId = blog._id!.toString();
-
-          // Update scheduled post with the new blog_id
-          await this.scheduledPostRepository.update(scheduledPostId, scheduledPost.site_id, {
-            blog_id: blogId,
-          });
-
-          logger.info(
-            `Generated and published blog ${blogId} for scheduled post ${scheduledPostId}`,
-            {},
-            "PostSchedulerService"
-          );
-        } catch (generationError) {
-          logger.error(
-            `Failed to generate content for scheduled post ${scheduledPostId}`,
-            generationError as Error,
-            {},
-            "PostSchedulerService"
-          );
-          throw generationError; // Re-throw to be caught by outer catch
-        }
-      } else {
-        throw new Error("Scheduled post has neither a blog_id nor a valid generation_prompt");
+      const blogId = scheduledPost.blog_id;
+      if (!blogId) {
+        throw new Error(
+          "Approved scheduled post is missing blog_id; prepare phase did not set it."
+        );
+      }
+      const blog = await this.blogRepository.findById(blogId, scheduledPost.site_id);
+      if (!blog) {
+        throw new NotFoundError(
+          `Blog ${blogId} not found for scheduled post ${scheduledPostId}`
+        );
       }
 
-      // Mark as published
+      if (blog.status !== BlogStatus.PUBLISHED) {
+        await this.blogService.publishBlog(blogId, scheduledPost.site_id, scheduledPost.user_id);
+        logger.info(
+          `Published blog ${blogId} for scheduled post ${scheduledPostId}`,
+          {},
+          "PostSchedulerService"
+        );
+      }
+
       await this.scheduledPostRepository.markAsPublished(scheduledPostId, new Date());
 
-      // Update campaign stats if part of a campaign
       if (scheduledPost.campaign_id) {
         await this.campaignRepository.updatePostsPublished(scheduledPost.campaign_id, 1);
 
-        // Check if campaign should be marked as completed
-        const campaign = await this.campaignRepository.findById(scheduledPost.campaign_id, scheduledPost.site_id);
+        const campaign = await this.campaignRepository.findById(
+          scheduledPost.campaign_id,
+          scheduledPost.site_id
+        );
         if (campaign && campaign.end_date <= now && campaign.status === CampaignStatus.ACTIVE) {
           await this.campaignRepository.update(scheduledPost.campaign_id, scheduledPost.site_id, {
             status: CampaignStatus.COMPLETED,
           });
-          logger.info(`Campaign ${scheduledPost.campaign_id} marked as completed`, {}, "PostSchedulerService");
+          logger.info(
+            `Campaign ${scheduledPost.campaign_id} marked as completed`,
+            {},
+            "PostSchedulerService"
+          );
         }
       }
 
-      logger.info(`Successfully executed scheduled post ${scheduledPostId}`, { blogId }, "PostSchedulerService");
+      logger.info(
+        `Successfully executed scheduled post ${scheduledPostId}`,
+        { blogId },
+        "PostSchedulerService"
+      );
     } catch (error) {
       logger.error(
         `Failed to execute scheduled post ${scheduledPostId}`,
@@ -209,11 +282,12 @@ export class PostSchedulerService {
         "PostSchedulerService"
       );
 
-      // Mark as failed if exceeded retry limit
       if (scheduledPost.publish_attempts + 1 >= this.MAX_RETRY_ATTEMPTS) {
-        await this.scheduledPostRepository.markAsFailed(scheduledPostId, (error as Error).message || "Unknown error");
+        await this.scheduledPostRepository.markAsFailed(
+          scheduledPostId,
+          (error as Error).message || "Unknown error"
+        );
       } else {
-        // Just update error message for retry
         await this.scheduledPostRepository.update(scheduledPostId, scheduledPost.site_id, {
           error_message: (error as Error).message || "Unknown error",
         });
@@ -222,10 +296,11 @@ export class PostSchedulerService {
   }
 
   /**
-   * Manually trigger processing of scheduled posts (useful for testing or manual execution)
+   * Manually trigger both phases. Useful for tests / admin endpoints.
    */
   async triggerProcessing(): Promise<void> {
     logger.info("Manually triggering scheduled post processing", {}, "PostSchedulerService");
+    await this.runPreparePhase();
     await this.processScheduledPosts();
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "./button";
 
@@ -41,9 +42,9 @@ export function Modal({
     xl: "max-w-4xl",
   };
 
-  return (
+  const overlay = (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10050] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
@@ -77,6 +78,8 @@ export function Modal({
       </div>
     </div>
   );
+
+  return createPortal(overlay, document.body);
 }
 
 interface ConfirmModalProps {
@@ -88,6 +91,10 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: "default" | "danger";
+  /** When false, parent closes the modal after async onConfirm completes. Default true. */
+  closeOnConfirm?: boolean;
+  /** Disables buttons and shows loading label on confirm. */
+  isConfirming?: boolean;
 }
 
 export function ConfirmModal({
@@ -99,36 +106,47 @@ export function ConfirmModal({
   confirmText = "Confirm",
   cancelText = "Cancel",
   variant = "default",
+  closeOnConfirm = true,
+  isConfirming = false,
 }: ConfirmModalProps) {
   const handleConfirm = () => {
     onConfirm();
+    if (closeOnConfirm) {
+      onClose();
+    }
+  };
+
+  const handleClose = () => {
+    if (isConfirming) return;
     onClose();
   };
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={title}
       size="sm"
       footer={
         <div className="flex justify-end space-x-3">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={handleClose}
+            disabled={isConfirming}
             className="border-gray-700 text-gray-300 hover:bg-gray-800"
           >
             {cancelText}
           </Button>
           <Button
             onClick={handleConfirm}
+            disabled={isConfirming}
             className={
               variant === "danger"
                 ? "bg-red-600 hover:bg-red-700 text-white"
                 : "bg-primary hover:bg-primary/90 text-white"
             }
           >
-            {confirmText}
+            {isConfirming ? "Please wait..." : confirmText}
           </Button>
         </div>
       }

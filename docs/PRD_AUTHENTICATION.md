@@ -10,7 +10,7 @@
 
 ### 1.1 Purpose
 
-Define and document BlogForAll’s **authentication and authorization** system: current behaviour, required changes (terms acceptance, welcome email, first-time login flow, roles, default admin), and non-functional requirements (security, performance, error handling, audit logging).
+Define and document Bloggr’s **authentication and authorization** system: current behaviour, required changes (terms acceptance, welcome email, first-time login flow, roles, default admin), and non-functional requirements (security, performance, error handling, audit logging).
 
 ### 1.2 Scope
 

@@ -1,8 +1,50 @@
 import { injectable } from "tsyringe";
+import type Stripe from "stripe";
 import User from "../../../shared/schemas/user.schema";
+import type { Card } from "../../../shared/schemas/card.schema";
 import { StripeFacade } from "../../../shared/facade/stripe.facade";
 import { CardRepository } from "../repositories/card.repository";
-import { BadRequestError, NotFoundError } from "../../../shared/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../../shared/errors";
+
+const BILLING_DISABLED_MESSAGE = "Billing is not available. All accounts use the free plan.";
+
+export type UserInvoiceSummary = {
+  id: string | undefined;
+  number: string | null;
+  amount_paid: number;
+  amount_due: number;
+  currency: string;
+  status: Stripe.Invoice.Status | null;
+  created: Date;
+  period_start: Date | null;
+  period_end: Date | null;
+  invoice_pdf: string | null;
+  hosted_invoice_url: string | null;
+  description: string;
+};
+
+export type UserInvoiceDetails = {
+  id: string | undefined;
+  number: string | null;
+  amount_paid: number;
+  amount_due: number;
+  subtotal: number;
+  total: number;
+  currency: string;
+  status: Stripe.Invoice.Status | null;
+  created: Date;
+  period_start: Date | null;
+  period_end: Date | null;
+  invoice_pdf: string | null;
+  hosted_invoice_url: string | null;
+  description: string;
+  lines: Array<{
+    description: string | null;
+    amount: number;
+    quantity: number | null;
+    period: { start: Date; end: Date } | null;
+  }>;
+};
 
 @injectable()
 export class BillingService {
@@ -11,10 +53,15 @@ export class BillingService {
     private cardRepository: CardRepository
   ) {}
 
+  private assertBillingDisabled(): void {
+    throw new ForbiddenError(BILLING_DISABLED_MESSAGE);
+  }
+
   /**
    * Initialize add card process - creates setup intent
    */
   async initializeAddCard(userId: string): Promise<{ client_secret: string }> {
+    this.assertBillingDisabled();
     const user = await User.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
@@ -50,7 +97,8 @@ export class BillingService {
   /**
    * Confirm and save card after setup intent is confirmed
    */
-  async confirmCard(userId: string, paymentMethodId: string): Promise<any> {
+  async confirmCard(userId: string, paymentMethodId: string): Promise<Card> {
+    this.assertBillingDisabled();
     const user = await User.findById(userId);
     if (!user || !user.stripe_customer_id) {
       throw new NotFoundError("User not found or no Stripe customer");
@@ -91,7 +139,8 @@ export class BillingService {
   /**
    * Fetch all user cards
    */
-  async fetchUserCards(userId: string): Promise<any[]> {
+  async fetchUserCards(userId: string): Promise<Card[]> {
+    this.assertBillingDisabled();
     const user = await User.findById(userId);
     if (!user || !user.stripe_customer_id) {
       return [];
@@ -105,6 +154,7 @@ export class BillingService {
    * Delete a card
    */
   async deleteCard(cardId: string, userId: string): Promise<void> {
+    this.assertBillingDisabled();
     const card = await this.cardRepository.findById(cardId);
     if (!card) {
       throw new NotFoundError("Card not found");
@@ -130,6 +180,7 @@ export class BillingService {
    * Set default card
    */
   async setDefaultCard(cardId: string, userId: string): Promise<void> {
+    this.assertBillingDisabled();
     const card = await this.cardRepository.findById(cardId);
     if (!card) {
       throw new NotFoundError("Card not found");
@@ -156,7 +207,8 @@ export class BillingService {
   /**
    * Get invoice history for user
    */
-  async getInvoiceHistory(userId: string, limit: number = 10): Promise<any[]> {
+  async getInvoiceHistory(userId: string, limit: number = 10): Promise<UserInvoiceSummary[]> {
+    this.assertBillingDisabled();
     const user = await User.findById(userId);
     if (!user || !user.stripe_customer_id) {
       return [];
@@ -164,7 +216,7 @@ export class BillingService {
 
     const invoices = await this.stripeFacade.listInvoices(user.stripe_customer_id, limit);
 
-    return invoices.data.map((invoice: any) => ({
+    return invoices.data.map((invoice: Stripe.Invoice) => ({
       id: invoice.id,
       number: invoice.number,
       amount_paid: invoice.amount_paid / 100, // Convert from cents
@@ -174,8 +226,8 @@ export class BillingService {
       created: new Date(invoice.created * 1000),
       period_start: invoice.period_start ? new Date(invoice.period_start * 1000) : null,
       period_end: invoice.period_end ? new Date(invoice.period_end * 1000) : null,
-      invoice_pdf: invoice.invoice_pdf,
-      hosted_invoice_url: invoice.hosted_invoice_url,
+      invoice_pdf: invoice.invoice_pdf ?? null,
+      hosted_invoice_url: invoice.hosted_invoice_url ?? null,
       description: invoice.description || `Invoice ${invoice.number || invoice.id}`,
     }));
   }
@@ -183,7 +235,8 @@ export class BillingService {
   /**
    * Get invoice details
    */
-  async getInvoiceDetails(userId: string, invoiceId: string): Promise<any> {
+  async getInvoiceDetails(userId: string, invoiceId: string): Promise<UserInvoiceDetails> {
+    this.assertBillingDisabled();
     const user = await User.findById(userId);
     if (!user || !user.stripe_customer_id) {
       throw new NotFoundError("User not found or no Stripe customer");
@@ -208,11 +261,11 @@ export class BillingService {
       created: new Date(invoice.created * 1000),
       period_start: invoice.period_start ? new Date(invoice.period_start * 1000) : null,
       period_end: invoice.period_end ? new Date(invoice.period_end * 1000) : null,
-      invoice_pdf: invoice.invoice_pdf,
-      hosted_invoice_url: invoice.hosted_invoice_url,
+      invoice_pdf: invoice.invoice_pdf ?? null,
+      hosted_invoice_url: invoice.hosted_invoice_url ?? null,
       description: invoice.description || `Invoice ${invoice.number || invoice.id}`,
       lines:
-        invoice.lines?.data?.map((line: any) => ({
+        invoice.lines?.data?.map((line: Stripe.InvoiceLineItem) => ({
           description: line.description,
           amount: line.amount / 100,
           quantity: line.quantity,

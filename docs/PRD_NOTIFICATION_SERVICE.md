@@ -10,7 +10,7 @@
 
 ### 1.1 Purpose
 
-Define a unified **Notification Service** for BlogForAll that:
+Define a unified **Notification Service** for Bloggr that:
 
 - **Email notifications** – Delivered via **Brevo** (transactional API), replacing the current SMTP/nodemailer approach.
 - **In-app notifications** – Delivered in real time via **Socket.io** (WebSocket transport), with persistent storage and a traceable lifecycle.

@@ -27,6 +27,21 @@ export interface ChangePasswordRequest {
   new_password: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface VerifyResetCodeRequest {
+  email: string;
+  code: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  code: string;
+  new_password: string;
+}
+
 export class AuthService {
   static async login(data: LoginRequest) {
     return apiClient.post(API_ENDPOINTS.AUTH.LOGIN, data);
@@ -58,6 +73,18 @@ export class AuthService {
 
   static async updateSiteContext(siteId: string) {
     return apiClient.put(API_ENDPOINTS.AUTH.UPDATE_SITE_CONTEXT, { site_id: siteId });
+  }
+
+  static async forgotPassword(data: ForgotPasswordRequest) {
+    return apiClient.post(API_ENDPOINTS.AUTH.FORGOT_PASSWORD, data);
+  }
+
+  static async verifyResetCode(data: VerifyResetCodeRequest) {
+    return apiClient.post(API_ENDPOINTS.AUTH.VERIFY_RESET_CODE, data);
+  }
+
+  static async resetPassword(data: ResetPasswordRequest) {
+    return apiClient.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
   }
 }
 

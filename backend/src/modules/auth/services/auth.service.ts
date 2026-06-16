@@ -1,15 +1,20 @@
 import { injectable } from "tsyringe";
+import { createHash, randomInt } from "crypto";
 import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
 import { BadRequestError, UnauthorizedError, NotFoundError } from "../../../shared/errors";
-import { UserPlan, UserRole } from "../../../shared/constants";
+import { UserPlan, UserRole, SiteStatus, isPlatformAdminRole } from "../../../shared/constants";
+import { Site } from "../../../shared/schemas/site.schema";
 import { logger } from "../../../shared/utils/logger";
 import {
   SignupInput,
   LoginInput,
   UpdateProfileInput,
   ChangePasswordInput,
+  ForgotPasswordInput,
+  VerifyResetCodeInput,
+  ResetPasswordInput,
   LoginResponse,
 } from "../interfaces/auth.interface";
 import { User } from "../../../shared/schemas/user.schema";
@@ -19,6 +24,11 @@ import { SiteService } from "../../site/services/site.service";
 import { NotificationService } from "../../notification/services/notification.service";
 import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 import { env } from "../../../shared/config/env";
+import {
+  captureServerEvent,
+  identifyServerUser,
+  ServerAnalyticsEvents,
+} from "../../../shared/analytics/posthog.server";
 
 @injectable()
 export class AuthService {
@@ -39,14 +49,16 @@ export class AuthService {
    * 5. TRY create free subscription; on failure LOG and continue
    * 6. TRY ensure default workspace; on failure LOG and continue
    * 7. TRY send welcome email via NotificationService (async queue); on failure LOG and continue
-   * 8. LOG success and RETURN user
+   * 8. LOG success and RETURN LoginResponse (auto-login tokens)
    */
-  async signup(input: SignupInput): Promise<User> {
+  async signup(input: SignupInput): Promise<LoginResponse> {
     const { email, password, first_name, last_name, phone_number, terms_version } = input;
 
-    const existingUser = await this.userRepository.findByEmail(email);
+    const formattedEmail = email.toLocaleLowerCase();
+
+    const existingUser = await this.userRepository.findByEmail(formattedEmail);
     if (existingUser) {
-      logger.warn("Signup attempt with existing email", { email }, "AuthService");
+      logger.warn("Signup attempt with existing email", { email: formattedEmail }, "AuthService");
       throw new BadRequestError("User with this email already exists");
     }
 
@@ -54,20 +66,21 @@ export class AuthService {
 
     let stripeCustomerId: string | undefined;
     try {
-      const customer = await this.stripeFacade.createCustomer(email.toLowerCase(), `${first_name} ${last_name}`.trim());
+      const customer = await this.stripeFacade.createCustomer(formattedEmail, `${first_name} ${last_name}`.trim());
       stripeCustomerId = customer.id;
     } catch (error) {
-      logger.error("Failed to create Stripe customer", error as Error, { email }, "AuthService");
+      logger.error("Failed to create Stripe customer", error as Error, { email: formattedEmail }, "AuthService");
     }
 
     const user = await this.userRepository.create({
-      email: email.toLowerCase(),
+      email: formattedEmail,
       password: hashedPassword,
       first_name,
       last_name,
       phone_number,
       plan: UserPlan.FREE,
       stripe_customer_id: stripeCustomerId,
+      onboarding_completed: true,
       terms_accepted_at: new Date(),
       terms_version: terms_version ?? undefined,
     });
@@ -119,7 +132,16 @@ export class AuthService {
     });
 
     logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");
-    return user;
+
+    const userId = user._id!.toString();
+    identifyServerUser(userId, { email: user.email, plan: user.plan });
+    captureServerEvent(ServerAnalyticsEvents.USER_SIGNED_UP, {
+      userId,
+      properties: { plan_type: user.plan },
+    });
+
+    const userSites = await this.siteService.getSitesByUser(userId);
+    return this.buildLoginResponse(user, userSites);
   }
 
   /**
@@ -148,38 +170,41 @@ export class AuthService {
     }
 
     const userSites = await this.siteService.getSitesByUser(user._id!.toString());
-    const hasSites = userSites.length > 0;
-    const defaultSiteId = hasSites ? userSites[0]._id!.toString() : undefined;
+    logger.info(
+      "User logged in successfully",
+      { userId: user._id, email, hasSites: userSites.length > 0 },
+      "AuthService"
+    );
+    return this.buildLoginResponse(user, userSites);
+  }
 
-    const tokenPayload = {
-      userId: user._id!.toString(),
-      email: user.email,
-      currentSiteId: defaultSiteId,
-      role: user.role ?? UserRole.USER,
-    };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+  /**
+   * Platform admin login — same credential check as login, but rejects
+   * non-platform roles and never forces site onboarding.
+   */
+  async loginPlatformAdmin(input: LoginInput): Promise<LoginResponse> {
+    const { email, password } = input;
 
-    // Update session token
-    await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
+    const user = await this.userRepository.findByEmail(email.toLowerCase());
+    if (!user) {
+      logger.warn("Failed platform admin login - user not found", { email }, "AuthService");
+      throw new UnauthorizedError("Invalid credentials");
+    }
 
-    logger.info("User logged in successfully", { userId: user._id, email, hasSites }, "AuthService");
+    const isPasswordValid = await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      logger.warn("Failed platform admin login - invalid password", { email }, "AuthService");
+      throw new UnauthorizedError("Invalid credentials");
+    }
 
-    return {
-      tokens: {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      },
-      user: {
-        id: user._id!.toString(),
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        plan: user.plan,
-        role: user.role ?? UserRole.USER,
-      },
-      requiresSiteCreation: !hasSites,
-    };
+    if (!isPlatformAdminRole(user.role)) {
+      logger.warn("Failed platform admin login - not a platform admin", { email }, "AuthService");
+      throw new UnauthorizedError("Invalid credentials");
+    }
+
+    const userSites = await this.siteService.getSitesByUser(user._id!.toString());
+    logger.info("Platform admin logged in", { userId: user._id, email, role: user.role }, "AuthService");
+    return this.buildLoginResponse(user, userSites);
   }
 
   /**
@@ -329,4 +354,141 @@ export class AuthService {
     await this.userRepository.updatePassword(userId, hashedNewPassword);
     logger.info("Password changed", { userId }, "AuthService");
   }
+
+  /**
+   * Send a single-use 6-digit code to the user's email so they can prove
+   * email ownership before resetting their password. Always resolves
+   * regardless of whether the email exists, to avoid user-enumeration.
+   */
+  async requestPasswordReset(input: ForgotPasswordInput): Promise<void> {
+    const email = input.email.toLowerCase();
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) {
+      logger.info("Password reset requested for unknown email", { email }, "AuthService");
+      return;
+    }
+
+    const code = this.generatePasswordResetCode();
+    const hashedCode = this.hashResetCode(code);
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_CODE_TTL_MS);
+
+    await this.userRepository.setResetCode(user._id!.toString(), hashedCode, expiresAt);
+
+    setImmediate(() => {
+      this.notificationService
+        .createAndSend({
+          channel: NotificationChannel.EMAIL,
+          type: NotificationType.PASSWORD_RESET,
+          recipientEmail: user.email,
+          templateParams: {
+            code,
+            expiresInMinutes: String(PASSWORD_RESET_CODE_TTL_MINUTES),
+            firstName: user.first_name,
+          },
+        })
+        .then(() => {
+          logger.info("Password reset email enqueued", { userId: user._id, email: user.email }, "AuthService");
+        })
+        .catch((error: unknown) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+          logger.error("Password reset email failed", err, { userId: user._id, email: user.email }, "AuthService");
+        });
+    });
+  }
+
+  /**
+   * Validate a reset code without consuming it. Increments attempts on
+   * mismatch; throws BadRequestError when the code is invalid, expired,
+   * or attempts have been exhausted.
+   */
+  async verifyPasswordResetCode(input: VerifyResetCodeInput): Promise<void> {
+    await this.assertResetCodeValid(input.email, input.code);
+  }
+
+  /**
+   * Re-validate the reset code, then set the new password and clear all
+   * reset state. The code is consumed only on a successful reset.
+   */
+  async resetPassword(input: ResetPasswordInput): Promise<void> {
+    const { email, code, new_password } = input;
+    const user = await this.assertResetCodeValid(email, code);
+
+    const hashedNewPassword = await hashPassword(new_password);
+    await this.userRepository.updatePassword(user._id!.toString(), hashedNewPassword);
+    logger.info("Password reset via code", { userId: user._id, email: user.email }, "AuthService");
+  }
+
+  private async assertResetCodeValid(rawEmail: string, code: string): Promise<User> {
+    const email = rawEmail.toLowerCase();
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) {
+      throw new BadRequestError("Invalid or expired code");
+    }
+    if (!user.resetPasswordToken || !user.resetPasswordExpires || user.resetPasswordExpires.getTime() <= Date.now()) {
+      throw new BadRequestError("Invalid or expired code");
+    }
+    if ((user.resetPasswordAttempts ?? 0) >= PASSWORD_RESET_MAX_ATTEMPTS) {
+      throw new BadRequestError("Too many attempts. Request a new code.");
+    }
+
+    const hashedCode = this.hashResetCode(code);
+    if (hashedCode !== user.resetPasswordToken) {
+      const attempts = await this.userRepository.incrementResetAttempts(user._id!.toString());
+      logger.warn("Password reset code mismatch", { userId: user._id, attempts }, "AuthService");
+      throw new BadRequestError("Invalid or expired code");
+    }
+
+    return user;
+  }
+
+  private generatePasswordResetCode(): string {
+    return String(randomInt(0, 1_000_000)).padStart(6, "0");
+  }
+
+  private hashResetCode(code: string): string {
+    return createHash("sha256").update(code).digest("hex");
+  }
+
+  /** Prefer an in-progress onboarding workspace for JWT site context, else first site. */
+  private resolveCurrentSiteId(sites: Site[]): string | undefined {
+    if (sites.length === 0) return undefined;
+    const onboardingSite = sites.find((s) => s.status === SiteStatus.ONBOARDING);
+    return (onboardingSite ?? sites[0])._id!.toString();
+  }
+
+  private async buildLoginResponse(user: User, sites: Site[]): Promise<LoginResponse> {
+    const hasSites = sites.length > 0;
+    const currentSiteId = this.resolveCurrentSiteId(sites);
+    const tokenPayload = {
+      userId: user._id!.toString(),
+      email: user.email,
+      currentSiteId,
+      role: user.role ?? UserRole.USER,
+    };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+    await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
+
+    const role = user.role ?? UserRole.USER;
+
+    return {
+      tokens: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      },
+      user: {
+        id: user._id!.toString(),
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        plan: user.plan,
+        role,
+      },
+      requiresSiteCreation: isPlatformAdminRole(role) ? false : !hasSites,
+    };
+  }
 }
+
+const PASSWORD_RESET_CODE_TTL_MINUTES = 15;
+const PASSWORD_RESET_CODE_TTL_MS = PASSWORD_RESET_CODE_TTL_MINUTES * 60 * 1000;
+const PASSWORD_RESET_MAX_ATTEMPTS = 5;

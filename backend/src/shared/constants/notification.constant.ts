@@ -1,6 +1,6 @@
 /**
  * Notification service configuration and domain constants.
- * Env values are read from process.env; keys are documented in .env.example.
+ * Notification env keys are documented in .env.example; resolved values live in shared/config/env.ts.
  */
 
 export enum NotificationChannel {
@@ -17,6 +17,14 @@ export enum NotificationType {
   NEW_COMMENT_MODERATOR = "new_comment_moderator",
   PASSWORD_RESET = "password_reset",
   WELCOME = "welcome",
+  /** A scheduled blog post needs human review before its publish date. */
+  SCHEDULED_POST_REVIEW = "scheduled_post_review",
+  /** Workspace owner asked for changes; the rework is ready for another review. */
+  SCHEDULED_POST_REWORKED = "scheduled_post_reworked",
+  /** Weekly digest of pending approvals across the workspace. */
+  WEEKLY_REVIEW_DIGEST = "weekly_review_digest",
+  /** Daily campaign progress report for active initiatives. */
+  CAMPAIGN_DAILY_PROGRESS_REPORT = "campaign_daily_progress_report",
 }
 
 export enum NotificationStatus {
@@ -37,6 +45,13 @@ export const EMAIL_TEMPLATE_KEYS = {
   PASSWORD_RESET: "password_reset",
   COMMENT_ON_POST: "comment_on_post",
   WELCOME: "welcome",
+  /** Pre-publish review request sent for an individual scheduled post. */
+  SCHEDULED_POST_REVIEW: "scheduled_post_review",
+  /** Same post but after a rework round, asking for re-approval. */
+  SCHEDULED_POST_REWORKED: "scheduled_post_reworked",
+  /** Weekly digest of pending pre-publish approvals. */
+  WEEKLY_REVIEW_DIGEST: "weekly_review_digest",
+  CAMPAIGN_DAILY_PROGRESS_REPORT: "campaign_daily_progress_report",
 } as const;
 
 export type EmailTemplateKey = (typeof EMAIL_TEMPLATE_KEYS)[keyof typeof EMAIL_TEMPLATE_KEYS];

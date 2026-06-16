@@ -10,7 +10,7 @@ import { logger } from "../utils/logger";
  * - x-access-key-id
  * - x-secret-key
  */
-export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const apiKeyAuthMiddleware = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   const startTime = Date.now();
   const accessKeyId = req.headers["x-access-key-id"] as string;
   const secretKey = req.headers["x-secret-key"] as string;
@@ -45,7 +45,7 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
     }
 
     const apiKeyService = container.resolve(ApiKeyService);
-    const { userId } = await apiKeyService.verifyApiKey(accessKeyId, secretKey);
+    const { userId, siteId } = await apiKeyService.verifyApiKey(accessKeyId, secretKey);
 
     const authDuration = Date.now() - startTime;
 
@@ -62,14 +62,12 @@ export const apiKeyAuthMiddleware = async (req: Request, res: Response, next: Ne
       "ApiKeyAuthMiddleware"
     );
 
-    // Attach user info to request
-    // For API key auth, we only need userId (email not required)
     req.user = {
       userId,
+      workspaceSiteId: siteId,
     };
 
-    // Attach access key ID to request for logging in controllers
-    (req as any).accessKeyId = accessKeyId;
+    req.accessKeyId = accessKeyId;
 
     next();
   } catch (error) {

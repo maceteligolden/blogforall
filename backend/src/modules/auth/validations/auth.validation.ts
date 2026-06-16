@@ -31,3 +31,22 @@ export const changePasswordSchema = z.object({
 export const updateSiteContextSchema = z.object({
   site_id: z.string().min(1, "Site ID is required"),
 });
+
+export const refreshTokenBodySchema = z.object({
+  refresh_token: z.string().min(1, "Refresh token is required"),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+});
+
+export const verifyResetCodeSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
+  new_password: z.string().min(8, "New password must be at least 8 characters"),
+});

@@ -1,21 +1,25 @@
 import { z } from "zod";
 import { BlogStatus } from "../../../shared/constants";
 
-const contentBlockDataSchema = z.object({
-  text: z.string().optional(),
-  level: z.coerce.number().optional(),
-  items: z.array(z.string()).optional(),
-  listType: z.enum(["bullet", "ordered"]).optional(),
-  url: z.string().optional(),
-  caption: z.string().optional(),
-  language: z.string().optional(),
-}).passthrough();
+const contentBlockDataSchema = z
+  .object({
+    text: z.string().optional(),
+    level: z.coerce.number().optional(),
+    items: z.array(z.string()).optional(),
+    listType: z.enum(["bullet", "ordered"]).optional(),
+    url: z.string().optional(),
+    caption: z.string().optional(),
+    language: z.string().optional(),
+  })
+  .passthrough();
 
-const contentBlockSchema = z.object({
-  id: z.string(),
-  type: z.enum(["paragraph", "heading", "list", "image", "blockquote", "code"]),
-  data: contentBlockDataSchema.optional().default({}),
-}).passthrough();
+const contentBlockSchema = z
+  .object({
+    id: z.string(),
+    type: z.enum(["paragraph", "heading", "list", "image", "blockquote", "code"]),
+    data: contentBlockDataSchema.optional().default({}),
+  })
+  .passthrough();
 
 export const createBlogSchema = z
   .object({

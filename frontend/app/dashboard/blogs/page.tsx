@@ -11,6 +11,8 @@ import { BlogStatus } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { ConfirmModal } from "@/components/ui/modal";
 import { Search, Grid3x3, Table2, Trash2 } from "lucide-react";
+import { BlogHubTabs } from "@/components/blogs/blog-hub-tabs";
+import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 
 export default function BlogsPage() {
   const router = useRouter();
@@ -60,19 +62,23 @@ export default function BlogsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <p className="text-gray-400">Loading blogs...</p>
+      <>
+        <Breadcrumb items={[{ label: "Blogs" }, { label: "Posts" }]} />
+        <BlogHubTabs />
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+            <p className="text-gray-400">Loading blogs...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb items={[{ label: "Blogs" }]} />
+    <>
+        <Breadcrumb items={[{ label: "Blogs" }, { label: "Posts" }]} />
+        <BlogHubTabs />
         
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-display text-white">My Blogs</h1>
@@ -185,7 +191,9 @@ export default function BlogsPage() {
           </div>
         ) : viewMode === "cards" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBlogs.map((blog: any) => (
+            {filteredBlogs.map((blog: any) => {
+              const snippet = deriveExcerptFromContent(blog.content || "");
+              return (
               <div
                 key={blog._id}
                 className="bg-gray-900 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors"
@@ -208,16 +216,18 @@ export default function BlogsPage() {
                       className={`ml-2 px-2 py-1 text-xs rounded capitalize ${
                         blog.status === "published"
                           ? "bg-green-900/30 text-green-400 border border-green-800"
-                          : blog.status === "draft"
-                            ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
-                            : "bg-gray-800 text-gray-400 border border-gray-700"
+                          : blog.status === "scheduled"
+                            ? "bg-amber-900/30 text-amber-400 border border-amber-800"
+                            : blog.status === "draft"
+                              ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
+                              : "bg-gray-800 text-gray-400 border border-gray-700"
                       }`}
                     >
                       {blog.status}
                     </span>
                   </div>
-                  {blog.excerpt && (
-                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">{blog.excerpt}</p>
+                  {snippet && (
+                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">{snippet}</p>
                   )}
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                     <span>{blog.views || 0} views</span>
@@ -266,7 +276,8 @@ export default function BlogsPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         ) : (
           <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
@@ -282,7 +293,9 @@ export default function BlogsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {filteredBlogs.map((blog: any) => (
+                {filteredBlogs.map((blog: any) => {
+                  const rowSnippet = deriveExcerptFromContent(blog.content || "");
+                  return (
                   <tr key={blog._id} className="hover:bg-gray-800/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
@@ -299,8 +312,8 @@ export default function BlogsPage() {
                         )}
                         <div>
                           <div className="text-sm font-medium text-white">{blog.title}</div>
-                          {blog.excerpt && (
-                            <div className="text-xs text-gray-400 line-clamp-1">{blog.excerpt}</div>
+                          {rowSnippet && (
+                            <div className="text-xs text-gray-400 line-clamp-1">{rowSnippet}</div>
                           )}
                         </div>
                       </div>
@@ -310,9 +323,11 @@ export default function BlogsPage() {
                         className={`px-2 py-1 text-xs rounded capitalize ${
                           blog.status === "published"
                             ? "bg-green-900/30 text-green-400 border border-green-800"
-                            : blog.status === "draft"
-                              ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
-                              : "bg-gray-800 text-gray-400 border border-gray-700"
+                            : blog.status === "scheduled"
+                              ? "bg-amber-900/30 text-amber-400 border border-amber-800"
+                              : blog.status === "draft"
+                                ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
+                                : "bg-gray-800 text-gray-400 border border-gray-700"
                         }`}
                       >
                         {blog.status}
@@ -367,12 +382,12 @@ export default function BlogsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>
         )}
-      </div>
 
       <ConfirmModal
         isOpen={deleteModalOpen}
@@ -387,6 +402,6 @@ export default function BlogsPage() {
         cancelText="Cancel"
         variant="danger"
       />
-    </div>
+    </>
   );
 }

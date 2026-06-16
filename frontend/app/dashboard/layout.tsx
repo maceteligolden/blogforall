@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Navbar } from "@/components/layout/navbar";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { AIPanel } from "@/components/orchestrator/ai-panel";
+import { AIPanelProvider } from "@/components/orchestrator/ai-panel-provider";
+import { TokenExhaustionProvider } from "@/components/usage/token-exhaustion-provider";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { SiteService } from "@/lib/api/services/site.service";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +22,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const { currentSiteId, isAuthenticated } = useAuthStore();
   const { updateSiteContext } = useAuth();
@@ -41,7 +45,16 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push("/auth/login");
+      if (typeof window !== "undefined") {
+        const at = localStorage.getItem("access_token");
+        const rt = localStorage.getItem("refresh_token");
+        if (at && rt) {
+          // Zustand can briefly disagree with localStorage (e.g. after token refresh updates LS only).
+          useAuthStore.getState().setTokens(at, rt);
+          return;
+        }
+      }
+      router.push(`/auth/login?redirect=${encodeURIComponent(pathname || "/dashboard")}`);
       return;
     }
 
@@ -49,9 +62,12 @@ export default function DashboardLayout({
       return;
     }
 
-    // First check onboarding
     if (onboardingStatus?.requiresOnboarding) {
-      router.push("/onboarding");
+      void OnboardingService.skip()
+        .catch(() => undefined)
+        .finally(() => {
+          router.replace("/onboarding/create-site");
+        });
       return;
     }
 
@@ -73,8 +89,28 @@ export default function DashboardLayout({
       }
     }
 
+    // Workspace-level onboarding gate: only the **currently selected** workspace
+    // must finish orchestrator onboarding before dashboard routes load. (Do not
+    // redirect just because some *other* workspace is still in onboarding — that
+    // incorrectly hijacked multi-workspace users; see debug log H5/H7.)
+    const currentSite = sites.find((s) => s._id === currentSiteId);
+    if (currentSite && currentSite.status === "onboarding") {
+      router.push("/onboarding/create-site?step=chat");
+      return;
+    }
+
     setCheckingOnboarding(false);
-  }, [onboardingStatus, onboardingLoading, sites, sitesLoading, currentSiteId, isAuthenticated, router, updateSiteContext]);
+  }, [
+    pathname,
+    onboardingStatus,
+    onboardingLoading,
+    sites,
+    sitesLoading,
+    currentSiteId,
+    isAuthenticated,
+    router,
+    updateSiteContext,
+  ]);
 
   if (checkingOnboarding || onboardingLoading || sitesLoading) {
     return (
@@ -88,10 +124,13 @@ export default function DashboardLayout({
     <ProtectedRoute>
       <NotificationProvider>
         <ToastProvider>
-          <Navbar />
-          <div className="min-h-screen bg-black text-white">
-            {children}
-          </div>
+          <TokenExhaustionProvider>
+            <AIPanelProvider>
+              <Navbar />
+              <div className="min-h-screen bg-black text-white">{children}</div>
+              <AIPanel />
+            </AIPanelProvider>
+          </TokenExhaustionProvider>
         </ToastProvider>
       </NotificationProvider>
     </ProtectedRoute>

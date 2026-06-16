@@ -75,7 +75,7 @@ export class BlogService {
     }
 
     let content = input.content ?? "";
-    let content_blocks = input.content_blocks;
+    const content_blocks = input.content_blocks;
 
     if (content_blocks != null && content_blocks.length > 0) {
       validateContentBlocks(content_blocks);
@@ -272,6 +272,7 @@ export class BlogService {
       publish_attempts: 0,
       auto_generate: false,
     });
+    await this.blogRepository.update(blogId, siteId, { status: BlogStatus.SCHEDULED });
     logger.info(
       "Blog scheduled for publish",
       { blogId, scheduledPostId: scheduledPost._id, scheduled_at: input.scheduled_at },
@@ -313,6 +314,9 @@ export class BlogService {
       throw new BadRequestError("This blog is not scheduled");
     }
     await this.scheduledPostRepository.delete(pending._id!.toString(), siteId);
+    if (blog.status === BlogStatus.SCHEDULED) {
+      await this.blogRepository.update(blogId, siteId, { status: BlogStatus.DRAFT });
+    }
     logger.info("Blog unscheduled", { blogId, scheduledPostId: pending._id }, "BlogService");
   }
 }

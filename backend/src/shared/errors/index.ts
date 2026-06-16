@@ -41,3 +41,20 @@ export class ConflictError extends AppError {
     super(message, HttpStatus.CONFLICT);
   }
 }
+
+export class TokenLimitExceededError extends AppError {
+  readonly code = "TOKEN_LIMIT_EXCEEDED";
+  constructor(
+    message: string = "Token limit reached",
+    public readonly resetAt: Date
+  ) {
+    super(message, HttpStatus.TOO_MANY_REQUESTS);
+  }
+}
+
+export class AiConcurrencyError extends AppError {
+  readonly code = "AI_REQUEST_IN_PROGRESS";
+  constructor(message: string = "Another AI request is already in progress") {
+    super(message, HttpStatus.CONFLICT);
+  }
+}

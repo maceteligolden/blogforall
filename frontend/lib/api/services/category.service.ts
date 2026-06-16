@@ -7,7 +7,7 @@ export interface CreateCategoryRequest {
   description?: string;
   parent?: string;
   color?: string;
-  site_id?: string; // Optional, will use currentSiteId from token if not provided
+  site_id?: string;
 }
 
 export interface UpdateCategoryRequest {
@@ -16,7 +16,7 @@ export interface UpdateCategoryRequest {
   parent?: string;
   color?: string;
   is_active?: boolean;
-  site_id?: string; // Optional, will use currentSiteId from token if not provided
+  site_id?: string;
 }
 
 export interface Category {
@@ -37,52 +37,49 @@ export interface CategoryTreeItem extends Category {
 }
 
 export class CategoryService {
-  /**
-   * Get current site ID from auth store
-   */
   private static getCurrentSiteId(): string | undefined {
     if (typeof window === "undefined") return undefined;
     return useAuthStore.getState().currentSiteId || undefined;
   }
 
+  private static requireSiteId(): string {
+    const siteId = this.getCurrentSiteId();
+    if (!siteId) {
+      throw new Error("No workspace selected. Choose a site before managing categories.");
+    }
+    return siteId;
+  }
+
   static async createCategory(data: CreateCategoryRequest) {
-    // Include site_id if not already provided
-    const siteId = data.site_id || this.getCurrentSiteId();
-    const requestData = siteId ? { ...data, site_id: siteId } : data;
-    return apiClient.post(API_ENDPOINTS.CATEGORIES.CREATE, requestData);
+    const siteId = data.site_id || this.requireSiteId();
+    const { site_id: _s, ...body } = { ...data, site_id: siteId };
+    return apiClient.post(API_ENDPOINTS.CATEGORIES.CREATE(siteId), body);
   }
 
   static async getCategories(params?: { tree?: boolean; include_inactive?: boolean }) {
-    // Backend will filter by currentSiteId from token
-    return apiClient.get(API_ENDPOINTS.CATEGORIES.LIST, { params });
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CATEGORIES.LIST(siteId), { params });
   }
 
   static async getCategoryById(id: string) {
-    // Backend will filter by currentSiteId from token
-    return apiClient.get(API_ENDPOINTS.CATEGORIES.GET_ONE(id));
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CATEGORIES.GET_ONE(siteId, id));
   }
 
   static async updateCategory(id: string, data: UpdateCategoryRequest) {
-    // Include site_id if not already provided
-    const siteId = data.site_id || this.getCurrentSiteId();
-    const requestData = siteId ? { ...data, site_id: siteId } : data;
-    return apiClient.put(API_ENDPOINTS.CATEGORIES.UPDATE(id), requestData);
+    const siteId = data.site_id || this.requireSiteId();
+    const { site_id: _s, ...body } = { ...data, site_id: siteId };
+    return apiClient.put(API_ENDPOINTS.CATEGORIES.UPDATE(siteId, id), body);
   }
 
   static async deleteCategory(id: string) {
-    // Backend will filter by currentSiteId from token
-    return apiClient.delete(API_ENDPOINTS.CATEGORIES.DELETE(id));
+    const siteId = this.requireSiteId();
+    return apiClient.delete(API_ENDPOINTS.CATEGORIES.DELETE(siteId, id));
   }
 
-  /**
-   * Import categories from one site to another
-   */
-  static async importCategories(
-    sourceSiteId: string,
-    targetSiteId: string,
-    categoryIds: string[]
-  ) {
-    const response = await apiClient.post(API_ENDPOINTS.CATEGORIES.IMPORT, {
+  static async importCategories(sourceSiteId: string, targetSiteId: string, categoryIds: string[]) {
+    const siteId = this.requireSiteId();
+    const response = await apiClient.post(API_ENDPOINTS.CATEGORIES.IMPORT(siteId), {
       source_site_id: sourceSiteId,
       target_site_id: targetSiteId,
       category_ids: categoryIds,
@@ -90,4 +87,3 @@ export class CategoryService {
     return response.data?.data || response.data;
   }
 }
-

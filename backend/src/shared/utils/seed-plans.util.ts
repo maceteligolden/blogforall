@@ -1,10 +1,40 @@
 import { container } from "tsyringe";
 import { PlanModel } from "../schemas/plan.schema";
 import { StripeFacade } from "../facade/stripe.facade";
+import { env } from "../config/env";
 import { logger } from "./logger";
 
 /** Plan names that match the landing page; only these are kept active and seeded. */
 const LANDING_PLAN_NAMES = ["Free", "Starter", "Professional", "Enterprise"] as const;
+
+/** Daily AI token cap for the Free tier — synced on every boot for existing deployments. */
+export const FREE_PLAN_DAILY_TOKENS = 400_000;
+
+/**
+ * Idempotently set Free plan dailyTokens so existing users pick up limit changes
+ * without a manual Mongo migration.
+ */
+export async function syncFreePlanTokenLimit(): Promise<void> {
+  try {
+    const result = await PlanModel.updateOne(
+      { name: "Free" },
+      { $set: { "limits.dailyTokens": FREE_PLAN_DAILY_TOKENS } }
+    );
+    if (result.matchedCount === 0) {
+      logger.info('Plan "Free" not found; skip daily token sync', {}, "PlanSeeder");
+      return;
+    }
+    if (result.modifiedCount > 0) {
+      logger.info(
+        `Synced Free plan dailyTokens to ${FREE_PLAN_DAILY_TOKENS}`,
+        {},
+        "PlanSeeder"
+      );
+    }
+  } catch (error) {
+    logger.error("Failed to sync Free plan daily token limit", error as Error, {}, "PlanSeeder");
+  }
+}
 
 export async function seedPlansIfNeeded(): Promise<void> {
   try {
@@ -35,6 +65,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
           apiCallsPerMonth: 10000,
           storageGB: 1,
           maxSitesAllowed: 1,
+          dailyTokens: 300_000,
         },
         features: [
           "Up to 10 blog posts",
@@ -55,6 +86,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
           apiCallsPerMonth: 100000,
           storageGB: 10,
           maxSitesAllowed: 3,
+          dailyTokens: 1_000_000,
         },
         features: [
           "Up to 50 blog posts",
@@ -76,6 +108,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
           apiCallsPerMonth: -1,
           storageGB: -1,
           maxSitesAllowed: -1,
+          dailyTokens: -1,
         },
         features: [
           "Unlimited blog posts",
@@ -90,7 +123,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
       },
     ];
 
-    const hasStripeKey = !!process.env.STRIPE_API_KEY;
+    const hasStripeKey = !!env.stripe.apiKey;
 
     for (const planData of paidPlans) {
       try {
@@ -105,15 +138,15 @@ export async function seedPlansIfNeeded(): Promise<void> {
         if (hasStripeKey) {
           try {
             const product = await stripeFacade.findOrCreateProduct(
-              `BlogForAll ${planData.name}`,
-              `BlogForAll ${planData.name} Plan`
+              `Bloggr ${planData.name}`,
+              `Bloggr ${planData.name} Plan`
             );
             const price = await stripeFacade.createPrice(product.id, planData.price, "usd", planData.interval);
             stripePriceId = price.id;
           } catch (stripeError) {
             logger.warn(
               `Failed to create Stripe product/price for ${planData.name}, creating plan without Stripe`,
-              stripeError as Error,
+              { err: stripeError instanceof Error ? stripeError.message : String(stripeError) },
               "PlanSeeder"
             );
           }
@@ -144,6 +177,7 @@ export async function seedPlansIfNeeded(): Promise<void> {
         apiCallsPerMonth: 1000,
         storageGB: 0.5,
         maxSitesAllowed: 1,
+        dailyTokens: FREE_PLAN_DAILY_TOKENS,
       },
       features: ["Up to 3 blog posts", "1,000 API calls/month", "0.5 GB storage", "Basic features"],
       isActive: true,
@@ -152,8 +186,11 @@ export async function seedPlansIfNeeded(): Promise<void> {
     try {
       const existingFree = await PlanModel.findOne({ name: freePlanData.name });
       if (existingFree) {
-        await PlanModel.updateOne({ name: freePlanData.name }, { $set: { isActive: true } });
-        logger.info(`Plan "Free" already exists, ensured active`, {}, "PlanSeeder");
+        await PlanModel.updateOne(
+          { name: freePlanData.name },
+          { $set: { isActive: true, "limits.dailyTokens": FREE_PLAN_DAILY_TOKENS } }
+        );
+        logger.info(`Plan "Free" already exists, ensured active and token limit`, {}, "PlanSeeder");
       } else {
         const freePlan = new PlanModel(freePlanData);
         await freePlan.save();

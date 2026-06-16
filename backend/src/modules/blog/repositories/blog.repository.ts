@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import Blog, { Blog as BlogType } from "../../../shared/schemas/blog.schema";
 import { BlogStatus } from "../../../shared/constants";
-import { PaginationOptions, PaginatedResponse } from "../../../shared/interfaces";
+import { PaginatedResponse } from "../../../shared/interfaces";
 
 @injectable()
 export class BlogRepository {
@@ -30,6 +30,50 @@ export class BlogRepository {
     return Blog.find(query).sort({ created_at: -1 });
   }
 
+  async findByAuthorAcrossSites(
+    authorId: string,
+    input?: { page?: number; limit?: number; search?: string }
+  ): Promise<PaginatedResponse<BlogType>> {
+    const page = input?.page || 1;
+    const limit = input?.limit || 10;
+    const skip = (page - 1) * limit;
+    const query: Record<string, unknown> = { author: authorId };
+
+    if (input?.search) {
+      query.$or = [
+        { title: { $regex: input.search, $options: "i" } },
+        { excerpt: { $regex: input.search, $options: "i" } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      Blog.find(query).sort({ created_at: -1 }).skip(skip).limit(limit),
+      Blog.countDocuments(query),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async countByAuthors(authorIds: string[]): Promise<Record<string, number>> {
+    if (!authorIds.length) return {};
+    const rows = await Blog.aggregate<{ _id: string; count: number }>([
+      { $match: { author: { $in: authorIds } } },
+      { $group: { _id: "$author", count: { $sum: 1 } } },
+    ]);
+    return rows.reduce<Record<string, number>>((acc, row) => {
+      acc[row._id] = row.count;
+      return acc;
+    }, {});
+  }
+
   async findAll(
     siteId: string,
     filters?: {
@@ -56,6 +100,39 @@ export class BlogRepository {
         { title: { $regex: filters.search, $options: "i" } },
         { excerpt: { $regex: filters.search, $options: "i" } },
         { content: { $regex: filters.search, $options: "i" } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      Blog.find(query).sort({ created_at: -1 }).skip(skip).limit(limit),
+      Blog.countDocuments(query),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findAllAcrossSites(input: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<PaginatedResponse<BlogType>> {
+    const { page, limit, search } = input;
+    const skip = (page - 1) * limit;
+    const query: Record<string, unknown> = {};
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { excerpt: { $regex: search, $options: "i" } },
+        { slug: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -124,12 +201,12 @@ export class BlogRepository {
     return { likes: blog.likes, isLiked: !isLiked };
   }
 
-  async incrementCommentCount(id: string): Promise<void> {
+  async incrementCommentCount(_id: string): Promise<void> {
     // Comment count is tracked via Comment collection queries
     // This method is kept for consistency but doesn't modify blog document
   }
 
-  async decrementCommentCount(id: string): Promise<void> {
+  async decrementCommentCount(_id: string): Promise<void> {
     // Comment count is tracked via Comment collection queries
     // This method is kept for consistency but doesn't modify blog document
   }

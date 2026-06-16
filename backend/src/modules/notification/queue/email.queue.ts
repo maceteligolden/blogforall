@@ -10,8 +10,10 @@ const redisUrl = (env.notification.redisUrl || "").trim();
 const useRedis = redisUrl.length > 0;
 
 const noOpQueue = {
-  add: async () => ({} as Bull.Job<EmailJobPayload>),
-  process: () => {},
+  add: async () => ({}) as Bull.Job<EmailJobPayload>,
+  process: (_job: Bull.Job<EmailJobPayload>) => {
+    void _job;
+  },
   on: () => noOpQueue,
 };
 

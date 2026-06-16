@@ -6,16 +6,20 @@ import { NotFoundError, ForbiddenError, BadRequestError } from "../../../shared/
 import { logger } from "../../../shared/utils/logger";
 import { CreateSiteInput, UpdateSiteInput, SiteWithMembers } from "../interfaces/site.interface";
 import { Site } from "../../../shared/schemas/site.schema";
-import { SiteMemberRole } from "../../../shared/constants";
+import { SiteMemberRole, SiteStatus } from "../../../shared/constants";
 import Blog from "../../../shared/schemas/blog.schema";
 import { env } from "../../../shared/config/env";
+import { ApiKeyRepository } from "../../api-key/repositories/api-key.repository";
+import type { SiteMember as SiteMemberType } from "../../../shared/schemas/site-member.schema";
+import { mongooseDocToPlain } from "../../../shared/utils/mongoose-plain.util";
 
 @injectable()
 export class SiteService {
   constructor(
     private siteRepository: SiteRepository,
     private siteMemberRepository: SiteMemberRepository,
-    private subscriptionService: SubscriptionService
+    private subscriptionService: SubscriptionService,
+    private apiKeyRepository: ApiKeyRepository
   ) {}
 
   /**
@@ -29,6 +33,8 @@ export class SiteService {
       name: input.name,
       description: input.description,
       owner: ownerId,
+      // New sites start in onboarding until the orchestrator chat populates context.
+      status: SiteStatus.ONBOARDING,
     });
 
     // Automatically add owner as a member with OWNER role
@@ -38,8 +44,32 @@ export class SiteService {
       role: SiteMemberRole.OWNER,
     });
 
-    logger.info("Site created", { siteId: site._id, ownerId }, "SiteService");
+    logger.info("Site created", { siteId: site._id, ownerId, status: site.status }, "SiteService");
     return site;
+  }
+
+  /**
+   * Transition a site from onboarding to active. Called by the orchestrator
+   * once the mandatory onboarding chat has captured workspace context.
+   */
+  async markSiteActive(siteId: string, userId: string): Promise<Site> {
+    const site = await this.siteRepository.findById(siteId);
+    if (!site) {
+      throw new NotFoundError("Site not found");
+    }
+    const isOwner = await this.siteRepository.isOwner(siteId, userId);
+    if (!isOwner) {
+      throw new ForbiddenError("Only the site owner can complete onboarding");
+    }
+    if (site.status === SiteStatus.ACTIVE) {
+      return site;
+    }
+    const updated = await this.siteRepository.update(siteId, { status: SiteStatus.ACTIVE });
+    if (!updated) {
+      throw new NotFoundError("Site not found");
+    }
+    logger.info("Site marked active", { siteId, userId }, "SiteService");
+    return updated;
   }
 
   /**
@@ -131,7 +161,7 @@ export class SiteService {
     const sitesWithMembers = await Promise.all(
       sites.map(async (site) => {
         const memberCount = await this.siteRepository.getMemberCount(site._id!.toString());
-        const siteObj = (site as any).toObject ? (site as any).toObject() : { ...(site as any) };
+        const siteObj = mongooseDocToPlain(site);
         return {
           ...siteObj,
           memberCount,
@@ -187,6 +217,8 @@ export class SiteService {
     // Delete all blogs associated with the site
     await Blog.deleteMany({ site_id: siteId });
 
+    await this.apiKeyRepository.deleteBySiteId(siteId);
+
     // Delete all site members
     await this.siteMemberRepository.deleteBySite(siteId);
 
@@ -225,7 +257,7 @@ export class SiteService {
   /**
    * Get site members (for use by SiteMember service)
    */
-  async getSiteMembers(siteId: string, userId: string): Promise<any[]> {
+  async getSiteMembers(siteId: string, userId: string): Promise<SiteMemberType[]> {
     // Check if user has access
     const hasAccess = await this.hasSiteAccess(siteId, userId);
     if (!hasAccess) {

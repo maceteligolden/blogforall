@@ -21,7 +21,19 @@ export interface ScheduledPost extends BaseEntity {
     campaign_goal?: string; // Campaign goal context for generation
     target_audience?: string; // Target audience for generation
     content_theme?: string; // Content theme for this specific post
+    campaign_post_item_id?: string;
   };
+  /**
+   * Pre-publish review fields. Driven by the orchestrator's prepare/publish
+   * split: the prepare worker generates content T-`review_lead_time_hours`
+   * before `scheduled_at` and sets status to AWAITING_APPROVAL; the publish
+   * worker only publishes posts with `approved_at` set.
+   */
+  prepared_at?: Date;
+  approved_at?: Date;
+  approved_by_user_id?: string;
+  rework_comments?: string;
+  rework_round: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -104,6 +116,11 @@ const scheduledPostSchema = new Schema<ScheduledPost>(
         type: String,
       },
     },
+    prepared_at: { type: Date, index: true },
+    approved_at: { type: Date, index: true },
+    approved_by_user_id: { type: String },
+    rework_comments: { type: String, maxlength: 4000 },
+    rework_round: { type: Number, default: 0, min: 0 },
     created_at: {
       type: Date,
       default: Date.now,

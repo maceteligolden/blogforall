@@ -9,7 +9,8 @@ export interface ApiKeyResponse {
   id: string;
   name: string;
   accessKeyId: string;
-  secretKey: string; // Only returned once on creation
+  secretKey: string;
+  sitePublicId: string;
   createdAt: string;
   lastUsed?: string;
   isActive: boolean;
@@ -19,22 +20,23 @@ export interface ApiKeyListItem {
   id: string;
   name: string;
   accessKeyId: string;
+  secretKey: string;
+  sitePublicId: string;
   createdAt: string;
   lastUsed?: string;
   isActive: boolean;
 }
 
 export class ApiKeyService {
-  static async createApiKey(data: CreateApiKeyRequest) {
-    return apiClient.post(API_ENDPOINTS.API_KEYS.CREATE, data);
+  static async createApiKey(siteId: string, data: CreateApiKeyRequest) {
+    return apiClient.post(API_ENDPOINTS.SITES.CREATE_API_KEY(siteId), data);
   }
 
-  static async getApiKeys() {
-    return apiClient.get(API_ENDPOINTS.API_KEYS.LIST);
+  static async getApiKeys(siteId: string) {
+    return apiClient.get(API_ENDPOINTS.SITES.LIST_API_KEYS(siteId));
   }
 
-  static async deleteApiKey(accessKeyId: string) {
-    return apiClient.delete(API_ENDPOINTS.API_KEYS.DELETE(accessKeyId));
+  static async deleteApiKey(siteId: string, accessKeyId: string) {
+    return apiClient.delete(API_ENDPOINTS.SITES.DELETE_API_KEY(siteId, accessKeyId));
   }
 }
-

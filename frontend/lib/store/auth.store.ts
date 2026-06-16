@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import * as Sentry from "@sentry/nextjs";
 import { getCurrentSiteIdFromToken } from "../utils/jwt";
+import { getOrCreateSessionId } from "../observability/session";
+import { identifyUser, groupWorkspace, resetPostHog } from "../analytics/posthog";
 
 export const USER_ROLE = {
   USER: "user",
@@ -73,6 +76,21 @@ export const useAuthStore = create<AuthState>()(
           localStorage.setItem("user_email", user.email);
         }
 
+        if (typeof window !== "undefined") {
+          try {
+            Sentry.setUser({ id: user.id, email: user.email });
+            Sentry.setTag("sessionId", getOrCreateSessionId());
+            identifyUser(user.id, {
+              email: user.email,
+              plan: user.plan,
+              first_name: user.first_name,
+              last_name: user.last_name,
+            });
+          } catch {
+            // observability must not block auth
+          }
+        }
+
         set({ user, isAuthenticated: true });
       },
 
@@ -85,11 +103,25 @@ export const useAuthStore = create<AuthState>()(
           }
         }
 
+        if (typeof window !== "undefined" && siteId) {
+          try {
+            groupWorkspace(siteId);
+          } catch {
+            // analytics must not block site switch
+          }
+        }
+
         set({ currentSiteId: siteId });
       },
 
       clearAuth: () => {
         if (typeof window !== "undefined") {
+          try {
+            Sentry.setUser(null);
+            resetPostHog();
+          } catch {
+            // observability must not block logout
+          }
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
           localStorage.removeItem("user_email");

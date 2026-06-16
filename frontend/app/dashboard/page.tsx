@@ -3,18 +3,19 @@
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useBlogs } from "@/lib/hooks/use-blog";
 import { useApiKeys } from "@/lib/hooks/use-api-key";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { useQuery } from "@tanstack/react-query";
 import { SubscriptionService } from "@/lib/api/services/subscription.service";
 import { QUERY_KEYS } from "@/lib/api/config";
+import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 
 export default function DashboardPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, currentSiteId } = useAuth();
   const { data: blogs, isLoading: blogsLoading } = useBlogs();
-  const { data: apiKeys, isLoading: keysLoading } = useApiKeys();
+  const { data: apiKeys, isLoading: keysLoading } = useApiKeys(currentSiteId ?? undefined);
   const router = useRouter();
 
   const { data: subscriptionData } = useQuery({
@@ -25,11 +26,6 @@ export default function DashboardPage() {
 
   const activePlanName =
     subscriptionData?.plan?.name ?? user?.plan ?? "Free";
-  const isFreePlan =
-    subscriptionData?.plan?.price === 0 ||
-    subscriptionData?.plan?.interval === "free" ||
-    subscriptionData?.subscription?.status === "free";
-
   const isLoading = authLoading || blogsLoading || keysLoading;
   const blogsList = Array.isArray(blogs) ? blogs : [];
   const totalBlogs = blogsList.length;
@@ -55,26 +51,6 @@ export default function DashboardPage() {
         
         {/* Main Content */}
         <main className="py-8">
-          {/* Free Plan Banner */}
-          {isFreePlan && (
-            <div className="mb-8 bg-gradient-to-r from-primary/20 to-blue-900/20 border border-primary/30 rounded-lg p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-white mb-1">You&apos;re on the Free Plan</h3>
-                  <p className="text-sm text-gray-300">
-                    Upgrade to unlock more features, higher limits, and priority support. Choose a plan that fits your needs.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => router.push("/dashboard/subscription")}
-                  className="bg-primary hover:bg-primary/90 text-white whitespace-nowrap"
-                >
-                  Upgrade Plan
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Welcome Section */}
           <div className="mb-12">
             <h2 className="text-4xl font-display mb-2 tracking-tight">Welcome back, {user?.first_name}!</h2>
@@ -124,7 +100,7 @@ export default function DashboardPage() {
             </Button>
             <Button
               className="w-full justify-start bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 h-12 text-base font-medium"
-              onClick={() => router.push("/dashboard/categories")}
+              onClick={() => router.push("/dashboard/blogs/categories")}
             >
               Manage Categories
             </Button>
@@ -147,7 +123,9 @@ export default function DashboardPage() {
 
           {(recentBlogs ?? []).length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(recentBlogs ?? []).map((blog: { _id: string; title?: string; status?: string; excerpt?: string; views?: number; likes?: number; updated_at?: string }) => (
+              {(recentBlogs ?? []).map((blog: { _id: string; title?: string; status?: string; content?: string; views?: number; likes?: number; updated_at?: string }) => {
+                const preview = deriveExcerptFromContent(blog.content || "");
+                return (
                 <div
                   key={blog._id}
                   className="bg-gray-900 rounded-lg border border-gray-800 p-4 hover:border-gray-700 transition-colors cursor-pointer"
@@ -169,8 +147,8 @@ export default function DashboardPage() {
                       {blog.status}
                     </span>
                   </div>
-                  {blog.excerpt && (
-                    <p className="text-sm text-gray-400 line-clamp-2 mb-3">{blog.excerpt}</p>
+                  {preview && (
+                    <p className="text-sm text-gray-400 line-clamp-2 mb-3">{preview}</p>
                   )}
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                     <span>{blog.views || 0} views</span>
@@ -182,7 +160,8 @@ export default function DashboardPage() {
                     </p>
                   )}
                 </div>
-              ))}
+              );
+              })}
             </div>
           ) : (
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">

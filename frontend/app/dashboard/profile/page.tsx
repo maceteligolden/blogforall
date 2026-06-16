@@ -10,6 +10,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { validatePassword } from "@/lib/utils/password-validation";
 import Link from "next/link";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
+import { captureEvent } from "@/lib/analytics/posthog";
+import { AnalyticsEvents } from "@/lib/analytics/events";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -62,6 +64,7 @@ export default function ProfilePage() {
 
     try {
       updateProfile(profileForm);
+      captureEvent(AnalyticsEvents.PROFILE_UPDATED);
       setSuccess("Profile updated successfully!");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: unknown) {
@@ -98,6 +101,7 @@ export default function ProfilePage() {
         old_password: passwordForm.old_password,
         new_password: passwordForm.new_password,
       });
+      captureEvent(AnalyticsEvents.PASSWORD_CHANGED);
       setSuccess("Password changed successfully!");
       setPasswordForm({
         old_password: "",

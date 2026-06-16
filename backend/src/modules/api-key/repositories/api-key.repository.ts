@@ -1,71 +1,77 @@
 import { injectable } from "tsyringe";
-import User from "../../../shared/schemas/user.schema";
+import mongoose from "mongoose";
+import WorkspaceApiKey from "../../../shared/schemas/workspace-api-key.schema";
 import { generateApiKey } from "../../../shared/utils/api-key";
+import { encryptWorkspaceApiKeySecret } from "../../../shared/utils/workspace-api-key-crypto";
 
 @injectable()
 export class ApiKeyRepository {
   async createApiKey(
+    siteId: string,
     userId: string,
     name: string
-  ): Promise<{ accessKeyId: string; secretKey: string; hashedSecret: string }> {
+  ): Promise<{ accessKeyId: string; secretKey: string; hashedSecret: string; secret_encrypted: string }> {
     const keyPair = generateApiKey();
+    const secret_encrypted = encryptWorkspaceApiKeySecret(keyPair.secretKey);
 
-    await User.findByIdAndUpdate(userId, {
-      $push: {
-        apiKeys: {
-          name,
-          accessKeyId: keyPair.accessKeyId,
-          hashedSecret: keyPair.hashedSecret,
-          createdAt: new Date(),
-          isActive: true,
-        },
-      },
-      $set: { updated_at: new Date() },
+    await WorkspaceApiKey.create({
+      site_id: new mongoose.Types.ObjectId(siteId),
+      user_id: userId,
+      name,
+      accessKeyId: keyPair.accessKeyId,
+      hashedSecret: keyPair.hashedSecret,
+      secret_encrypted,
+      createdAt: new Date(),
+      isActive: true,
     });
 
     return {
       accessKeyId: keyPair.accessKeyId,
       secretKey: keyPair.secretKey,
       hashedSecret: keyPair.hashedSecret,
+      secret_encrypted,
     };
   }
 
-  async getUserApiKeys(userId: string): Promise<
+  async listBySite(siteId: string): Promise<
     Array<{
-      _id?: string;
       name: string;
       accessKeyId: string;
+      secret_encrypted: string;
       createdAt: Date;
       lastUsed?: Date;
       isActive: boolean;
     }>
   > {
-    const user = await User.findById(userId).select("apiKeys");
-    return user?.apiKeys || [];
+    const keys = await WorkspaceApiKey.find({
+      site_id: new mongoose.Types.ObjectId(siteId),
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+    return keys.map((k) => ({
+      name: k.name,
+      accessKeyId: k.accessKeyId,
+      secret_encrypted: k.secret_encrypted,
+      createdAt: k.createdAt,
+      lastUsed: k.lastUsed,
+      isActive: k.isActive,
+    }));
   }
 
-  async deleteApiKey(userId: string, accessKeyId: string): Promise<void> {
-    await User.findByIdAndUpdate(userId, {
-      $pull: {
-        apiKeys: { accessKeyId },
-      },
-      $set: { updated_at: new Date() },
+  async deleteBySiteAndAccessKey(siteId: string, accessKeyId: string): Promise<boolean> {
+    const res = await WorkspaceApiKey.deleteOne({
+      site_id: new mongoose.Types.ObjectId(siteId),
+      accessKeyId,
     });
+    return res.deletedCount > 0;
   }
 
-  async deactivateApiKey(userId: string, accessKeyId: string): Promise<void> {
-    await User.updateOne(
-      { _id: userId, "apiKeys.accessKeyId": accessKeyId },
-      {
-        $set: {
-          "apiKeys.$.isActive": false,
-          updated_at: new Date(),
-        },
-      }
-    );
+  async deleteBySiteId(siteId: string): Promise<void> {
+    await WorkspaceApiKey.deleteMany({ site_id: new mongoose.Types.ObjectId(siteId) });
   }
 
-  async findUserByApiKey(accessKeyId: string): Promise<{
+  async findByAccessKeyId(accessKeyId: string): Promise<{
+    siteId: string;
     userId: string;
     apiKey: {
       accessKeyId: string;
@@ -73,37 +79,24 @@ export class ApiKeyRepository {
       isActive: boolean;
     };
   } | null> {
-    const user = await User.findOne({
-      "apiKeys.accessKeyId": accessKeyId,
-    }).select("_id apiKeys");
-
-    if (!user) {
-      return null;
-    }
-
-    const apiKey = user.apiKeys?.find((k) => k.accessKeyId === accessKeyId);
-    if (!apiKey) {
-      return null;
-    }
+    const doc = await WorkspaceApiKey.findOne({ accessKeyId }).lean();
+    if (!doc) return null;
 
     return {
-      userId: user._id!.toString(),
+      siteId: doc.site_id.toString(),
+      userId: doc.user_id,
       apiKey: {
-        accessKeyId: apiKey.accessKeyId,
-        hashedSecret: apiKey.hashedSecret,
-        isActive: apiKey.isActive,
+        accessKeyId: doc.accessKeyId,
+        hashedSecret: doc.hashedSecret,
+        isActive: doc.isActive,
       },
     };
   }
 
-  async updateLastUsed(userId: string, accessKeyId: string): Promise<void> {
-    await User.updateOne(
-      { _id: userId, "apiKeys.accessKeyId": accessKeyId },
-      {
-        $set: {
-          "apiKeys.$.lastUsed": new Date(),
-        },
-      }
+  async updateLastUsed(siteId: string, accessKeyId: string): Promise<void> {
+    await WorkspaceApiKey.updateOne(
+      { site_id: new mongoose.Types.ObjectId(siteId), accessKeyId },
+      { $set: { lastUsed: new Date() } }
     );
   }
 }

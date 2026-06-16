@@ -7,10 +7,8 @@ import {
   UpdateCampaignTemplateInput,
   CampaignTemplateQueryFilters,
 } from "../interfaces/campaign-template.interface";
-import {
-  CampaignTemplate,
-  CampaignTemplate as CampaignTemplateType,
-} from "../../../shared/schemas/campaign-template.schema";
+import { CampaignTemplate } from "../../../shared/schemas/campaign-template.schema";
+import { CampaignTemplateType } from "../../../shared/constants/campaign.constant";
 
 @injectable()
 export class CampaignTemplateService {
@@ -49,11 +47,15 @@ export class CampaignTemplateService {
   }
 
   async getTemplatesByType(type: string): Promise<CampaignTemplate[]> {
-    return this.templateRepository.findByType(type as any);
+    const allowed = Object.values(CampaignTemplateType) as string[];
+    if (!allowed.includes(type)) {
+      throw new BadRequestError("Invalid campaign template type");
+    }
+    return this.templateRepository.findByType(type as CampaignTemplateType);
   }
 
   async updateTemplate(templateId: string, input: UpdateCampaignTemplateInput): Promise<CampaignTemplate> {
-    const template = await this.getTemplateById(templateId);
+    await this.getTemplateById(templateId);
 
     // Validate duration if updating
     if (input.default_duration_days !== undefined) {
@@ -79,7 +81,7 @@ export class CampaignTemplateService {
   }
 
   async deleteTemplate(templateId: string): Promise<void> {
-    const template = await this.getTemplateById(templateId);
+    await this.getTemplateById(templateId);
 
     // Soft delete by marking as inactive
     await this.templateRepository.update(templateId, { is_active: false });

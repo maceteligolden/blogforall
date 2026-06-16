@@ -1,0 +1,123 @@
+/**
+ * Bloggr CSS custom properties — import in app/globals.css
+ * Dark-first (:root). Optional .light for marketing/docs light surfaces.
+ */
+
+:root {
+  /* Surfaces */
+  --color-canvas: #000000;
+  --color-surface: #111827;
+  --color-surface-raised: #1f2937;
+  --color-surface-overlay: #374151;
+  --color-surface-sunken: #030712;
+  --color-border: #1f2937;
+  --color-border-subtle: #374151;
+  --color-border-strong: #4b5563;
+
+  /* Text */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+  --color-text-disabled: #4b5563;
+  --color-text-link: #60a5fa;
+  --color-text-link-hover: #93c5fd;
+
+  /* Brand — primary */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-950: #172554;
+  --color-primary: #1e40af;
+  --color-primary-foreground: #ffffff;
+
+  /* Brand — accent (AI / orchestrator) */
+  --color-accent-50: #ecfeff;
+  --color-accent-100: #cffafe;
+  --color-accent-200: #a5f3fc;
+  --color-accent-300: #67e8f9;
+  --color-accent-400: #22d3ee;
+  --color-accent-500: #06b6d4;
+  --color-accent-600: #0891b2;
+  --color-accent-700: #0e7490;
+  --color-accent-800: #155e75;
+  --color-accent-900: #164e63;
+  --color-accent: #22d3ee;
+  --color-accent-foreground: #042f2e;
+
+  /* Brand — secondary */
+  --color-secondary-50: #eef2ff;
+  --color-secondary-100: #e0e7ff;
+  --color-secondary-200: #c7d2fe;
+  --color-secondary-300: #a5b4fc;
+  --color-secondary-400: #818cf8;
+  --color-secondary-500: #6366f1;
+  --color-secondary-600: #4f46e5;
+  --color-secondary-700: #4338ca;
+  --color-secondary-800: #3730a3;
+  --color-secondary-900: #312e81;
+  --color-secondary: #6366f1;
+  --color-secondary-foreground: #ffffff;
+
+  /* Semantic — success */
+  --color-success: #10b981;
+  --color-success-muted: #14532d;
+  --color-success-border: #166534;
+  --color-success-text: #4ade80;
+
+  /* Semantic — warning */
+  --color-warning: #f59e0b;
+  --color-warning-muted: #422006;
+  --color-warning-border: #854d0e;
+  --color-warning-text: #facc15;
+
+  /* Semantic — error */
+  --color-error: #ef4444;
+  --color-error-muted: #450a0a;
+  --color-error-border: #991b1b;
+  --color-error-text: #f87171;
+
+  /* Semantic — info */
+  --color-info: #3b82f6;
+  --color-info-muted: #172554;
+  --color-info-border: #1e40af;
+  --color-info-text: #60a5fa;
+
+  /* shadcn-compatible (dark product default) */
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 222.2 47.4% 11.2%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 47.4% 11.2%;
+  --popover-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
+  --destructive: 0 62.8% 50.6%;
+  --destructive-foreground: 210 40% 98%;
+  --radius: 0.5rem;
+}
+
+.light {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+}

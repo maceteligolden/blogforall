@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express";
 import { sendCreated } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
+import { env } from "../../../shared/config/env";
 
 @injectable()
 export class ImageController {
@@ -14,7 +15,7 @@ export class ImageController {
       }
 
       // Return full URL for the uploaded image
-      const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+      const baseUrl = env.backendUrl || `http://localhost:${env.port}`;
       const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
 
       logger.info("Image uploaded successfully", { filename: req.file.filename, url: imageUrl }, "ImageController");
@@ -32,7 +33,7 @@ export class ImageController {
         return next(new BadRequestError("No image files provided"));
       }
 
-      const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+      const baseUrl = env.backendUrl || `http://localhost:${env.port}`;
       const files = Array.isArray(req.files) ? req.files : [req.files];
       const imageUrls = files.map((file) => ({
         url: `${baseUrl}/uploads/${file.filename}`,

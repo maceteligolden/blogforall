@@ -1,6 +1,6 @@
-# BlogForAll – Feature Gaps (Standard vs Current)
+# Bloggr – Feature Gaps (Standard vs Current)
 
-This document lists standard features for blog/CMS SaaS that BlogForAll currently lacks or only partially implements. It includes workspace management, subscriptions, onboarding, invitations/roles, and in-app notifications as requested.
+This document lists standard features for blog/CMS SaaS that Bloggr currently lacks or only partially implements. It includes workspace management, subscriptions, onboarding, invitations/roles, and in-app notifications as requested.
 
 ---
 

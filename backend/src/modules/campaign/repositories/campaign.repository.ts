@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import Campaign, { Campaign as CampaignType } from "../../../shared/schemas/campaign.schema";
-import { CampaignStatus } from "../../../shared/constants/campaign.constant";
-import { PaginationOptions, PaginatedResponse } from "../../../shared/interfaces";
+import { CampaignStatus, CampaignLifecycleStatus } from "../../../shared/constants/campaign.constant";
+import { PaginatedResponse } from "../../../shared/interfaces";
 import { CampaignQueryFilters } from "../interfaces/campaign.interface";
 
 @injectable()
@@ -89,6 +89,23 @@ export class CampaignRepository {
   async delete(id: string, siteId: string): Promise<boolean> {
     const result = await Campaign.deleteOne({ _id: id, site_id: siteId });
     return result.deletedCount > 0;
+  }
+
+  /** Active or paused campaigns eligible for daily progress reports. */
+  async findForDailyProgress(siteId?: string): Promise<CampaignType[]> {
+    const query: Record<string, unknown> = {
+      $or: [
+        { lifecycle_status: { $in: [CampaignLifecycleStatus.ACTIVE, CampaignLifecycleStatus.PAUSED] } },
+        {
+          lifecycle_status: { $exists: false },
+          status: { $in: [CampaignStatus.ACTIVE, CampaignStatus.PAUSED] },
+        },
+      ],
+    };
+    if (siteId) {
+      query.site_id = siteId;
+    }
+    return Campaign.find(query);
   }
 
   async findActiveCampaigns(siteId?: string): Promise<CampaignType[]> {

@@ -1,4 +1,4 @@
-export type BlogStatus = "draft" | "published" | "unpublished";
+export type BlogStatus = "draft" | "scheduled" | "published" | "unpublished";
 
 /** Block types for block-based editor (matches backend) */
 export type ContentBlockType =

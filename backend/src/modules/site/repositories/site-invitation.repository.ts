@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import SiteInvitation, { SiteInvitation as SiteInvitationType } from "../../../shared/schemas/site-invitation.schema";
-import { NotFoundError, BadRequestError } from "../../../shared/errors";
+import { BadRequestError } from "../../../shared/errors";
 import { InvitationStatus } from "../../../shared/constants";
 
 @injectable()

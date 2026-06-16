@@ -1,18 +1,13 @@
 import { injectable } from "tsyringe";
 import User from "../../../shared/schemas/user.schema";
 import { SubscriptionService } from "../../subscription/services/subscription.service";
-import { BillingService } from "../../billing/services/billing.service";
-import { CardRepository } from "../../billing/repositories/card.repository";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
+import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 
 @injectable()
 export class OnboardingService {
-  constructor(
-    private subscriptionService: SubscriptionService,
-    private billingService: BillingService,
-    private cardRepository: CardRepository
-  ) {}
+  constructor(private subscriptionService: SubscriptionService) {}
 
   async getOnboardingStatus(userId: string): Promise<{
     requiresOnboarding: boolean;
@@ -24,111 +19,61 @@ export class OnboardingService {
       throw new NotFoundError("User not found");
     }
 
-    // Check if user has a card
-    let hasCard = false;
-    if (user.stripe_customer_id) {
-      const cards = await this.cardRepository.findByCustomerId(user.stripe_customer_id);
-      hasCard = cards.length > 0;
-    }
-
-    // Check if user has an active paid subscription (not free)
     let hasPlan = false;
     try {
-      const { subscription, plan } = await this.subscriptionService.getActiveSubscription(userId);
-      hasPlan = plan.price > 0 && subscription.status !== "free";
-    } catch (error) {
-      // No subscription yet
+      await this.subscriptionService.getActiveSubscription(userId);
+      hasPlan = true;
+    } catch {
       hasPlan = false;
     }
 
     return {
       requiresOnboarding: !user.onboarding_completed,
-      hasCard,
+      hasCard: false,
       hasPlan,
     };
   }
 
-  async completeOnboarding(userId: string, planId: string, paymentMethodId: string): Promise<void> {
+  /**
+   * Ensures free subscription and marks account onboarding complete (idempotent).
+   */
+  async ensureFreePlanAndCompleteOnboarding(userId: string): Promise<void> {
     const user = await User.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
 
-    if (!user.stripe_customer_id) {
-      throw new BadRequestError("Stripe customer not found. Please contact support.");
-    }
-
-    // 1. Confirm and save the payment method
-    await this.billingService.confirmCard(userId, paymentMethodId);
-
-    // 2. Set as default payment method
-    const cards = await this.cardRepository.findByCustomerId(user.stripe_customer_id);
-    const card = cards.find((c) => c.stripe_card_token === paymentMethodId);
-    if (card) {
-      await this.billingService.setDefaultCard(card._id!, userId);
-    }
-
-    // 3. Ensure user has a subscription (create free one if doesn't exist)
     try {
       await this.subscriptionService.getActiveSubscription(userId);
-    } catch (error) {
-      // No subscription exists, create a free one first
+    } catch {
       await this.subscriptionService.createFreeSubscription(userId);
     }
 
-    // 4. Subscribe to the selected plan
-    await this.subscriptionService.changePlan(userId, planId);
+    const { plan } = await this.subscriptionService.getActiveSubscription(userId);
+    if (plan.price > 0 && plan.interval !== "free") {
+      const freePlan = await this.subscriptionService.getFreePlan();
+      await this.subscriptionService.changePlan(userId, freePlan._id!);
+    }
 
-    // 5. Mark onboarding as completed
-    await User.findByIdAndUpdate(userId, {
-      onboarding_completed: true,
-      updated_at: new Date(),
-    });
+    if (!user.onboarding_completed) {
+      await User.findByIdAndUpdate(userId, {
+        onboarding_completed: true,
+        updated_at: new Date(),
+      });
+      logger.info("User onboarding marked complete (free plan)", { userId }, "OnboardingService");
+      captureServerEvent(ServerAnalyticsEvents.USER_ONBOARDING_COMPLETED, {
+        userId,
+        properties: { free_only: true },
+      });
+    }
+  }
 
-    logger.info("User completed onboarding", { userId, planId }, "OnboardingService");
+  async completeOnboarding(_userId: string, _planId: string, _paymentMethodId: string): Promise<void> {
+    throw new BadRequestError("Plan selection is disabled. All accounts use the free plan.");
   }
 
   async skipOnboarding(userId: string): Promise<void> {
-    const user = await User.findById(userId);
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
-
-    // 1. Ensure user has a subscription (create free one if doesn't exist)
-    let hasSubscription = false;
-    try {
-      await this.subscriptionService.getActiveSubscription(userId);
-      hasSubscription = true;
-    } catch (error) {
-      // No subscription exists, create a free one
-      await this.subscriptionService.createFreeSubscription(userId);
-      hasSubscription = true;
-    }
-
-    // 2. Ensure user is on free plan (if not already)
-    if (hasSubscription) {
-      try {
-        const { subscription, plan } = await this.subscriptionService.getActiveSubscription(userId);
-        if (plan.price > 0 || plan.interval !== "free") {
-          // User is on a paid plan, downgrade to free
-          const plans = await this.subscriptionService.getActivePlans();
-          const freePlan = plans.find((p) => p.price === 0 || p.interval === "free");
-          if (freePlan) {
-            await this.subscriptionService.changePlan(userId, freePlan._id!);
-          }
-        }
-      } catch (error) {
-        // Error getting subscription, but we already created one above
-        logger.error("Error ensuring free plan", error as Error, { userId }, "OnboardingService");
-      }
-    }
-
-    // 3. Mark onboarding as completed
-    await User.findByIdAndUpdate(userId, {
-      onboarding_completed: true,
-      updated_at: new Date(),
-    });
-
-    logger.info("User skipped onboarding", { userId }, "OnboardingService");
+    await this.ensureFreePlanAndCompleteOnboarding(userId);
+    logger.info("User onboarding ensured (free plan)", { userId }, "OnboardingService");
   }
 }

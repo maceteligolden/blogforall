@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 /**
  * Check if a card is expired based on expiry date
  * @param expireDate - Format: "MM/YYYY" or "MM/YY"
@@ -21,7 +23,7 @@ export function isCardExpired(expireDate: string): boolean {
 
     return expiryDate < today;
   } catch (error) {
-    console.error("Error parsing expiry date:", error);
+    logger.error("Error parsing expiry date", error, {}, "card.util");
     return false;
   }
 }

@@ -3,36 +3,25 @@ import { Request, Response, NextFunction } from "express";
 import { BlogService } from "../services/blog.service";
 import { sendSuccess } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
-import { ZodError } from "zod";
-import { blogQuerySchema } from "../validations/blog.validation";
 import { logger } from "../../../shared/utils/logger";
+import type { BlogQueryFilters } from "../interfaces/blog.interface";
 
 @injectable()
 export class PublicBlogController {
   constructor(private blogService: BlogService) {}
 
-  /**
-   * Get all published blogs with pagination, search, and filtering
-   * Requires API key authentication
-   */
   getPublishedBlogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
       }
 
-      // TODO: Get siteId from API key context or request (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
+      const validatedFilters = req.validatedQuery as BlogQueryFilters;
 
-      const validatedFilters = blogQuerySchema.parse(req.query);
-
-      // Log service call
       logger.info(
         "Service call: getPublishedBlogs",
         {
@@ -47,10 +36,8 @@ export class PublicBlogController {
       );
 
       const result = await this.blogService.getPublishedBlogs(siteId, validatedFilters);
-
       const duration = Date.now() - startTime;
 
-      // Log service response
       logger.info(
         "Service response: getPublishedBlogs",
         {
@@ -67,19 +54,6 @@ export class PublicBlogController {
       sendSuccess(res, "Published blogs retrieved successfully", result);
     } catch (error) {
       const duration = Date.now() - startTime;
-      if (error instanceof ZodError) {
-        logger.warn(
-          "Validation error in getPublishedBlogs",
-          {
-            accessKeyId,
-            errors: error.errors,
-            duration: `${duration}ms`,
-          },
-          "PublicBlogController"
-        );
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       logger.error(
         "Error in getPublishedBlogs",
         error as Error,
@@ -94,16 +68,13 @@ export class PublicBlogController {
     }
   };
 
-  /**
-   * Get all categories for the authenticated user
-   * Requires API key authentication
-   */
   getCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
       }
 
@@ -111,15 +82,16 @@ export class PublicBlogController {
       const { CategoryService } = await import("../../category/services/category.service");
       const categoryService = container.resolve(CategoryService);
 
-      const tree = req.query.tree === "true";
-      const includeInactive = req.query.include_inactive === "true";
+      const q = req.validatedQuery as { tree?: "true" | "false"; include_inactive?: "true" | "false" };
+      const tree = q.tree === "true";
+      const includeInactive = q.include_inactive === "true";
 
-      // Log service call
       logger.info(
         "Service call: getCategories",
         {
           accessKeyId,
           userId,
+          siteId,
           tree,
           includeInactive,
           method: req.method,
@@ -127,9 +99,6 @@ export class PublicBlogController {
         },
         "PublicBlogController"
       );
-
-      // TODO: Update to use siteId from request context (task 15)
-      const siteId = userId; // Temporary - will be replaced with actual siteId
       let categories;
       if (tree) {
         categories = await categoryService.getSiteCategoriesTree(siteId, includeInactive);
@@ -139,7 +108,6 @@ export class PublicBlogController {
 
       const duration = Date.now() - startTime;
 
-      // Log service response
       logger.info(
         "Service response: getCategories",
         {
@@ -169,29 +137,19 @@ export class PublicBlogController {
     }
   };
 
-  /**
-   * Get published blogs by category
-   * Requires API key authentication
-   */
   getBlogsByCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
       }
 
-      // TODO: Get siteId from API key context or request (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
+      const { categoryId } = req.validatedParams as { categoryId: string };
+      const validatedFilters = req.validatedQuery as BlogQueryFilters;
 
-      const { categoryId } = req.params;
-      const validatedFilters = blogQuerySchema.parse(req.query);
-
-      // Log service call
       logger.info(
         "Service call: getBlogsByCategory",
         {
@@ -213,7 +171,6 @@ export class PublicBlogController {
 
       const duration = Date.now() - startTime;
 
-      // Log service response
       logger.info(
         "Service response: getBlogsByCategory",
         {
@@ -231,27 +188,12 @@ export class PublicBlogController {
       sendSuccess(res, "Published blogs retrieved successfully", result);
     } catch (error) {
       const duration = Date.now() - startTime;
-      if (error instanceof ZodError) {
-        logger.warn(
-          "Validation error in getBlogsByCategory",
-          {
-            accessKeyId,
-            categoryId: req.params.categoryId,
-            errors: error.errors,
-            duration: `${duration}ms`,
-          },
-          "PublicBlogController"
-        );
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       logger.error(
         "Error in getBlogsByCategory",
         error as Error,
         {
           accessKeyId,
           userId: req.user?.userId,
-          categoryId: req.params.categoryId,
           duration: `${duration}ms`,
         },
         "PublicBlogController"
@@ -260,28 +202,18 @@ export class PublicBlogController {
     }
   };
 
-  /**
-   * Get a single published blog by ID
-   * Requires API key authentication
-   */
   getPublishedBlogById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
       }
 
-      // TODO: Get siteId from API key context or request (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
+      const { id } = req.validatedParams as { id: string };
 
-      const { id } = req.params;
-
-      // Log service call
       logger.info(
         "Service call: getPublishedBlogById",
         {
@@ -297,7 +229,6 @@ export class PublicBlogController {
 
       const blog = await this.blogService.getBlogById(id, siteId);
 
-      // Only return published blogs
       if (blog.status !== "published") {
         logger.warn(
           "Blog not published or not found",
@@ -313,12 +244,10 @@ export class PublicBlogController {
         return next(new BadRequestError("Blog not found or not published"));
       }
 
-      // Increment views
       await this.blogService.incrementViews(blog._id!.toString(), siteId);
 
       const duration = Date.now() - startTime;
 
-      // Log service response
       logger.info(
         "Service response: getPublishedBlogById",
         {
@@ -341,7 +270,7 @@ export class PublicBlogController {
         {
           accessKeyId,
           userId: req.user?.userId,
-          blogId: req.params.id,
+          blogId: (req.validatedParams as { id?: string })?.id,
           duration: `${duration}ms`,
         },
         "PublicBlogController"
@@ -350,28 +279,18 @@ export class PublicBlogController {
     }
   };
 
-  /**
-   * Get a single published blog by slug
-   * Requires API key authentication
-   */
   getPublishedBlogBySlug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const startTime = Date.now();
-    const accessKeyId = (req as any).accessKeyId;
+    const accessKeyId = req.accessKeyId;
     try {
       const userId = req.user?.userId;
-      if (!userId) {
+      const siteId = req.user?.workspaceSiteId;
+      if (!userId || !siteId) {
         return next(new BadRequestError("API key authentication required"));
       }
 
-      // TODO: Get siteId from API key context or request (task 20)
-      const siteId = req.query.site_id as string;
-      if (!siteId) {
-        return next(new BadRequestError("Site ID is required"));
-      }
+      const { slug } = req.validatedParams as { slug: string };
 
-      const { slug } = req.params;
-
-      // Log service call
       logger.info(
         "Service call: getPublishedBlogBySlug",
         {
@@ -387,7 +306,6 @@ export class PublicBlogController {
 
       const blog = await this.blogService.getBlogBySlug(slug, siteId);
 
-      // Only return published blogs
       if (blog.status !== "published") {
         logger.warn(
           "Blog not published or not found",
@@ -403,12 +321,10 @@ export class PublicBlogController {
         return next(new BadRequestError("Blog not found or not published"));
       }
 
-      // Increment views
       await this.blogService.incrementViews(blog._id!.toString(), siteId);
 
       const duration = Date.now() - startTime;
 
-      // Log service response
       logger.info(
         "Service response: getPublishedBlogBySlug",
         {
@@ -432,7 +348,7 @@ export class PublicBlogController {
         {
           accessKeyId,
           userId: req.user?.userId,
-          slug: req.params.slug,
+          slug: (req.validatedParams as { slug?: string })?.slug,
           duration: `${duration}ms`,
         },
         "PublicBlogController"

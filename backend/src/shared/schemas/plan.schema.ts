@@ -32,6 +32,7 @@ const planSchema = new Schema<Plan>(
       apiCallsPerMonth: { type: Number, required: true, default: 0 },
       storageGB: { type: Number, required: true, default: 0 },
       maxSitesAllowed: { type: Number, required: true, default: 1 },
+      dailyTokens: { type: Number, required: false },
     },
     features: [{ type: String }],
     isActive: { type: Boolean, default: true, index: true },

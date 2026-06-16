@@ -9,7 +9,7 @@
 
 ## 1. Purpose and scope
 
-This document describes the **current** authentication and admin-signup behaviour of BlogForAll: use cases, functional and non-functional requirements, constraints, infrastructure, data model, code design (UML), endpoints, solution design, and full-stack implementation.
+This document describes the **current** authentication and admin-signup behaviour of Bloggr: use cases, functional and non-functional requirements, constraints, infrastructure, data model, code design (UML), endpoints, solution design, and full-stack implementation.
 
 | In scope | Out of scope |
 |----------|----------------|

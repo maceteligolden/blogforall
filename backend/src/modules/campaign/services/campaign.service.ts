@@ -9,8 +9,15 @@ import {
   CampaignQueryFilters,
   CampaignWithStats,
 } from "../interfaces/campaign.interface";
-import { Campaign, Campaign as CampaignType } from "../../../shared/schemas/campaign.schema";
-import { CampaignStatus, ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
+import { Campaign } from "../../../shared/schemas/campaign.schema";
+import {
+  CampaignStatus,
+  ScheduledPostStatus,
+  CampaignLifecycleStatus,
+  CampaignContentAutonomy,
+  CampaignPublishingMode,
+  CampaignApprovalPolicy,
+} from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
 
 @injectable()
@@ -38,6 +45,11 @@ export class CampaignService {
       user_id: userId,
       site_id: siteId,
       status: CampaignStatus.DRAFT,
+      lifecycle_status: CampaignLifecycleStatus.DRAFT,
+      content_autonomy: CampaignContentAutonomy.ASSISTED,
+      publishing_mode: CampaignPublishingMode.SCHEDULED_HITL,
+      approval_policy: CampaignApprovalPolicy.REQUIRE_PRE_PUBLISH_APPROVAL,
+      notifications: { daily_progress_email: true },
       timezone,
       posts_published: 0,
     });
@@ -132,7 +144,7 @@ export class CampaignService {
   }
 
   async deleteCampaign(campaignId: string, siteId: string, userId: string): Promise<void> {
-    const campaign = await this.getCampaignById(campaignId, siteId, userId);
+    await this.getCampaignById(campaignId, siteId, userId);
 
     // Check if campaign has scheduled posts
     const scheduledPosts = await this.scheduledPostRepository.findByCampaign(campaignId, siteId);

@@ -1,5 +1,14 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from "axios";
-import { API_CONFIG, API_ENDPOINTS } from "./config";
+import { API_CONFIG } from "./config";
+import { useAuthStore } from "../store/auth.store";
+import {
+  ensureAccessTokenFresh,
+  refreshAccessTokenWithLock,
+  SessionRefreshFailedError,
+  shouldSkipProactiveTokenRefresh,
+} from "./token-refresh";
+import { getCorrelationHeaders } from "../observability/request-headers";
+import { captureApiError } from "../observability/capture-api-error";
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_CONFIG.baseURL,
@@ -7,13 +16,28 @@ const apiClient: AxiosInstance = axios.create({
   headers: API_CONFIG.headers,
 });
 
-// Request interceptor - Add auth token
+// Request interceptor — proactive refresh, then attach Bearer
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
+    if (typeof window !== "undefined" && !shouldSkipProactiveTokenRefresh(config.url)) {
+      try {
+        await ensureAccessTokenFresh();
+      } catch (e) {
+        if (e instanceof SessionRefreshFailedError) {
+          return Promise.reject(new Error("Authentication required"));
+        }
+        throw e;
+      }
+    }
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (config.headers) {
+      const correlation = getCorrelationHeaders();
+      config.headers["X-Request-Id"] = correlation["X-Request-Id"];
+      config.headers["X-Session-Id"] = correlation["X-Session-Id"];
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
 
     return config;
@@ -41,38 +65,40 @@ apiClient.interceptors.response.use(
 
         if (!refreshToken) {
           if (typeof window !== "undefined") {
-            localStorage.clear();
-            window.location.href = "/auth/login";
+            useAuthStore.getState().clearAuth();
+            const r = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `/auth/login?redirect=${r}`;
           }
           return Promise.reject(error);
         }
 
-        // Try to refresh token
-        const response = await axios.post(`${API_CONFIG.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {
-          refresh_token: refreshToken,
-        });
+        const newAccessToken = await refreshAccessTokenWithLock();
 
-        if (response.data && response.data.data) {
-          const newAccessToken = response.data.data.access_token;
-
-          if (typeof window !== "undefined" && newAccessToken) {
-            localStorage.setItem("access_token", newAccessToken);
-          }
-
-          if (originalRequest.headers && newAccessToken) {
-            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          }
-
+        if (newAccessToken && originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiClient(originalRequest);
         }
+
+        if (typeof window !== "undefined") {
+          useAuthStore.getState().clearAuth();
+          const r = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.href = `/auth/login?redirect=${r}`;
+        }
+        return Promise.reject(error);
       } catch (refreshError) {
         if (typeof window !== "undefined") {
-          localStorage.clear();
-          window.location.href = "/auth/login";
+          useAuthStore.getState().clearAuth();
+          const r = encodeURIComponent(window.location.pathname + window.location.search);
+          window.location.href = `/auth/login?redirect=${r}`;
         }
         return Promise.reject(refreshError);
       }
     }
+
+    captureApiError(error, {
+      url: originalRequest?.url,
+      method: originalRequest?.method?.toUpperCase(),
+    });
 
     return Promise.reject(error);
   }

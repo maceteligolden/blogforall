@@ -24,6 +24,21 @@ export interface ChangePasswordInput {
   new_password: string;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface VerifyResetCodeInput {
+  email: string;
+  code: string;
+}
+
+export interface ResetPasswordInput {
+  email: string;
+  code: string;
+  new_password: string;
+}
+
 export interface AuthTokens {
   access_token: string;
   refresh_token: string;

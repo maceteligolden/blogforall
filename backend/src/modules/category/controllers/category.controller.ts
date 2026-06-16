@@ -2,48 +2,37 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { CategoryService } from "../services/category.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
-import { BadRequestError } from "../../../shared/errors";
-import { ZodError } from "zod";
-import { createCategorySchema, updateCategorySchema, importCategoriesSchema } from "../validations/category.validation";
+import { getJwtUserId } from "../../../shared/utils/jwt-user";
+import type { CreateCategoryInput, UpdateCategoryInput } from "../interfaces/category.interface";
 
 @injectable()
 export class CategoryController {
   constructor(private categoryService: CategoryService) {}
 
+  private siteId(req: Request): string {
+    return (req.validatedParams as { siteId: string }).siteId;
+  }
+
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const validatedData = createCategorySchema.parse(req.body);
-      // TODO: Update to use siteId from request context (task 15)
-      const siteId = userId; // Temporary - will be replaced with actual siteId
+      getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const validatedData = req.validatedBody as CreateCategoryInput;
       const category = await this.categoryService.createCategory(siteId, validatedData);
       sendCreated(res, "Category created successfully", category);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
+      getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const q = req.validatedQuery as { tree?: "true" | "false"; include_inactive?: "true" | "false" };
+      const tree = q.tree === "true";
+      const includeInactive = q.include_inactive === "true";
 
-      const tree = req.query.tree === "true";
-      const includeInactive = req.query.include_inactive === "true";
-
-      // TODO: Update to use siteId from request context (task 15)
-      // For now, using userId as placeholder - will be replaced with siteId
-      const siteId = userId; // Temporary - will be replaced with actual siteId
       if (tree) {
         const categories = await this.categoryService.getSiteCategoriesTree(siteId, includeInactive);
         sendSuccess(res, "Categories retrieved successfully", categories);
@@ -58,14 +47,9 @@ export class CategoryController {
 
   getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id } = req.params;
-      // TODO: Update to use siteId from request context (task 15)
-      const siteId = userId; // Temporary - will be replaced with actual siteId
+      getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
       const category = await this.categoryService.getCategoryById(id, siteId);
       sendSuccess(res, "Category retrieved successfully", category);
     } catch (error) {
@@ -75,36 +59,22 @@ export class CategoryController {
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id } = req.params;
-      const validatedData = updateCategorySchema.parse(req.body);
-      // TODO: Update to use siteId from request context (task 15)
-      const siteId = userId; // Temporary - will be replaced with actual siteId
+      getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
+      const validatedData = req.validatedBody as UpdateCategoryInput;
       const category = await this.categoryService.updateCategory(id, siteId, validatedData);
       sendSuccess(res, "Category updated successfully", category);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };
 
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const { id } = req.params;
-      // TODO: Update to use siteId from request context (task 15)
-      const siteId = userId; // Temporary - will be replaced with actual siteId
+      getJwtUserId(req);
+      const { id } = req.validatedParams as { siteId: string; id: string };
+      const siteId = this.siteId(req);
       await this.categoryService.deleteCategory(id, siteId);
       sendNoContent(res, "Category deleted successfully");
     } catch (error) {
@@ -114,12 +84,12 @@ export class CategoryController {
 
   importCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        return next(new BadRequestError("User not authenticated"));
-      }
-
-      const validatedData = importCategoriesSchema.parse(req.body);
+      const userId = getJwtUserId(req);
+      const validatedData = req.validatedBody as {
+        source_site_id: string;
+        target_site_id: string;
+        category_ids: string[];
+      };
       const importedCategories = await this.categoryService.importCategories(
         validatedData.source_site_id,
         validatedData.target_site_id,
@@ -128,10 +98,6 @@ export class CategoryController {
       );
       sendCreated(res, "Categories imported successfully", importedCategories);
     } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
-        return next(new BadRequestError(errorMessages));
-      }
       next(error);
     }
   };

@@ -1,5 +1,6 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
+import { useAuthStore } from "../../store/auth.store";
 
 export type SuggestionTarget = "title" | "excerpt" | "content";
 
@@ -65,38 +66,42 @@ export interface ApplyOneRequest {
   blockIndex?: number;
 }
 
+function requireSiteId(): string {
+  if (typeof window === "undefined") {
+    throw new Error("Blog review requires a browser context");
+  }
+  const siteId = useAuthStore.getState().currentSiteId;
+  if (!siteId) {
+    throw new Error("No workspace selected. Choose a site before using blog review.");
+  }
+  return siteId;
+}
+
 export class BlogReviewService {
-  /**
-   * Review a blog post
-   * @param blogId Optional blog ID. If provided, reviews the existing blog. If not, reviews the provided content.
-   * @param data Blog content to review (required if blogId is not provided)
-   */
-  static async reviewBlog(blogId: string | undefined, data?: ReviewBlogRequest): Promise<{ data: { data: BlogReviewResult } }> {
-    const endpoint = API_ENDPOINTS.BLOGS.REVIEW(blogId);
+  static async reviewBlog(
+    blogId: string | undefined,
+    data?: ReviewBlogRequest
+  ): Promise<{ data: { data: BlogReviewResult } }> {
+    const siteId = requireSiteId();
+    const endpoint = API_ENDPOINTS.BLOGS.REVIEW(siteId, blogId);
     return apiClient.post(endpoint, data || {});
   }
 
-  /**
-   * Apply review suggestions to a blog post
-   */
   static async applyReview(blogId: string | undefined, data: ApplyReviewRequest): Promise<{ data: { data: any } }> {
     if (!blogId) {
       throw new Error("Blog ID is required to apply review");
     }
-    return apiClient.post(API_ENDPOINTS.BLOGS.APPLY_REVIEW(blogId), data);
+    const siteId = requireSiteId();
+    return apiClient.post(API_ENDPOINTS.BLOGS.APPLY_REVIEW(siteId, blogId), data);
   }
 
-  /**
-   * Apply a single suggestion (auto-save; undo via restore version).
-   */
   static async applyOne(blogId: string, data: ApplyOneRequest): Promise<{ data: { data: unknown } }> {
-    return apiClient.post(API_ENDPOINTS.BLOGS.APPLY_ONE(blogId), data);
+    const siteId = requireSiteId();
+    return apiClient.post(API_ENDPOINTS.BLOGS.APPLY_ONE(siteId, blogId), data);
   }
 
-  /**
-   * Restore a previous version of a blog post
-   */
   static async restoreVersion(blogId: string, version: number): Promise<{ data: { data: unknown } }> {
-    return apiClient.post(API_ENDPOINTS.BLOGS.RESTORE_VERSION(blogId, version));
+    const siteId = requireSiteId();
+    return apiClient.post(API_ENDPOINTS.BLOGS.RESTORE_VERSION(siteId, blogId, version));
   }
 }

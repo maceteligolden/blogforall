@@ -1,9 +1,20 @@
+export type SiteStatus = "onboarding" | "active";
+
 export interface Site {
   _id: string;
   name: string;
   description?: string;
   slug: string;
+  /** Opaque workspace id for SDK / public API */
+  public_id?: string;
   owner: string;
+  /**
+   * Lifecycle status. New sites start as "onboarding" and transition to
+   * "active" once the orchestrator-led onboarding chat captures workspace
+   * context. Sites created before this field existed may be undefined and
+   * should be treated as "active".
+   */
+  status?: SiteStatus;
   created_at: Date;
   updated_at: Date;
 }

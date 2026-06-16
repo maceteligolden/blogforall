@@ -1,0 +1,21 @@
+{
+  "name": "blogforall",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Blogforall monorepo — frontend and backend",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "npm run lint --prefix backend && npm run lint --prefix frontend",
+    "lint:fix": "npm run lint:fix --prefix backend && npm run lint:fix --prefix frontend",
+    "format": "npm run format --prefix backend && npm run format --prefix frontend",
+    "format:check": "npm run format:check --prefix backend && npm run format:check --prefix frontend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "prepush": "npm run format:check && npm run build"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

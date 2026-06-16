@@ -13,16 +13,9 @@ export interface User extends BaseEntity {
   sessionToken?: string | null;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
-  apiKeys: Array<{
-    name: string;
-    accessKeyId: string;
-    hashedSecret: string;
-    createdAt: Date;
-    lastUsed?: Date;
-    isActive: boolean;
-  }>;
+  resetPasswordAttempts?: number;
   stripe_customer_id?: string; // Stripe customer ID for payment processing
-  onboarding_completed: boolean; // Whether user has completed onboarding (card + plan)
+  onboarding_completed: boolean; // Whether initial account setup is complete (free plan assigned)
   terms_accepted_at?: Date; // When user accepted terms at signup (audit)
   terms_version?: string; // Terms version accepted (e.g. "2025-01") for audit
 }
@@ -75,34 +68,10 @@ const userSchema = new Schema<User>(
     resetPasswordExpires: {
       type: Date,
     },
-    apiKeys: [
-      {
-        name: {
-          type: String,
-          required: true,
-        },
-        accessKeyId: {
-          type: String,
-          required: true,
-          index: true,
-        },
-        hashedSecret: {
-          type: String,
-          required: true,
-        },
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
-        lastUsed: {
-          type: Date,
-        },
-        isActive: {
-          type: Boolean,
-          default: true,
-        },
-      },
-    ],
+    resetPasswordAttempts: {
+      type: Number,
+      default: 0,
+    },
     stripe_customer_id: {
       type: String,
       index: true,

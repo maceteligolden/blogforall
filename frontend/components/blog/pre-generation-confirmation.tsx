@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,9 +24,25 @@ export function PreGenerationConfirmation({
   isGenerating = false,
 }: PreGenerationConfirmationProps) {
   const [analysis, setAnalysis] = useState<PromptAnalysis>(initialAnalysis);
+  const [topicsInput, setTopicsInput] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setAnalysis(initialAnalysis);
+      setTopicsInput((initialAnalysis.topics_to_explore ?? []).join(", "));
+    }
+  }, [initialAnalysis, isOpen]);
 
   const handleConfirm = () => {
-    onConfirm(analysis);
+    const topics = topicsInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+    onConfirm({
+      ...analysis,
+      topics_to_explore: topics.length > 0 ? topics : analysis.topics_to_explore,
+    });
   };
 
   const handleFieldChange = (field: keyof PromptAnalysis, value: string | number | undefined) => {
@@ -101,6 +117,41 @@ export function PreGenerationConfirmation({
           </div>
 
           <div>
+            <Label htmlFor="tone" className="text-gray-300">
+              Tone
+            </Label>
+            <select
+              id="tone"
+              value={analysis.tone ?? ""}
+              onChange={(e) => handleFieldChange("tone", e.target.value || undefined)}
+              disabled={isGenerating}
+              className="mt-1 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white"
+            >
+              <option value="">Let AI infer from topic</option>
+              <option value="professional">Professional</option>
+              <option value="conversational">Conversational</option>
+              <option value="friendly">Friendly</option>
+              <option value="authoritative">Authoritative</option>
+              <option value="playful">Playful</option>
+              <option value="neutral">Neutral / journalistic</option>
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="topics_explore" className="text-gray-300">
+              Topics to explore (comma-separated)
+            </Label>
+            <Input
+              id="topics_explore"
+              value={topicsInput}
+              onChange={(e) => setTopicsInput(e.target.value)}
+              className="mt-1 bg-black border-gray-700 text-white"
+              placeholder="e.g., performance, security, migration"
+              disabled={isGenerating}
+            />
+          </div>
+
+          <div>
             <Label htmlFor="purpose" className="text-gray-300">
               Purpose *
             </Label>
@@ -158,7 +209,9 @@ export function PreGenerationConfirmation({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={isGenerating || !analysis.topic || !analysis.domain || !analysis.target_audience || !analysis.purpose}
+            disabled={
+              isGenerating || !analysis.topic || !analysis.domain || !analysis.target_audience || !analysis.purpose
+            }
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             {isGenerating ? "Generating..." : "Generate Blog Post"}

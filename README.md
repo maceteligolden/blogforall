@@ -1,4 +1,4 @@
-# BlogForAll - Blog SaaS Platform
+# Bloggr - Blog SaaS Platform
 
 A comprehensive blog management SaaS platform where users can create, manage, and publish blogs with API access for custom frontends.
 
@@ -28,7 +28,7 @@ A comprehensive blog management SaaS platform where users can create, manage, an
 ## Project Structure
 
 ```
-blogforall/
+bloggr/               # or clone directory name
 ├── backend/          # Express API Server
 ├── frontend/         # Next.js Web Application
 └── README.md

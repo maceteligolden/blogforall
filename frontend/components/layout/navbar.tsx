@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { User, CreditCard } from "lucide-react";
+import { User, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { SiteSwitcher } from "@/components/sites/site-switcher";
-import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useAIPanel } from "@/components/orchestrator/ai-panel-provider";
+import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { open: openAIPanel } = useAIPanel();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleLogout = () => {
@@ -25,7 +27,7 @@ export function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center">
-            <h1 className="text-2xl font-display text-primary tracking-tight">BlogForAll</h1>
+            <h1 className="text-2xl font-display text-primary tracking-tight">Bloggr</h1>
           </Link>
 
           {/* Navigation Links */}
@@ -38,28 +40,16 @@ export function Navbar() {
               Dashboard
             </Link>
             <Link
-              href="/dashboard/sites"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Workspaces
-            </Link>
-            <Link
               href="/dashboard/blogs"
               className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
             >
               Blogs
             </Link>
             <Link
-              href="/dashboard/categories"
+              href="/dashboard/approvals"
               className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
             >
-              Categories
-            </Link>
-            <Link
-              href="/dashboard/scheduled-posts"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Scheduled Posts
+              Approvals
             </Link>
             <Link
               href="/dashboard/api-keys"
@@ -71,7 +61,25 @@ export function Navbar() {
 
           {/* Right Side */}
           <div className="flex items-center space-x-4 relative z-[9999]">
-            <NotificationBell />
+            <TokenUsageBadge className="hidden sm:inline-flex" compact />
+            <button
+              onClick={() => openAIPanel()}
+              className="hidden sm:flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+              aria-label="Open workspace AI assistant"
+              title="Workspace orchestrator"
+            >
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
+              <span className="hidden md:inline">Ask AI</span>
+            </button>
+            <button
+              onClick={() => openAIPanel()}
+              className="sm:hidden flex items-center justify-center w-9 h-9 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              aria-label="Open workspace AI assistant"
+              title="Workspace orchestrator"
+            >
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
+            </button>
+
             {/* User Menu */}
             <div className="relative z-[10000]">
               <div className="flex items-center space-x-2">
@@ -120,16 +128,6 @@ export function Navbar() {
                   >
                     <User className="w-4 h-4" aria-hidden="true" />
                     Profile
-                  </Link>
-                  <Link
-                    href="/dashboard/billing"
-                    role="menuitem"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                    aria-label="Go to Billing page"
-                  >
-                    <CreditCard className="w-4 h-4" aria-hidden="true" />
-                    Billing
                   </Link>
                   <Link
                     href="/"
