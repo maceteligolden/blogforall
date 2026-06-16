@@ -27,6 +27,9 @@ import { seedPlatformAdminIfNeeded } from "./shared/utils/seed-platform-admin.ut
 const app = express();
 const PORT = env.port;
 
+// CORS must run before body parsers and routes (especially OPTIONS preflight)
+app.use(corsMiddleware);
+
 // Serve uploaded images statically (before other middlewares to avoid conflicts)
 app.use("/uploads", express.static(path.join(process.cwd(), env.upload.dir)));
 
@@ -41,9 +44,6 @@ app.use("/api/v1/webhooks", express.raw({ type: "application/json" }));
 // JSON body parser for all other routes
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// CORS
-app.use(corsMiddleware);
 
 // Routes
 app.get("/health", (_req, res) => {

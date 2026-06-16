@@ -18,8 +18,11 @@ COPY . .
 # Create uploads directory if it doesn't exist
 RUN mkdir -p uploads
 
+# Compile TypeScript so dist/ matches src/ (Dokploy runs dist, not ts-node)
+RUN npx tsc
+
 # Expose port
 EXPOSE 3006
 
 # Start the application in development mode with hot-reload
-CMD ["yarn", "dev"]
+CMD ["node", "dist/src/index.js"]
