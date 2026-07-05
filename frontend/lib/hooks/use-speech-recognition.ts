@@ -2,6 +2,50 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
+interface SpeechRecognitionAlternative {
+  transcript: string;
+}
+
+interface SpeechRecognitionResult {
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognitionInstance {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  start(): void;
+  stop(): void;
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognitionInstance;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
+
 interface UseSpeechRecognitionOptions {
   onResult: (transcript: string, isFinal: boolean) => void;
   onError?: (message: string) => void;
@@ -13,7 +57,7 @@ export function useSpeechRecognition({
   onError,
   continuous = false,
 }: UseSpeechRecognitionOptions) {
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const onResultRef = useRef(onResult);
   const onErrorRef = useRef(onError);
 
@@ -29,6 +73,7 @@ export function useSpeechRecognition({
   useEffect(() => {
     if (!isSupported) return;
     const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
     const recognition = new SpeechRecognitionCtor();
     recognition.continuous = continuous;
     recognition.interimResults = true;
@@ -70,11 +115,4 @@ export function useSpeechRecognition({
   }, []);
 
   return { isSupported, startListening, stopListening };
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
-  }
 }

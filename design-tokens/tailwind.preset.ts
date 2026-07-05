@@ -1,7 +1,6 @@
-import type { Config } from "tailwindcss";
 import { brand, neutral, semantic, surface, text } from "./colors";
 
-const preset: Config = {
+const preset = {
   theme: {
     extend: {
       colors: {
