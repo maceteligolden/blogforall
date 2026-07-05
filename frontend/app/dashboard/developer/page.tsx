@@ -25,9 +25,7 @@ export default function DeveloperPage() {
       <Breadcrumb items={[{ label: "Developer" }]} />
       <div className="mb-6">
         <h1 className="text-2xl font-display text-white">Developer</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          API keys, documentation, and tools for building on Bloggr.
-        </p>
+        <p className="text-sm text-gray-400 mt-1">API keys, documentation, and tools for building on Bloggr.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 max-w-3xl">
         {developerLinks.map(({ href, title, description, icon: Icon }) => (
@@ -40,9 +38,7 @@ export default function DeveloperPage() {
               <Icon className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-base font-semibold text-white group-hover:text-primary transition-colors">
-                {title}
-              </h2>
+              <h2 className="text-base font-semibold text-white group-hover:text-primary transition-colors">{title}</h2>
               <p className="text-sm text-gray-400 mt-1">{description}</p>
             </div>
             <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-gray-400 shrink-0 mt-1" />

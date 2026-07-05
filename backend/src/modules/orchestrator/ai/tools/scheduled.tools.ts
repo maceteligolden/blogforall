@@ -87,7 +87,12 @@ export class ScheduledUpcomingThisWeekTool implements OrchestratorTool {
     return {
       summary: truncateSummary(
         `You have ${posts.length} scheduled post(s) in the next 7 days. ${
-          posts.length ? `Titles: ${posts.slice(0, 5).map((p) => `'${p.title}'`).join(", ")}.` : ""
+          posts.length
+            ? `Titles: ${posts
+                .slice(0, 5)
+                .map((p) => `'${p.title}'`)
+                .join(", ")}.`
+            : ""
         }`
       ),
       data: {

@@ -4,12 +4,7 @@ export type OrchestratorApprovalKind =
   | "scheduled_post_review"
   | "campaign_proposal";
 
-export type OrchestratorApprovalStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "executed"
-  | "expired";
+export type OrchestratorApprovalStatus = "pending" | "approved" | "rejected" | "executed" | "expired";
 
 export interface OrchestratorApproval {
   id: string;
@@ -73,12 +68,7 @@ export interface ThreadWithMessages {
   messages: OrchestratorMessage[];
 }
 
-export type OrchestratorSessionMode =
-  | "planning"
-  | "writing"
-  | "research"
-  | "review"
-  | "casual";
+export type OrchestratorSessionMode = "planning" | "writing" | "research" | "review" | "casual";
 
 export interface OrchestratorChatAttachment {
   name: string;

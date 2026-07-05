@@ -61,4 +61,3 @@ export default withSentryConfig(nextConfig, {
   disableLogger: true,
   automaticVercelMonitors: false,
 });
-

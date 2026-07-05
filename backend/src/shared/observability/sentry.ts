@@ -72,11 +72,7 @@ export function initSentry(): void {
       const name = samplingContext.name ?? "";
       const transactionName = samplingContext.transactionContext?.name ?? "";
       const path = `${name} ${transactionName}`;
-      if (
-        path.includes("orchestrator") ||
-        path.includes("blogs/generate") ||
-        path.includes("/usage")
-      ) {
+      if (path.includes("orchestrator") || path.includes("blogs/generate") || path.includes("/usage")) {
         return Math.min(1, env.sentry.tracesSampleRate * 2);
       }
       return env.sentry.tracesSampleRate;

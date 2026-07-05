@@ -37,10 +37,7 @@ export function BlockMenu({ onSelect, onClose }: BlockMenuProps) {
   );
 
   return (
-    <div
-      className="z-50 min-w-[200px] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl"
-      role="listbox"
-    >
+    <div className="z-50 min-w-[200px] rounded-lg border border-gray-700 bg-gray-900 py-1 shadow-xl" role="listbox">
       {BLOCK_OPTIONS.map((opt, i) => (
         <button
           key={`${opt.type}-${i}`}

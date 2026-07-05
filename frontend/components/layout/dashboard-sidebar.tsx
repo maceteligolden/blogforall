@@ -96,12 +96,8 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
             </button>
           </div>
 
-          {threadsQuery.isLoading && (
-            <p className="text-xs text-gray-500 py-2">Loading…</p>
-          )}
-          {threadsQuery.isError && (
-            <p className="text-xs text-red-300 py-2">Couldn&apos;t load chats.</p>
-          )}
+          {threadsQuery.isLoading && <p className="text-xs text-gray-500 py-2">Loading…</p>}
+          {threadsQuery.isError && <p className="text-xs text-red-300 py-2">Couldn&apos;t load chats.</p>}
           {threadsQuery.data?.length === 0 && !threadsQuery.isLoading && (
             <p className="text-xs text-gray-500 py-2">No conversations yet.</p>
           )}
@@ -122,9 +118,7 @@ export function DashboardSidebar({ mobileOpen = false, onMobileClose }: Dashboar
                     )}
                   >
                     <p className="text-sm font-medium truncate">{displayTitle}</p>
-                    <p className="text-xs text-gray-500">
-                      {formatThreadTimestamp(t.last_activity_at)}
-                    </p>
+                    <p className="text-xs text-gray-500">{formatThreadTimestamp(t.last_activity_at)}</p>
                   </button>
                 </li>
               );

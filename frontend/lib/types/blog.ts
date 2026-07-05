@@ -1,13 +1,7 @@
 export type BlogStatus = "draft" | "scheduled" | "published" | "unpublished";
 
 /** Block types for block-based editor (matches backend) */
-export type ContentBlockType =
-  | "paragraph"
-  | "heading"
-  | "list"
-  | "image"
-  | "blockquote"
-  | "code";
+export type ContentBlockType = "paragraph" | "heading" | "list" | "image" | "blockquote" | "code";
 
 export interface ContentBlockData {
   text?: string;
@@ -22,7 +16,7 @@ export interface ContentBlockData {
 export interface ContentBlock {
   id: string;
   type: ContentBlockType;
-  data:  Record<string, unknown>;
+  data: Record<string, unknown>;
 }
 
 export interface Blog {
@@ -51,4 +45,3 @@ export interface Blog {
   created_at?: string;
   updated_at?: string;
 }
-

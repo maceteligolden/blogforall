@@ -23,10 +23,7 @@ export class WaitlistRepository {
     return doc.save();
   }
 
-  async updateProfile(
-    id: string,
-    update: { first_name: string; last_name: string }
-  ): Promise<void> {
+  async updateProfile(id: string, update: { first_name: string; last_name: string }): Promise<void> {
     await WaitlistModel.findByIdAndUpdate(id, {
       first_name: update.first_name.trim(),
       last_name: update.last_name.trim(),

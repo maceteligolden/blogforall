@@ -74,18 +74,14 @@ export default function SubscriptionPage() {
       <Breadcrumb items={[{ label: "Subscription" }]} />
       <div className="mb-8">
         <h1 className="text-2xl font-display text-white">Subscription</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          Manage your plan, payment methods, and billing history.
-        </p>
+        <p className="text-sm text-gray-400 mt-1">Manage your plan, payment methods, and billing history.</p>
       </div>
 
       {currentPlan && subscription && (
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">
-                Current plan
-              </p>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-1">Current plan</p>
               <h2 className="text-xl font-semibold text-white">{currentPlan.name}</h2>
               <p className="text-primary font-medium mt-1">
                 {formatPrice(currentPlan.price, currentPlan.currency, currentPlan.interval)}
@@ -104,9 +100,7 @@ export default function SubscriptionPage() {
                 {format(new Date(subscription.currentPeriodEnd), "MMM d, yyyy")}
               </span>
             </p>
-            {subscription.cancelAtPeriodEnd && (
-              <p className="text-amber-400">Cancels at end of billing period</p>
-            )}
+            {subscription.cancelAtPeriodEnd && <p className="text-amber-400">Cancels at end of billing period</p>}
             {subscription.pendingPlanId && (
               <p className="text-gray-300">Plan change scheduled for next billing cycle</p>
             )}
@@ -147,9 +141,7 @@ export default function SubscriptionPage() {
                 <div className="rounded-lg bg-gray-800/50 border border-gray-800 px-3 py-2">
                   <p className="text-xs text-gray-500">Storage</p>
                   <p className="text-sm text-white font-medium">
-                    {currentPlan.limits.storageGB === -1
-                      ? "Unlimited"
-                      : `${currentPlan.limits.storageGB} GB`}
+                    {currentPlan.limits.storageGB === -1 ? "Unlimited" : `${currentPlan.limits.storageGB} GB`}
                   </p>
                 </div>
               )}
@@ -168,15 +160,11 @@ export default function SubscriptionPage() {
                 <div
                   key={plan._id}
                   className={`rounded-xl border p-5 ${
-                    isCurrent
-                      ? "border-primary bg-primary/5"
-                      : "border-gray-800 bg-gray-900"
+                    isCurrent ? "border-primary bg-primary/5" : "border-gray-800 bg-gray-900"
                   }`}
                 >
                   <h3 className="font-semibold text-white">{plan.name}</h3>
-                  <p className="text-primary mt-1">
-                    {formatPrice(plan.price, plan.currency, plan.interval)}
-                  </p>
+                  <p className="text-primary mt-1">{formatPrice(plan.price, plan.currency, plan.interval)}</p>
                   {isCurrent ? (
                     <p className="text-xs text-primary mt-3">Current plan</p>
                   ) : (
@@ -186,8 +174,7 @@ export default function SubscriptionPage() {
                       onClick={() =>
                         toast({
                           title: "Plan change unavailable",
-                          description:
-                            "Paid plans are not available yet. Your account uses the free plan.",
+                          description: "Paid plans are not available yet. Your account uses the free plan.",
                           variant: "default",
                         })
                       }
@@ -210,19 +197,14 @@ export default function SubscriptionPage() {
       <div>
         <h2 className="text-lg font-semibold text-white mb-4">Recent invoices</h2>
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-          {invoicesQuery.isLoading && (
-            <p className="p-4 text-sm text-gray-500">Loading invoices…</p>
-          )}
+          {invoicesQuery.isLoading && <p className="p-4 text-sm text-gray-500">Loading invoices…</p>}
           {!invoicesQuery.isLoading && (!invoicesQuery.data || invoicesQuery.data.length === 0) && (
             <p className="p-4 text-sm text-gray-500">No invoices yet.</p>
           )}
           {invoicesQuery.data && invoicesQuery.data.length > 0 && (
             <ul className="divide-y divide-gray-800">
               {invoicesQuery.data.map((invoice) => (
-                <li
-                  key={invoice.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
-                >
+                <li key={invoice.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
                   <div>
                     <p className="text-white">{invoice.description || `Invoice ${invoice.number ?? ""}`}</p>
                     <p className="text-gray-500 text-xs mt-0.5">

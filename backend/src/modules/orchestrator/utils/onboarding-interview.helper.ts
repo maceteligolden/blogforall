@@ -25,13 +25,10 @@ const FIELD_ORDER: OnboardingFieldKey[] = [
 
 const FIELD_QUESTIONS: Record<OnboardingFieldKey, string> = {
   business_type: "What does your business do, in one sentence?",
-  target_audience:
-    "Who is your primary target audience? Describe at least one specific persona you want to reach.",
-  brand_voice:
-    "How should your content sound — formal, playful, expert, or something else?",
+  target_audience: "Who is your primary target audience? Describe at least one specific persona you want to reach.",
+  brand_voice: "How should your content sound — formal, playful, expert, or something else?",
   business_goals: "What are your top 3–5 business goals for content? List them in order of priority.",
-  seo_priorities:
-    "Any topics or keywords you want to prioritize for SEO? (Optional — you can say skip if none.)",
+  seo_priorities: "Any topics or keywords you want to prioritize for SEO? (Optional — you can say skip if none.)",
   publishing_channels:
     "Where will you publish besides this Bloggr workspace — e.g. newsletter, LinkedIn, or other channels?",
   tone: "What tone should drafts use — e.g. professional, casual, witty?",
@@ -72,25 +69,18 @@ export function listMissingOnboardingFields(memory: WorkspaceMemory): Onboarding
  * When workspace memory is still empty, advance the interview by counting
  * completed user turns in the thread (each answer ≈ one field).
  */
-function resolveNextFieldKey(
-  memory: WorkspaceMemory,
-  history?: OrchestratorMessage[]
-): OnboardingFieldKey | null {
+function resolveNextFieldKey(memory: WorkspaceMemory, history?: OrchestratorMessage[]): OnboardingFieldKey | null {
   const missing = listMissingOnboardingFields(memory);
   if (missing.length === 0) return null;
   if (missing.length < FIELD_ORDER.length) {
     return missing[0];
   }
-  const userTurns =
-    history?.filter((m) => m.role === OrchestratorMessageRole.USER).length ?? 0;
+  const userTurns = history?.filter((m) => m.role === OrchestratorMessageRole.USER).length ?? 0;
   const idx = Math.min(Math.max(userTurns, 0), FIELD_ORDER.length - 1);
   return FIELD_ORDER[idx];
 }
 
-export function buildNextOnboardingQuestion(
-  memory: WorkspaceMemory,
-  history?: OrchestratorMessage[]
-): string | null {
+export function buildNextOnboardingQuestion(memory: WorkspaceMemory, history?: OrchestratorMessage[]): string | null {
   const key = resolveNextFieldKey(memory, history);
   return key ? FIELD_QUESTIONS[key] : null;
 }
@@ -136,7 +126,11 @@ export function ensureOnboardingInterviewReply(
   const nextField = resolveNextFieldKey(memory, history);
   const nextQ = nextField ? FIELD_QUESTIONS[nextField] : null;
   if (!nextQ) {
-    return { reply: reply.trim() || "I have everything I need. Shall I finalize your workspace setup?", repaired: false, nextField: null };
+    return {
+      reply: reply.trim() || "I have everything I need. Shall I finalize your workspace setup?",
+      repaired: false,
+      nextField: null,
+    };
   }
 
   const trimmed = reply.trim();

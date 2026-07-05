@@ -52,12 +52,7 @@ export function CampaignProgressReportView({
           </div>
         </div>
         {onRefresh && (
-          <Button
-            variant="outline"
-            className="border-gray-700 text-gray-300"
-            onClick={onRefresh}
-            disabled={refreshing}
-          >
+          <Button variant="outline" className="border-gray-700 text-gray-300" onClick={onRefresh} disabled={refreshing}>
             {refreshing ? "Refreshing…" : "Refresh report"}
           </Button>
         )}
@@ -80,11 +75,9 @@ export function CampaignProgressReportView({
         <section className="bg-gray-900 rounded-lg border border-gray-800 p-6">
           <h3 className="text-sm font-medium text-gray-400 mb-3">Risks</h3>
           <ul className="space-y-2 text-sm text-amber-200/90">
-            {(report.risks.length ? report.risks : report.health_reasons ?? ["No risks flagged."]).map(
-              (r, i) => (
-                <li key={i}>• {r}</li>
-              )
-            )}
+            {(report.risks.length ? report.risks : (report.health_reasons ?? ["No risks flagged."])).map((r, i) => (
+              <li key={i}>• {r}</li>
+            ))}
           </ul>
         </section>
       </div>

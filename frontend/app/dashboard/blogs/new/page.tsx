@@ -93,8 +93,7 @@ export default function NewBlogPage() {
     scheduled_at: "",
   });
 
-  const canSubmitWriteForm =
-    mode === "write" && hasTitle(formData.title) && hasBodyContent(formData);
+  const canSubmitWriteForm = mode === "write" && hasTitle(formData.title) && hasBodyContent(formData);
   const canReviewForm = hasTitle(formData.title) && hasBodyContent(formData);
 
   useEffect(() => {
@@ -142,7 +141,8 @@ export default function NewBlogPage() {
       }
     } catch (err: any) {
       // Error message is already user-friendly from backend
-      const errorMessage = err?.response?.data?.message || err?.message || "Failed to analyze prompt. Please try again.";
+      const errorMessage =
+        err?.response?.data?.message || err?.message || "Failed to analyze prompt. Please try again.";
       setPromptError(errorMessage);
     }
   }, [prompt, generationParams, analyzePrompt]);
@@ -181,7 +181,8 @@ export default function NewBlogPage() {
       setShowProgress(false);
       setGenerationStage("analyzing"); // Reset to initial stage on error
       // Error message is already user-friendly from backend
-      const errorMessage = err?.response?.data?.message || err?.message || "Failed to generate blog content. Please try again.";
+      const errorMessage =
+        err?.response?.data?.message || err?.message || "Failed to generate blog content. Please try again.";
       setPromptError(errorMessage);
     }
   };
@@ -280,7 +281,8 @@ export default function NewBlogPage() {
       setShowProgress(false);
       setGenerationStage("analyzing"); // Reset to initial stage on error
       // Error message is already user-friendly from backend
-      const errorMessage = err?.response?.data?.message || err?.message || "Failed to regenerate blog content. Please try again.";
+      const errorMessage =
+        err?.response?.data?.message || err?.message || "Failed to regenerate blog content. Please try again.";
       setPromptError(errorMessage);
       toast({
         title: "Regeneration Failed",
@@ -296,9 +298,7 @@ export default function NewBlogPage() {
         ...formData,
         title: previousContent.title,
         content: previousContent.content,
-        content_blocks: previousContent.content
-          ? htmlToBlocks(previousContent.content)
-          : formData.content_blocks,
+        content_blocks: previousContent.content ? htmlToBlocks(previousContent.content) : formData.content_blocks,
       });
       setPreviousContent(null);
       toast({
@@ -340,8 +340,7 @@ export default function NewBlogPage() {
       if (mode === "ai-generate" && (formData.title || hasBodyContent(formData))) {
         setMode("write");
       }
-    } catch (err) {
-    }
+    } catch (err) {}
   };
 
   const activeReviewResult = reviewResult || autoReviewResult;
@@ -357,10 +356,8 @@ export default function NewBlogPage() {
     const draft = loadDraft();
     if (draft && !draftRestored) {
       // Ask user if they want to restore draft
-      const shouldRestore = window.confirm(
-        "You have a saved draft. Would you like to restore it?"
-      );
-      
+      const shouldRestore = window.confirm("You have a saved draft. Would you like to restore it?");
+
       if (shouldRestore) {
         setMode(draft.mode);
         setPrompt(draft.prompt);
@@ -404,10 +401,10 @@ export default function NewBlogPage() {
     // Debounce draft saving
     const timer = setTimeout(() => {
       // Only save if there's meaningful content
-      const hasContent = 
+      const hasContent =
         (mode === "write" && (formData.title || formData.content_blocks?.length || formData.content)) ||
         (mode === "ai-generate" && prompt.trim());
-      
+
       if (hasContent) {
         saveDraft({
           mode,
@@ -428,10 +425,10 @@ export default function NewBlogPage() {
       // Cmd/Ctrl + S: Save draft manually
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        const hasContent = 
+        const hasContent =
           (mode === "write" && (formData.title || formData.content_blocks?.length || formData.content)) ||
           (mode === "ai-generate" && prompt.trim());
-        
+
         if (hasContent) {
           saveDraft({
             mode,
@@ -454,7 +451,11 @@ export default function NewBlogPage() {
         e.preventDefault();
         if (mode === "ai-generate" && prompt.trim() && !isAnalyzing) {
           handleAnalyzePrompt();
-        } else if (mode === "write" && formData.title && (formData.content_blocks?.length || formData.content?.trim())) {
+        } else if (
+          mode === "write" &&
+          formData.title &&
+          (formData.content_blocks?.length || formData.content?.trim())
+        ) {
           const form = document.getElementById("blog-form") as HTMLFormElement;
           if (form) {
             form.requestSubmit();
@@ -582,8 +583,7 @@ export default function NewBlogPage() {
       });
     } catch (err: unknown) {
       const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to create blog";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to create blog";
       setError(errorMessage);
     }
   };
@@ -599,8 +599,7 @@ export default function NewBlogPage() {
       setError(""); // Clear any previous errors
     } catch (err: unknown) {
       const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to upload image";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to upload image";
       setError(errorMessage);
       console.error("Image upload error:", err);
     }
@@ -614,12 +613,7 @@ export default function NewBlogPage() {
   return (
     <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex-shrink-0">
-        <Breadcrumb
-          items={[
-            { label: "Contents", href: "/dashboard/blogs" },
-            { label: "Create New Blog" },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Create New Blog" }]} />
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-2xl font-display text-white shrink-0">Create New Blog</h1>
 
@@ -629,9 +623,7 @@ export default function NewBlogPage() {
                 type="button"
                 onClick={() => setMode("write")}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                  mode === "write"
-                    ? "bg-purple-600 text-white"
-                    : "text-gray-400 hover:text-white"
+                  mode === "write" ? "bg-purple-600 text-white" : "text-gray-400 hover:text-white"
                 }`}
               >
                 <PenTool className="w-4 h-4" />
@@ -644,9 +636,7 @@ export default function NewBlogPage() {
                   generationTracker.typeSelected({ generation_type: "ai-generate" });
                 }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                  mode === "ai-generate"
-                    ? "bg-purple-600 text-white"
-                    : "text-gray-400 hover:text-white"
+                  mode === "ai-generate" ? "bg-purple-600 text-white" : "text-gray-400 hover:text-white"
                 }`}
               >
                 <Sparkles className="w-4 h-4" />
@@ -686,313 +676,308 @@ export default function NewBlogPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex flex-col gap-10">
           <form id="blog-form" onSubmit={handleSubmit} className="space-y-6 shrink-0">
-          {error && (
-            <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">{error}</div>
+            )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            <div className="lg:col-span-2 space-y-6 min-w-0">
-              {showReview && activeReviewResult && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setReviewPanelTab("content");
-                      setReviewHasNewInfo(false);
-                    }}
-                    disabled={isGenerating || isAnalyzing}
-                    className={
-                      reviewPanelTab === "content"
-                        ? "bg-purple-600 hover:bg-purple-700 text-white"
-                        : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                    }
-                  >
-                    Content
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setReviewPanelTab("review");
-                      setReviewHasNewInfo(false);
-                    }}
-                    disabled={isGenerating || isAnalyzing}
-                    className={
-                      reviewPanelTab === "review"
-                        ? "bg-purple-600 hover:bg-purple-700 text-white"
-                        : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                    }
-                  >
-                    Review
-                    {reviewHasNewInfo && (
-                      <span className="ml-2 inline-flex items-center rounded bg-purple-900/60 px-2 py-0.5 text-xs font-medium text-purple-100">
-                        New
-                      </span>
-                    )}
-                  </Button>
-                </div>
-              )}
-
-              {reviewPanelTab === "review" && showReview && activeReviewResult ? (
-                <BlogReviewCard
-                  reviewResult={activeReviewResult}
-                  originalContent={{
-                    title: formData.title,
-                    content: formData.content_blocks?.length
-                      ? blocksToHtml(formData.content_blocks)
-                      : formData.content,
-                    excerpt: derivedExcerpt(),
-                  }}
-                  isLoading={isReviewing}
-                  onViewComparison={() => setShowComparison(true)}
-                  onApplyReview={async () => {
-                    const result = activeReviewResult;
-                    const improvedContent = result.improved_content || formData.content;
-                    try {
-                      const nextBlocks = contentToBlocks(improvedContent);
-                      setFormData({
-                        ...formData,
-                        title: result.improved_title || formData.title,
-                        content_blocks: nextBlocks,
-                        content: blocksToHtml(nextBlocks),
-                        content_type: "html",
-                      });
-                      setShowReview(false);
-                      setReviewPanelTab("content");
-                      setReviewHasNewInfo(false);
-                    } catch (err) {
-                      // Error handled by hook
-                    }
-                  }}
-                />
-              ) : mode === "ai-generate" ? (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-white">AI Blog Generation</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              <div className="lg:col-span-2 space-y-6 min-w-0">
+                {showReview && activeReviewResult && (
+                  <div className="flex items-center gap-2">
                     <Button
                       type="button"
-                      onClick={() => setShowTemplates(true)}
-                      className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                      onClick={() => {
+                        setReviewPanelTab("content");
+                        setReviewHasNewInfo(false);
+                      }}
+                      disabled={isGenerating || isAnalyzing}
+                      className={
+                        reviewPanelTab === "content"
+                          ? "bg-purple-600 hover:bg-purple-700 text-white"
+                          : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                      }
                     >
-                      <Sparkles className="w-4 h-4 mr-2" />
-                      Browse Templates
+                      Content
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setReviewPanelTab("review");
+                        setReviewHasNewInfo(false);
+                      }}
+                      disabled={isGenerating || isAnalyzing}
+                      className={
+                        reviewPanelTab === "review"
+                          ? "bg-purple-600 hover:bg-purple-700 text-white"
+                          : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                      }
+                    >
+                      Review
+                      {reviewHasNewInfo && (
+                        <span className="ml-2 inline-flex items-center rounded bg-purple-900/60 px-2 py-0.5 text-xs font-medium text-purple-100">
+                          New
+                        </span>
+                      )}
                     </Button>
                   </div>
-                  <BlogAiGenerationSettings
-                    value={generationParams}
-                    onChange={setGenerationParams}
-                    disabled={isAnalyzing || isGenerating}
+                )}
+
+                {reviewPanelTab === "review" && showReview && activeReviewResult ? (
+                  <BlogReviewCard
+                    reviewResult={activeReviewResult}
+                    originalContent={{
+                      title: formData.title,
+                      content: formData.content_blocks?.length
+                        ? blocksToHtml(formData.content_blocks)
+                        : formData.content,
+                      excerpt: derivedExcerpt(),
+                    }}
+                    isLoading={isReviewing}
+                    onViewComparison={() => setShowComparison(true)}
+                    onApplyReview={async () => {
+                      const result = activeReviewResult;
+                      const improvedContent = result.improved_content || formData.content;
+                      try {
+                        const nextBlocks = contentToBlocks(improvedContent);
+                        setFormData({
+                          ...formData,
+                          title: result.improved_title || formData.title,
+                          content_blocks: nextBlocks,
+                          content: blocksToHtml(nextBlocks),
+                          content_type: "html",
+                        });
+                        setShowReview(false);
+                        setReviewPanelTab("content");
+                        setReviewHasNewInfo(false);
+                      } catch (err) {
+                        // Error handled by hook
+                      }
+                    }}
                   />
-                  <PromptInput
-                    value={prompt}
-                    onChange={setPrompt}
-                    onAnalyze={handleAnalyzePrompt}
-                    isAnalyzing={isAnalyzing}
-                    error={promptError}
-                  />
-                  {promptAnalysis && promptAnalysis.is_valid && (
-                    <div className="rounded-md bg-green-900/20 border border-green-800 p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <p className="text-sm text-green-400 font-medium">Prompt Analysis Complete</p>
-                        <div className="flex items-center gap-2">
-                          {(formData.content_blocks?.length || formData.content) && (
-                            <>
-                              <Button
-                                type="button"
-                                onClick={handleRegenerateClick}
-                                disabled={isGenerating || isAnalyzing}
-                                className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-auto"
-                              >
-                                <RotateCcw className="w-3 h-3 mr-1" />
-                                {isGenerating || isAnalyzing ? "Regenerating..." : "Regenerate"}
-                              </Button>
-                              {previousContent && (
+                ) : mode === "ai-generate" ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white">AI Blog Generation</h3>
+                      <Button
+                        type="button"
+                        onClick={() => setShowTemplates(true)}
+                        className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Browse Templates
+                      </Button>
+                    </div>
+                    <BlogAiGenerationSettings
+                      value={generationParams}
+                      onChange={setGenerationParams}
+                      disabled={isAnalyzing || isGenerating}
+                    />
+                    <PromptInput
+                      value={prompt}
+                      onChange={setPrompt}
+                      onAnalyze={handleAnalyzePrompt}
+                      isAnalyzing={isAnalyzing}
+                      error={promptError}
+                    />
+                    {promptAnalysis && promptAnalysis.is_valid && (
+                      <div className="rounded-md bg-green-900/20 border border-green-800 p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <p className="text-sm text-green-400 font-medium">Prompt Analysis Complete</p>
+                          <div className="flex items-center gap-2">
+                            {(formData.content_blocks?.length || formData.content) && (
+                              <>
                                 <Button
                                   type="button"
-                                  onClick={handleRevertContent}
-                                  className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1 h-auto"
-                                  title="Revert to previous content"
+                                  onClick={handleRegenerateClick}
+                                  disabled={isGenerating || isAnalyzing}
+                                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-auto"
                                 >
-                                  <Undo2 className="w-3 h-3 mr-1" />
-                                  Revert
+                                  <RotateCcw className="w-3 h-3 mr-1" />
+                                  {isGenerating || isAnalyzing ? "Regenerating..." : "Regenerate"}
                                 </Button>
-                              )}
-                            </>
-                          )}
+                                {previousContent && (
+                                  <Button
+                                    type="button"
+                                    onClick={handleRevertContent}
+                                    className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1 h-auto"
+                                    title="Revert to previous content"
+                                  >
+                                    <Undo2 className="w-3 h-3 mr-1" />
+                                    Revert
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-400">Topic:</span>
+                            <span className="text-white ml-2">{promptAnalysis.topic}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Domain:</span>
+                            <span className="text-white ml-2">{promptAnalysis.domain}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Audience:</span>
+                            <span className="text-white ml-2">{promptAnalysis.target_audience}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400">Purpose:</span>
+                            <span className="text-white ml-2">{promptAnalysis.purpose}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-400">Topic:</span>
-                          <span className="text-white ml-2">{promptAnalysis.topic}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Domain:</span>
-                          <span className="text-white ml-2">{promptAnalysis.domain}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Audience:</span>
-                          <span className="text-white ml-2">{promptAnalysis.target_audience}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Purpose:</span>
-                          <span className="text-white ml-2">{promptAnalysis.purpose}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <Label htmlFor="title" className="text-gray-300">
-                      Title *
-                    </Label>
-                    <Input
-                      id="title"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="mt-1 bg-black border-gray-700 text-white"
-                      required
-                      maxLength={200}
-                    />
-                  </div>
-
-                  <div className="flex-1 min-h-0 min-w-0">
-                    <Label htmlFor="content" className="text-gray-300 mb-2 block">
-                      Content *
-                    </Label>
-                    <div className="h-[55vh] min-h-[420px] max-h-[90vh] min-w-0">
-                      <BlockEditor
-                        value={formData.content_blocks ?? []}
-                        onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
-                        placeholder="Start writing your blog post..."
-                        onUploadImage={handleEditorImageUpload}
-                      />
-                    </div>
-                    <p className="mt-2 text-xs text-gray-500">
-                      Use + or type / to add blocks. Every image requires a caption.
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="lg:col-span-1 space-y-6 min-w-0 self-start">
-              <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 space-y-6">
-                <div className="space-y-2">
-                  <Button
-                    type="button"
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0"
-                    onClick={handleReview}
-                    disabled={isReviewing || !canReviewForm}
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    {isReviewing ? "Reviewing..." : "Review with AI"}
-                  </Button>
-                  {!canReviewForm && (
-                    <p className="text-xs text-gray-500">
-                      Add a title and content to run an AI review.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="status" className="text-gray-300">
-                    Status
-                  </Label>
-                  <select
-                    id="status"
-                    value={formData.status}
-                    onChange={(e) => {
-                      const status = e.target.value as "draft" | "scheduled" | "published" | "unpublished";
-                      setFormData({
-                        ...formData,
-                        status,
-                        ...(status !== "scheduled" ? { scheduled_at: "" } : {}),
-                      });
-                    }}
-                    className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="published">Published</option>
-                    <option value="unpublished">Unpublished</option>
-                  </select>
-                </div>
-
-                <div>
-                  <Label htmlFor="category" className="text-gray-300">
-                    Category
-                  </Label>
-                  <select
-                    id="category"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
-                  >
-                    <option value="">No Category</option>
-                    {categories &&
-                      categories
-                        .filter((cat: any) => cat.is_active)
-                        .map((cat: any) => (
-                          <option key={cat._id} value={cat._id}>
-                            {cat.name}
-                          </option>
-                        ))}
-                  </select>
-                </div>
-
-                <div>
-                  <Label htmlFor="featured_image" className="text-gray-300">
-                    Featured Image
-                  </Label>
-                  <Input
-                    id="featured_image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="mt-1 bg-black border-gray-700 text-white"
-                  />
-                  {formData.featured_image && (
-                    <div className="mt-2 relative w-full aspect-video">
-                      <Image
-                        src={formData.featured_image}
-                        alt="Featured"
-                        fill
-                        className="object-cover rounded"
-                        unoptimized={formData.featured_image.includes("localhost")}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {formData.status === "scheduled" && (
-                  <div>
-                    <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Schedule Publish
-                    </Label>
-                    <div className="mt-1">
-                      <DateTimePicker
-                        id="scheduled_at"
-                        value={formData.scheduled_at}
-                        onChange={(value) => setFormData({ ...formData, scheduled_at: value })}
-                        min={new Date().toISOString().slice(0, 16)}
-                        aria-label="Schedule publish date and time"
-                      />
-                    </div>
-                    {formData.scheduled_at && (
-                      <p className="mt-1 text-xs text-gray-500">
-                        Will be published on {new Date(formData.scheduled_at).toLocaleString()}
-                      </p>
                     )}
                   </div>
+                ) : (
+                  <>
+                    <div>
+                      <Label htmlFor="title" className="text-gray-300">
+                        Title *
+                      </Label>
+                      <Input
+                        id="title"
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                        className="mt-1 bg-black border-gray-700 text-white"
+                        required
+                        maxLength={200}
+                      />
+                    </div>
+
+                    <div className="flex-1 min-h-0 min-w-0">
+                      <Label htmlFor="content" className="text-gray-300 mb-2 block">
+                        Content *
+                      </Label>
+                      <div className="h-[55vh] min-h-[420px] max-h-[90vh] min-w-0">
+                        <BlockEditor
+                          value={formData.content_blocks ?? []}
+                          onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
+                          placeholder="Start writing your blog post..."
+                          onUploadImage={handleEditorImageUpload}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-gray-500">
+                        Use + or type / to add blocks. Every image requires a caption.
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
-            </div>
-          </div>
 
+              <div className="lg:col-span-1 space-y-6 min-w-0 self-start">
+                <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 space-y-6">
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0"
+                      onClick={handleReview}
+                      disabled={isReviewing || !canReviewForm}
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      {isReviewing ? "Reviewing..." : "Review with AI"}
+                    </Button>
+                    {!canReviewForm && (
+                      <p className="text-xs text-gray-500">Add a title and content to run an AI review.</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="status" className="text-gray-300">
+                      Status
+                    </Label>
+                    <select
+                      id="status"
+                      value={formData.status}
+                      onChange={(e) => {
+                        const status = e.target.value as "draft" | "scheduled" | "published" | "unpublished";
+                        setFormData({
+                          ...formData,
+                          status,
+                          ...(status !== "scheduled" ? { scheduled_at: "" } : {}),
+                        });
+                      }}
+                      className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="scheduled">Scheduled</option>
+                      <option value="published">Published</option>
+                      <option value="unpublished">Unpublished</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="category" className="text-gray-300">
+                      Category
+                    </Label>
+                    <select
+                      id="category"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                    >
+                      <option value="">No Category</option>
+                      {categories &&
+                        categories
+                          .filter((cat: any) => cat.is_active)
+                          .map((cat: any) => (
+                            <option key={cat._id} value={cat._id}>
+                              {cat.name}
+                            </option>
+                          ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="featured_image" className="text-gray-300">
+                      Featured Image
+                    </Label>
+                    <Input
+                      id="featured_image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="mt-1 bg-black border-gray-700 text-white"
+                    />
+                    {formData.featured_image && (
+                      <div className="mt-2 relative w-full aspect-video">
+                        <Image
+                          src={formData.featured_image}
+                          alt="Featured"
+                          fill
+                          className="object-cover rounded"
+                          unoptimized={formData.featured_image.includes("localhost")}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {formData.status === "scheduled" && (
+                    <div>
+                      <Label htmlFor="scheduled_at" className="text-gray-300 flex items-center gap-2">
+                        <Calendar className="w-4 h-4" />
+                        Schedule Publish
+                      </Label>
+                      <div className="mt-1">
+                        <DateTimePicker
+                          id="scheduled_at"
+                          value={formData.scheduled_at}
+                          onChange={(value) => setFormData({ ...formData, scheduled_at: value })}
+                          min={new Date().toISOString().slice(0, 16)}
+                          aria-label="Schedule publish date and time"
+                        />
+                      </div>
+                      {formData.scheduled_at && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Will be published on {new Date(formData.scheduled_at).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </form>
 
           {/* Review section moved into content/review tabs above */}
@@ -1010,14 +995,14 @@ export default function NewBlogPage() {
               onApplyAll={async () => {
                 const result = activeReviewResult;
                 const improvedContent = result.improved_content || formData.content;
-                  const nextBlocks = contentToBlocks(improvedContent);
-                  const normalizedHtml = blocksToHtml(nextBlocks);
+                const nextBlocks = contentToBlocks(improvedContent);
+                const normalizedHtml = blocksToHtml(nextBlocks);
                 setFormData({
                   ...formData,
                   title: result.improved_title || formData.title,
-                    content: normalizedHtml,
-                    content_type: "html",
-                    content_blocks: nextBlocks,
+                  content: normalizedHtml,
+                  content_type: "html",
+                  content_blocks: nextBlocks,
                 });
                 setShowComparison(false);
                 setShowReview(false);
@@ -1071,4 +1056,3 @@ export default function NewBlogPage() {
     </div>
   );
 }
-

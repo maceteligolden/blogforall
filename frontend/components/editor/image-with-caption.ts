@@ -102,6 +102,6 @@ export function createImageWithCaption(QuillInstance: any) {
 
   // Register the custom blot
   QuillInstance.register(ImageWithCaption);
-  
+
   return ImageWithCaption;
 }

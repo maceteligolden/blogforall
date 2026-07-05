@@ -21,10 +21,8 @@ export default function BlogsPage() {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [blogToDelete, setBlogToDelete] = useState<string | null>(null);
-  
-  const { data: blogs, isLoading } = useBlogs(
-    statusFilter !== "all" ? { status: statusFilter } : undefined
-  );
+
+  const { data: blogs, isLoading } = useBlogs(statusFilter !== "all" ? { status: statusFilter } : undefined);
   const deleteBlog = useDeleteBlog();
   const publishBlog = usePublishBlog();
   const unpublishBlog = useUnpublishBlog();
@@ -33,11 +31,9 @@ export default function BlogsPage() {
   const filteredBlogs = useMemo(() => {
     if (!blogs) return [];
     if (!searchQuery.trim()) return blogs;
-    
+
     const query = searchQuery.toLowerCase();
-    return blogs.filter((blog: any) =>
-      blog.title.toLowerCase().includes(query)
-    );
+    return blogs.filter((blog: any) => blog.title.toLowerCase().includes(query));
   }, [blogs, searchQuery]);
 
   const handleDeleteClick = (id: string) => {
@@ -77,123 +73,119 @@ export default function BlogsPage() {
 
   return (
     <>
-        <Breadcrumb items={[{ label: "Contents" }, { label: "Posts" }]} />
-        <BlogHubTabs />
-        
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-display text-white">My Content</h1>
+      <Breadcrumb items={[{ label: "Contents" }, { label: "Posts" }]} />
+      <BlogHubTabs />
+
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-display text-white">My Content</h1>
+        <Button
+          className="bg-primary hover:bg-primary/90 text-white"
+          onClick={() => router.push("/dashboard/blogs/new")}
+        >
+          Create Blog
+        </Button>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="mb-6 space-y-4">
+        <div className="flex items-center space-x-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search blogs by title..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-black border-gray-700 text-white"
+            />
+          </div>
+          <div className="flex items-center space-x-2 border border-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode("cards")}
+              className={`p-2 rounded transition-colors ${
+                viewMode === "cards" ? "bg-primary text-white" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Grid3x3 className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setViewMode("table")}
+              className={`p-2 rounded transition-colors ${
+                viewMode === "table" ? "bg-primary text-white" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <Table2 className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Status Filters */}
+        <div className="flex space-x-2">
+          <Button
+            className={
+              statusFilter === "all"
+                ? "bg-primary hover:bg-primary/90 text-white"
+                : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+            }
+            onClick={() => setStatusFilter("all")}
+            size="sm"
+          >
+            All
+          </Button>
+          <Button
+            className={
+              statusFilter === "draft"
+                ? "bg-primary hover:bg-primary/90 text-white"
+                : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+            }
+            onClick={() => setStatusFilter("draft")}
+            size="sm"
+          >
+            Drafts
+          </Button>
+          <Button
+            className={
+              statusFilter === "published"
+                ? "bg-primary hover:bg-primary/90 text-white"
+                : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+            }
+            onClick={() => setStatusFilter("published")}
+            size="sm"
+          >
+            Published
+          </Button>
+          <Button
+            className={
+              statusFilter === "unpublished"
+                ? "bg-primary hover:bg-primary/90 text-white"
+                : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+            }
+            onClick={() => setStatusFilter("unpublished")}
+            size="sm"
+          >
+            Unpublished
+          </Button>
+        </div>
+      </div>
+
+      {/* Blogs List */}
+      {!filteredBlogs || filteredBlogs.length === 0 ? (
+        <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
+          <p className="text-gray-400 mb-4">
+            {searchQuery ? "No blogs found matching your search." : "No blogs found."}
+          </p>
           <Button
             className="bg-primary hover:bg-primary/90 text-white"
             onClick={() => router.push("/dashboard/blogs/new")}
           >
-            Create Blog
+            Create Your First Blog
           </Button>
         </div>
-
-        {/* Search and Filters */}
-        <div className="mb-6 space-y-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search blogs by title..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-black border-gray-700 text-white"
-              />
-            </div>
-            <div className="flex items-center space-x-2 border border-gray-800 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode("cards")}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === "cards"
-                    ? "bg-primary text-white"
-                    : "text-gray-400 hover:text-white"
-                }`}
-              >
-                <Grid3x3 className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode("table")}
-                className={`p-2 rounded transition-colors ${
-                  viewMode === "table"
-                    ? "bg-primary text-white"
-                    : "text-gray-400 hover:text-white"
-                }`}
-              >
-                <Table2 className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Status Filters */}
-          <div className="flex space-x-2">
-            <Button
-              className={
-                statusFilter === "all"
-                  ? "bg-primary hover:bg-primary/90 text-white"
-                  : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-              }
-              onClick={() => setStatusFilter("all")}
-              size="sm"
-            >
-              All
-            </Button>
-            <Button
-              className={
-                statusFilter === "draft"
-                  ? "bg-primary hover:bg-primary/90 text-white"
-                  : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-              }
-              onClick={() => setStatusFilter("draft")}
-              size="sm"
-            >
-              Drafts
-            </Button>
-            <Button
-              className={
-                statusFilter === "published"
-                  ? "bg-primary hover:bg-primary/90 text-white"
-                  : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-              }
-              onClick={() => setStatusFilter("published")}
-              size="sm"
-            >
-              Published
-            </Button>
-            <Button
-              className={
-                statusFilter === "unpublished"
-                  ? "bg-primary hover:bg-primary/90 text-white"
-                  : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-              }
-              onClick={() => setStatusFilter("unpublished")}
-              size="sm"
-            >
-              Unpublished
-            </Button>
-          </div>
-        </div>
-
-        {/* Blogs List */}
-        {!filteredBlogs || filteredBlogs.length === 0 ? (
-          <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
-            <p className="text-gray-400 mb-4">
-              {searchQuery ? "No blogs found matching your search." : "No blogs found."}
-            </p>
-            <Button
-              className="bg-primary hover:bg-primary/90 text-white"
-              onClick={() => router.push("/dashboard/blogs/new")}
-            >
-              Create Your First Blog
-            </Button>
-          </div>
-        ) : viewMode === "cards" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBlogs.map((blog: any) => {
-              const snippet = deriveExcerptFromContent(blog.content || "");
-              return (
+      ) : viewMode === "cards" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredBlogs.map((blog: any) => {
+            const snippet = deriveExcerptFromContent(blog.content || "");
+            return (
               <div
                 key={blog._id}
                 className="bg-gray-900 rounded-lg border border-gray-800 hover:border-gray-700 transition-colors"
@@ -226,9 +218,7 @@ export default function BlogsPage() {
                       {blog.status}
                     </span>
                   </div>
-                  {snippet && (
-                    <p className="text-sm text-gray-400 mb-4 line-clamp-2">{snippet}</p>
-                  )}
+                  {snippet && <p className="text-sm text-gray-400 mb-4 line-clamp-2">{snippet}</p>}
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                     <span>{blog.views || 0} views</span>
                     <span>{blog.likes || 0} likes</span>
@@ -277,25 +267,37 @@ export default function BlogsPage() {
                 </div>
               </div>
             );
-            })}
-          </div>
-        ) : (
-          <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-800 border-b border-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Title</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Views</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Likes</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Updated</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {filteredBlogs.map((blog: any) => {
-                  const rowSnippet = deriveExcerptFromContent(blog.content || "");
-                  return (
+          })}
+        </div>
+      ) : (
+        <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-800 border-b border-gray-700">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Title
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Views
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Likes
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Updated
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {filteredBlogs.map((blog: any) => {
+                const rowSnippet = deriveExcerptFromContent(blog.content || "");
+                return (
                   <tr key={blog._id} className="hover:bg-gray-800/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
@@ -312,9 +314,7 @@ export default function BlogsPage() {
                         )}
                         <div>
                           <div className="text-sm font-medium text-white">{blog.title}</div>
-                          {rowSnippet && (
-                            <div className="text-xs text-gray-400 line-clamp-1">{rowSnippet}</div>
-                          )}
+                          {rowSnippet && <div className="text-xs text-gray-400 line-clamp-1">{rowSnippet}</div>}
                         </div>
                       </div>
                     </td>
@@ -383,11 +383,11 @@ export default function BlogsPage() {
                     </td>
                   </tr>
                 );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={deleteModalOpen}

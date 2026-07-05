@@ -20,16 +20,13 @@ export function LibrarySourcePanel({ enabled = true }: LibrarySourcePanelProps) 
   const [error, setError] = useState<string | null>(null);
 
   const sourcesQuery = useQuery({
-    queryKey: currentSiteId
-      ? QUERY_KEYS.ORCHESTRATOR_KNOWLEDGE(currentSiteId)
-      : ["orchestrator", "knowledge", "none"],
+    queryKey: currentSiteId ? QUERY_KEYS.ORCHESTRATOR_KNOWLEDGE(currentSiteId) : ["orchestrator", "knowledge", "none"],
     queryFn: () => OrchestratorService.listKnowledgeSources(currentSiteId as string),
     enabled: enabled && !!currentSiteId,
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) =>
-      OrchestratorService.uploadKnowledgeSource(currentSiteId as string, file),
+    mutationFn: (file: File) => OrchestratorService.uploadKnowledgeSource(currentSiteId as string, file),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.ORCHESTRATOR_KNOWLEDGE(currentSiteId as string),
@@ -43,8 +40,7 @@ export function LibrarySourcePanel({ enabled = true }: LibrarySourcePanelProps) 
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) =>
-      OrchestratorService.deleteKnowledgeSource(currentSiteId as string, id),
+    mutationFn: (id: string) => OrchestratorService.deleteKnowledgeSource(currentSiteId as string, id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.ORCHESTRATOR_KNOWLEDGE(currentSiteId as string),
@@ -62,19 +58,13 @@ export function LibrarySourcePanel({ enabled = true }: LibrarySourcePanelProps) 
   });
 
   if (!currentSiteId) {
-    return (
-      <p className="text-sm text-gray-400">
-        Select a workspace to manage your library.
-      </p>
-    );
+    return <p className="text-sm text-gray-400">Select a workspace to manage your library.</p>;
   }
 
   return (
     <div className="space-y-4">
       {error && (
-        <p className="text-xs text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">
-          {error}
-        </p>
+        <p className="text-xs text-red-400 bg-red-900/20 border border-red-800 rounded-md px-3 py-2">{error}</p>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -131,9 +121,7 @@ export function LibrarySourcePanel({ enabled = true }: LibrarySourcePanelProps) 
       </div>
 
       <div>
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-          Connected sources
-        </p>
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Connected sources</p>
         {sourcesQuery.isLoading && <p className="text-xs text-gray-500">Loading…</p>}
         {sourcesQuery.data?.length === 0 && !sourcesQuery.isLoading && (
           <p className="text-xs text-gray-500">No sources yet. Upload files or connect Google Drive.</p>

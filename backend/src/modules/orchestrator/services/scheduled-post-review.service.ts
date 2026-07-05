@@ -108,24 +108,15 @@ export class ScheduledPostReviewService {
   async approve(rawToken: string): Promise<ReviewDecisionResult> {
     const { token, post } = await this.resolveTokenAndPost(rawToken);
     if (post.status !== ScheduledPostStatus.AWAITING_APPROVAL) {
-      throw new BadRequestError(
-        `Scheduled post is no longer awaiting approval (status: ${post.status}).`
-      );
+      throw new BadRequestError(`Scheduled post is no longer awaiting approval (status: ${post.status}).`);
     }
 
-    const consumed = await this.tokenRepository.consume(
-      token._id!.toString(),
-      ReviewTokenAction.APPROVED
-    );
+    const consumed = await this.tokenRepository.consume(token._id!.toString(), ReviewTokenAction.APPROVED);
     if (!consumed) {
       throw new BadRequestError("This review link has already been used.");
     }
 
-    const approved = await this.scheduledPostRepository.markApproved(
-      post._id!.toString(),
-      post.site_id,
-      token.user_id
-    );
+    const approved = await this.scheduledPostRepository.markApproved(post._id!.toString(), post.site_id, token.user_id);
     if (!approved) {
       // Either the post moved out of AWAITING_APPROVAL between our checks
       // (rework, cancel) or another reviewer beat us. Surface a clear error
@@ -178,9 +169,7 @@ export class ScheduledPostReviewService {
 
     const { token, post } = await this.resolveTokenAndPost(rawToken);
     if (post.status !== ScheduledPostStatus.AWAITING_APPROVAL) {
-      throw new BadRequestError(
-        `Scheduled post is no longer awaiting approval (status: ${post.status}).`
-      );
+      throw new BadRequestError(`Scheduled post is no longer awaiting approval (status: ${post.status}).`);
     }
     if (post.rework_round >= env.orchestrator.maxReworkRounds) {
       throw new BadRequestError(
@@ -188,10 +177,7 @@ export class ScheduledPostReviewService {
       );
     }
 
-    const consumed = await this.tokenRepository.consume(
-      token._id!.toString(),
-      ReviewTokenAction.REWORK_REQUESTED
-    );
+    const consumed = await this.tokenRepository.consume(token._id!.toString(), ReviewTokenAction.REWORK_REQUESTED);
     if (!consumed) {
       throw new BadRequestError("This review link has already been used.");
     }
@@ -245,8 +231,7 @@ export class ScheduledPostReviewService {
       status: "rework_requested",
       scheduled_post_id: reworked._id!.toString(),
       rework_round: reworked.rework_round,
-      message:
-        "Thanks — your feedback was sent to the orchestrator. We'll email you a new draft to review.",
+      message: "Thanks — your feedback was sent to the orchestrator. We'll email you a new draft to review.",
     };
   }
 
@@ -269,10 +254,7 @@ export class ScheduledPostReviewService {
     if (!token) {
       throw new NotFoundError("Review link is invalid, expired, or already used.");
     }
-    const post = await this.scheduledPostRepository.findById(
-      token.scheduled_post_id,
-      token.site_id
-    );
+    const post = await this.scheduledPostRepository.findById(token.scheduled_post_id, token.site_id);
     if (!post) {
       throw new NotFoundError("Scheduled post no longer exists.");
     }
@@ -280,13 +262,9 @@ export class ScheduledPostReviewService {
       throw new ForbiddenError("This review link does not belong to the post owner.");
     }
     if (token.rework_round !== post.rework_round) {
-      throw new BadRequestError(
-        "This review link is for an older draft. Please use the most recent email."
-      );
+      throw new BadRequestError("This review link is for an older draft. Please use the most recent email.");
     }
-    const blog = post.blog_id
-      ? await this.blogRepository.findById(post.blog_id, post.site_id)
-      : null;
+    const blog = post.blog_id ? await this.blogRepository.findById(post.blog_id, post.site_id) : null;
     return { token, post, blog };
   }
 
@@ -310,13 +288,7 @@ export class ScheduledPostReviewService {
         (a.payload as Record<string, unknown> | undefined)?.scheduled_post_id === scheduledPostId
     );
     if (!match) return;
-    const decided = await this.approvalRepository.decide(
-      match._id!.toString(),
-      siteId,
-      decision,
-      deciderUserId,
-      note
-    );
+    const decided = await this.approvalRepository.decide(match._id!.toString(), siteId, decision, deciderUserId, note);
     if (decided) {
       await this.approvalRepository.markExecuted(decided._id!.toString(), siteId, {
         ok: true,

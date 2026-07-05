@@ -118,10 +118,7 @@ export function identifyUser(
   }
 }
 
-export function groupWorkspace(
-  workspaceId: string,
-  traits?: { name?: string; plan?: string }
-): void {
+export function groupWorkspace(workspaceId: string, traits?: { name?: string; plan?: string }): void {
   try {
     if (!isPostHogEnabled()) return;
     const client = getPostHogClient();

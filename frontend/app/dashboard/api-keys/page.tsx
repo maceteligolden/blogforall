@@ -53,8 +53,7 @@ export default function ApiKeysPage() {
       setShowCreateForm(false);
     } catch (err: unknown) {
       const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to create API key";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to create API key";
       setError(errorMessage);
     }
   };
@@ -114,10 +113,7 @@ export default function ApiKeysPage() {
         <Breadcrumb items={[{ label: "API Keys" }]} />
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-display text-white">API Keys</h1>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => setShowCreateForm(true)}
-          >
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => setShowCreateForm(true)}>
             Create API Key
           </Button>
         </div>
@@ -127,8 +123,8 @@ export default function ApiKeysPage() {
             <div className="mb-6 bg-yellow-900/20 border border-yellow-800 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-yellow-400 mb-4">New API key credentials</h3>
               <p className="text-sm text-yellow-300 mb-4">
-                Copy and store these values. The same secret is available on this page while the key exists
-                (encrypted at rest on the server).
+                Copy and store these values. The same secret is available on this page while the key exists (encrypted
+                at rest on the server).
               </p>
               <div className="space-y-4">
                 <CredentialRow
@@ -237,9 +233,7 @@ export default function ApiKeysPage() {
                           onCopy={() => copyToClipboard(key.secretKey)}
                           obscure
                         />
-                        <div className="text-sm text-gray-400">
-                          Created: {new Date(key.createdAt).toLocaleString()}
-                        </div>
+                        <div className="text-sm text-gray-400">Created: {new Date(key.createdAt).toLocaleString()}</div>
                         {key.lastUsed && (
                           <div className="text-sm text-gray-400">
                             Last used: {new Date(key.lastUsed).toLocaleString()}

@@ -19,8 +19,7 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction) 
   const rawOrigin = req.headers.origin;
   const normalizedOrigin = rawOrigin ? normalizeOrigin(rawOrigin) : undefined;
   const allowedOrigins = getAllowedOrigins();
-  const isAllowed =
-    normalizedOrigin !== undefined && allowedOrigins.has(normalizedOrigin);
+  const isAllowed = normalizedOrigin !== undefined && allowedOrigins.has(normalizedOrigin);
 
   if (req.method === "OPTIONS" || !isAllowed) {
     logger.info("CORS decision", {

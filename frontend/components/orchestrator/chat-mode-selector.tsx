@@ -24,12 +24,7 @@ interface ChatModeSelectorProps {
   className?: string;
 }
 
-export function ChatModeSelector({
-  value,
-  onChange,
-  disabled = false,
-  className,
-}: ChatModeSelectorProps) {
+export function ChatModeSelector({ value, onChange, disabled = false, className }: ChatModeSelectorProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -94,9 +89,7 @@ export function ChatModeSelector({
               }}
               className={cn(
                 "flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left transition-colors",
-                value === mode.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                value === mode.id ? "bg-primary/10 text-primary" : "text-gray-300 hover:bg-gray-800 hover:text-white"
               )}
             >
               <span className="text-xs font-medium">{mode.label}</span>

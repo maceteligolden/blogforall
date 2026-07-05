@@ -1,9 +1,6 @@
 import axios, { AxiosError } from "axios";
 import { API_CONFIG, API_ENDPOINTS } from "../config";
-import type {
-  ReviewContext,
-  ReviewDecisionResult,
-} from "../types/scheduled-post-review.types";
+import type { ReviewContext, ReviewDecisionResult } from "../types/scheduled-post-review.types";
 
 /**
  * Dedicated axios instance for the public review flow. We deliberately do
@@ -53,10 +50,7 @@ export class ScheduledPostReviewClient {
 
   static async rework(token: string, comments: string): Promise<ReviewDecisionResult> {
     try {
-      const response = await reviewClient.post(
-        API_ENDPOINTS.SCHEDULED_POST_REVIEW.REWORK(token),
-        { comments }
-      );
+      const response = await reviewClient.post(API_ENDPOINTS.SCHEDULED_POST_REVIEW.REWORK(token), { comments });
       return response.data?.data ?? response.data;
     } catch (err) {
       throw new Error(extractMessage(err));

@@ -184,11 +184,7 @@ export default function BlogEditScheduledPostPage() {
       />
 
       <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.back()}
-          className="text-gray-400 hover:text-white mb-4"
-        >
+        <Button variant="ghost" onClick={() => router.back()} className="text-gray-400 hover:text-white mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>
@@ -199,9 +195,7 @@ export default function BlogEditScheduledPostPage() {
       <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
-              {error}
-            </div>
+            <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">{error}</div>
           )}
 
           <div className="bg-gray-800 rounded-lg border border-gray-700 p-4">
@@ -213,10 +207,10 @@ export default function BlogEditScheduledPostPage() {
                     scheduledPost.status === "published"
                       ? "bg-green-900/30 text-green-400 border-green-800"
                       : scheduledPost.status === "pending" || scheduledPost.status === "scheduled"
-                      ? "bg-yellow-900/30 text-yellow-400 border-yellow-800"
-                      : scheduledPost.status === "failed"
-                      ? "bg-red-900/30 text-red-400 border-red-800"
-                      : "bg-gray-800 text-gray-400 border-gray-700"
+                        ? "bg-yellow-900/30 text-yellow-400 border-yellow-800"
+                        : scheduledPost.status === "failed"
+                          ? "bg-red-900/30 text-red-400 border-red-800"
+                          : "bg-gray-800 text-gray-400 border-gray-700"
                   }`}
                 >
                   {scheduledPost.status}
@@ -237,9 +231,7 @@ export default function BlogEditScheduledPostPage() {
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-              Post Details
-            </h3>
+            <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Post Details</h3>
 
             {scheduledPost.auto_generate ? (
               <div className="bg-blue-900/20 border border-blue-800 rounded-md p-3">
@@ -268,9 +260,7 @@ export default function BlogEditScheduledPostPage() {
                       </option>
                     ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-400">
-                  Only draft and published blogs can be scheduled
-                </p>
+                <p className="mt-1 text-xs text-gray-400">Only draft and published blogs can be scheduled</p>
               </div>
             )}
 
@@ -293,9 +283,7 @@ export default function BlogEditScheduledPostPage() {
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-              Schedule Details
-            </h3>
+            <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Schedule Details</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

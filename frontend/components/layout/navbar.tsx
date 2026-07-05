@@ -3,18 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
-import {
-  User,
-  Sparkles,
-  Menu,
-  Settings,
-  HelpCircle,
-  LogOut,
-  BookOpen,
-  Code,
-  CreditCard,
-  Gift,
-} from "lucide-react";
+import { User, Sparkles, Menu, Settings, HelpCircle, LogOut, BookOpen, Code, CreditCard, Gift } from "lucide-react";
 import { useState } from "react";
 import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 import { NotificationBell } from "@/components/notifications/notification-bell";

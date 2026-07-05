@@ -33,8 +33,7 @@ export function SiteSwitcher() {
   const currentSite = sites.find((site) => site._id === currentSiteId);
 
   const renameMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) =>
-      SiteService.updateSite(id, { name }),
+    mutationFn: ({ id, name }: { id: string; name: string }) => SiteService.updateSite(id, { name }),
     onSuccess: (updated, variables) => {
       workspaceTracker.updated({ workspace_name: variables.name });
       queryClient.setQueryData(QUERY_KEYS.SITE(variables.id), updated);
@@ -153,15 +152,12 @@ export function SiteSwitcher() {
         >
           <Building2 className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
           <span className="flex-1 text-left truncate">
-            {isLoading ? (
-              "Loading..."
-            ) : currentSite ? (
-              currentSite.name
-            ) : (
-              "Select Site"
-            )}
+            {isLoading ? "Loading..." : currentSite ? currentSite.name : "Select Site"}
           </span>
-          <ChevronDown className={`w-4 h-4 transition-transform ${showDropdown ? "rotate-180" : ""}`} aria-hidden="true" />
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${showDropdown ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          />
         </button>
 
         {showDropdown && (
@@ -173,9 +169,13 @@ export function SiteSwitcher() {
             style={{ zIndex: 10000 }}
           >
             {isLoading ? (
-              <div className="px-4 py-2 text-sm text-gray-400" role="status" aria-live="polite">Loading sites...</div>
+              <div className="px-4 py-2 text-sm text-gray-400" role="status" aria-live="polite">
+                Loading sites...
+              </div>
             ) : sites.length === 0 ? (
-              <div className="px-4 py-2 text-sm text-gray-400" role="status">No sites found</div>
+              <div className="px-4 py-2 text-sm text-gray-400" role="status">
+                No sites found
+              </div>
             ) : (
               <>
                 {(sites ?? []).map((site) => {
@@ -233,10 +233,7 @@ export function SiteSwitcher() {
                   }
 
                   return (
-                    <div
-                      key={site._id}
-                      className="flex items-center gap-1 pr-1 hover:bg-gray-800 transition-colors"
-                    >
+                    <div key={site._id} className="flex items-center gap-1 pr-1 hover:bg-gray-800 transition-colors">
                       <button
                         role="menuitem"
                         onClick={() => handleSiteSelect(site._id)}
@@ -246,9 +243,7 @@ export function SiteSwitcher() {
                       >
                         <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" aria-hidden="true" />
                         <span className="flex-1 truncate">{site.name}</span>
-                        {isCurrent && (
-                          <Check className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
-                        )}
+                        {isCurrent && <Check className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />}
                       </button>
                       <button
                         type="button"

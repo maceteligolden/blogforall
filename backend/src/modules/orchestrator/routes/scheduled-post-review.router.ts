@@ -2,10 +2,7 @@ import { Router } from "express";
 import { container } from "tsyringe";
 import { ScheduledPostReviewController } from "../controllers/scheduled-post-review.controller";
 import { validateBody, validateParams } from "../../../shared/middlewares/validate.middleware";
-import {
-  reviewReworkBodySchema,
-  reviewTokenParamSchema,
-} from "../validations/scheduled-post-review.validation";
+import { reviewReworkBodySchema, reviewTokenParamSchema } from "../validations/scheduled-post-review.validation";
 
 /**
  * Public router for the email-driven scheduled-post review flow. Mounted at

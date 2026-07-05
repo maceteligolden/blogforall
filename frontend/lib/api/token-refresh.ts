@@ -39,8 +39,7 @@ export async function refreshAccessTokenWithLock(): Promise<string | null> {
 
   refreshInFlight = (async (): Promise<string | null> => {
     try {
-      const refreshToken =
-        typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
+      const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
       if (!refreshToken) return null;
 
       const response = await axios.post(`${API_CONFIG.baseURL}${API_ENDPOINTS.AUTH.REFRESH}`, {

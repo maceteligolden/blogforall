@@ -14,10 +14,7 @@ export interface CreateChatOpenAIOptions {
  * Construct ChatOpenAI with usage callback when inside a token reservation context.
  */
 export function createChatOpenAI(options: CreateChatOpenAIOptions): ChatOpenAI {
-  const callbacks =
-    getTokenRequestContext() || getRequestContext()
-      ? [new LangchainUsageCallbackHandler()]
-      : [];
+  const callbacks = getTokenRequestContext() || getRequestContext() ? [new LangchainUsageCallbackHandler()] : [];
   return new ChatOpenAI({
     apiKey: options.apiKey,
     model: options.model,

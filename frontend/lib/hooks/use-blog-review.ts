@@ -117,8 +117,7 @@ export function useBlogReview() {
     reviewBlog: reviewMutation.mutate,
     reviewBlogAsync: reviewMutation.mutateAsync,
     isReviewing: reviewMutation.isPending,
-    reviewResult:
-      reviewMutation.data?.data?.data ?? (reviewMutation.data?.data as BlogReviewResult | undefined),
+    reviewResult: reviewMutation.data?.data?.data ?? (reviewMutation.data?.data as BlogReviewResult | undefined),
     applyReview: applyReviewMutation.mutate,
     applyReviewAsync: applyReviewMutation.mutateAsync,
     isApplying: applyReviewMutation.isPending,

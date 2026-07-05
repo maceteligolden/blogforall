@@ -55,8 +55,12 @@ function AcceptInviteContent() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <p className="text-gray-400 mb-4">Missing invitation token. Please use the link from your invitation email.</p>
-          <Link href="/dashboard" className="text-primary hover:underline">Go to dashboard</Link>
+          <p className="text-gray-400 mb-4">
+            Missing invitation token. Please use the link from your invitation email.
+          </p>
+          <Link href="/dashboard" className="text-primary hover:underline">
+            Go to dashboard
+          </Link>
         </div>
       </div>
     );
@@ -106,7 +110,9 @@ function AcceptInviteContent() {
           <>
             <XCircle className="w-16 h-16 text-gray-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">Invitation declined</h2>
-            <Link href="/dashboard" className="text-primary hover:underline">Go to dashboard</Link>
+            <Link href="/dashboard" className="text-primary hover:underline">
+              Go to dashboard
+            </Link>
           </>
         )}
         {status === "error" && (
@@ -114,7 +120,9 @@ function AcceptInviteContent() {
             <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-white mb-2">Something went wrong</h2>
             <p className="text-gray-400 mb-4">{errorMessage}</p>
-            <Link href="/dashboard" className="text-primary hover:underline">Go to dashboard</Link>
+            <Link href="/dashboard" className="text-primary hover:underline">
+              Go to dashboard
+            </Link>
           </>
         )}
       </div>

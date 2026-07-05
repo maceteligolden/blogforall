@@ -45,7 +45,11 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
   });
 
   const importCategoriesMutation = useMutation({
-    mutationFn: ({ sourceSiteId, targetSiteId, categoryIds }: {
+    mutationFn: ({
+      sourceSiteId,
+      targetSiteId,
+      categoryIds,
+    }: {
       sourceSiteId: string;
       targetSiteId: string;
       categoryIds: string[];
@@ -90,7 +94,7 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
   const toggleCategoryWithChildren = (category: Category & { children?: Category[] }) => {
     const newSelection = new Set(selectedCategoryIds);
     const isSelected = newSelection.has(category._id);
-    
+
     const toggleRecursive = (cat: Category & { children?: Category[] }) => {
       if (isSelected) {
         newSelection.delete(cat._id);
@@ -101,7 +105,7 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
         cat.children.forEach(toggleRecursive);
       }
     };
-    
+
     toggleRecursive(category);
     setSelectedCategoryIds(newSelection);
   };
@@ -136,7 +140,7 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
     return categories.map((category) => {
       const isSelected = selectedCategoryIds.has(category._id);
       const hasChildren = category.children && category.children.length > 0;
-      
+
       return (
         <div key={category._id} className={`ml-${level * 4}`}>
           <div className="flex items-center space-x-2 py-1">
@@ -161,22 +165,13 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
               }}
             >
               {category.color && (
-                <span
-                  className="inline-block w-3 h-3 rounded mr-2"
-                  style={{ backgroundColor: category.color }}
-                />
+                <span className="inline-block w-3 h-3 rounded mr-2" style={{ backgroundColor: category.color }} />
               )}
               {category.name}
-              {category.description && (
-                <span className="text-xs text-gray-500 ml-2">- {category.description}</span>
-              )}
+              {category.description && <span className="text-xs text-gray-500 ml-2">- {category.description}</span>}
             </Label>
           </div>
-          {hasChildren && (
-            <div className="ml-6">
-              {renderCategoryTree(category.children!, level + 1)}
-            </div>
-          )}
+          {hasChildren && <div className="ml-6">{renderCategoryTree(category.children!, level + 1)}</div>}
         </div>
       );
     });
@@ -203,23 +198,19 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={
-              importCategoriesMutation.isPending ||
-              !sourceSiteId ||
-              selectedCategoryIds.size === 0
-            }
+            disabled={importCategoriesMutation.isPending || !sourceSiteId || selectedCategoryIds.size === 0}
             className="bg-primary hover:bg-primary/90 text-white"
           >
-            {importCategoriesMutation.isPending ? "Importing..." : `Import ${selectedCategoryIds.size} Categor${selectedCategoryIds.size === 1 ? "y" : "ies"}`}
+            {importCategoriesMutation.isPending
+              ? "Importing..."
+              : `Import ${selectedCategoryIds.size} Categor${selectedCategoryIds.size === 1 ? "y" : "ies"}`}
           </Button>
         </div>
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">
-            {error}
-          </div>
+          <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
         )}
 
         <div>
@@ -240,9 +231,7 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-gray-400">
-            Select the site you want to import categories from
-          </p>
+          <p className="mt-1 text-xs text-gray-400">Select the site you want to import categories from</p>
         </div>
 
         {sourceSiteId && (

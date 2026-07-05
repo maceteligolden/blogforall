@@ -62,12 +62,7 @@ export class CampaignFeatureController {
     try {
       const { siteId, campaignId, userId } = this.ids(req);
       const body = (req.validatedBody ?? req.body) as { reason?: string };
-      const data = await this.roadmapService.rejectRoadmap(
-        campaignId,
-        siteId,
-        userId,
-        body.reason
-      );
+      const data = await this.roadmapService.rejectRoadmap(campaignId, siteId, userId, body.reason);
       sendSuccess(res, "Roadmap rejected", data);
     } catch (e) {
       next(e);
@@ -146,11 +141,7 @@ export class CampaignFeatureController {
       for (const c of campaigns) {
         let report = await this.progressReportRepository.findByDate(c._id!.toString(), dateStr);
         if (!report) {
-          report = await this.progressReportService.buildDailyReport(
-            c._id!.toString(),
-            siteId,
-            dateStr
-          );
+          report = await this.progressReportService.buildDailyReport(c._id!.toString(), siteId, dateStr);
         }
         reports.push({ campaign: { _id: c._id, name: c.name }, report });
       }

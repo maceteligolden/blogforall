@@ -38,8 +38,7 @@ export default function BlogScheduledPostsPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (post: ScheduledPost) =>
-          post.title.toLowerCase().includes(query) ||
-          (post.campaign_id && query.includes("campaign"))
+          post.title.toLowerCase().includes(query) || (post.campaign_id && query.includes("campaign"))
       );
     }
 
@@ -106,12 +105,7 @@ export default function BlogScheduledPostsPage() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb
-          items={[
-            { label: "Contents", href: "/dashboard/blogs" },
-            { label: "Scheduled" },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Scheduled" }]} />
         <BlogHubTabs />
         <div className="flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
@@ -125,12 +119,7 @@ export default function BlogScheduledPostsPage() {
 
   return (
     <>
-      <Breadcrumb
-        items={[
-          { label: "Contents", href: "/dashboard/blogs" },
-          { label: "Scheduled" },
-        ]}
-      />
+      <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Scheduled" }]} />
       <BlogHubTabs />
 
       <div className="flex justify-between items-center mb-6">
@@ -171,9 +160,7 @@ export default function BlogScheduledPostsPage() {
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
-                  statusFilter === status
-                    ? "bg-primary text-white"
-                    : "text-gray-400 hover:text-white"
+                  statusFilter === status ? "bg-primary text-white" : "text-gray-400 hover:text-white"
                 }`}
               >
                 {status}
@@ -224,9 +211,7 @@ export default function BlogScheduledPostsPage() {
                   <div className="flex items-center gap-3 mb-3">
                     {getStatusIcon(post.status)}
                     <h3 className="text-lg font-semibold text-white">{post.title}</h3>
-                    <span
-                      className={`px-2 py-1 text-xs rounded capitalize border ${getStatusColor(post.status)}`}
-                    >
+                    <span className={`px-2 py-1 text-xs rounded capitalize border ${getStatusColor(post.status)}`}>
                       {post.status}
                     </span>
                     {post.campaign_id && (
@@ -242,16 +227,12 @@ export default function BlogScheduledPostsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Scheduled For</p>
-                      <p className="text-sm text-white">
-                        {new Date(post.scheduled_at).toLocaleString()}
-                      </p>
+                      <p className="text-sm text-white">{new Date(post.scheduled_at).toLocaleString()}</p>
                     </div>
                     {post.published_at && (
                       <div>
                         <p className="text-xs text-gray-400 mb-1">Published At</p>
-                        <p className="text-sm text-white">
-                          {new Date(post.published_at).toLocaleString()}
-                        </p>
+                        <p className="text-sm text-white">{new Date(post.published_at).toLocaleString()}</p>
                       </div>
                     )}
                     <div>
@@ -263,9 +244,7 @@ export default function BlogScheduledPostsPage() {
                   {post.auto_generate && (
                     <div className="mb-3">
                       <p className="text-xs text-gray-400 mb-1">Generation Prompt</p>
-                      <p className="text-sm text-gray-300 line-clamp-2">
-                        {post.generation_prompt || "N/A"}
-                      </p>
+                      <p className="text-sm text-gray-300 line-clamp-2">{post.generation_prompt || "N/A"}</p>
                     </div>
                   )}
 
@@ -274,9 +253,7 @@ export default function BlogScheduledPostsPage() {
                       <p className="text-xs text-red-400 font-medium mb-1">Error</p>
                       <p className="text-sm text-red-300">{post.error_message}</p>
                       {post.publish_attempts > 0 && (
-                        <p className="text-xs text-red-400 mt-1">
-                          Attempts: {post.publish_attempts}
-                        </p>
+                        <p className="text-xs text-red-400 mt-1">Attempts: {post.publish_attempts}</p>
                       )}
                     </div>
                   )}
@@ -334,7 +311,10 @@ export default function BlogScheduledPostsPage() {
                       </Button>
                     </>
                   )}
-                  {(post.status === "pending" || post.status === "scheduled" || post.status === "failed" || post.status === "cancelled") && (
+                  {(post.status === "pending" ||
+                    post.status === "scheduled" ||
+                    post.status === "failed" ||
+                    post.status === "cancelled") && (
                     <Button
                       size="sm"
                       variant="outline"

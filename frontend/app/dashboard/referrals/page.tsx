@@ -53,9 +53,7 @@ export default function ReferralsPage() {
       <Breadcrumb items={[{ label: "Referrals" }]} />
       <div className="mb-8">
         <h1 className="text-2xl font-display text-white">Referrals</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          Invite friends to Bloggr and earn bonus tokens when they sign up.
-        </p>
+        <p className="text-sm text-gray-400 mt-1">Invite friends to Bloggr and earn bonus tokens when they sign up.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 mb-8">
@@ -93,11 +91,7 @@ export default function ReferralsPage() {
             className="border-gray-700 text-gray-300 shrink-0"
             onClick={() => copyToClipboard(data.referral_link, "link")}
           >
-            {copied === "link" ? (
-              <Check className="w-4 h-4 mr-2" />
-            ) : (
-              <Copy className="w-4 h-4 mr-2" />
-            )}
+            {copied === "link" ? <Check className="w-4 h-4 mr-2" /> : <Copy className="w-4 h-4 mr-2" />}
             Copy link
           </Button>
         </div>
@@ -126,29 +120,20 @@ export default function ReferralsPage() {
         <h2 className="text-lg font-semibold text-white mb-4">Referral history</h2>
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
           {data.referrals.length === 0 ? (
-            <p className="p-4 text-sm text-gray-500">
-              No referrals yet. Share your link to get started.
-            </p>
+            <p className="p-4 text-sm text-gray-500">No referrals yet. Share your link to get started.</p>
           ) : (
             <ul className="divide-y divide-gray-800">
               {data.referrals.map((referral) => (
-                <li
-                  key={referral.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
-                >
+                <li key={referral.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
                   <div>
-                    <p className="text-white">
-                      {referral.referred_name || referral.referred_email || "New user"}
-                    </p>
+                    <p className="text-white">{referral.referred_name || referral.referred_email || "New user"}</p>
                     {referral.referred_email && referral.referred_name && (
                       <p className="text-gray-500 text-xs">{referral.referred_email}</p>
                     )}
                   </div>
                   <div className="text-right">
                     <p className="text-gray-400 text-xs capitalize">{referral.status.replace("_", " ")}</p>
-                    <p className="text-gray-500 text-xs">
-                      {format(new Date(referral.signed_up_at), "MMM d, yyyy")}
-                    </p>
+                    <p className="text-gray-500 text-xs">{format(new Date(referral.signed_up_at), "MMM d, yyyy")}</p>
                   </div>
                 </li>
               ))}

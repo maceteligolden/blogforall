@@ -22,12 +22,7 @@ function formatCountdown(ms: number): string {
   return `${s}s`;
 }
 
-export function TokenExhaustionModal({
-  isOpen,
-  onClose,
-  resetAt,
-  message,
-}: TokenExhaustionModalProps) {
+export function TokenExhaustionModal({ isOpen, onClose, resetAt, message }: TokenExhaustionModalProps) {
   const [countdown, setCountdown] = useState("");
 
   useEffect(() => {
@@ -58,8 +53,7 @@ export function TokenExhaustionModal({
       </p>
       {resetAt && (
         <p className="mt-3 text-sm text-gray-400">
-          Resets in{" "}
-          <span className="text-white font-medium tabular-nums">{countdown || "…"}</span>
+          Resets in <span className="text-white font-medium tabular-nums">{countdown || "…"}</span>
         </p>
       )}
     </Modal>

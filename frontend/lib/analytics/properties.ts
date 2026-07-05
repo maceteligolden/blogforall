@@ -98,9 +98,7 @@ function sanitizeValue(key: string, value: unknown): unknown {
 }
 
 /** Strip sensitive fields before sending to PostHog. */
-export function sanitizeEventProperties(
-  props: Record<string, unknown>
-): Record<string, unknown> {
+export function sanitizeEventProperties(props: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(props)) {
     if (value === undefined || value === null) continue;

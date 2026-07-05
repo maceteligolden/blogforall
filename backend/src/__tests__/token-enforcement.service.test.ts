@@ -4,10 +4,7 @@ import { TokenEnforcementService } from "../modules/token-ledger/services/token-
 import { TokenLedgerRepository } from "../modules/token-ledger/repositories/token-ledger.repository";
 import { TokenAllocationService } from "../modules/token-ledger/services/token-allocation.service";
 import { TokenEstimationService } from "../modules/token-ledger/services/token-estimation.service";
-import {
-  TokenLedgerEntryStatus,
-  TOKEN_WINDOW_MS,
-} from "../shared/constants/token-ledger.constant";
+import { TokenLedgerEntryStatus, TOKEN_WINDOW_MS } from "../shared/constants/token-ledger.constant";
 import type { TokenLedger } from "../shared/schemas/token-ledger.schema";
 import type { TokenLedgerEntry } from "../shared/schemas/token-ledger-entry.schema";
 
@@ -45,11 +42,7 @@ describe("TokenEnforcementService", () => {
 
     mockRepo = {
       findByUserId: jest.fn(async () => ledger),
-      createLedger: jest.fn(async (input: {
-        user_id: string;
-        daily_allocation: number;
-        window_start: Date;
-      }) => {
+      createLedger: jest.fn(async (input: { user_id: string; daily_allocation: number; window_start: Date }) => {
         ledger = makeLedger({
           user_id: input.user_id,
           daily_allocation: input.daily_allocation,
@@ -61,17 +54,15 @@ describe("TokenEnforcementService", () => {
         ledger = { ...ledger, ...update, updated_at: new Date() } as TokenLedger;
         return ledger;
       }),
-      incrementLedger: jest.fn(
-        async (_userId: string, inc: { used_tokens?: number; reserved_tokens?: number }) => {
-          ledger = {
-            ...ledger,
-            used_tokens: (ledger.used_tokens ?? 0) + (inc.used_tokens ?? 0),
-            reserved_tokens: (ledger.reserved_tokens ?? 0) + (inc.reserved_tokens ?? 0),
-            updated_at: new Date(),
-          } as TokenLedger;
-          return ledger;
-        }
-      ),
+      incrementLedger: jest.fn(async (_userId: string, inc: { used_tokens?: number; reserved_tokens?: number }) => {
+        ledger = {
+          ...ledger,
+          used_tokens: (ledger.used_tokens ?? 0) + (inc.used_tokens ?? 0),
+          reserved_tokens: (ledger.reserved_tokens ?? 0) + (inc.reserved_tokens ?? 0),
+          updated_at: new Date(),
+        } as TokenLedger;
+        return ledger;
+      }),
       findEntryByRequestId: jest.fn(async (requestId: string) => entries.get(requestId) ?? null),
       createEntry: jest.fn(async (input: TokenLedgerEntry) => {
         const entry = {
@@ -90,9 +81,7 @@ describe("TokenEnforcementService", () => {
         entries.set(requestId, updated);
         return updated;
       }),
-      withTransaction: jest.fn(async (fn: (session: ClientSession) => Promise<unknown>) =>
-        fn({} as ClientSession)
-      ),
+      withTransaction: jest.fn(async (fn: (session: ClientSession) => Promise<unknown>) => fn({} as ClientSession)),
       isDuplicateKeyError: jest.fn(() => false),
     } as unknown as jest.Mocked<TokenLedgerRepository>;
 

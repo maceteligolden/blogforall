@@ -30,10 +30,7 @@ export function formParamsToGenerationHints(p: BlogGenerationFormParams): {
  * Merge API `PromptAnalysis` with form defaults so the confirmation modal
  * shows user choices when the model omitted them.
  */
-export function mergePromptAnalysisWithForm(
-  analysis: PromptAnalysis,
-  form: BlogGenerationFormParams
-): PromptAnalysis {
+export function mergePromptAnalysisWithForm(analysis: PromptAnalysis, form: BlogGenerationFormParams): PromptAnalysis {
   const hints = formParamsToGenerationHints(form);
   const topics = hints.topics_to_explore ?? analysis.topics_to_explore;
   return {

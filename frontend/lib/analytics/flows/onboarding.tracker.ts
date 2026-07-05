@@ -3,8 +3,7 @@ import type { OnboardingEventProperties } from "../properties";
 import { captureEvent } from "../posthog";
 
 export const onboardingTracker = {
-  started: (props?: OnboardingEventProperties) =>
-    captureEvent(AnalyticsEvents.ONBOARDING_STARTED, props),
+  started: (props?: OnboardingEventProperties) => captureEvent(AnalyticsEvents.ONBOARDING_STARTED, props),
 
   stepCompleted: (props: OnboardingEventProperties & { step: string }) =>
     captureEvent(AnalyticsEvents.ONBOARDING_STEP_COMPLETED, props),
@@ -15,8 +14,7 @@ export const onboardingTracker = {
   billingSkipped: (props?: OnboardingEventProperties) =>
     captureEvent(AnalyticsEvents.ONBOARDING_BILLING_SKIPPED, props),
 
-  planSelected: (props?: OnboardingEventProperties) =>
-    captureEvent(AnalyticsEvents.PLAN_SELECTED, props),
+  planSelected: (props?: OnboardingEventProperties) => captureEvent(AnalyticsEvents.PLAN_SELECTED, props),
 
   userOnboardingCompleted: (props?: OnboardingEventProperties) =>
     captureEvent(AnalyticsEvents.USER_ONBOARDING_COMPLETED, props),
@@ -27,8 +25,7 @@ export const onboardingTracker = {
   dropped: (props: OnboardingEventProperties & { last_step: string; last_route: string }) =>
     captureEvent(AnalyticsEvents.ONBOARDING_DROPPED, props),
 
-  invitePromptViewed: (props?: OnboardingEventProperties) =>
-    captureEvent(AnalyticsEvents.INVITE_PROMPT_VIEWED, props),
+  invitePromptViewed: (props?: OnboardingEventProperties) => captureEvent(AnalyticsEvents.INVITE_PROMPT_VIEWED, props),
 
   invitePromptSkipped: (props?: OnboardingEventProperties) =>
     captureEvent(AnalyticsEvents.INVITE_PROMPT_SKIPPED, props),

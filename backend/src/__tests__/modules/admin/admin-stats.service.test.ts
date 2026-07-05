@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { AdminStatsService } from "../../../modules/admin/services/admin-stats.service";
+import { TokenLedgerRepository } from "../../../modules/token-ledger/repositories/token-ledger.repository";
 
 const mockUserCount = jest.fn<() => Promise<number>>();
 const mockBlogCount = jest.fn<() => Promise<number>>();
@@ -30,7 +31,9 @@ describe("AdminStatsService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AdminStatsService({ getTotalUsageTokens: () => mockTotalUsage() } as any);
+    service = new AdminStatsService({
+      getTotalUsageTokens: () => mockTotalUsage(),
+    } as unknown as TokenLedgerRepository);
   });
 
   it("returns aggregated dashboard counts", async () => {

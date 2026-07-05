@@ -120,7 +120,9 @@ export default function SchedulePostPage() {
       const campaignStart = new Date(campaign.start_date);
       const campaignEnd = new Date(campaign.end_date);
       if (scheduledDate < campaignStart || scheduledDate > campaignEnd) {
-        setError(`Scheduled date must be between ${campaignStart.toLocaleDateString()} and ${campaignEnd.toLocaleDateString()}`);
+        setError(
+          `Scheduled date must be between ${campaignStart.toLocaleDateString()} and ${campaignEnd.toLocaleDateString()}`
+        );
         return;
       }
     }
@@ -184,11 +186,7 @@ export default function SchedulePostPage() {
         />
 
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="text-gray-400 hover:text-white mb-4"
-          >
+          <Button variant="ghost" onClick={() => router.back()} className="text-gray-400 hover:text-white mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -199,16 +197,12 @@ export default function SchedulePostPage() {
         <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
-                {error}
-              </div>
+              <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">{error}</div>
             )}
 
             {/* Post Type Selection */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-                Post Type
-              </h3>
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Post Type</h3>
 
               <div className="flex items-center space-x-4">
                 <label className="flex items-center space-x-2 cursor-pointer">
@@ -255,9 +249,7 @@ export default function SchedulePostPage() {
                       </option>
                     ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-400">
-                  Only draft and published blogs can be scheduled
-                </p>
+                <p className="mt-1 text-xs text-gray-400">Only draft and published blogs can be scheduled</p>
               </div>
             ) : (
               <div>
@@ -281,9 +273,7 @@ export default function SchedulePostPage() {
 
             {/* Post Details */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-                Schedule Details
-              </h3>
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Schedule Details</h3>
 
               <div>
                 <Label htmlFor="title" className="text-gray-300">
@@ -301,7 +291,9 @@ export default function SchedulePostPage() {
                   maxLength={200}
                 />
                 <p className="mt-1 text-xs text-gray-400">
-                  {useExistingBlog ? "This will be used as a preview title" : "This will be the title of the generated blog post"}
+                  {useExistingBlog
+                    ? "This will be used as a preview title"
+                    : "This will be the title of the generated blog post"}
                 </p>
               </div>
 
@@ -323,7 +315,8 @@ export default function SchedulePostPage() {
                   />
                   {campaign && (
                     <p className="mt-1 text-xs text-gray-400">
-                      Must be between {new Date(campaign.start_date).toLocaleDateString()} and {new Date(campaign.end_date).toLocaleDateString()}
+                      Must be between {new Date(campaign.start_date).toLocaleDateString()} and{" "}
+                      {new Date(campaign.end_date).toLocaleDateString()}
                     </p>
                   )}
                 </div>

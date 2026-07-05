@@ -9,9 +9,7 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-10 sm:mb-12">
           <div className="sm:col-span-2 md:col-span-1">
             <h3 className="text-xl font-bold text-primary mb-4">Bloggr</h3>
-            <p className="text-gray-400 text-sm max-w-xs">
-              Context-aware blog posts from conversation, not prompts.
-            </p>
+            <p className="text-gray-400 text-sm max-w-xs">Context-aware blog posts from conversation, not prompts.</p>
           </div>
           <div>
             <h4 className="font-semibold mb-4 text-white">Product</h4>

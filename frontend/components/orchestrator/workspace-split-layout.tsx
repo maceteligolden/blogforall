@@ -11,29 +11,15 @@ interface WorkspaceSplitLayoutProps {
   className?: string;
 }
 
-export function WorkspaceSplitLayout({
-  left,
-  right,
-  showRight,
-  className,
-}: WorkspaceSplitLayoutProps) {
-  const {
-    containerRef,
-    ratio,
-    isDragging,
-    onSeparatorPointerDown,
-    onSeparatorPointerMove,
-    onSeparatorPointerUp,
-  } = useResizableSplit("orchestrator_workspace_split");
+export function WorkspaceSplitLayout({ left, right, showRight, className }: WorkspaceSplitLayoutProps) {
+  const { containerRef, ratio, isDragging, onSeparatorPointerDown, onSeparatorPointerMove, onSeparatorPointerUp } =
+    useResizableSplit("orchestrator_workspace_split");
 
   const leftWidth = showRight ? `${ratio * 100}%` : "100%";
   const rightWidth = `${(1 - ratio) * 100}%`;
 
   return (
-    <div
-      ref={containerRef}
-      className={cn("flex h-full min-h-0 w-full overflow-hidden", className)}
-    >
+    <div ref={containerRef} className={cn("flex h-full min-h-0 w-full overflow-hidden", className)}>
       <div className="min-w-0 h-full shrink-0 flex flex-col" style={{ width: leftWidth }}>
         {left}
       </div>

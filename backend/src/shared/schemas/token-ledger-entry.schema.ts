@@ -54,7 +54,4 @@ tokenLedgerEntrySchema.pre("save", function (next) {
   next();
 });
 
-export const TokenLedgerEntryModel = model<TokenLedgerEntry>(
-  "TokenLedgerEntry",
-  tokenLedgerEntrySchema
-);
+export const TokenLedgerEntryModel = model<TokenLedgerEntry>("TokenLedgerEntry", tokenLedgerEntrySchema);

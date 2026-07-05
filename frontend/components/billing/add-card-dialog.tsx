@@ -18,12 +18,12 @@ interface AddCardDialogProps {
   onSuccess?: () => void;
 }
 
-function AddCardForm({ 
-  onSuccess, 
-  onClose, 
-  clientSecret 
-}: { 
-  onSuccess?: () => void; 
+function AddCardForm({
+  onSuccess,
+  onClose,
+  clientSecret,
+}: {
+  onSuccess?: () => void;
   onClose: () => void;
   clientSecret: string;
 }) {
@@ -127,11 +127,7 @@ function AddCardForm({
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          disabled={!stripe || isLoading}
-          className="bg-primary hover:bg-primary/90 text-white"
-        >
+        <Button type="submit" disabled={!stripe || isLoading} className="bg-primary hover:bg-primary/90 text-white">
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -208,12 +204,7 @@ export function AddCardDialog({ open, onOpenChange, onSuccess }: AddCardDialogPr
   }
 
   return (
-    <Modal
-      isOpen={open}
-      onClose={() => onOpenChange(false)}
-      title="Add Payment Method"
-      size="lg"
-    >
+    <Modal isOpen={open} onClose={() => onOpenChange(false)} title="Add Payment Method" size="lg">
       {isInitializing || !clientSecret ? (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -221,11 +212,7 @@ export function AddCardDialog({ open, onOpenChange, onSuccess }: AddCardDialogPr
         </div>
       ) : (
         <Elements key={key} stripe={stripePromise} options={options}>
-          <AddCardForm
-            onSuccess={onSuccess}
-            onClose={() => onOpenChange(false)}
-            clientSecret={clientSecret}
-          />
+          <AddCardForm onSuccess={onSuccess} onClose={() => onOpenChange(false)} clientSecret={clientSecret} />
         </Elements>
       )}
     </Modal>

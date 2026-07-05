@@ -10,10 +10,7 @@ import type { PromptAnalysis } from "../services/blog-generation.service";
 import { assertBlogAiRateLimit } from "../../../shared/utils/blog-ai-rate-limit";
 import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
 import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
-import {
-  getRequestIdFromContext,
-  setRequestContextFlow,
-} from "../../../shared/observability/request-context";
+import { getRequestIdFromContext, setRequestContextFlow } from "../../../shared/observability/request-context";
 import { ObservabilityFlow } from "../../../shared/observability/flows";
 import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant";
 import type { BlogUserGenerationParams } from "../ai/types";
@@ -150,10 +147,7 @@ export class BlogGenerationController {
         fn: async () => {
           let promptAnalysis = rawAnalysis as PromptAnalysis | undefined;
           if (!promptAnalysis) {
-            promptAnalysis = await this.blogGenerationService.analyzePrompt(
-              trimmedPrompt,
-              userParams
-            );
+            promptAnalysis = await this.blogGenerationService.analyzePrompt(trimmedPrompt, userParams);
           }
           if (!promptAnalysis.is_valid) {
             throw new BadRequestError(
@@ -161,11 +155,7 @@ export class BlogGenerationController {
                 "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
             );
           }
-          return this.blogGenerationService.generateWithReview(
-            trimmedPrompt,
-            promptAnalysis,
-            userParams
-          );
+          return this.blogGenerationService.generateWithReview(trimmedPrompt, promptAnalysis, userParams);
         },
       });
       logger.info(
@@ -210,10 +200,7 @@ export class BlogGenerationController {
         fn: async () => {
           let promptAnalysis = rawAnalysis as PromptAnalysis | undefined;
           if (!promptAnalysis) {
-            promptAnalysis = await this.blogGenerationService.analyzePrompt(
-              trimmedPrompt,
-              userParams
-            );
+            promptAnalysis = await this.blogGenerationService.analyzePrompt(trimmedPrompt, userParams);
           }
 
           if (!promptAnalysis.is_valid) {

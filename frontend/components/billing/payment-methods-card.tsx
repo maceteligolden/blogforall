@@ -85,10 +85,7 @@ export function PaymentMethodsCard() {
               <h2 className="text-2xl font-bold text-white mb-1">Payment Methods</h2>
               <p className="text-sm text-gray-400">Manage your payment methods</p>
             </div>
-            <Button
-              className="bg-primary hover:bg-primary/90 text-white"
-              onClick={() => setIsAddCardDialogOpen(true)}
-            >
+            <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => setIsAddCardDialogOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Card
             </Button>
@@ -120,18 +117,14 @@ export function PaymentMethodsCard() {
                       <div className="flex items-center gap-4 flex-1">
                         <div
                           className={`p-3 rounded-xl border ${
-                            expired
-                              ? "bg-red-500/10 border-red-500/20"
-                              : "bg-primary/10 border-primary/20"
+                            expired ? "bg-red-500/10 border-red-500/20" : "bg-primary/10 border-primary/20"
                           }`}
                         >
                           <CreditCard className={`w-6 h-6 ${expired ? "text-red-500" : "text-primary"}`} />
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-1">
-                            <span className="font-bold text-white text-lg">
-                              •••• •••• •••• {card.last_digits}
-                            </span>
+                            <span className="font-bold text-white text-lg">•••• •••• •••• {card.last_digits}</span>
                             {card.is_default && (
                               <span className="px-2 py-1 bg-primary/20 text-primary text-xs font-semibold rounded-full border border-primary/30">
                                 Default
@@ -195,7 +188,8 @@ export function PaymentMethodsCard() {
                         <div className="flex-1">
                           <p className="text-sm font-bold text-red-500 mb-1">Card Expired</p>
                           <p className="text-xs text-gray-300">
-                            This payment method has expired. Please update it or remove it to continue using the service.
+                            This payment method has expired. Please update it or remove it to continue using the
+                            service.
                           </p>
                         </div>
                       </div>

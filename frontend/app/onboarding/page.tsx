@@ -70,9 +70,9 @@ function OnboardingRedirect() {
   }, [onboardingStatus, router, skipMutation]);
 
   return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-gray-400">Setting up your account...</p>
-      </div>
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <p className="text-gray-400">Setting up your account...</p>
+    </div>
   );
 }
 

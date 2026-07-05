@@ -2,11 +2,7 @@ import { Router, type RequestHandler } from "express";
 import { container } from "tsyringe";
 import { OrchestratorController } from "../controllers/orchestrator.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
-import {
-  validateBody,
-  validateParams,
-  validateQuery,
-} from "../../../shared/middlewares/validate.middleware";
+import { validateBody, validateParams, validateQuery } from "../../../shared/middlewares/validate.middleware";
 import * as V from "../validations/orchestrator-route.validation";
 import { uploadContextSingle } from "../../../shared/middlewares/context-upload.middleware";
 
@@ -29,11 +25,7 @@ router.use(authMiddleware, validateParams(V.siteIdParamSchema));
 const controller = container.resolve(OrchestratorController);
 
 router.post("/chat", validateBody(V.orchestratorChatBodySchema), controller.chat);
-router.post(
-  "/onboarding/chat",
-  validateBody(V.orchestratorOnboardingChatBodySchema),
-  controller.onboardingChat
-);
+router.post("/onboarding/chat", validateBody(V.orchestratorOnboardingChatBodySchema), controller.onboardingChat);
 
 router.get("/threads", validateQuery(V.threadListQuerySchema), controller.listThreads);
 router.get("/threads/:threadId", validateParams(V.threadIdParamSchema), controller.getThread);
@@ -56,11 +48,7 @@ router.post("/context/upload", uploadContextSingle as unknown as RequestHandler,
 
 router.get("/knowledge", controller.listKnowledgeSources);
 router.post("/knowledge", uploadContextSingle as unknown as RequestHandler, controller.uploadKnowledgeSource);
-router.delete(
-  "/knowledge/:id",
-  validateParams(V.knowledgeSourceIdParamSchema),
-  controller.deleteKnowledgeSource
-);
+router.delete("/knowledge/:id", validateParams(V.knowledgeSourceIdParamSchema), controller.deleteKnowledgeSource);
 router.get("/knowledge/google/auth", controller.googleDriveAuth);
 
 export default router;

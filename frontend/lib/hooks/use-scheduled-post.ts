@@ -31,7 +31,12 @@ export function useAllScheduledPosts(params?: {
       const response = await CampaignService.getAllScheduledPosts(params);
       // Backend returns { data: { data: [...], pagination } } for list
       const payload = response.data?.data;
-      if (payload && typeof payload === "object" && "data" in payload && Array.isArray((payload as { data: unknown[] }).data)) {
+      if (
+        payload &&
+        typeof payload === "object" &&
+        "data" in payload &&
+        Array.isArray((payload as { data: unknown[] }).data)
+      ) {
         return (payload as { data: unknown[] }).data;
       }
       if (Array.isArray(payload)) {

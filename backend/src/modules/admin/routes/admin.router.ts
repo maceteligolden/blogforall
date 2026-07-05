@@ -1,11 +1,7 @@
 import { Router } from "express";
 import { container } from "tsyringe";
 import { AdminController } from "../controllers/admin.controller";
-import {
-  authMiddleware,
-  requirePlatformAdmin,
-  requireSuperAdmin,
-} from "../../../shared/middlewares/auth.middleware";
+import { authMiddleware, requirePlatformAdmin, requireSuperAdmin } from "../../../shared/middlewares/auth.middleware";
 import { validateBody, validateParams, validateQuery } from "../../../shared/middlewares/validate.middleware";
 import {
   adminDateRangeQuerySchema,
@@ -14,10 +10,7 @@ import {
   adminUserBlogsParamsSchema,
   createPlatformAdminSchema,
 } from "../validations/admin.validation";
-import {
-  updateProfileSchema,
-  changePasswordSchema,
-} from "../../auth/validations/auth.validation";
+import { updateProfileSchema, changePasswordSchema } from "../../auth/validations/auth.validation";
 
 const router = Router();
 const adminController = container.resolve(AdminController);
@@ -70,12 +63,7 @@ router.get(
   validateQuery(adminPaginationQuerySchema),
   adminController.listBlogs
 );
-router.get(
-  "/token-usage/summary",
-  authMiddleware,
-  requirePlatformAdmin,
-  adminController.getTokenUsageSummary
-);
+router.get("/token-usage/summary", authMiddleware, requirePlatformAdmin, adminController.getTokenUsageSummary);
 router.get(
   "/token-usage/daily",
   authMiddleware,

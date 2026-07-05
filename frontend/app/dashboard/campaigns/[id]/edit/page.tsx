@@ -52,7 +52,7 @@ export default function EditCampaignPage() {
     if (campaign) {
       const startDate = new Date(campaign.start_date).toISOString().slice(0, 16);
       const endDate = new Date(campaign.end_date).toISOString().slice(0, 16);
-      
+
       setFormData({
         name: campaign.name,
         description: campaign.description || "",
@@ -161,7 +161,10 @@ export default function EditCampaignPage() {
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-white mb-2">Campaign not found</h2>
-          <Button onClick={() => router.push("/dashboard/campaigns")} className="bg-primary hover:bg-primary/90 text-white">
+          <Button
+            onClick={() => router.push("/dashboard/campaigns")}
+            className="bg-primary hover:bg-primary/90 text-white"
+          >
             Back to Campaigns
           </Button>
         </div>
@@ -184,11 +187,7 @@ export default function EditCampaignPage() {
         />
 
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="text-gray-400 hover:text-white mb-4"
-          >
+          <Button variant="ghost" onClick={() => router.back()} className="text-gray-400 hover:text-white mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -199,16 +198,12 @@ export default function EditCampaignPage() {
         <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
-                {error}
-              </div>
+              <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">{error}</div>
             )}
 
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-                Basic Information
-              </h3>
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Basic Information</h3>
 
               <div>
                 <Label htmlFor="name" className="text-gray-300">
@@ -274,9 +269,7 @@ export default function EditCampaignPage() {
 
             {/* Schedule */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-                Schedule
-              </h3>
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Schedule</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -365,9 +358,7 @@ export default function EditCampaignPage() {
 
             {/* Planning */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-                Planning
-              </h3>
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Planning</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

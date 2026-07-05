@@ -125,73 +125,80 @@ export default function DocsPage() {
               API <span className="text-primary">Documentation</span>
             </h1>
             <p className="text-lg text-gray-400 max-w-2xl">
-              Integrate Bloggr with your apps: read published blogs, categories, and more via the Public API. All endpoints described here require API key authentication.
+              Integrate Bloggr with your apps: read published blogs, categories, and more via the Public API. All
+              endpoints described here require API key authentication.
             </p>
           </div>
 
-        {/* API Key Setup */}
-        <section id="api-keys" className="mb-20">
-          <h2 className="text-4xl font-bold mb-8">1. API Key Setup</h2>
-          
-          <div className="space-y-6 mb-8">
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-              <h3 className="text-2xl font-semibold mb-4 text-primary">Creating API Keys</h3>
-              <p className="text-gray-400 mb-6">
-                To use the Bloggr API, you need to create API credentials. Follow these steps:
-              </p>
-              
-              <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary">
-                    1
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Sign up or Log in</h4>
-                    <p className="text-gray-400">Create an account or log in to your existing Bloggr account.</p>
-                  </div>
-                </div>
+          {/* API Key Setup */}
+          <section id="api-keys" className="mb-20">
+            <h2 className="text-4xl font-bold mb-8">1. API Key Setup</h2>
 
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary">
-                    2
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Navigate to API Keys</h4>
-                    <p className="text-gray-400">Go to your Dashboard → API Keys section.</p>
-                  </div>
-                </div>
+            <div className="space-y-6 mb-8">
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+                <h3 className="text-2xl font-semibold mb-4 text-primary">Creating API Keys</h3>
+                <p className="text-gray-400 mb-6">
+                  To use the Bloggr API, you need to create API credentials. Follow these steps:
+                </p>
 
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary">
-                    3
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary">
+                      1
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Sign up or Log in</h4>
+                      <p className="text-gray-400">Create an account or log in to your existing Bloggr account.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Create New API Key</h4>
-                    <p className="text-gray-400 mb-4">Click &quot;Create New API Key&quot; and provide a name for your key (e.g., &quot;Production&quot;, &quot;Development&quot;).</p>
-                    <CodeBlock
-                      code={`POST /api/v1/sites/YOUR_SITE_MONGO_ID/api-keys
+
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary">
+                      2
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Navigate to API Keys</h4>
+                      <p className="text-gray-400">Go to your Dashboard → API Keys section.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary">
+                      3
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Create New API Key</h4>
+                      <p className="text-gray-400 mb-4">
+                        Click &quot;Create New API Key&quot; and provide a name for your key (e.g.,
+                        &quot;Production&quot;, &quot;Development&quot;).
+                      </p>
+                      <CodeBlock
+                        code={`POST /api/v1/sites/YOUR_SITE_MONGO_ID/api-keys
 Content-Type: application/json
 Authorization: Bearer YOUR_JWT_TOKEN
 
 {
   "name": "My API Key"
 }`}
-                      id="create-api-key"
-                    />
+                        id="create-api-key"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary">
-                    4
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Save Your Credentials</h4>
-                    <p className="text-gray-400 mb-4">
-                      The API returns <code className="bg-gray-800 px-2 py-1 rounded text-primary">accessKeyId</code>, <code className="bg-gray-800 px-2 py-1 rounded text-primary">secretKey</code>, and the workspace <code className="bg-gray-800 px-2 py-1 rounded text-primary">sitePublicId</code> (opaque public id). Each key is scoped to that workspace only.
-                    </p>
-                    <CodeBlock
-                      code={`{
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center font-bold text-primary">
+                      4
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2">Save Your Credentials</h4>
+                      <p className="text-gray-400 mb-4">
+                        The API returns <code className="bg-gray-800 px-2 py-1 rounded text-primary">accessKeyId</code>,{" "}
+                        <code className="bg-gray-800 px-2 py-1 rounded text-primary">secretKey</code>, and the workspace{" "}
+                        <code className="bg-gray-800 px-2 py-1 rounded text-primary">sitePublicId</code> (opaque public
+                        id). Each key is scoped to that workspace only.
+                      </p>
+                      <CodeBlock
+                        code={`{
   "success": true,
   "message": "API key created successfully",
   "data": {
@@ -204,119 +211,145 @@ Authorization: Bearer YOUR_JWT_TOKEN
     "isActive": true
   }
 }`}
-                      id="api-key-response"
-                    />
+                        id="api-key-response"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Authentication */}
-        <section id="authentication" className="mb-20">
-          <h2 className="text-4xl font-bold mb-8">2. Authentication</h2>
-          
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
-            <h3 className="text-2xl font-semibold mb-4 text-primary">Using API Keys</h3>
-            <p className="text-gray-400 mb-4">
-              Include your API credentials in the request headers for all protected endpoints:
-            </p>
-            <CodeBlock
-              code={`x-access-key-id: your_access_key_id
+          {/* Authentication */}
+          <section id="authentication" className="mb-20">
+            <h2 className="text-4xl font-bold mb-8">2. Authentication</h2>
+
+            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
+              <h3 className="text-2xl font-semibold mb-4 text-primary">Using API Keys</h3>
+              <p className="text-gray-400 mb-4">
+                Include your API credentials in the request headers for all protected endpoints:
+              </p>
+              <CodeBlock
+                code={`x-access-key-id: your_access_key_id
 x-secret-key: your_secret_key`}
-              id="auth-headers"
-            />
-          </div>
+                id="auth-headers"
+              />
+            </div>
 
-          <div className="bg-yellow-900/20 border border-yellow-800 rounded-xl p-6">
-            <div className="flex items-start gap-3">
-              <svg className="w-6 h-6 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <div>
-                <h4 className="font-semibold text-yellow-400 mb-2">Security Best Practices</h4>
-                <ul className="text-gray-300 space-y-1 text-sm">
-                  <li>• Never expose your secret key in client-side code or public repositories</li>
-                  <li>• Use environment variables to store API credentials</li>
-                  <li>• Rotate your API keys regularly</li>
-                  <li>• Delete unused API keys</li>
-                </ul>
+            <div className="bg-yellow-900/20 border border-yellow-800 rounded-xl p-6">
+              <div className="flex items-start gap-3">
+                <svg
+                  className="w-6 h-6 text-yellow-400 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <div>
+                  <h4 className="font-semibold text-yellow-400 mb-2">Security Best Practices</h4>
+                  <ul className="text-gray-300 space-y-1 text-sm">
+                    <li>• Never expose your secret key in client-side code or public repositories</li>
+                    <li>• Use environment variables to store API credentials</li>
+                    <li>• Rotate your API keys regularly</li>
+                    <li>• Delete unused API keys</li>
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Blogs & Public API */}
-        <section id="blogs" className="mb-20">
-          <h2 className="text-4xl font-bold mb-4">3. Blogs & Public API</h2>
+          {/* Blogs & Public API */}
+          <section id="blogs" className="mb-20">
+            <h2 className="text-4xl font-bold mb-4">3. Blogs & Public API</h2>
 
-          <div id="blogs-overview" className="bg-gray-900/50 rounded-xl border border-gray-800 p-6 mb-10">
-            <h3 className="text-xl font-semibold mb-3 text-primary">Overview</h3>
-            <p className="text-gray-400 mb-4">
-              The Public Blog API returns only <strong className="text-white">published</strong> blogs for the workspace tied to your API key. Send <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">x-access-key-id</code> and <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">x-secret-key</code> on every request; you do <strong className="text-white">not</strong> pass <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">site_id</code> in the query string—the server resolves the site from the key. Draft and unpublished posts are not returned.
-            </p>
-            <p className="text-gray-400 text-sm">
-              Base path: <code className="text-primary">/api/v1/public/blogs</code>. All endpoints below require <code className="text-primary">x-access-key-id</code> and <code className="text-primary">x-secret-key</code> headers.
-            </p>
-          </div>
+            <div id="blogs-overview" className="bg-gray-900/50 rounded-xl border border-gray-800 p-6 mb-10">
+              <h3 className="text-xl font-semibold mb-3 text-primary">Overview</h3>
+              <p className="text-gray-400 mb-4">
+                The Public Blog API returns only <strong className="text-white">published</strong> blogs for the
+                workspace tied to your API key. Send{" "}
+                <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">x-access-key-id</code> and{" "}
+                <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">x-secret-key</code> on every request;
+                you do <strong className="text-white">not</strong> pass{" "}
+                <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">site_id</code> in the query string—the
+                server resolves the site from the key. Draft and unpublished posts are not returned.
+              </p>
+              <p className="text-gray-400 text-sm">
+                Base path: <code className="text-primary">/api/v1/public/blogs</code>. All endpoints below require{" "}
+                <code className="text-primary">x-access-key-id</code> and{" "}
+                <code className="text-primary">x-secret-key</code> headers.
+              </p>
+            </div>
 
-          <div className="space-y-6">
-            {/* List published blogs */}
-            <div id="blogs-list">
-              <EndpointCard
-                method="GET"
-                path="/api/v1/public/blogs"
-                description="List all published blogs for a site with pagination, search, and filtering."
-                requiresAuth={true}
-              >
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold mb-2 text-gray-300">Query Parameters</h4>
-                    <div className="bg-black rounded-lg p-4 border border-gray-800">
-                      <table className="w-full text-sm text-gray-300">
-                        <thead>
-                          <tr className="border-b border-gray-800">
-                            <th className="text-left py-2 px-3">Parameter</th>
-                            <th className="text-left py-2 px-3">Type</th>
-                            <th className="text-left py-2 px-3">Description</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-gray-800">
-                            <td className="py-2 px-3"><code className="text-primary">page</code></td>
-                            <td className="py-2 px-3">number</td>
-                            <td className="py-2 px-3">Page number (default: 1)</td>
-                          </tr>
-                          <tr className="border-b border-gray-800">
-                            <td className="py-2 px-3"><code className="text-primary">limit</code></td>
-                            <td className="py-2 px-3">number</td>
-                            <td className="py-2 px-3">Items per page (default: 10, max: 100)</td>
-                          </tr>
-                          <tr className="border-b border-gray-800">
-                            <td className="py-2 px-3"><code className="text-primary">search</code></td>
-                            <td className="py-2 px-3">string</td>
-                            <td className="py-2 px-3">Search in title, excerpt, and content</td>
-                          </tr>
-                          <tr>
-                            <td className="py-2 px-3"><code className="text-primary">category</code></td>
-                            <td className="py-2 px-3">string</td>
-                            <td className="py-2 px-3">Filter by category ID</td>
-                          </tr>
-                        </tbody>
-                      </table>
+            <div className="space-y-6">
+              {/* List published blogs */}
+              <div id="blogs-list">
+                <EndpointCard
+                  method="GET"
+                  path="/api/v1/public/blogs"
+                  description="List all published blogs for a site with pagination, search, and filtering."
+                  requiresAuth={true}
+                >
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold mb-2 text-gray-300">Query Parameters</h4>
+                      <div className="bg-black rounded-lg p-4 border border-gray-800">
+                        <table className="w-full text-sm text-gray-300">
+                          <thead>
+                            <tr className="border-b border-gray-800">
+                              <th className="text-left py-2 px-3">Parameter</th>
+                              <th className="text-left py-2 px-3">Type</th>
+                              <th className="text-left py-2 px-3">Description</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-gray-800">
+                              <td className="py-2 px-3">
+                                <code className="text-primary">page</code>
+                              </td>
+                              <td className="py-2 px-3">number</td>
+                              <td className="py-2 px-3">Page number (default: 1)</td>
+                            </tr>
+                            <tr className="border-b border-gray-800">
+                              <td className="py-2 px-3">
+                                <code className="text-primary">limit</code>
+                              </td>
+                              <td className="py-2 px-3">number</td>
+                              <td className="py-2 px-3">Items per page (default: 10, max: 100)</td>
+                            </tr>
+                            <tr className="border-b border-gray-800">
+                              <td className="py-2 px-3">
+                                <code className="text-primary">search</code>
+                              </td>
+                              <td className="py-2 px-3">string</td>
+                              <td className="py-2 px-3">Search in title, excerpt, and content</td>
+                            </tr>
+                            <tr>
+                              <td className="py-2 px-3">
+                                <code className="text-primary">category</code>
+                              </td>
+                              <td className="py-2 px-3">string</td>
+                              <td className="py-2 px-3">Filter by category ID</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                  <CodeBlock
-                    code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs?page=1&limit=20&search=javascript" \\
+                    <CodeBlock
+                      code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs?page=1&limit=20&search=javascript" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
-                    id="get-all-blogs"
-                  />
-                <div>
-                  <h4 className="font-semibold mb-2 text-gray-300">Response</h4>
-                  <CodeBlock
-                    code={`{
+                      id="get-all-blogs"
+                    />
+                    <div>
+                      <h4 className="font-semibold mb-2 text-gray-300">Response</h4>
+                      <CodeBlock
+                        code={`{
   "success": true,
   "message": "Published blogs retrieved successfully",
   "data": {
@@ -347,100 +380,100 @@ x-secret-key: your_secret_key`}
     }
   }
 }`}
-                    id="get-all-blogs-response"
-                  />
-                </div>
+                        id="get-all-blogs-response"
+                      />
+                    </div>
+                  </div>
+                </EndpointCard>
               </div>
-            </EndpointCard>
-            </div>
 
-            {/* Get blog by ID */}
-            <div id="blogs-by-id">
-              <EndpointCard
-                method="GET"
-                path="/api/v1/public/blogs/:id"
-                description="Get a single published blog by ID (workspace inferred from API key)."
-                requiresAuth={true}
-              >
-                <CodeBlock
-                  code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/blog_id_123" \\
-  -H "x-access-key-id: your_access_key_id" \\
-  -H "x-secret-key: your_secret_key"`}
-                  id="get-blog-by-id"
-                />
-              </EndpointCard>
-            </div>
-
-            {/* Get blog by slug */}
-            <div id="blogs-by-slug">
-              <EndpointCard
-                method="GET"
-                path="/api/v1/public/blogs/slug/:slug"
-                description="Get a single published blog by its URL-friendly slug (workspace inferred from API key)."
-                requiresAuth={true}
-              >
-                <CodeBlock
-                  code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/slug/getting-started-with-javascript" \\
-  -H "x-access-key-id: your_access_key_id" \\
-  -H "x-secret-key: your_secret_key"`}
-                  id="get-blog-by-slug"
-                />
-              </EndpointCard>
-            </div>
-
-            {/* Categories */}
-            <div id="blogs-categories">
-              <EndpointCard
-                method="GET"
-                path="/api/v1/public/blogs/categories"
-                description="Get all blog categories. Optional: tree=true, include_inactive=true."
-                requiresAuth={true}
-              >
-                <CodeBlock
-                  code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/categories" \\
-  -H "x-access-key-id: your_access_key_id" \\
-  -H "x-secret-key: your_secret_key"`}
-                  id="get-categories"
-                />
-              </EndpointCard>
-            </div>
-
-            {/* Blogs by category */}
-            <div id="blogs-by-category">
-              <EndpointCard
-                method="GET"
-                path="/api/v1/public/blogs/categories/:categoryId"
-                description="Get published blogs in a specific category. Supports page, limit, search (workspace inferred from API key)."
-                requiresAuth={true}
-              >
-                <div className="space-y-4">
+              {/* Get blog by ID */}
+              <div id="blogs-by-id">
+                <EndpointCard
+                  method="GET"
+                  path="/api/v1/public/blogs/:id"
+                  description="Get a single published blog by ID (workspace inferred from API key)."
+                  requiresAuth={true}
+                >
                   <CodeBlock
-                    code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/categories/category_id_123?page=1&limit=10" \\
+                    code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/blog_id_123" \\
   -H "x-access-key-id: your_access_key_id" \\
   -H "x-secret-key: your_secret_key"`}
-                    id="get-blogs-by-category"
+                    id="get-blog-by-id"
                   />
-                  <p className="text-sm text-gray-500">Query params: page, limit, search.</p>
-                </div>
-              </EndpointCard>
-            </div>
+                </EndpointCard>
+              </div>
 
-            {/* Like Blog */}
-            <EndpointCard
-              method="POST"
-              path="/api/v1/blogs/:id/like"
-              description="Toggle like on a blog post. No authentication required - uses IP address for guests."
-              requiresAuth={false}
-            >
-              <CodeBlock
-                code={`curl -X POST "https://api.bloggr.com/api/v1/blogs/blog_id_123/like" \\
-  -H "Content-Type: application/json"`}
-                id="like-blog"
-              />
-              <div className="mt-4">
-                <h4 className="font-semibold mb-2 text-gray-300">Response</h4>
+              {/* Get blog by slug */}
+              <div id="blogs-by-slug">
+                <EndpointCard
+                  method="GET"
+                  path="/api/v1/public/blogs/slug/:slug"
+                  description="Get a single published blog by its URL-friendly slug (workspace inferred from API key)."
+                  requiresAuth={true}
+                >
+                  <CodeBlock
+                    code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/slug/getting-started-with-javascript" \\
+  -H "x-access-key-id: your_access_key_id" \\
+  -H "x-secret-key: your_secret_key"`}
+                    id="get-blog-by-slug"
+                  />
+                </EndpointCard>
+              </div>
+
+              {/* Categories */}
+              <div id="blogs-categories">
+                <EndpointCard
+                  method="GET"
+                  path="/api/v1/public/blogs/categories"
+                  description="Get all blog categories. Optional: tree=true, include_inactive=true."
+                  requiresAuth={true}
+                >
+                  <CodeBlock
+                    code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/categories" \\
+  -H "x-access-key-id: your_access_key_id" \\
+  -H "x-secret-key: your_secret_key"`}
+                    id="get-categories"
+                  />
+                </EndpointCard>
+              </div>
+
+              {/* Blogs by category */}
+              <div id="blogs-by-category">
+                <EndpointCard
+                  method="GET"
+                  path="/api/v1/public/blogs/categories/:categoryId"
+                  description="Get published blogs in a specific category. Supports page, limit, search (workspace inferred from API key)."
+                  requiresAuth={true}
+                >
+                  <div className="space-y-4">
+                    <CodeBlock
+                      code={`curl -X GET "https://api.bloggr.com/api/v1/public/blogs/categories/category_id_123?page=1&limit=10" \\
+  -H "x-access-key-id: your_access_key_id" \\
+  -H "x-secret-key: your_secret_key"`}
+                      id="get-blogs-by-category"
+                    />
+                    <p className="text-sm text-gray-500">Query params: page, limit, search.</p>
+                  </div>
+                </EndpointCard>
+              </div>
+
+              {/* Like Blog */}
+              <EndpointCard
+                method="POST"
+                path="/api/v1/blogs/:id/like"
+                description="Toggle like on a blog post. No authentication required - uses IP address for guests."
+                requiresAuth={false}
+              >
                 <CodeBlock
-                  code={`{
+                  code={`curl -X POST "https://api.bloggr.com/api/v1/blogs/blog_id_123/like" \\
+  -H "Content-Type: application/json"`}
+                  id="like-blog"
+                />
+                <div className="mt-4">
+                  <h4 className="font-semibold mb-2 text-gray-300">Response</h4>
+                  <CodeBlock
+                    code={`{
   "success": true,
   "message": "Like toggled successfully",
   "data": {
@@ -448,41 +481,41 @@ x-secret-key: your_secret_key`}
     "likes": 43
   }
 }`}
-                  id="like-blog-response"
-                />
-              </div>
-            </EndpointCard>
-          </div>
-        </section>
+                    id="like-blog-response"
+                  />
+                </div>
+              </EndpointCard>
+            </div>
+          </section>
 
-        {/* Comment Endpoints */}
-        <section id="comments" className="mb-20">
-          <h2 className="text-4xl font-bold mb-8">4. Comment Endpoints</h2>
+          {/* Comment Endpoints */}
+          <section id="comments" className="mb-20">
+            <h2 className="text-4xl font-bold mb-8">4. Comment Endpoints</h2>
 
-          <div className="space-y-6">
-            {/* Create Comment */}
-            <EndpointCard
-              method="POST"
-              path="/api/v1/comments"
-              description="Create a comment on a published blog. No authentication required for guests."
-              requiresAuth={false}
-            >
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2 text-gray-300">Request Body</h4>
-                  <CodeBlock
-                    code={`{
+            <div className="space-y-6">
+              {/* Create Comment */}
+              <EndpointCard
+                method="POST"
+                path="/api/v1/comments"
+                description="Create a comment on a published blog. No authentication required for guests."
+                requiresAuth={false}
+              >
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2 text-gray-300">Request Body</h4>
+                    <CodeBlock
+                      code={`{
   "blog": "blog_id_123",
   "author_name": "John Doe",
   "author_email": "john@example.com",  // Optional
   "content": "Great post! This was very helpful.",
   "parent_comment": "comment_id_456"  // Optional, for replies
 }`}
-                    id="create-comment-body"
-                  />
-                </div>
-                <CodeBlock
-                  code={`curl -X POST "https://api.bloggr.com/api/v1/comments" \\
+                      id="create-comment-body"
+                    />
+                  </div>
+                  <CodeBlock
+                    code={`curl -X POST "https://api.bloggr.com/api/v1/comments" \\
   -H "Content-Type: application/json" \\
   -d '{
     "blog": "blog_id_123",
@@ -490,53 +523,57 @@ x-secret-key: your_secret_key`}
     "author_email": "john@example.com",
     "content": "Great post!"
   }'`}
-                  id="create-comment"
-                />
-              </div>
-            </EndpointCard>
-
-            {/* Get Comments */}
-            <EndpointCard
-              method="GET"
-              path="/api/v1/comments/blog/:blogId"
-              description="Get all comments for a specific blog with pagination."
-              requiresAuth={false}
-            >
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2 text-gray-300">Query Parameters</h4>
-                  <div className="bg-black rounded-lg p-4 border border-gray-800">
-                    <table className="w-full text-sm text-gray-300">
-                      <thead>
-                        <tr className="border-b border-gray-800">
-                          <th className="text-left py-2 px-3">Parameter</th>
-                          <th className="text-left py-2 px-3">Type</th>
-                          <th className="text-left py-2 px-3">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b border-gray-800">
-                          <td className="py-2 px-3"><code className="text-primary">page</code></td>
-                          <td className="py-2 px-3">number</td>
-                          <td className="py-2 px-3">Page number (default: 1)</td>
-                        </tr>
-                        <tr>
-                          <td className="py-2 px-3"><code className="text-primary">limit</code></td>
-                          <td className="py-2 px-3">number</td>
-                          <td className="py-2 px-3">Items per page (default: 10, max: 100)</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                    id="create-comment"
+                  />
                 </div>
-                <CodeBlock
-                  code={`curl -X GET "https://api.bloggr.com/api/v1/comments/blog/blog_id_123?page=1&limit=20"`}
-                  id="get-comments"
-                />
-                <div>
-                  <h4 className="font-semibold mb-2 text-gray-300">Response</h4>
+              </EndpointCard>
+
+              {/* Get Comments */}
+              <EndpointCard
+                method="GET"
+                path="/api/v1/comments/blog/:blogId"
+                description="Get all comments for a specific blog with pagination."
+                requiresAuth={false}
+              >
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2 text-gray-300">Query Parameters</h4>
+                    <div className="bg-black rounded-lg p-4 border border-gray-800">
+                      <table className="w-full text-sm text-gray-300">
+                        <thead>
+                          <tr className="border-b border-gray-800">
+                            <th className="text-left py-2 px-3">Parameter</th>
+                            <th className="text-left py-2 px-3">Type</th>
+                            <th className="text-left py-2 px-3">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-gray-800">
+                            <td className="py-2 px-3">
+                              <code className="text-primary">page</code>
+                            </td>
+                            <td className="py-2 px-3">number</td>
+                            <td className="py-2 px-3">Page number (default: 1)</td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 px-3">
+                              <code className="text-primary">limit</code>
+                            </td>
+                            <td className="py-2 px-3">number</td>
+                            <td className="py-2 px-3">Items per page (default: 10, max: 100)</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                   <CodeBlock
-                    code={`{
+                    code={`curl -X GET "https://api.bloggr.com/api/v1/comments/blog/blog_id_123?page=1&limit=20"`}
+                    id="get-comments"
+                  />
+                  <div>
+                    <h4 className="font-semibold mb-2 text-gray-300">Response</h4>
+                    <CodeBlock
+                      code={`{
   "success": true,
   "message": "Comments retrieved successfully",
   "data": {
@@ -561,64 +598,64 @@ x-secret-key: your_secret_key`}
     }
   }
 }`}
-                    id="get-comments-response"
-                  />
+                      id="get-comments-response"
+                    />
+                  </div>
                 </div>
-              </div>
-            </EndpointCard>
+              </EndpointCard>
 
-            {/* Get Comment by ID */}
-            <EndpointCard
-              method="GET"
-              path="/api/v1/comments/:id"
-              description="Get a single comment by its ID."
-              requiresAuth={false}
-            >
-              <CodeBlock
-                code={`curl -X GET "https://api.bloggr.com/api/v1/comments/comment_id_123"`}
-                id="get-comment-by-id"
-              />
-            </EndpointCard>
+              {/* Get Comment by ID */}
+              <EndpointCard
+                method="GET"
+                path="/api/v1/comments/:id"
+                description="Get a single comment by its ID."
+                requiresAuth={false}
+              >
+                <CodeBlock
+                  code={`curl -X GET "https://api.bloggr.com/api/v1/comments/comment_id_123"`}
+                  id="get-comment-by-id"
+                />
+              </EndpointCard>
 
-            {/* Get Comment Replies */}
-            <EndpointCard
-              method="GET"
-              path="/api/v1/comments/:commentId/replies"
-              description="Get all replies to a specific comment."
-              requiresAuth={false}
-            >
-              <CodeBlock
-                code={`curl -X GET "https://api.bloggr.com/api/v1/comments/comment_id_123/replies"`}
-                id="get-comment-replies"
-              />
-            </EndpointCard>
+              {/* Get Comment Replies */}
+              <EndpointCard
+                method="GET"
+                path="/api/v1/comments/:commentId/replies"
+                description="Get all replies to a specific comment."
+                requiresAuth={false}
+              >
+                <CodeBlock
+                  code={`curl -X GET "https://api.bloggr.com/api/v1/comments/comment_id_123/replies"`}
+                  id="get-comment-replies"
+                />
+              </EndpointCard>
 
-            {/* Like Comment */}
-            <EndpointCard
-              method="POST"
-              path="/api/v1/comments/:id/like"
-              description="Toggle like on a comment. No authentication required."
-              requiresAuth={false}
-            >
-              <CodeBlock
-                code={`curl -X POST "https://api.bloggr.com/api/v1/comments/comment_id_123/like" \\
+              {/* Like Comment */}
+              <EndpointCard
+                method="POST"
+                path="/api/v1/comments/:id/like"
+                description="Toggle like on a comment. No authentication required."
+                requiresAuth={false}
+              >
+                <CodeBlock
+                  code={`curl -X POST "https://api.bloggr.com/api/v1/comments/comment_id_123/like" \\
   -H "Content-Type: application/json"`}
-                id="like-comment"
-              />
-            </EndpointCard>
-          </div>
-        </section>
+                  id="like-comment"
+                />
+              </EndpointCard>
+            </div>
+          </section>
 
-        {/* Frontend Examples */}
-        <section id="frontend-examples" className="mb-20">
-          <h2 className="text-4xl font-bold mb-8">5. Frontend Integration Examples</h2>
+          {/* Frontend Examples */}
+          <section id="frontend-examples" className="mb-20">
+            <h2 className="text-4xl font-bold mb-8">5. Frontend Integration Examples</h2>
 
-          <div className="space-y-8">
-            {/* JavaScript/TypeScript Example */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-              <h3 className="text-2xl font-semibold mb-4 text-primary">JavaScript/TypeScript Example</h3>
-              <CodeBlock
-                code={`// API Configuration
+            <div className="space-y-8">
+              {/* JavaScript/TypeScript Example */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+                <h3 className="text-2xl font-semibold mb-4 text-primary">JavaScript/TypeScript Example</h3>
+                <CodeBlock
+                  code={`// API Configuration
 const API_BASE_URL = 'https://api.bloggr.com/api/v1';
 const ACCESS_KEY_ID = 'your_access_key_id';
 const SECRET_KEY = 'your_secret_key';
@@ -701,15 +738,15 @@ async function fetchComments(blogId, page = 1, limit = 20) {
   const data = await response.json();
   return data.data;
 }`}
-                id="js-example"
-              />
-            </div>
+                  id="js-example"
+                />
+              </div>
 
-            {/* React Component Example */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-              <h3 className="text-2xl font-semibold mb-4 text-primary">React Component Example</h3>
-              <CodeBlock
-                code={`import { useState, useEffect } from 'react';
+              {/* React Component Example */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+                <h3 className="text-2xl font-semibold mb-4 text-primary">React Component Example</h3>
+                <CodeBlock
+                  code={`import { useState, useEffect } from 'react';
 
 function BlogList() {
   const [blogs, setBlogs] = useState([]);
@@ -799,15 +836,15 @@ function BlogList() {
     </div>
   );
 }`}
-                id="react-example"
-              />
-            </div>
+                  id="react-example"
+                />
+              </div>
 
-            {/* Comment Component Example */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-              <h3 className="text-2xl font-semibold mb-4 text-primary">Comment Component Example</h3>
-              <CodeBlock
-                code={`function CommentSection({ blogId }) {
+              {/* Comment Component Example */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+                <h3 className="text-2xl font-semibold mb-4 text-primary">Comment Component Example</h3>
+                <CodeBlock
+                  code={`function CommentSection({ blogId }) {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState({ name: '', email: '', content: '' });
 
@@ -914,15 +951,15 @@ function BlogList() {
     </div>
   );
 }`}
-                id="comment-component"
-              />
-            </div>
+                  id="comment-component"
+                />
+              </div>
 
-            {/* CSS Styling Example */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-              <h3 className="text-2xl font-semibold mb-4 text-primary">CSS Styling Example</h3>
-              <CodeBlock
-                code={`.blog-grid {
+              {/* CSS Styling Example */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+                <h3 className="text-2xl font-semibold mb-4 text-primary">CSS Styling Example</h3>
+                <CodeBlock
+                  code={`.blog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 2rem;
@@ -1010,38 +1047,38 @@ function BlogList() {
   padding-left: 1rem;
   border-left: 2px solid #333;
 }`}
-                id="css-example"
-              />
+                  id="css-example"
+                />
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Error Handling */}
-        <section className="mb-20">
-          <h2 className="text-4xl font-bold mb-8">Error Handling</h2>
-          
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-            <p className="text-gray-400 mb-4">
-              All API responses follow a consistent format. Errors are returned with appropriate HTTP status codes:
-            </p>
-            
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold mb-2 text-gray-300">Success Response</h4>
-                <CodeBlock
-                  code={`{
+          {/* Error Handling */}
+          <section className="mb-20">
+            <h2 className="text-4xl font-bold mb-8">Error Handling</h2>
+
+            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+              <p className="text-gray-400 mb-4">
+                All API responses follow a consistent format. Errors are returned with appropriate HTTP status codes:
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-2 text-gray-300">Success Response</h4>
+                  <CodeBlock
+                    code={`{
   "success": true,
   "message": "Operation successful",
   "data": { ... }
 }`}
-                  id="success-response"
-                />
-              </div>
+                    id="success-response"
+                  />
+                </div>
 
-              <div>
-                <h4 className="font-semibold mb-2 text-gray-300">Error Response</h4>
-                <CodeBlock
-                  code={`{
+                <div>
+                  <h4 className="font-semibold mb-2 text-gray-300">Error Response</h4>
+                  <CodeBlock
+                    code={`{
   "success": false,
   "message": "Error message",
   "error": {
@@ -1049,37 +1086,47 @@ function BlogList() {
     "details": "Additional error details"
   }
 }`}
-                  id="error-response"
-                />
-              </div>
+                    id="error-response"
+                  />
+                </div>
 
-              <div className="bg-black rounded-lg p-4 border border-gray-800">
-                <h4 className="font-semibold mb-3 text-gray-300">Common HTTP Status Codes</h4>
-                <ul className="space-y-2 text-sm text-gray-300">
-                  <li><code className="text-green-400">200</code> - Success</li>
-                  <li><code className="text-blue-400">201</code> - Created</li>
-                  <li><code className="text-yellow-400">400</code> - Bad Request</li>
-                  <li><code className="text-orange-400">401</code> - Unauthorized (Invalid API key)</li>
-                  <li><code className="text-red-400">404</code> - Not Found</li>
-                  <li><code className="text-red-400">500</code> - Internal Server Error</li>
-                </ul>
+                <div className="bg-black rounded-lg p-4 border border-gray-800">
+                  <h4 className="font-semibold mb-3 text-gray-300">Common HTTP Status Codes</h4>
+                  <ul className="space-y-2 text-sm text-gray-300">
+                    <li>
+                      <code className="text-green-400">200</code> - Success
+                    </li>
+                    <li>
+                      <code className="text-blue-400">201</code> - Created
+                    </li>
+                    <li>
+                      <code className="text-yellow-400">400</code> - Bad Request
+                    </li>
+                    <li>
+                      <code className="text-orange-400">401</code> - Unauthorized (Invalid API key)
+                    </li>
+                    <li>
+                      <code className="text-red-400">404</code> - Not Found
+                    </li>
+                    <li>
+                      <code className="text-red-400">500</code> - Internal Server Error
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* CTA */}
-        <div className="bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-2xl border border-primary/30 p-8 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
-          <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-            Create your API keys and start building amazing integrations with Bloggr.
-          </p>
-          <Link href="/auth/signup">
-            <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">
-              Sign Up Free
-            </Button>
-          </Link>
-        </div>
+          {/* CTA */}
+          <div className="bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-2xl border border-primary/30 p-8 text-center">
+            <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
+            <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+              Create your API keys and start building amazing integrations with Bloggr.
+            </p>
+            <Link href="/auth/signup">
+              <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">Sign Up Free</Button>
+            </Link>
+          </div>
         </main>
       </div>
 

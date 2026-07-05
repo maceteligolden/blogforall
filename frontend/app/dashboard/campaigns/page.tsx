@@ -76,9 +76,7 @@ export default function CampaignsPage() {
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
-                  statusFilter === status
-                    ? "bg-primary text-white"
-                    : "text-gray-400 hover:text-white"
+                  statusFilter === status ? "bg-primary text-white" : "text-gray-400 hover:text-white"
                 }`}
               >
                 {status}
@@ -110,9 +108,7 @@ export default function CampaignsPage() {
                 onClick={() => router.push(`/dashboard/campaigns/${campaign._id}`)}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white line-clamp-2 flex-1">
-                    {campaign.name}
-                  </h3>
+                  <h3 className="text-lg font-semibold text-white line-clamp-2 flex-1">{campaign.name}</h3>
                   <span
                     className={`ml-2 px-2 py-1 text-xs rounded capitalize whitespace-nowrap ${
                       campaign.status === "active"
@@ -149,15 +145,11 @@ export default function CampaignsPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Start Date:</span>
-                    <span className="text-gray-300">
-                      {new Date(campaign.start_date).toLocaleDateString()}
-                    </span>
+                    <span className="text-gray-300">{new Date(campaign.start_date).toLocaleDateString()}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">End Date:</span>
-                    <span className="text-gray-300">
-                      {new Date(campaign.end_date).toLocaleDateString()}
-                    </span>
+                    <span className="text-gray-300">{new Date(campaign.end_date).toLocaleDateString()}</span>
                   </div>
                 </div>
 
@@ -197,7 +189,11 @@ export default function CampaignsPage() {
                       className="flex-1 border-red-600 text-red-400 hover:bg-red-900/20"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm("Are you sure you want to cancel this campaign? This will cancel all scheduled posts.")) {
+                        if (
+                          confirm(
+                            "Are you sure you want to cancel this campaign? This will cancel all scheduled posts."
+                          )
+                        ) {
                           cancelCampaign.mutate(campaign._id);
                         }
                       }}

@@ -8,11 +8,7 @@ import { cn } from "@/lib/utils/cn";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import { QUERY_KEYS } from "@/lib/api/config";
-import type {
-  ChatTurnResponse,
-  OrchestratorApproval,
-  OrchestratorMessage,
-} from "@/lib/api/types/orchestrator.types";
+import type { ChatTurnResponse, OrchestratorApproval, OrchestratorMessage } from "@/lib/api/types/orchestrator.types";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 import { FullConversationView, type ConversationStatus } from "./full-conversation-view";
@@ -80,8 +76,7 @@ export function OrchestratorChat({
   const { data: tokenUsage } = useTokenUsage();
   const invalidateTokenUsage = useInvalidateTokenUsage();
   const { showFromError } = useTokenExhaustion();
-  const tokensExhausted =
-    tokenUsage && !tokenUsage.unlimited && tokenUsage.available <= 0;
+  const tokensExhausted = tokenUsage && !tokenUsage.unlimited && tokenUsage.available <= 0;
 
   const [input, setInput] = useState("");
   const [optimisticMessages, setOptimisticMessages] = useState<OptimisticMessage[]>([]);
@@ -183,8 +178,7 @@ export function OrchestratorChat({
       });
     },
     onError: (err: unknown) => {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
-        ?.message;
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setRenameError(apiMessage ?? "Could not rename conversation.");
     },
   });
@@ -197,9 +191,7 @@ export function OrchestratorChat({
   }, [editingThreadId]);
 
   const activeThreadTitle =
-    threadQuery.data?.thread?.title ??
-    threadsQuery.data?.find((t) => t._id === threadId)?.title ??
-    "New conversation";
+    threadQuery.data?.thread?.title ?? threadsQuery.data?.find((t) => t._id === threadId)?.title ?? "New conversation";
 
   const startRenameThread = (id: string, currentTitle: string) => {
     if (pending) return;
@@ -245,34 +237,25 @@ export function OrchestratorChat({
   };
 
   useEffect(() => {
-    const latest = threadQuery.data?.messages?.find(
-      (m) => m.role === "assistant" && m.pending_approval_id
-    );
+    const latest = threadQuery.data?.messages?.find((m) => m.role === "assistant" && m.pending_approval_id);
     if (!latest) {
       setPendingApproval((prev) => (prev?.id ? null : prev));
     }
   }, [threadQuery.data]);
 
   const combinedMessages = useMemo<OptimisticMessage[]>(() => {
-    const persisted: OptimisticMessage[] = (threadQuery.data?.messages ?? []).map(
-      (m: OrchestratorMessage) => {
-        const toolArtifactId =
-          m.role === "tool"
-            ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts)
-            : undefined;
-        const assistantArtifactId =
-          m.role === "assistant"
-            ? findArtifactIdForAssistantMessage(m, artifacts)
-            : undefined;
-        return {
-          id: m._id,
-          role: m.role === "system" ? "assistant" : m.role,
-          content: m.content,
-          toolName: m.tool_name,
-          artifactId: toolArtifactId ?? assistantArtifactId,
-        };
-      }
-    );
+    const persisted: OptimisticMessage[] = (threadQuery.data?.messages ?? []).map((m: OrchestratorMessage) => {
+      const toolArtifactId =
+        m.role === "tool" ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts) : undefined;
+      const assistantArtifactId = m.role === "assistant" ? findArtifactIdForAssistantMessage(m, artifacts) : undefined;
+      return {
+        id: m._id,
+        role: m.role === "system" ? "assistant" : m.role,
+        content: m.content,
+        toolName: m.tool_name,
+        artifactId: toolArtifactId ?? assistantArtifactId,
+      };
+    });
     return [...persisted, ...optimisticMessages];
   }, [threadQuery.data, optimisticMessages, artifacts]);
 
@@ -286,9 +269,7 @@ export function OrchestratorChat({
     if (!el) return;
     const count = combinedMessages.length + (pending ? 1 : 0);
     const shouldScroll =
-      pending !== null ||
-      count > prevMessageCountRef.current ||
-      (count > 0 && prevMessageCountRef.current === 0);
+      pending !== null || count > prevMessageCountRef.current || (count > 0 && prevMessageCountRef.current === 0);
     prevMessageCountRef.current = count;
     if (!shouldScroll) return;
     requestAnimationFrame(() => {
@@ -311,18 +292,13 @@ export function OrchestratorChat({
     setPending({ userText: text });
     orchestratorTracker.messageSent({ thread_id: threadId ?? undefined });
     try {
-      const res: ChatTurnResponse = await OrchestratorService.chat(
-        currentSiteId,
-        text,
-        threadId ?? undefined,
-        {
-          sessionMode,
-          attachments: pendingAttachments.length ? pendingAttachments : undefined,
-          selectionContext: selectionContext
-            ? { blogId: selectionContext.blogId, selectedText: selectionContext.selectedText }
-            : undefined,
-        }
-      );
+      const res: ChatTurnResponse = await OrchestratorService.chat(currentSiteId, text, threadId ?? undefined, {
+        sessionMode,
+        attachments: pendingAttachments.length ? pendingAttachments : undefined,
+        selectionContext: selectionContext
+          ? { blogId: selectionContext.blogId, selectedText: selectionContext.selectedText }
+          : undefined,
+      });
       const newOptimistic: OptimisticMessage[] = [];
       const newLiveArtifacts: OrchestratorArtifact[] = [];
       for (const call of res.tool_calls ?? []) {
@@ -354,10 +330,7 @@ export function OrchestratorChat({
         id: res.assistant_message.id,
         role: "assistant",
         content: res.assistant_message.content,
-        artifactId:
-          newLiveArtifacts.length > 0
-            ? newLiveArtifacts[newLiveArtifacts.length - 1]?.id
-            : undefined,
+        artifactId: newLiveArtifacts.length > 0 ? newLiveArtifacts[newLiveArtifacts.length - 1]?.id : undefined,
       });
       if (voiceMode && res.assistant_message.content !== lastSpokenRef.current) {
         lastSpokenRef.current = res.assistant_message.content;
@@ -541,9 +514,7 @@ export function OrchestratorChat({
               </div>
             ) : (
               <div className="flex items-center gap-1 min-w-0">
-                <p className="text-sm font-semibold truncate">
-                  {threadId ? activeThreadTitle : "New conversation"}
-                </p>
+                <p className="text-sm font-semibold truncate">{threadId ? activeThreadTitle : "New conversation"}</p>
                 {threadId && (
                   <button
                     type="button"
@@ -608,15 +579,12 @@ export function OrchestratorChat({
             </div>
             <h2 className="text-2xl font-semibold">How can I help today?</h2>
             <p className="text-sm text-gray-400 mt-2 max-w-lg mx-auto">
-              Ask me to draft a blog post, list scheduled content, create a category,
-              or look up performance for this workspace. I&apos;ll confirm any
-              destructive actions before running them.
+              Ask me to draft a blog post, list scheduled content, create a category, or look up performance for this
+              workspace. I&apos;ll confirm any destructive actions before running them.
             </p>
           </div>
         )}
-        {threadQuery.isLoading && threadId && (
-          <p className="text-xs text-gray-500">Loading conversation…</p>
-        )}
+        {threadQuery.isLoading && threadId && <p className="text-xs text-gray-500">Loading conversation…</p>}
         {combinedMessages.map((m) => (
           <ChatMessage
             key={m.id}
@@ -629,15 +597,11 @@ export function OrchestratorChat({
         ))}
         {pending && <ThinkingIndicator />}
         {error && (
-          <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">
-            {error}
-          </div>
+          <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">{error}</div>
         )}
         {pendingApproval && (
           <div className="rounded-xl border border-yellow-700/60 bg-yellow-900/20 p-4">
-            <p className="text-sm font-medium text-yellow-100">
-              Confirmation needed: {pendingApproval.action}
-            </p>
+            <p className="text-sm font-medium text-yellow-100">Confirmation needed: {pendingApproval.action}</p>
             <p className="text-xs text-yellow-200/80 mt-1">{pendingApproval.summary}</p>
             <div className="flex gap-2 mt-3">
               <Button
@@ -689,8 +653,7 @@ export function OrchestratorChat({
           }
         />
         <p className="mt-2 text-xs text-gray-500">
-          Destructive actions (delete, publish, unpublish) always ask for an in-chat
-          confirmation before running.
+          Destructive actions (delete, publish, unpublish) always ask for an in-chat confirmation before running.
         </p>
       </div>
 

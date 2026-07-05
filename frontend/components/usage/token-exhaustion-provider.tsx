@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { parseTokenLimitError } from "@/lib/utils/token-limit-error";
 import { TokenExhaustionModal } from "./token-exhaustion-modal";
 
@@ -42,20 +35,12 @@ export function TokenExhaustionProvider({ children }: { children: ReactNode }) {
     [show]
   );
 
-  const value = useMemo(
-    () => ({ showFromError, show, close }),
-    [showFromError, show, close]
-  );
+  const value = useMemo(() => ({ showFromError, show, close }), [showFromError, show, close]);
 
   return (
     <TokenExhaustionContext.Provider value={value}>
       {children}
-      <TokenExhaustionModal
-        isOpen={open}
-        onClose={close}
-        resetAt={resetAt}
-        message={message}
-      />
+      <TokenExhaustionModal isOpen={open} onClose={close} resetAt={resetAt} message={message} />
     </TokenExhaustionContext.Provider>
   );
 }

@@ -148,18 +148,12 @@ export function BlogReviewCard({
               >
                 <div className="flex items-start justify-between gap-4 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className={getPriorityColor(suggestion.priority)}>
-                      {suggestion.priority}
-                    </Badge>
+                    <Badge className={getPriorityColor(suggestion.priority)}>{suggestion.priority}</Badge>
                     <Badge variant="outline" className="border-gray-700 text-gray-300">
                       {getTypeLabel(suggestion.type)}
                     </Badge>
-                    {suggestion.line && (
-                      <span className="text-xs text-gray-500">Line {suggestion.line}</span>
-                    )}
-                    {suggestion.section && (
-                      <span className="text-xs text-gray-500">{suggestion.section}</span>
-                    )}
+                    {suggestion.line && <span className="text-xs text-gray-500">Line {suggestion.line}</span>}
+                    {suggestion.section && <span className="text-xs text-gray-500">{suggestion.section}</span>}
                   </div>
                   <input
                     type="checkbox"
@@ -179,9 +173,7 @@ export function BlogReviewCard({
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-1">Suggestion:</p>
-                    <p className="text-sm text-white bg-gray-900/50 rounded p-2">
-                      {suggestion.suggestion}
-                    </p>
+                    <p className="text-sm text-white bg-gray-900/50 rounded p-2">{suggestion.suggestion}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400 mb-1">Explanation:</p>

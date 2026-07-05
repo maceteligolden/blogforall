@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { WaitlistService } from "../../../modules/waitlist/services/waitlist.service";
+import { WaitlistRepository } from "../../../modules/waitlist/repositories/waitlist.repository";
+import { BrevoFacade } from "../../../shared/facade/brevo.facade";
+import { NotificationService } from "../../../modules/notification/services/notification.service";
 import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 
 const mockFindByEmail = jest.fn<() => Promise<unknown>>();
@@ -35,13 +38,13 @@ describe("WaitlistService", () => {
         create: mockCreate,
         updateProfile: mockUpdateProfile,
         updateBrevoSync: mockUpdateBrevoSync,
-      } as any,
+      } as unknown as WaitlistRepository,
       {
         createOrUpdateContact: mockCreateOrUpdateContact,
-      } as any,
+      } as unknown as BrevoFacade,
       {
         createAndSend: mockCreateAndSend,
-      } as any
+      } as unknown as NotificationService
     );
   });
 

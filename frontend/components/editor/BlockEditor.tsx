@@ -2,14 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { ContentBlock, ContentBlockType } from "@/lib/types/blog";
-import {
-  ParagraphBlock,
-  HeadingBlock,
-  ListBlock,
-  BlockquoteBlock,
-  CodeBlock,
-  ImageBlock,
-} from "./blocks";
+import { ParagraphBlock, HeadingBlock, ListBlock, BlockquoteBlock, CodeBlock, ImageBlock } from "./blocks";
 import { BlockMenu } from "./BlockMenu";
 
 function generateBlockId(): string {
@@ -32,7 +25,7 @@ interface BlockEditorProps {
 }
 
 export function BlockEditor({ value, onChange, placeholder, className = "", onUploadImage }: BlockEditorProps) {
-  const blocks = (Array.isArray(value) && value.length > 0) ? value : [DEFAULT_BLOCK];
+  const blocks = Array.isArray(value) && value.length > 0 ? value : [DEFAULT_BLOCK];
   const blockRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [menuOpenAt, setMenuOpenAt] = useState<number | null>(null);
   const [uploadStatus, setUploadStatus] = useState<Record<string, "uploading" | "failed">>({});
@@ -59,7 +52,12 @@ export function BlockEditor({ value, onChange, placeholder, className = "", onUp
       const newBlock: ContentBlock = {
         id: generateBlockId(),
         type,
-        data: type === "heading" ? { ...data, level: data.level ?? 1 } : type === "list" ? { ...data, items: data.items ?? [""], listType: data.listType ?? "bullet" } : data,
+        data:
+          type === "heading"
+            ? { ...data, level: data.level ?? 1 }
+            : type === "list"
+              ? { ...data, items: data.items ?? [""], listType: data.listType ?? "bullet" }
+              : data,
       };
       const next = [...blocks];
       next.splice(index + 1, 0, newBlock);
@@ -92,7 +90,11 @@ export function BlockEditor({ value, onChange, placeholder, className = "", onUp
     (type: ContentBlockType, extra?: { level?: number; listType?: "bullet" | "ordered" }) => {
       if (menuOpenAt === null) return;
       const data: ContentBlock["data"] =
-        type === "heading" ? { level: extra?.level ?? 1, text: "" } : type === "list" ? { items: [""], listType: extra?.listType ?? "bullet" } : {};
+        type === "heading"
+          ? { level: extra?.level ?? 1, text: "" }
+          : type === "list"
+            ? { items: [""], listType: extra?.listType ?? "bullet" }
+            : {};
       insertBlockAfter(menuOpenAt, type, data);
       setMenuOpenAt(null);
     },
@@ -112,7 +114,12 @@ export function BlockEditor({ value, onChange, placeholder, className = "", onUp
       }
       if (e.key === "Enter" && !e.shiftKey) {
         const block = blocks[index];
-        if (block.type === "paragraph" || block.type === "heading" || block.type === "blockquote" || block.type === "code") {
+        if (
+          block.type === "paragraph" ||
+          block.type === "heading" ||
+          block.type === "blockquote" ||
+          block.type === "code"
+        ) {
           e.preventDefault();
           insertBlockAfter(index, "paragraph");
         }
@@ -182,16 +189,15 @@ export function BlockEditor({ value, onChange, placeholder, className = "", onUp
     <div className={`relative space-y-1 ${className}`}>
       {menuOpenAt !== null && (
         <div className="mb-2">
-          <BlockMenu
-            onSelect={handleMenuSelect}
-            onClose={() => setMenuOpenAt(null)}
-          />
+          <BlockMenu onSelect={handleMenuSelect} onClose={() => setMenuOpenAt(null)} />
         </div>
       )}
       {(blocks ?? []).map((block, index) => (
         <div
           key={block.id}
-          ref={(el) => { blockRefs.current[index] = el; }}
+          ref={(el) => {
+            blockRefs.current[index] = el;
+          }}
           className="group relative flex gap-1"
         >
           <button
@@ -203,52 +209,52 @@ export function BlockEditor({ value, onChange, placeholder, className = "", onUp
             +
           </button>
           <div className="min-w-0 flex-1">
-          {block.type === "paragraph" && (
-            <ParagraphBlock
-              block={block}
-              onChange={(data) => updateBlockData(index, data)}
-              onKeyDown={createKeyDownHandler(index)}
-              placeholder={index === 0 ? placeholder : undefined}
-            />
-          )}
-          {block.type === "heading" && (
-            <HeadingBlock
-              block={block}
-              onChange={(data) => updateBlockData(index, data)}
-              onKeyDown={createKeyDownHandler(index)}
-            />
-          )}
-          {block.type === "list" && (
-            <ListBlock
-              block={block}
-              onChange={(data) => updateBlockData(index, data)}
-              onKeyDown={createKeyDownHandler(index)}
-            />
-          )}
-          {block.type === "blockquote" && (
-            <BlockquoteBlock
-              block={block}
-              onChange={(data) => updateBlockData(index, data)}
-              onKeyDown={createKeyDownHandler(index)}
-            />
-          )}
-          {block.type === "code" && (
-            <CodeBlock
-              block={block}
-              onChange={(data) => updateBlockData(index, data)}
-              onKeyDown={createKeyDownHandler(index)}
-            />
-          )}
-          {block.type === "image" && (
-            <ImageBlock
-              block={block}
-              onChange={(data) => updateBlockData(index, data)}
-              onKeyDown={createKeyDownHandler(index)}
-              uploadStatus={uploadStatus[block.id]}
-              onFileSelect={onUploadImage ? (file) => handleImageUpload(index, file) : undefined}
-              onRetry={uploadStatus[block.id] === "failed" ? () => handleImageRetry(index) : undefined}
-            />
-          )}
+            {block.type === "paragraph" && (
+              <ParagraphBlock
+                block={block}
+                onChange={(data) => updateBlockData(index, data)}
+                onKeyDown={createKeyDownHandler(index)}
+                placeholder={index === 0 ? placeholder : undefined}
+              />
+            )}
+            {block.type === "heading" && (
+              <HeadingBlock
+                block={block}
+                onChange={(data) => updateBlockData(index, data)}
+                onKeyDown={createKeyDownHandler(index)}
+              />
+            )}
+            {block.type === "list" && (
+              <ListBlock
+                block={block}
+                onChange={(data) => updateBlockData(index, data)}
+                onKeyDown={createKeyDownHandler(index)}
+              />
+            )}
+            {block.type === "blockquote" && (
+              <BlockquoteBlock
+                block={block}
+                onChange={(data) => updateBlockData(index, data)}
+                onKeyDown={createKeyDownHandler(index)}
+              />
+            )}
+            {block.type === "code" && (
+              <CodeBlock
+                block={block}
+                onChange={(data) => updateBlockData(index, data)}
+                onKeyDown={createKeyDownHandler(index)}
+              />
+            )}
+            {block.type === "image" && (
+              <ImageBlock
+                block={block}
+                onChange={(data) => updateBlockData(index, data)}
+                onKeyDown={createKeyDownHandler(index)}
+                uploadStatus={uploadStatus[block.id]}
+                onFileSelect={onUploadImage ? (file) => handleImageUpload(index, file) : undefined}
+                onRetry={uploadStatus[block.id] === "failed" ? () => handleImageRetry(index) : undefined}
+              />
+            )}
           </div>
         </div>
       ))}

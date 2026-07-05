@@ -115,12 +115,7 @@ class AppLoggerImpl {
     }
   }
 
-  error(
-    message: string,
-    error?: Error | unknown,
-    metadata?: LogMetadata,
-    context?: string
-  ): void {
+  error(message: string, error?: Error | unknown, metadata?: LogMetadata, context?: string): void {
     try {
       const err = error instanceof Error ? error : error ? new Error(String(error)) : undefined;
       const entry = this.formatEntry("error", message, metadata, context, err);
@@ -138,12 +133,7 @@ class AppLoggerImpl {
     }
   }
 
-  critical(
-    message: string,
-    error?: Error | unknown,
-    metadata?: LogMetadata,
-    context?: string
-  ): void {
+  critical(message: string, error?: Error | unknown, metadata?: LogMetadata, context?: string): void {
     try {
       const err = error instanceof Error ? error : error ? new Error(String(error)) : new Error(message);
       const entry = this.formatEntry("critical", message, metadata, context, err);

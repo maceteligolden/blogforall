@@ -13,7 +13,14 @@ interface ImageBlockProps {
   onRetry?: () => void;
 }
 
-export function ImageBlock({ block, onChange, onKeyDown, uploadStatus = "idle", onFileSelect, onRetry }: ImageBlockProps) {
+export function ImageBlock({
+  block,
+  onChange,
+  onKeyDown,
+  uploadStatus = "idle",
+  onFileSelect,
+  onRetry,
+}: ImageBlockProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const url = block.data?.url ?? "";
   const caption = block.data?.caption ?? "";
@@ -36,7 +43,7 @@ export function ImageBlock({ block, onChange, onKeyDown, uploadStatus = "idle", 
         {url ? (
           <img
             src={url as string}
-            alt={caption as string || "Image"}
+            alt={(caption as string) || "Image"}
             className="max-h-[400px] w-auto rounded-lg object-contain"
           />
         ) : (

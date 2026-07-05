@@ -1,10 +1,7 @@
 import { injectable } from "tsyringe";
 import mongoose, { ClientSession } from "mongoose";
 import { TokenLedgerModel, type TokenLedger } from "../../../shared/schemas/token-ledger.schema";
-import {
-  TokenLedgerEntryModel,
-  type TokenLedgerEntry,
-} from "../../../shared/schemas/token-ledger-entry.schema";
+import { TokenLedgerEntryModel, type TokenLedgerEntry } from "../../../shared/schemas/token-ledger-entry.schema";
 import { TokenLedgerEntryStatus } from "../../../shared/constants/token-ledger.constant";
 
 @injectable()
@@ -72,10 +69,7 @@ export class TokenLedgerRepository {
     );
   }
 
-  async findEntryByRequestId(
-    requestId: string,
-    session?: ClientSession
-  ): Promise<TokenLedgerEntry | null> {
+  async findEntryByRequestId(requestId: string, session?: ClientSession): Promise<TokenLedgerEntry | null> {
     return TokenLedgerEntryModel.findOne({ request_id: requestId }).session(session ?? null);
   }
 
@@ -92,13 +86,7 @@ export class TokenLedgerRepository {
     update: Partial<
       Pick<
         TokenLedgerEntry,
-        | "status"
-        | "actual_tokens"
-        | "delta"
-        | "duration_ms"
-        | "success"
-        | "metadata"
-        | "reserved_tokens"
+        "status" | "actual_tokens" | "delta" | "duration_ms" | "success" | "metadata" | "reserved_tokens"
       >
     >,
     session?: ClientSession
@@ -125,11 +113,7 @@ export class TokenLedgerRepository {
   }
 
   isDuplicateKeyError(error: unknown): boolean {
-    return (
-      error instanceof Error &&
-      "code" in error &&
-      (error as { code?: number }).code === 11000
-    );
+    return error instanceof Error && "code" in error && (error as { code?: number }).code === 11000;
   }
 
   entryStatusCommitted = TokenLedgerEntryStatus.COMMITTED;
@@ -207,10 +191,7 @@ export class TokenLedgerRepository {
     }));
   }
 
-  async getUsageTotalsByUsers(
-    userIds: string[],
-    input: { from?: Date; to?: Date }
-  ): Promise<Record<string, number>> {
+  async getUsageTotalsByUsers(userIds: string[], input: { from?: Date; to?: Date }): Promise<Record<string, number>> {
     if (!userIds.length) return {};
     const match: Record<string, unknown> = { user_id: { $in: userIds } };
     if (input.from || input.to) {

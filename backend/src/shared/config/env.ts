@@ -130,11 +130,7 @@ export const env = {
     /** Max rework rounds per scheduled post before manual editing is required. */
     maxReworkRounds: parseIntEnv(process.env.ORCHESTRATOR_MAX_REWORK_ROUNDS, 5),
     /** Secret used to sign scheduled-post review tokens (falls back to ACCESS_SECRET). */
-    reviewTokenSecret: (
-      process.env.ORCHESTRATOR_REVIEW_TOKEN_SECRET ||
-      process.env.ACCESS_SECRET ||
-      ""
-    ).trim(),
+    reviewTokenSecret: (process.env.ORCHESTRATOR_REVIEW_TOKEN_SECRET || process.env.ACCESS_SECRET || "").trim(),
   },
 
   googleDrive: {
@@ -172,10 +168,7 @@ export const env = {
   sentry: {
     dsn: (process.env.SENTRY_DSN || "").trim(),
     environment: (process.env.SENTRY_ENVIRONMENT || NODE_ENV).trim(),
-    tracesSampleRate: parseFloat(
-      process.env.SENTRY_TRACES_SAMPLE_RATE ??
-        (NODE_ENV === "production" ? "0.1" : "1.0")
-    ),
+    tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE ?? (NODE_ENV === "production" ? "0.1" : "1.0")),
     enabled:
       process.env.SENTRY_ENABLED === undefined
         ? Boolean((process.env.SENTRY_DSN || "").trim())

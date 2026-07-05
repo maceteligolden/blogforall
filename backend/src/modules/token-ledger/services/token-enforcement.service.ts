@@ -5,23 +5,13 @@ import { AppLogger } from "../../../shared/observability/logger";
 import { ObservabilityFlow } from "../../../shared/observability/flows";
 import { logTokenEvent } from "../../../shared/observability/token-events";
 import { getRequestIdFromContext } from "../../../shared/observability/request-context";
-import {
-  TokenLedgerEntryStatus,
-  TOKEN_WINDOW_MS,
-} from "../../../shared/constants/token-ledger.constant";
-import {
-  AiConcurrencyError,
-  ConflictError,
-  TokenLimitExceededError,
-} from "../../../shared/errors";
+import { TokenLedgerEntryStatus, TOKEN_WINDOW_MS } from "../../../shared/constants/token-ledger.constant";
+import { AiConcurrencyError, ConflictError, TokenLimitExceededError } from "../../../shared/errors";
 import type { TokenLedger } from "../../../shared/schemas/token-ledger.schema";
 import { TokenLedgerRepository } from "../repositories/token-ledger.repository";
 import { TokenAllocationService } from "./token-allocation.service";
 import { TokenEstimationService } from "./token-estimation.service";
-import type {
-  TokenBalanceSnapshot,
-  TokenEstimateInput,
-} from "../interfaces/token-ledger.interface";
+import type { TokenBalanceSnapshot, TokenEstimateInput } from "../interfaces/token-ledger.interface";
 import {
   getAccumulatedTokenUsage,
   getTokenRequestContext,
@@ -146,8 +136,7 @@ export class TokenEnforcementService {
       );
 
       const usage = getAccumulatedTokenUsage();
-      const actualTokens =
-        usage.total_tokens > 0 ? usage.total_tokens : estimatedTokens;
+      const actualTokens = usage.total_tokens > 0 ? usage.total_tokens : estimatedTokens;
 
       await this.finalizeReservation({
         userId: args.userId,
@@ -223,9 +212,7 @@ export class TokenEnforcementService {
         );
       }
 
-      const windowExpired =
-        !ledger.window_start ||
-        now.getTime() >= ledger.window_start.getTime() + windowMs;
+      const windowExpired = !ledger.window_start || now.getTime() >= ledger.window_start.getTime() + windowMs;
 
       if (windowExpired) {
         logTokenEvent("token_window_reset", {
@@ -248,19 +235,14 @@ export class TokenEnforcementService {
       }
 
       const staleLock =
-        ledger.active_request_id &&
-        ledger.active_request_expires_at &&
-        ledger.active_request_expires_at < now;
+        ledger.active_request_id && ledger.active_request_expires_at && ledger.active_request_expires_at < now;
 
       if (ledger.active_request_id && !staleLock) {
         throw new AiConcurrencyError();
       }
 
       if (staleLock && ledger.active_request_id) {
-        const staleEntry = await this.ledgerRepository.findEntryByRequestId(
-          ledger.active_request_id,
-          session
-        );
+        const staleEntry = await this.ledgerRepository.findEntryByRequestId(ledger.active_request_id, session);
         if (staleEntry?.status === TokenLedgerEntryStatus.RESERVED) {
           await this.ledgerRepository.updateEntry(
             ledger.active_request_id,
@@ -296,10 +278,7 @@ export class TokenEnforcementService {
           usedTokens: used,
           reservedTokens: reserved,
         });
-        throw new TokenLimitExceededError(
-          "Token limit reached. Try again after your daily window resets.",
-          resetAt
-        );
+        throw new TokenLimitExceededError("Token limit reached. Try again after your daily window resets.", resetAt);
       }
 
       try {
@@ -328,11 +307,7 @@ export class TokenEnforcementService {
         throw err;
       }
 
-      await this.ledgerRepository.incrementLedger(
-        args.userId,
-        { reserved_tokens: args.estimatedTokens },
-        session
-      );
+      await this.ledgerRepository.incrementLedger(args.userId, { reserved_tokens: args.estimatedTokens }, session);
 
       await this.ledgerRepository.updateLedger(
         args.userId,
@@ -367,10 +342,7 @@ export class TokenEnforcementService {
     await this.ledgerRepository.withTransaction(async (session) => {
       const entry = await this.ledgerRepository.findEntryByRequestId(args.requestId, session);
       if (!entry) return;
-      if (
-        entry.status === TokenLedgerEntryStatus.COMMITTED ||
-        entry.status === TokenLedgerEntryStatus.FAILED
-      ) {
+      if (entry.status === TokenLedgerEntryStatus.COMMITTED || entry.status === TokenLedgerEntryStatus.FAILED) {
         return;
       }
 
@@ -395,9 +367,7 @@ export class TokenEnforcementService {
       await this.ledgerRepository.updateEntry(
         args.requestId,
         {
-          status: args.success
-            ? TokenLedgerEntryStatus.COMMITTED
-            : TokenLedgerEntryStatus.FAILED,
+          status: args.success ? TokenLedgerEntryStatus.COMMITTED : TokenLedgerEntryStatus.FAILED,
           actual_tokens: actual,
           delta,
           duration_ms: args.durationMs,

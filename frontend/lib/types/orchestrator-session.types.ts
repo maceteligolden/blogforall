@@ -1,9 +1,4 @@
-export type OrchestratorSessionMode =
-  | "planning"
-  | "writing"
-  | "research"
-  | "review"
-  | "casual";
+export type OrchestratorSessionMode = "planning" | "writing" | "research" | "review" | "casual";
 
 export interface OrchestratorSelectionContext {
   blogId: string;

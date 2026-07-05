@@ -29,16 +29,10 @@ import {
 } from "../interfaces/orchestrator.interface";
 import { ensureOnboardingInterviewReply } from "../utils/onboarding-interview.helper";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
-import {
-  captureServerEvent,
-  ServerAnalyticsEvents,
-} from "../../../shared/analytics/posthog.server";
+import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 import { CampaignRoadmapService } from "../../campaign/services/campaign-roadmap.service";
 import { OrchestratorKnowledgeService } from "./orchestrator-knowledge.service";
-import {
-  buildEnrichedUserMessage,
-  type OrchestratorSessionMode,
-} from "../utils/turn-context.helper";
+import { buildEnrichedUserMessage, type OrchestratorSessionMode } from "../utils/turn-context.helper";
 
 interface ChatAttachment {
   name: string;
@@ -107,9 +101,7 @@ export class OrchestratorService {
    * `threadId`; the supervisor's tool surface is constrained to
    * workspace.completeOnboarding.
    */
-  async onboardingChat(
-    input: Omit<BaseTurnInput, "threadId">
-  ): Promise<ChatTurnResponse> {
+  async onboardingChat(input: Omit<BaseTurnInput, "threadId">): Promise<ChatTurnResponse> {
     return this.runTurn({ ...input, mode: "onboarding" });
   }
 
@@ -135,12 +127,7 @@ export class OrchestratorService {
     return { thread, messages };
   }
 
-  async renameThread(
-    threadId: string,
-    siteId: string,
-    userId: string,
-    title: string
-  ): Promise<OrchestratorThread> {
+  async renameThread(threadId: string, siteId: string, userId: string, title: string): Promise<OrchestratorThread> {
     await this.assertSiteAccess(siteId, userId);
     const thread = await this.threadRepository.findById(threadId, siteId);
     if (!thread) {
@@ -183,9 +170,7 @@ export class OrchestratorService {
     const decided = await this.approvalRepository.decide(
       approvalId,
       siteId,
-      decision === "approved"
-        ? OrchestratorApprovalStatus.APPROVED
-        : OrchestratorApprovalStatus.REJECTED,
+      decision === "approved" ? OrchestratorApprovalStatus.APPROVED : OrchestratorApprovalStatus.REJECTED,
       userId,
       note
     );
@@ -202,14 +187,11 @@ export class OrchestratorService {
   // Core turn loop
   // ---------------------------------------------------------------------------
 
-  private async runTurn(
-    input: BaseTurnInput & { mode: "active" | "onboarding" }
-  ): Promise<ChatTurnResponse> {
+  private async runTurn(input: BaseTurnInput & { mode: "active" | "onboarding" }): Promise<ChatTurnResponse> {
     const { siteId, userId, message, mode } = input;
     await this.assertSiteAccess(siteId, userId);
 
-    const knowledgeSummary =
-      mode === "active" ? await this.knowledgeService.buildKnowledgeSummary(siteId) : "";
+    const knowledgeSummary = mode === "active" ? await this.knowledgeService.buildKnowledgeSummary(siteId) : "";
     const enrichedMessage = buildEnrichedUserMessage({
       message,
       sessionMode: input.sessionMode,
@@ -220,9 +202,7 @@ export class OrchestratorService {
 
     const site = await this.siteService.getSiteById(siteId, userId);
     if (mode === "active" && site.status === SiteStatus.ONBOARDING) {
-      throw new ForbiddenError(
-        "Workspace onboarding is not complete. Use the onboarding chat to finish setup."
-      );
+      throw new ForbiddenError("Workspace onboarding is not complete. Use the onboarding chat to finish setup.");
     }
 
     const memory = await this.memoryRepository.ensureForSite(siteId, userId);
@@ -251,10 +231,7 @@ export class OrchestratorService {
 
     // If the latest assistant turn left an unresolved approval, interpret
     // this user message as a decision on it (yes/cancel/etc.).
-    const pendingApproval = await this.approvalRepository.findPendingForThread(
-      thread._id!.toString(),
-      siteId
-    );
+    const pendingApproval = await this.approvalRepository.findPendingForThread(thread._id!.toString(), siteId);
     if (pendingApproval && this.shortCircuitConfirmationReply(message, pendingApproval)) {
       return this.resolveConfirmationFromText(siteId, userId, thread, pendingApproval, message);
     }
@@ -262,9 +239,7 @@ export class OrchestratorService {
     const llmMessage = enrichedMessage;
 
     const feature =
-      mode === "onboarding"
-        ? TokenLedgerFeature.ORCHESTRATOR_ONBOARDING
-        : TokenLedgerFeature.ORCHESTRATOR_CHAT;
+      mode === "onboarding" ? TokenLedgerFeature.ORCHESTRATOR_ONBOARDING : TokenLedgerFeature.ORCHESTRATOR_CHAT;
 
     const contextText = JSON.stringify({
       strategic: memory.strategic,
@@ -305,11 +280,9 @@ export class OrchestratorService {
           sessionMode: input.sessionMode,
         });
 
-        const historyForApply = await this.messageRepository.listByThread(
-          thread._id!.toString(),
-          siteId,
-          { limit: env.orchestrator.maxThreadMessages }
-        );
+        const historyForApply = await this.messageRepository.listByThread(thread._id!.toString(), siteId, {
+          limit: env.orchestrator.maxThreadMessages,
+        });
         return this.applyPlan(siteId, userId, thread, plan, mode, memory, historyForApply);
       },
     });
@@ -333,8 +306,7 @@ export class OrchestratorService {
     let assistantReply = plan.assistant_reply;
     let pendingApproval: OrchestratorApproval | null = null;
     let onboardingCompleted = false;
-    let workspaceStatus: "onboarding" | "active" =
-      mode === "onboarding" ? "onboarding" : "active";
+    let workspaceStatus: "onboarding" | "active" = mode === "onboarding" ? "onboarding" : "active";
 
     // During onboarding the model often chooses `update_memory` with an empty
     // `reply`, which surfaces only as the generic graph fallback ("I'll update
@@ -377,8 +349,7 @@ export class OrchestratorService {
       }
     }
 
-    const hasMemoryPatch =
-      !!decision.memory_patch && Object.keys(decision.memory_patch).length > 0;
+    const hasMemoryPatch = !!decision.memory_patch && Object.keys(decision.memory_patch).length > 0;
     if (
       hasMemoryPatch &&
       (rawNext === "update_memory" || (mode === "onboarding" && decision.next !== "complete_onboarding"))
@@ -387,13 +358,8 @@ export class OrchestratorService {
     }
 
     if (mode === "onboarding" && decision.next !== "complete_onboarding" && workspaceMemory) {
-      const memoryAfterPatch =
-        (await this.memoryRepository.findBySiteId(siteId)) ?? workspaceMemory;
-      const repaired = ensureOnboardingInterviewReply(
-        assistantReply,
-        memoryAfterPatch,
-        threadHistory
-      );
+      const memoryAfterPatch = (await this.memoryRepository.findBySiteId(siteId)) ?? workspaceMemory;
+      const repaired = ensureOnboardingInterviewReply(assistantReply, memoryAfterPatch, threadHistory);
       if (repaired.repaired) {
         assistantReply = repaired.reply;
         decision = { ...decision, next: "respond", reply: assistantReply };
@@ -545,9 +511,7 @@ export class OrchestratorService {
       toolName = decided.action;
       toolSummary = exec.summary;
       toolOk = exec.ok;
-      reply = exec.ok
-        ? `Done. ${exec.summary}`
-        : `I couldn't complete '${decided.action}': ${exec.summary}`;
+      reply = exec.ok ? `Done. ${exec.summary}` : `I couldn't complete '${decided.action}': ${exec.summary}`;
     } else {
       reply = "Got it — I won't proceed.";
     }
@@ -739,11 +703,7 @@ export class OrchestratorService {
         return { ok: false, summary };
       }
       try {
-        const data = await this.campaignRoadmapService.approveRoadmap(
-          campaignId,
-          approval.site_id,
-          userId
-        );
+        const data = await this.campaignRoadmapService.approveRoadmap(campaignId, approval.site_id, userId);
         const summary = "Campaign roadmap approved and schedule materialized.";
         await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
           ok: true,
@@ -812,9 +772,7 @@ export class OrchestratorService {
    * `payload.operational`) are still accepted so future prompt revisions don't
    * silently drop context.
    */
-  private buildMemoryPatchFromOnboardingPayload(
-    payload: Record<string, unknown>
-  ): Record<string, unknown> {
+  private buildMemoryPatchFromOnboardingPayload(payload: Record<string, unknown>): Record<string, unknown> {
     const patch: Record<string, unknown> = {};
     const strategic: Record<string, unknown> = {};
     const preferences: Record<string, unknown> = {};
@@ -843,11 +801,7 @@ export class OrchestratorService {
         preferences[key] = payload[key];
       }
     }
-    if (
-      payload.preferences &&
-      typeof payload.preferences === "object" &&
-      !Array.isArray(payload.preferences)
-    ) {
+    if (payload.preferences && typeof payload.preferences === "object" && !Array.isArray(payload.preferences)) {
       Object.assign(preferences, payload.preferences as Record<string, unknown>);
     }
 
@@ -862,11 +816,7 @@ export class OrchestratorService {
         operational[key] = payload[key];
       }
     }
-    if (
-      payload.operational &&
-      typeof payload.operational === "object" &&
-      !Array.isArray(payload.operational)
-    ) {
+    if (payload.operational && typeof payload.operational === "object" && !Array.isArray(payload.operational)) {
       Object.assign(operational, payload.operational as Record<string, unknown>);
     }
 
@@ -921,11 +871,7 @@ export class OrchestratorService {
    * the supervisor loads only the latest N in memory.
    */
   private async pruneOrchestratorThread(threadId: string, siteId: string): Promise<number> {
-    const n = await this.messageRepository.pruneThreadToMaxKeep(
-      threadId,
-      siteId,
-      env.orchestrator.maxThreadMessages
-    );
+    const n = await this.messageRepository.pruneThreadToMaxKeep(threadId, siteId, env.orchestrator.maxThreadMessages);
     if (n > 0) {
       logger.info(
         "Orchestrator thread pruned",

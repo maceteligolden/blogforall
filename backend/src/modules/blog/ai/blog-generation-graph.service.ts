@@ -209,11 +209,7 @@ export class BlogGenerationGraphService {
       meta: this.normalizeDraftMeta(out.meta),
     };
     if (!revised.content?.trim()) {
-      logger.warn(
-        "Rework regeneration returned empty content; returning original",
-        {},
-        "BlogGenerationGraphService"
-      );
+      logger.warn("Rework regeneration returned empty content; returning original", {}, "BlogGenerationGraphService");
       return {
         title: input.title,
         content: input.content,
@@ -492,9 +488,7 @@ Return structured output matching the schema.`;
     if (u.purpose) hintLines.push(`Purpose: ${u.purpose}`);
     if (u.structure) hintLines.push(`Structure: ${u.structure}`);
     const hintBlock = hintLines.length ? hintLines.join("\n") + "\n\n" : "";
-    const excerptBlock = input.originalExcerpt
-      ? `ORIGINAL EXCERPT:\n${input.originalExcerpt}\n\n`
-      : "";
+    const excerptBlock = input.originalExcerpt ? `ORIGINAL EXCERPT:\n${input.originalExcerpt}\n\n` : "";
 
     return `You are an expert editor revising an existing blog draft. Apply the reviewer's feedback faithfully while keeping anything they did NOT ask to change.
 

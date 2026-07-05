@@ -1,10 +1,7 @@
 import { z, type ZodTypeAny } from "zod";
 import { BadRequestError } from "../../../../shared/errors";
 import type { CampaignRepository } from "../../../campaign/repositories/campaign.repository";
-import {
-  CampaignLifecycleStatus,
-  CampaignStatus,
-} from "../../../../shared/constants/campaign.constant";
+import { CampaignLifecycleStatus, CampaignStatus } from "../../../../shared/constants/campaign.constant";
 
 /** Map common LLM key aliases to the campaign tool schema. */
 export function normalizeCampaignToolInput(raw: Record<string, unknown>): Record<string, unknown> {
@@ -86,9 +83,7 @@ export function parseToolInput<Schema extends ZodTypeAny>(
 ): z.infer<Schema> {
   const parsed = schema.safeParse(raw);
   if (!parsed.success) {
-    const issues = parsed.error.issues
-      .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
-      .join("; ");
+    const issues = parsed.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`).join("; ");
     throw new BadRequestError(`Invalid input for '${toolName}': ${issues}`);
   }
   return parsed.data;

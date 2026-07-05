@@ -1,7 +1,5 @@
 import { injectable } from "tsyringe";
-import CampaignPostItemModel, {
-  CampaignPostItem,
-} from "../../../shared/schemas/campaign-post-item.schema";
+import CampaignPostItemModel, { CampaignPostItem } from "../../../shared/schemas/campaign-post-item.schema";
 
 @injectable()
 export class CampaignPostItemRepository {
@@ -29,11 +27,7 @@ export class CampaignPostItemRepository {
     return CampaignPostItemModel.find({ blog_id: blogId, site_id: siteId });
   }
 
-  async update(
-    id: string,
-    siteId: string,
-    data: Partial<CampaignPostItem>
-  ): Promise<CampaignPostItem | null> {
+  async update(id: string, siteId: string, data: Partial<CampaignPostItem>): Promise<CampaignPostItem | null> {
     return CampaignPostItemModel.findOneAndUpdate(
       { _id: id, site_id: siteId },
       { $set: { ...data, updated_at: new Date() } },

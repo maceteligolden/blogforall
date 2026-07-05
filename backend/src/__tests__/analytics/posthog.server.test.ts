@@ -45,8 +45,6 @@ describe("posthog.server", () => {
     const envModule = await import("../../shared/config/env");
     vi.spyOn(envModule.env.posthog, "enabled", "get").mockReturnValue(false);
 
-    expect(() =>
-      captureServerEvent(ServerAnalyticsEvents.USER_SIGNED_UP, { userId: "user-1" })
-    ).not.toThrow();
+    expect(() => captureServerEvent(ServerAnalyticsEvents.USER_SIGNED_UP, { userId: "user-1" })).not.toThrow();
   });
 });

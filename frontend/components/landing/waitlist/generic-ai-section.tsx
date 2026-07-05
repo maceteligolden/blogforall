@@ -23,21 +23,19 @@ const REASONS = [
 
 export function GenericAiSection() {
   return (
-    <section id="why-not-generic" className="py-16 sm:py-20 lg:py-28 px-6 lg:px-8 border-b border-gray-800/60 scroll-mt-20">
+    <section
+      id="why-not-generic"
+      className="py-16 sm:py-20 lg:py-28 px-6 lg:px-8 border-b border-gray-800/60 scroll-mt-20"
+    >
       <div className="max-w-6xl mx-auto">
-        <h2 className="landing-section-title text-white mb-2 text-center">
-          Why generic AI tools fall short.
-        </h2>
+        <h2 className="landing-section-title text-white mb-2 text-center">Why generic AI tools fall short.</h2>
         <p className="landing-body text-gray-500 max-w-2xl mx-auto text-center mb-12 lg:mb-14">
           Built for Q&amp;A, not for a month of on-brand content.
         </p>
 
         <ul className="max-w-4xl mx-auto border-y border-gray-800/80 divide-y divide-gray-800/80">
           {REASONS.map((reason) => (
-            <li
-              key={reason.number}
-              className="py-6 sm:py-7 grid grid-cols-[auto_1fr] gap-4 sm:gap-6 items-start"
-            >
+            <li key={reason.number} className="py-6 sm:py-7 grid grid-cols-[auto_1fr] gap-4 sm:gap-6 items-start">
               <span className="text-xs sm:text-sm font-medium text-primary mt-1">{reason.number}</span>
               <div>
                 <h3 className="landing-card-title text-white mb-1.5">{reason.title}</h3>

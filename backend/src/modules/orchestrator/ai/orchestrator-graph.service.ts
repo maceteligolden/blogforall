@@ -105,7 +105,9 @@ export class OrchestratorGraphService {
     // claimed in chat that the tool was "unavailable".)
     const availableTools =
       input.mode === "onboarding"
-        ? ["workspace.completeOnboarding — Capture business_type, target_audience, brand_voice, business_goals, seo_priorities, publishing_channels and finalize onboarding."]
+        ? [
+            "workspace.completeOnboarding — Capture business_type, target_audience, brand_voice, business_goals, seo_priorities, publishing_channels and finalize onboarding.",
+          ]
         : this.toolRegistry.manifest().map((t) => {
             const tag = t.requiresConfirmation ? " (requires confirmation)" : "";
             return `${t.name}${tag} — ${t.description}`;
@@ -119,18 +121,14 @@ export class OrchestratorGraphService {
       workspace_id: input.workspaceId,
       workspace_context_json: this.buildContextJson(input.memory),
       memory_summary: input.memory.memory_summary || "",
-      onboarding_progress:
-        input.mode === "onboarding" ? formatOnboardingProgress(input.memory) : undefined,
+      onboarding_progress: input.mode === "onboarding" ? formatOnboardingProgress(input.memory) : undefined,
       available_tools: availableTools,
       current_time_iso: currentTimeIso,
       current_date_human: currentDateHuman,
-      session_mode_instructions:
-        input.mode === "active" ? getSessionModeInstructions(input.sessionMode) : undefined,
+      session_mode_instructions: input.mode === "active" ? getSessionModeInstructions(input.sessionMode) : undefined,
     };
     const systemPromptText =
-      input.mode === "onboarding"
-        ? renderOnboardingSystemPrompt(promptCtx)
-        : renderActiveSystemPrompt(promptCtx);
+      input.mode === "onboarding" ? renderOnboardingSystemPrompt(promptCtx) : renderActiveSystemPrompt(promptCtx);
 
     const messages = this.buildMessageHistory(
       systemPromptText,
@@ -151,9 +149,7 @@ export class OrchestratorGraphService {
         { siteId: input.siteId, threadId: input.threadId, mode: input.mode },
         "OrchestratorGraphService"
       );
-      throw new BadRequestError(
-        "The orchestrator could not produce a plan for this turn. Please retry."
-      );
+      throw new BadRequestError("The orchestrator could not produce a plan for this turn. Please retry.");
     }
 
     logger.info(

@@ -40,12 +40,12 @@ export function useBlogDraft() {
       if (!draftJson) return null;
 
       const draft: BlogGenerationDraft = JSON.parse(draftJson);
-      
+
       // Check if draft has expired
       const now = Date.now();
       const draftAge = now - draft.timestamp;
       const expiryMs = DRAFT_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
-      
+
       if (draftAge > expiryMs) {
         localStorage.removeItem(DRAFT_STORAGE_KEY);
         return null;

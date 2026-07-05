@@ -13,21 +13,13 @@ import { authTracker } from "@/lib/analytics/flows/auth.tracker";
 type Step = "email" | "code" | "password" | "done";
 
 function getApiErrorMessage(err: unknown, fallback: string): string {
-  return (
-    (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback
-  );
+  return (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
 }
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const {
-    forgotPassword,
-    verifyResetCode,
-    resetPassword,
-    isRequestingCode,
-    isVerifyingCode,
-    isResettingPassword,
-  } = usePasswordReset();
+  const { forgotPassword, verifyResetCode, resetPassword, isRequestingCode, isVerifyingCode, isResettingPassword } =
+    usePasswordReset();
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -51,7 +43,9 @@ export default function ForgotPasswordPage() {
       setStep("code");
       setInfo("If an account exists for that email, a code has been sent.");
     } catch (err) {
-      authTracker.passwordResetFailed({ error_message: getApiErrorMessage(err, "Could not request a reset code. Please try again.") });
+      authTracker.passwordResetFailed({
+        error_message: getApiErrorMessage(err, "Could not request a reset code. Please try again."),
+      });
       setError(getApiErrorMessage(err, "Could not request a reset code. Please try again."));
     }
   };
@@ -117,19 +111,19 @@ export default function ForgotPasswordPage() {
               step === "done"
                 ? "Password updated"
                 : step === "password"
-                ? "Set a new password"
-                : step === "code"
-                ? "Enter the code"
-                : "Forgot your password?"
+                  ? "Set a new password"
+                  : step === "code"
+                    ? "Enter the code"
+                    : "Forgot your password?"
             }
             subtitle={
               step === "done"
                 ? "You can now sign in with your new password."
                 : step === "password"
-                ? "Choose a strong password you don't use elsewhere."
-                : step === "code"
-                ? `We sent a 6-digit code to ${email}. It expires in 15 minutes.`
-                : "Enter your email and we'll send you a 6-digit code to reset your password."
+                  ? "Choose a strong password you don't use elsewhere."
+                  : step === "code"
+                    ? `We sent a 6-digit code to ${email}. It expires in 15 minutes.`
+                    : "Enter your email and we'll send you a 6-digit code to reset your password."
             }
           />
 
@@ -143,7 +137,9 @@ export default function ForgotPasswordPage() {
           {step === "email" && (
             <form className="space-y-6" onSubmit={handleRequestCode}>
               <div>
-                <Label htmlFor="email" className="text-gray-300">Email address</Label>
+                <Label htmlFor="email" className="text-gray-300">
+                  Email address
+                </Label>
                 <Input
                   id="email"
                   name="email"
@@ -173,7 +169,9 @@ export default function ForgotPasswordPage() {
           {step === "code" && (
             <form className="space-y-6" onSubmit={handleVerifyCode}>
               <div>
-                <Label htmlFor="code" className="text-gray-300">6-digit code</Label>
+                <Label htmlFor="code" className="text-gray-300">
+                  6-digit code
+                </Label>
                 <Input
                   id="code"
                   name="code"
@@ -219,7 +217,9 @@ export default function ForgotPasswordPage() {
           {step === "password" && (
             <form className="space-y-6" onSubmit={handleResetPassword}>
               <div>
-                <Label htmlFor="new_password" className="text-gray-300">New password</Label>
+                <Label htmlFor="new_password" className="text-gray-300">
+                  New password
+                </Label>
                 <PasswordInput
                   id="new_password"
                   name="new_password"
@@ -231,7 +231,9 @@ export default function ForgotPasswordPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="confirm_password" className="text-gray-300">Confirm password</Label>
+                <Label htmlFor="confirm_password" className="text-gray-300">
+                  Confirm password
+                </Label>
                 <PasswordInput
                   id="confirm_password"
                   name="confirm_password"

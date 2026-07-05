@@ -9,10 +9,7 @@ import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useRouter } from "next/navigation";
-import type {
-  OrchestratorApproval,
-  OrchestratorApprovalStatus,
-} from "@/lib/api/types/orchestrator.types";
+import type { OrchestratorApproval, OrchestratorApprovalStatus } from "@/lib/api/types/orchestrator.types";
 
 const STATUS_FILTERS: Array<{ label: string; value: OrchestratorApprovalStatus }> = [
   { label: "Pending", value: "pending" },
@@ -56,14 +53,10 @@ function ApprovalCard({
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <p className="text-sm font-semibold truncate">{approval.action}</p>
-            <span className="text-xs text-gray-500 uppercase tracking-wide">
-              {formatApprovalKind(approval.kind)}
-            </span>
+            <span className="text-xs text-gray-500 uppercase tracking-wide">{formatApprovalKind(approval.kind)}</span>
           </div>
           <p className="text-sm text-gray-300 mt-1 leading-relaxed">{approval.summary}</p>
-          <p className="text-xs text-gray-500 mt-2">
-            Requested {new Date(approval.requested_at).toLocaleString()}
-          </p>
+          <p className="text-xs text-gray-500 mt-2">Requested {new Date(approval.requested_at).toLocaleString()}</p>
         </div>
         <span
           className={`text-xs px-2 py-1 rounded-full border ${
@@ -113,19 +106,12 @@ export default function ApprovalsPage() {
     queryKey: currentSiteId
       ? [...QUERY_KEYS.ORCHESTRATOR_APPROVALS(currentSiteId), statusFilter]
       : ["orchestrator", "approvals", "none"],
-    queryFn: () =>
-      OrchestratorService.listApprovals(currentSiteId as string, statusFilter, 100),
+    queryFn: () => OrchestratorService.listApprovals(currentSiteId as string, statusFilter, 100),
     enabled: !!currentSiteId,
   });
 
   const decideMutation = useMutation({
-    mutationFn: ({
-      approvalId,
-      decision,
-    }: {
-      approvalId: string;
-      decision: "approved" | "rejected";
-    }) =>
+    mutationFn: ({ approvalId, decision }: { approvalId: string; decision: "approved" | "rejected" }) =>
       OrchestratorService.decideApproval(currentSiteId as string, approvalId, decision),
     onSuccess: () => {
       if (currentSiteId) {
@@ -146,8 +132,8 @@ export default function ApprovalsPage() {
             <div>
               <h1 className="text-3xl font-bold">Approvals</h1>
               <p className="text-gray-400 mt-1 text-sm">
-                Review decisions the orchestrator has queued for human approval. Approving runs the
-                pending action; rejecting cancels it.
+                Review decisions the orchestrator has queued for human approval. Approving runs the pending action;
+                rejecting cancels it.
               </p>
             </div>
             <Button
@@ -176,12 +162,8 @@ export default function ApprovalsPage() {
             ))}
           </div>
 
-          {approvalsQuery.isLoading && (
-            <p className="text-sm text-gray-500">Loading approvals…</p>
-          )}
-          {approvalsQuery.isError && (
-            <p className="text-sm text-red-300">Failed to load approvals. Try refreshing.</p>
-          )}
+          {approvalsQuery.isLoading && <p className="text-sm text-gray-500">Loading approvals…</p>}
+          {approvalsQuery.isError && <p className="text-sm text-red-300">Failed to load approvals. Try refreshing.</p>}
           {!approvalsQuery.isLoading && approvals.length === 0 && (
             <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-10 text-center">
               <p className="text-sm text-gray-300">No {statusFilter} approvals right now.</p>
@@ -196,12 +178,8 @@ export default function ApprovalsPage() {
               <ApprovalCard
                 key={a.id}
                 approval={a}
-                onDecide={(decision) =>
-                  decideMutation.mutate({ approvalId: a.id, decision })
-                }
-                isDeciding={
-                  decideMutation.isPending && decideMutation.variables?.approvalId === a.id
-                }
+                onDecide={(decision) => decideMutation.mutate({ approvalId: a.id, decision })}
+                isDeciding={decideMutation.isPending && decideMutation.variables?.approvalId === a.id}
               />
             ))}
           </div>

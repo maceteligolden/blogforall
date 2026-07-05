@@ -96,11 +96,7 @@ export class OrchestratorMessageRepository {
    * Recent orchestrator messages for a workspace (all threads), newest first
    * in the query then caller reverses for chronological rendering.
    */
-  async listRecentForSite(
-    siteId: string,
-    since: Date,
-    limit: number
-  ): Promise<OrchestratorMessage[]> {
+  async listRecentForSite(siteId: string, since: Date, limit: number): Promise<OrchestratorMessage[]> {
     return OrchestratorMessageModel.find({
       site_id: siteId,
       created_at: { $gte: since },
@@ -113,10 +109,7 @@ export class OrchestratorMessageRepository {
    * Find the most recent assistant message that left an unresolved pending
    * approval. Used to resolve in-chat confirmations on the next user turn.
    */
-  async findLatestPendingApproval(
-    threadId: string,
-    siteId: string
-  ): Promise<OrchestratorMessage | null> {
+  async findLatestPendingApproval(threadId: string, siteId: string): Promise<OrchestratorMessage | null> {
     return OrchestratorMessageModel.findOne({
       thread_id: threadId,
       site_id: siteId,

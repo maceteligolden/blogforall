@@ -4,10 +4,7 @@ import { use, useEffect, useState } from "react";
 import { CheckCircle2, Edit3, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScheduledPostReviewClient } from "@/lib/api/services/scheduled-post-review.service";
-import type {
-  ReviewContext,
-  ReviewDecisionResult,
-} from "@/lib/api/types/scheduled-post-review.types";
+import type { ReviewContext, ReviewDecisionResult } from "@/lib/api/types/scheduled-post-review.types";
 
 /**
  * Public scheduled-post review page reached from the orchestrator's weekly
@@ -112,9 +109,7 @@ export default function ReviewPage({ params }: { params: Promise<{ token: string
               <Edit3 className="w-7 h-7 text-primary" aria-hidden="true" />
             )}
           </div>
-          <h1 className="text-2xl font-bold mb-2">
-            {isApproval ? "Approved" : "Rework requested"}
-          </h1>
+          <h1 className="text-2xl font-bold mb-2">{isApproval ? "Approved" : "Rework requested"}</h1>
           <p className="text-gray-300 text-sm">{decision.message}</p>
           <p className="text-xs text-gray-500 mt-4">You can safely close this page.</p>
         </div>
@@ -144,9 +139,7 @@ export default function ReviewPage({ params }: { params: Promise<{ token: string
           {scheduled_post.rework_comments && scheduled_post.rework_round > 0 && (
             <div className="mt-4 rounded-md border border-gray-800 bg-gray-900/60 px-3 py-2 text-xs text-gray-300">
               <p className="font-semibold text-gray-200">Previous rework notes</p>
-              <p className="mt-1 whitespace-pre-wrap leading-relaxed">
-                {scheduled_post.rework_comments}
-              </p>
+              <p className="mt-1 whitespace-pre-wrap leading-relaxed">{scheduled_post.rework_comments}</p>
             </div>
           )}
         </header>
@@ -154,9 +147,7 @@ export default function ReviewPage({ params }: { params: Promise<{ token: string
         <article className="rounded-2xl border border-gray-800 bg-gray-900/40 p-6 md:p-8">
           {blog ? (
             <>
-              {blog.excerpt && (
-                <p className="text-gray-300 text-base italic mb-6">{blog.excerpt}</p>
-              )}
+              {blog.excerpt && <p className="text-gray-300 text-base italic mb-6">{blog.excerpt}</p>}
               <div
                 className="prose prose-invert max-w-none prose-headings:text-white prose-p:text-gray-200 prose-a:text-primary"
                 dangerouslySetInnerHTML={{ __html: blog.content }}
@@ -208,8 +199,7 @@ export default function ReviewPage({ params }: { params: Promise<{ token: string
           <div className="mt-8 rounded-xl border border-gray-800 bg-gray-900/60 p-5">
             <p className="text-sm font-semibold mb-2">Describe what to change</p>
             <p className="text-xs text-gray-400 mb-3">
-              The orchestrator will rewrite the draft using your feedback and email you a new
-              review link.
+              The orchestrator will rewrite the draft using your feedback and email you a new review link.
             </p>
             <textarea
               value={reworkComments}

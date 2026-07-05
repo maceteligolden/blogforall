@@ -5,7 +5,7 @@ import { useAuthStore } from "../store/auth.store";
 
 export function useCategories(params?: { tree?: boolean; include_inactive?: boolean }) {
   const { currentSiteId } = useAuthStore();
-  
+
   return useQuery({
     queryKey: [...QUERY_KEYS.CATEGORIES, currentSiteId, params],
     queryFn: async () => {
@@ -18,7 +18,7 @@ export function useCategories(params?: { tree?: boolean; include_inactive?: bool
 
 export function useCategory(id: string) {
   const { currentSiteId } = useAuthStore();
-  
+
   return useQuery({
     queryKey: [...QUERY_KEYS.CATEGORIES, currentSiteId, id],
     queryFn: async () => {
@@ -46,8 +46,7 @@ export function useUpdateCategory() {
   const { currentSiteId } = useAuthStore();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateCategoryRequest }) =>
-      CategoryService.updateCategory(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateCategoryRequest }) => CategoryService.updateCategory(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.CATEGORIES, currentSiteId] });
     },
@@ -65,4 +64,3 @@ export function useDeleteCategory() {
     },
   });
 }
-

@@ -1,5 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CampaignService, CreateCampaignRequest, UpdateCampaignRequest, Campaign, CampaignQueryParams } from "@/lib/api/services/campaign.service";
+import {
+  CampaignService,
+  CreateCampaignRequest,
+  UpdateCampaignRequest,
+  Campaign,
+  CampaignQueryParams,
+} from "@/lib/api/services/campaign.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
 
@@ -48,8 +54,7 @@ export function useUpdateCampaign() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateCampaignRequest }) =>
-      CampaignService.updateCampaign(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateCampaignRequest }) => CampaignService.updateCampaign(id, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_CAMPAIGNS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CAMPAIGN(variables.id) });

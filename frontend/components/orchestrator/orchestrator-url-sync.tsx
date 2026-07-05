@@ -29,9 +29,7 @@ export function OrchestratorUrlSync() {
   useEffect(() => {
     if (!onDashboard) return;
     if (threadId === urlThreadId || (!threadId && !urlThreadId)) return;
-    const next = threadId
-      ? `/dashboard?thread=${encodeURIComponent(threadId)}`
-      : "/dashboard";
+    const next = threadId ? `/dashboard?thread=${encodeURIComponent(threadId)}` : "/dashboard";
     router.replace(next, { scroll: false });
   }, [onDashboard, threadId, urlThreadId, router]);
 

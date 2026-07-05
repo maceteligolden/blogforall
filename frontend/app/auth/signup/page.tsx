@@ -80,7 +80,7 @@ function SignupForm() {
       {/* Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-black to-black pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(30,64,175,0.1),transparent_50%)] pointer-events-none" />
-      
+
       <div className="relative flex min-h-screen items-center justify-center px-4 py-8">
         <div className="w-full max-w-md space-y-8 rounded-lg bg-gray-900/80 backdrop-blur-sm border border-gray-800 p-8 shadow-xl">
           <AuthPageHeader
@@ -105,7 +105,9 @@ function SignupForm() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="first_name" className="text-gray-300">First name</Label>
+                  <Label htmlFor="first_name" className="text-gray-300">
+                    First name
+                  </Label>
                   <Input
                     id="first_name"
                     name="first_name"
@@ -117,7 +119,9 @@ function SignupForm() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="last_name" className="text-gray-300">Last name</Label>
+                  <Label htmlFor="last_name" className="text-gray-300">
+                    Last name
+                  </Label>
                   <Input
                     id="last_name"
                     name="last_name"
@@ -130,7 +134,9 @@ function SignupForm() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="email" className="text-gray-300">Email address</Label>
+                <Label htmlFor="email" className="text-gray-300">
+                  Email address
+                </Label>
                 <Input
                   id="email"
                   name="email"
@@ -143,7 +149,9 @@ function SignupForm() {
                 />
               </div>
               <div>
-                <Label htmlFor="phone_number" className="text-gray-300">Phone number (optional)</Label>
+                <Label htmlFor="phone_number" className="text-gray-300">
+                  Phone number (optional)
+                </Label>
                 <Input
                   id="phone_number"
                   name="phone_number"
@@ -154,7 +162,9 @@ function SignupForm() {
                 />
               </div>
               <div>
-                <Label htmlFor="password" className="text-gray-300">Password</Label>
+                <Label htmlFor="password" className="text-gray-300">
+                  Password
+                </Label>
                 <PasswordInput
                   id="password"
                   name="password"
@@ -225,4 +235,3 @@ export default function SignupPage() {
     </div>
   );
 }
-

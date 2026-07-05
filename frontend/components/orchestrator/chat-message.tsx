@@ -34,14 +34,7 @@ function autoLinkBareUrls(input: string): string {
  * Single conversation bubble. Tool messages render compact as a status row so
  * they don't visually compete with assistant prose.
  */
-export function ChatMessage({
-  role,
-  content,
-  toolName,
-  className,
-  artifactId,
-  onViewArtifact,
-}: ChatMessageProps) {
+export function ChatMessage({ role, content, toolName, className, artifactId, onViewArtifact }: ChatMessageProps) {
   if (role === "tool") {
     const clickable = !!artifactId && !!onViewArtifact;
     return (
@@ -61,9 +54,7 @@ export function ChatMessage({
         <span className="font-mono">
           {toolName ? `${toolName} · ` : ""}
           {content}
-          {clickable && (
-            <span className="ml-2 text-primary font-sans not-italic">View result →</span>
-          )}
+          {clickable && <span className="ml-2 text-primary font-sans not-italic">View result →</span>}
         </span>
       </button>
     );
@@ -77,9 +68,7 @@ export function ChatMessage({
       <div
         className={cn(
           "w-8 h-8 rounded-full flex items-center justify-center shrink-0 border",
-          isUser
-            ? "bg-primary/20 border-primary/30 text-primary"
-            : "bg-gray-800 border-gray-700 text-gray-300"
+          isUser ? "bg-primary/20 border-primary/30 text-primary" : "bg-gray-800 border-gray-700 text-gray-300"
         )}
         aria-hidden="true"
       >
@@ -109,17 +98,11 @@ export function ChatMessage({
                   {children}
                 </a>
               ),
-              p: ({ children }) => (
-                <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>
-              ),
+              p: ({ children }) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
               ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
-              ol: ({ children }) => (
-                <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>
-              ),
+              ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
               li: ({ children }) => <li>{children}</li>,
-              code: ({ children }) => (
-                <code className="px-1 py-0.5 rounded bg-gray-800 text-xs">{children}</code>
-              ),
+              code: ({ children }) => <code className="px-1 py-0.5 rounded bg-gray-800 text-xs">{children}</code>,
             }}
           >
             {autoLinkBareUrls(content)}
@@ -127,43 +110,41 @@ export function ChatMessage({
           <span className="mt-2 block text-xs text-primary">View blog draft →</span>
         </button>
       ) : (
-      <div
-        className={cn(
-          "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
-          isUser
-            ? "bg-primary text-white rounded-tr-sm whitespace-pre-wrap"
-            : "bg-gray-900 text-gray-100 border border-gray-800 rounded-tl-sm"
-        )}
-      >
-        {isUser ? (
-          content
-        ) : (
-          <ReactMarkdown
-            urlTransform={(value) => value}
-            components={{
-              a: ({ href, children }) => (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-primary hover:text-primary/80 break-all"
-                >
-                  {children}
-                </a>
-              ),
-              p: ({ children }) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
-              ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
-              ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
-              li: ({ children }) => <li>{children}</li>,
-              code: ({ children }) => (
-                <code className="px-1 py-0.5 rounded bg-gray-800 text-xs">{children}</code>
-              ),
-            }}
-          >
-            {autoLinkBareUrls(content)}
-          </ReactMarkdown>
-        )}
-      </div>
+        <div
+          className={cn(
+            "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+            isUser
+              ? "bg-primary text-white rounded-tr-sm whitespace-pre-wrap"
+              : "bg-gray-900 text-gray-100 border border-gray-800 rounded-tl-sm"
+          )}
+        >
+          {isUser ? (
+            content
+          ) : (
+            <ReactMarkdown
+              urlTransform={(value) => value}
+              components={{
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-primary hover:text-primary/80 break-all"
+                  >
+                    {children}
+                  </a>
+                ),
+                p: ({ children }) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
+                ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
+                ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
+                li: ({ children }) => <li>{children}</li>,
+                code: ({ children }) => <code className="px-1 py-0.5 rounded bg-gray-800 text-xs">{children}</code>,
+              }}
+            >
+              {autoLinkBareUrls(content)}
+            </ReactMarkdown>
+          )}
+        </div>
       )}
     </div>
   );

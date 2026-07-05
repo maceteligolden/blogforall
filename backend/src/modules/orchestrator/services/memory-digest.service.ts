@@ -14,15 +14,11 @@ import { TokenEnforcementService } from "../../token-ledger/services/token-enfor
 import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
 
 const digestSchema = z.object({
-  memory_summary: z
-    .string()
-    .describe("Concise bullets the supervisor should read every turn (max ~800 words)."),
+  memory_summary: z.string().describe("Concise bullets the supervisor should read every turn (max ~800 words)."),
   performance_digest: z
     .string()
     .describe("What the user accomplished with the orchestrator in this window; factual, no fluff."),
-  content_themes: z
-    .string()
-    .describe("Topics, blog titles, categories, or campaigns mentioned in the transcript."),
+  content_themes: z.string().describe("Topics, blog titles, categories, or campaigns mentioned in the transcript."),
 });
 
 type DigestModelOut = z.infer<typeof digestSchema>;
@@ -59,9 +55,7 @@ export class MemoryDigestService {
       return;
     }
     this.cronJob = cron.schedule(expression, () => {
-      this.runOnce().catch((err) =>
-        logger.error("Memory digest run failed", err as Error, {}, "MemoryDigestService")
-      );
+      this.runOnce().catch((err) => logger.error("Memory digest run failed", err as Error, {}, "MemoryDigestService"));
     });
     logger.info(`Memory digest scheduled (${expression})`, {}, "MemoryDigestService");
   }
@@ -176,13 +170,7 @@ export class MemoryDigestService {
         contextText: priorMemorySummary,
       },
       fn: async () => {
-        return this.runDigestLlm(
-          siteId,
-          priorMemorySummary,
-          priorContentSummary,
-          transcript,
-          chronological
-        );
+        return this.runDigestLlm(siteId, priorMemorySummary, priorContentSummary, transcript, chronological);
       },
     });
   }

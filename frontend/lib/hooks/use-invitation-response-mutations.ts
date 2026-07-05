@@ -12,13 +12,7 @@ interface UseInvitationResponseMutationsOptions {
 }
 
 export function useInvitationResponseMutations(options: UseInvitationResponseMutationsOptions) {
-  const {
-    token,
-    onAcceptSuccess,
-    onRejectSuccess,
-    onAcceptError,
-    onRejectError,
-  } = options;
+  const { token, onAcceptSuccess, onRejectSuccess, onAcceptError, onRejectError } = options;
 
   const acceptMutation = useMutation({
     mutationFn: () => {

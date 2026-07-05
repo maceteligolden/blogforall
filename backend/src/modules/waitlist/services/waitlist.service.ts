@@ -2,10 +2,7 @@ import { injectable } from "tsyringe";
 import { env } from "../../../shared/config/env";
 import { AppError, ConflictError } from "../../../shared/errors";
 import { BrevoFacade } from "../../../shared/facade/brevo.facade";
-import {
-  NotificationChannel,
-  NotificationType,
-} from "../../../shared/constants/notification.constant";
+import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 import { NotificationService } from "../../notification/services/notification.service";
 import { logger } from "../../../shared/utils/logger";
 import { WaitlistRepository } from "../repositories/waitlist.repository";
@@ -104,7 +101,11 @@ export class WaitlistService {
           templateParams: { firstName, lastName, siteUrl },
         })
         .then(() => {
-          logger.info("Waitlist confirmation email enqueued", { emailPrefix: email.substring(0, 3) + "***" }, "WaitlistService");
+          logger.info(
+            "Waitlist confirmation email enqueued",
+            { emailPrefix: email.substring(0, 3) + "***" },
+            "WaitlistService"
+          );
         })
         .catch((error: unknown) => {
           const err = error instanceof Error ? error : new Error(String(error));

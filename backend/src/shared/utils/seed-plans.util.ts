@@ -25,11 +25,7 @@ export async function syncFreePlanTokenLimit(): Promise<void> {
       return;
     }
     if (result.modifiedCount > 0) {
-      logger.info(
-        `Synced Free plan dailyTokens to ${FREE_PLAN_DAILY_TOKENS}`,
-        {},
-        "PlanSeeder"
-      );
+      logger.info(`Synced Free plan dailyTokens to ${FREE_PLAN_DAILY_TOKENS}`, {}, "PlanSeeder");
     }
   } catch (error) {
     logger.error("Failed to sync Free plan daily token limit", error as Error, {}, "PlanSeeder");

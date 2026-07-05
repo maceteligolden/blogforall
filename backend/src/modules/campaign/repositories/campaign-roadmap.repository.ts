@@ -15,11 +15,7 @@ export class CampaignRoadmapRepository {
     });
   }
 
-  async findByVersion(
-    campaignId: string,
-    siteId: string,
-    version: number
-  ): Promise<CampaignRoadmap | null> {
+  async findByVersion(campaignId: string, siteId: string, version: number): Promise<CampaignRoadmap | null> {
     return CampaignRoadmapModel.findOne({ campaign_id: campaignId, site_id: siteId, version });
   }
 

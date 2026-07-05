@@ -8,10 +8,7 @@ export function middleware(request: NextRequest) {
   const authToken = request.cookies.get("auth-token")?.value || request.headers.get("authorization");
 
   // Define public routes that should NOT be accessible when logged in
-  const isAuthPage =
-    pathname === "/" ||
-    pathname.startsWith("/auth/login") ||
-    pathname.startsWith("/auth/signup");
+  const isAuthPage = pathname === "/" || pathname.startsWith("/auth/login") || pathname.startsWith("/auth/signup");
 
   // Define protected routes that REQUIRE authentication
   const isProtectedRoute = pathname.startsWith("/dashboard");
@@ -49,4 +46,3 @@ export const config = {
     "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };
-

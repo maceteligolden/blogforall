@@ -14,10 +14,7 @@ import {
 import type { ScheduledPost } from "../../../shared/schemas/scheduled-post.schema";
 import { ScheduledPostRepository } from "../../campaign/repositories/scheduled-post.repository";
 import { CampaignRepository } from "../../campaign/repositories/campaign.repository";
-import {
-  CampaignLifecycleStatus,
-  CampaignStatus,
-} from "../../../shared/constants/campaign.constant";
+import { CampaignLifecycleStatus, CampaignStatus } from "../../../shared/constants/campaign.constant";
 import { BlogService } from "../../blog/services/blog.service";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { BlogGenerationService } from "../../blog/services/blog-generation.service";
@@ -77,23 +74,14 @@ export class ScheduledPostPrepareService {
   async sweep(): Promise<void> {
     const leadTimeMs = env.orchestrator.reviewLeadTimeHoursDefault * 60 * 60 * 1000;
     const dueWindowMs = Math.max(leadTimeMs, 60 * 60 * 1000);
-    const candidates = await this.scheduledPostRepository.findDueForPreparation(
-      dueWindowMs,
-      100
-    );
+    const candidates = await this.scheduledPostRepository.findDueForPreparation(dueWindowMs, 100);
     if (candidates.length === 0) return;
 
-    logger.info(
-      `Preparing ${candidates.length} scheduled post(s) for review`,
-      {},
-      "ScheduledPostPrepareService"
-    );
+    logger.info(`Preparing ${candidates.length} scheduled post(s) for review`, {}, "ScheduledPostPrepareService");
 
     for (let i = 0; i < candidates.length; i += PREPARE_BATCH_SIZE) {
       const batch = candidates.slice(i, i + PREPARE_BATCH_SIZE);
-      await Promise.allSettled(
-        batch.map((p) => this.prepareOne(p._id!.toString(), p.site_id))
-      );
+      await Promise.allSettled(batch.map((p) => this.prepareOne(p._id!.toString(), p.site_id)));
     }
   }
 
@@ -115,8 +103,7 @@ export class ScheduledPostPrepareService {
     if (post.campaign_id) {
       const campaign = await this.campaignRepository.findById(post.campaign_id, siteId);
       const paused =
-        campaign?.lifecycle_status === CampaignLifecycleStatus.PAUSED ||
-        campaign?.status === CampaignStatus.PAUSED;
+        campaign?.lifecycle_status === CampaignLifecycleStatus.PAUSED || campaign?.status === CampaignStatus.PAUSED;
       if (paused) {
         return { scheduledPostId, ok: false, reason: "Campaign is paused" };
       }
@@ -124,11 +111,7 @@ export class ScheduledPostPrepareService {
 
     try {
       const blogId = await this.ensureBlogDraft(post);
-      const prepared = await this.scheduledPostRepository.markPrepared(
-        scheduledPostId,
-        siteId,
-        { blog_id: blogId }
-      );
+      const prepared = await this.scheduledPostRepository.markPrepared(scheduledPostId, siteId, { blog_id: blogId });
       if (!prepared) {
         // Another worker raced us. Whoever won will issue the token + approval.
         return { scheduledPostId, ok: true, reason: "Raced with another worker" };
@@ -277,9 +260,7 @@ export class ScheduledPostPrepareService {
     }
 
     if (!post.auto_generate || !post.generation_prompt) {
-      throw new Error(
-        "Scheduled post has no blog_id and no auto_generate prompt; cannot prepare draft."
-      );
+      throw new Error("Scheduled post has no blog_id and no auto_generate prompt; cannot prepare draft.");
     }
 
     const requestId = `cron:scheduled-prepare:${post._id}:generate`;
@@ -294,14 +275,9 @@ export class ScheduledPostPrepareService {
         wordCount: generationParams?.word_count,
       },
       fn: async () => {
-        const analysis = await this.blogGenerationService.analyzePrompt(
-          post.generation_prompt!,
-          generationParams
-        );
+        const analysis = await this.blogGenerationService.analyzePrompt(post.generation_prompt!, generationParams);
         if (!analysis.is_valid) {
-          throw new Error(
-            `Generation prompt was rejected: ${analysis.rejection_reason ?? "unknown reason"}`
-          );
+          throw new Error(`Generation prompt was rejected: ${analysis.rejection_reason ?? "unknown reason"}`);
         }
         const generated = await this.blogGenerationService.generateBlogContent(
           post.generation_prompt!,
@@ -416,10 +392,7 @@ export class ScheduledPostPrepareService {
    * (e.g. the review API) can atomically resolve them when the reviewer
    * acts. Centralized here to keep the lookup logic next to the writer.
    */
-  async findOpenApprovalForScheduledPost(
-    siteId: string,
-    scheduledPostId: string
-  ): Promise<string | null> {
+  async findOpenApprovalForScheduledPost(siteId: string, scheduledPostId: string): Promise<string | null> {
     const approvals = await this.approvalRepository.listPendingForSite(siteId, 500);
     const match = approvals.find(
       (a) =>

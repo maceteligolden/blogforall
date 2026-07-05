@@ -114,12 +114,7 @@ export class OrchestratorController {
       const userId = getJwtUserId(req);
       const { siteId, threadId } = req.validatedParams as { siteId: string; threadId: string };
       const { title } = req.validatedBody as { title: string };
-      const thread = await this.orchestratorService.renameThread(
-        threadId,
-        siteId,
-        userId,
-        title
-      );
+      const thread = await this.orchestratorService.renameThread(threadId, siteId, userId, title);
       sendSuccess(res, "Thread renamed", { thread });
     } catch (error) {
       next(error);
@@ -151,13 +146,7 @@ export class OrchestratorController {
         decision: "approved" | "rejected";
         note?: string;
       };
-      const approval = await this.orchestratorService.decideApproval(
-        siteId,
-        userId,
-        approvalId,
-        decision,
-        note
-      );
+      const approval = await this.orchestratorService.decideApproval(siteId, userId, approvalId, decision, note);
       sendCreated(res, "Approval decision recorded", { approval: serializeApproval(approval) });
     } catch (error) {
       next(error);

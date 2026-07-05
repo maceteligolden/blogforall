@@ -22,26 +22,29 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   const [editingImage, setEditingImage] = useState<{ index: number; data: any } | null>(null);
   const [imageProps, setImageProps] = useState({ width: "", height: "", caption: "" });
   const isUpdatingFromProp = useRef(false);
-  
+
   // Memoize onChange to prevent unnecessary re-renders
-  const handleChange = useCallback((html: string) => {
-    onChange(html);
-  }, [onChange]);
+  const handleChange = useCallback(
+    (html: string) => {
+      onChange(html);
+    },
+    [onChange]
+  );
 
   useEffect(() => {
     if (typeof window === "undefined" || !editorRef.current) return;
-    
+
     // Prevent duplicate initialization
     if (quillRef.current) return;
 
     // Capture editorRef.current at the start of the effect for cleanup
     const editorElement = editorRef.current;
-    
+
     // Clear any existing Quill toolbars and content
     if (editorRef.current) {
       // Remove any existing Quill toolbars
-      const existingToolbars = editorRef.current.parentElement?.querySelectorAll('.ql-toolbar');
-      existingToolbars?.forEach(toolbar => toolbar.remove());
+      const existingToolbars = editorRef.current.parentElement?.querySelectorAll(".ql-toolbar");
+      existingToolbars?.forEach((toolbar) => toolbar.remove());
       editorRef.current.innerHTML = "";
     }
 
@@ -52,7 +55,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
       import("./image-with-caption"),
     ]).then(([QuillModule, ResizeModule, ImageWithCaptionModule]) => {
       const Quill = QuillModule.default;
-      
+
       // Register resize module if available
       if (ResizeModule?.default) {
         try {
@@ -61,7 +64,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
           console.warn("Could not register resize module:", e);
         }
       }
-      
+
       // Register image with caption blot
       if (ImageWithCaptionModule?.createImageWithCaption) {
         ImageWithCaptionModule.createImageWithCaption(Quill);
@@ -73,8 +76,8 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
       // Remove any existing Quill instances from the container
       const container = editorRef.current.parentElement;
       if (container) {
-        const existingQuillContainers = container.querySelectorAll('.ql-container');
-        existingQuillContainers.forEach(el => {
+        const existingQuillContainers = container.querySelectorAll(".ql-container");
+        existingQuillContainers.forEach((el) => {
           if (el !== editorRef.current) {
             el.remove();
           }
@@ -104,63 +107,60 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
               ],
               handlers: {
                 image: function (this: any) {
-                const quillInstance = quillRef.current;
-                if (!quillInstance) return;
+                  const quillInstance = quillRef.current;
+                  if (!quillInstance) return;
 
-                const input = document.createElement("input");
-                input.setAttribute("type", "file");
-                input.setAttribute("accept", "image/*");
-                input.click();
+                  const input = document.createElement("input");
+                  input.setAttribute("type", "file");
+                  input.setAttribute("accept", "image/*");
+                  input.click();
 
-                input.onchange = async () => {
-                  const file = input.files?.[0];
-                  if (!file) return;
+                  input.onchange = async () => {
+                    const file = input.files?.[0];
+                    if (!file) return;
 
-                  const range = quillInstance.getSelection(true);
-                  const index = range ? range.index : quillInstance.getLength();
+                    const range = quillInstance.getSelection(true);
+                    const index = range ? range.index : quillInstance.getLength();
 
-                  // Create a placeholder
-                  quillInstance.insertText(index, "Uploading image...\n", "user");
-                  quillInstance.setSelection(index + 20);
+                    // Create a placeholder
+                    quillInstance.insertText(index, "Uploading image...\n", "user");
+                    quillInstance.setSelection(index + 20);
 
-                  try {
-                    // Call the image upload handler
-                    const imageUrl = await new Promise<string>((resolve, reject) => {
-                      const event = new CustomEvent("upload-image", {
-                        detail: { file, resolve, reject },
+                    try {
+                      // Call the image upload handler
+                      const imageUrl = await new Promise<string>((resolve, reject) => {
+                        const event = new CustomEvent("upload-image", {
+                          detail: { file, resolve, reject },
+                        });
+                        window.dispatchEvent(event);
                       });
-                      window.dispatchEvent(event);
-                    });
 
-                    // Insert the image with caption support
-                    quillInstance.deleteText(index, 20);
-                    quillInstance.insertEmbed(
-                      index,
-                      "imageWithCaption",
-                      { url: imageUrl, caption: "" },
-                      "user"
-                    );
-                    quillInstance.setSelection(index + 1);
-                  } catch (error) {
-                    quillInstance.deleteText(index, 20);
-                    quillInstance.insertText(index, "Image upload failed\n", "user");
-                    console.error("Image upload failed:", error);
-                  }
-                };
+                      // Insert the image with caption support
+                      quillInstance.deleteText(index, 20);
+                      quillInstance.insertEmbed(index, "imageWithCaption", { url: imageUrl, caption: "" }, "user");
+                      quillInstance.setSelection(index + 1);
+                    } catch (error) {
+                      quillInstance.deleteText(index, 20);
+                      quillInstance.insertText(index, "Image upload failed\n", "user");
+                      console.error("Image upload failed:", error);
+                    }
+                  };
+                },
               },
             },
-          },
-          clipboard: {
-            matchVisual: false,
-          },
-          ...(ResizeModule?.default ? {
-            resize: {
-              parchment: Quill.import("parchment"),
-              modules: ["Resize", "DisplaySize", "Toolbar"],
+            clipboard: {
+              matchVisual: false,
             },
-          } : {}),
-        },
-      });
+            ...(ResizeModule?.default
+              ? {
+                  resize: {
+                    parchment: Quill.import("parchment"),
+                    modules: ["Resize", "DisplaySize", "Toolbar"],
+                  },
+                }
+              : {}),
+          },
+        });
       } catch (error) {
         console.error("Error initializing Quill:", error);
         throw error;
@@ -222,7 +222,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
 
     return () => {
       const quillInstance = quillRef.current;
-      
+
       if (quillInstance) {
         quillRef.current = null;
       }
@@ -241,7 +241,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
       // Normalize both values for comparison (remove empty paragraphs, etc.)
       const normalizedValue = value || "";
       const normalizedCurrent = currentContent || "";
-      
+
       // Only update if the content is actually different
       if (normalizedValue !== normalizedCurrent) {
         isUpdatingFromProp.current = true;
@@ -300,13 +300,13 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
   return (
     <div className={`rich-text-editor ${className || ""}`} ref={containerRef} style={{ height: "100%" }}>
       <div ref={editorRef} />
-      
+
       {/* Image Properties Dialog */}
       {imageDialogOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 w-full max-w-md">
             <h3 className="text-xl font-bold text-white mb-4">Image Properties</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Width (px)</label>
@@ -318,7 +318,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
                   placeholder="e.g., 800 or 50%"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Height (px)</label>
                 <input
@@ -329,7 +329,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
                   placeholder="e.g., 600 or auto"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Caption</label>
                 <textarea
@@ -340,7 +340,7 @@ export function RichTextEditor({ value, onChange, placeholder, className }: Rich
                 />
               </div>
             </div>
-            
+
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => {

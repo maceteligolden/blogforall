@@ -16,8 +16,6 @@ export class CampaignEventRepository {
   }
 
   async listByCampaign(campaignId: string, limit = 50): Promise<CampaignEvent[]> {
-    return CampaignEventModel.find({ campaign_id: campaignId })
-      .sort({ created_at: -1 })
-      .limit(limit);
+    return CampaignEventModel.find({ campaign_id: campaignId }).sort({ created_at: -1 }).limit(limit);
   }
 }

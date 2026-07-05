@@ -180,8 +180,7 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
     // drafts (~460 words for an 800-word target) because nothing in the chain
     // requested a minimum length. (Debug H19.) When the workspace has set its
     // own preferences they always win.
-    const fallbackTone =
-      memory.preferences.tone || memory.strategic.brand_voice || "professional but approachable";
+    const fallbackTone = memory.preferences.tone || memory.strategic.brand_voice || "professional but approachable";
     const fallbackWordCount = memory.preferences.default_word_count ?? 1100;
 
     const userParams = {
@@ -200,11 +199,7 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
       };
     }
 
-    const { content, review } = await this.generationService.generateWithReview(
-      input.prompt,
-      analysis,
-      userParams
-    );
+    const { content, review } = await this.generationService.generateWithReview(input.prompt, analysis, userParams);
 
     const saveAsDraft = input.save_as_draft !== false;
     let savedBlogId: string | undefined;

@@ -64,9 +64,7 @@ export default function WorkspacesListPage() {
                           </span>
                         )}
                       </div>
-                      {site.description && (
-                        <p className="text-sm text-gray-400 truncate mt-0.5">{site.description}</p>
-                      )}
+                      {site.description && <p className="text-sm text-gray-400 truncate mt-0.5">{site.description}</p>}
                       {"memberCount" in site && (
                         <p className="text-xs text-gray-500 mt-1">
                           {site.memberCount ?? 0} member{(site.memberCount ?? 0) !== 1 ? "s" : ""}

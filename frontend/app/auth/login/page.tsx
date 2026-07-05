@@ -15,7 +15,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { login, isLoading } = useAuth();
   const { isAuthenticated } = useAuthStore();
-  
+
   useEffect(() => {
     // Redirect to dashboard if already authenticated
     if (isAuthenticated) {
@@ -48,7 +48,7 @@ function LoginForm() {
       {/* Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-black to-black pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(30,64,175,0.1),transparent_50%)] pointer-events-none" />
-      
+
       <div className="relative flex min-h-screen items-center justify-center px-4">
         <div className="w-full max-w-md space-y-8 rounded-lg bg-gray-900/80 backdrop-blur-sm border border-gray-800 p-8 shadow-xl">
           <AuthPageHeader title="Sign in to your account" subtitle="Manage your blogs with ease" />
@@ -58,7 +58,9 @@ function LoginForm() {
             )}
             <div className="space-y-4">
               <div>
-                <Label htmlFor="email" className="text-gray-300">Email address</Label>
+                <Label htmlFor="email" className="text-gray-300">
+                  Email address
+                </Label>
                 <Input
                   id="email"
                   name="email"
@@ -72,7 +74,9 @@ function LoginForm() {
               </div>
               <div>
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-gray-300">Password</Label>
+                  <Label htmlFor="password" className="text-gray-300">
+                    Password
+                  </Label>
                   <button
                     type="button"
                     onClick={() => router.push("/auth/forgot-password")}
@@ -118,16 +122,17 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+            <p className="text-gray-400">Loading...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <LoginForm />
     </Suspense>
   );
 }
-

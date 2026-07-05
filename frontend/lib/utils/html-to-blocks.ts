@@ -26,11 +26,21 @@ export function htmlToBlocks(html: string): ContentBlock[] {
       re: figureRe,
       parse: (m) => ({ id: genId(), type: "image", data: { url: m[1] ?? "", caption: strip(m[2] ?? "") } }),
     },
-    { re: /<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/i, parse: (m) => ({ id: genId(), type: "heading", data: { level: parseInt(m[1], 10), text: strip(m[2]) } }) },
-    { re: /<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i, parse: (m) => ({ id: genId(), type: "blockquote", data: { text: strip(m[1]) } }) },
+    {
+      re: /<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/i,
+      parse: (m) => ({ id: genId(), type: "heading", data: { level: parseInt(m[1], 10), text: strip(m[2]) } }),
+    },
+    {
+      re: /<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i,
+      parse: (m) => ({ id: genId(), type: "blockquote", data: { text: strip(m[1]) } }),
+    },
     {
       re: /<pre[^>]*>\s*<code[^>]*>([\s\S]*?)<\/code>\s*<\/pre>/i,
-      parse: (m) => ({ id: genId(), type: "code", data: { text: (m[1] ?? "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") } }),
+      parse: (m) => ({
+        id: genId(),
+        type: "code",
+        data: { text: (m[1] ?? "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&") },
+      }),
     },
     {
       re: /<ul[^>]*>([\s\S]*?)<\/ul>/i,
@@ -52,7 +62,10 @@ export function htmlToBlocks(html: string): ContentBlock[] {
         return { id: genId(), type: "list", data: { listType: "ordered", items } };
       },
     },
-    { re: /<p[^>]*>([\s\S]*?)<\/p>/i, parse: (m) => ({ id: genId(), type: "paragraph", data: { text: strip(m[1] ?? "") } }) },
+    {
+      re: /<p[^>]*>([\s\S]*?)<\/p>/i,
+      parse: (m) => ({ id: genId(), type: "paragraph", data: { text: strip(m[1] ?? "") } }),
+    },
   ];
 
   let remaining = str;

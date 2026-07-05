@@ -28,12 +28,7 @@ export class CampaignPlanningService {
   /**
    * Build a strategic roadmap from campaign fields (deterministic V1; LLM layer optional later).
    */
-  async planCampaign(
-    campaignId: string,
-    siteId: string,
-    userId: string,
-    options?: { threadId?: string }
-  ) {
+  async planCampaign(campaignId: string, siteId: string, userId: string, options?: { threadId?: string }) {
     const campaign = await this.campaignRepository.findById(campaignId, siteId);
     if (!campaign) {
       throw new NotFoundError("Campaign not found");
@@ -41,12 +36,11 @@ export class CampaignPlanningService {
 
     await this.memoryRepository.ensureForCampaign(campaignId, siteId);
     const total = campaign.total_posts_planned ?? this.estimatePostCount(campaign);
-    const topics =
-      campaign.primary_topics?.length
-        ? campaign.primary_topics
-        : campaign.ai_strategy?.content_themes?.length
-          ? campaign.ai_strategy.content_themes
-          : [campaign.goal.slice(0, 80)];
+    const topics = campaign.primary_topics?.length
+      ? campaign.primary_topics
+      : campaign.ai_strategy?.content_themes?.length
+        ? campaign.ai_strategy.content_themes
+        : [campaign.goal.slice(0, 80)];
 
     const slots = this.distributeScheduleDates(
       campaign.start_date,
@@ -115,10 +109,7 @@ export class CampaignPlanningService {
   }
 
   private estimatePostCount(campaign: { start_date: Date; end_date: Date; posting_frequency: PostFrequency }) {
-    const days = Math.max(
-      7,
-      Math.ceil((campaign.end_date.getTime() - campaign.start_date.getTime()) / 86400000)
-    );
+    const days = Math.max(7, Math.ceil((campaign.end_date.getTime() - campaign.start_date.getTime()) / 86400000));
     switch (campaign.posting_frequency) {
       case PostFrequency.DAILY:
         return Math.min(days, 30);
@@ -133,12 +124,7 @@ export class CampaignPlanningService {
     }
   }
 
-  private distributeScheduleDates(
-    start: Date,
-    end: Date,
-    count: number,
-    frequency: PostFrequency
-  ): Date[] {
+  private distributeScheduleDates(start: Date, end: Date, count: number, frequency: PostFrequency): Date[] {
     if (count <= 0) {
       throw new BadRequestError("Campaign must plan at least one post");
     }

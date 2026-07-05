@@ -26,10 +26,7 @@ export class CampaignHealthService {
   async compute(campaign: Campaign): Promise<CampaignHealthResult> {
     const reasons: string[] = [];
     const now = new Date();
-    const items = await this.postItemRepository.findByCampaign(
-      campaign._id!.toString(),
-      campaign.site_id
-    );
+    const items = await this.postItemRepository.findByCampaign(campaign._id!.toString(), campaign.site_id);
     const total = items.length || campaign.total_posts_planned || 0;
     const published = items.filter((i) => i.status === CampaignPostItemStatus.PUBLISHED).length;
 
@@ -38,12 +35,8 @@ export class CampaignHealthService {
       new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000),
       500
     );
-    const campaignPending = pendingApprovalPosts.filter(
-      (p) => p.campaign_id === campaign._id!.toString()
-    );
-    const overdueUnapproved = campaignPending.filter(
-      (p) => p.scheduled_at <= now && !p.approved_at
-    );
+    const campaignPending = pendingApprovalPosts.filter((p) => p.campaign_id === campaign._id!.toString());
+    const overdueUnapproved = campaignPending.filter((p) => p.scheduled_at <= now && !p.approved_at);
 
     if (overdueUnapproved.length > 0) {
       reasons.push(
@@ -54,10 +47,7 @@ export class CampaignHealthService {
       reasons.push(`${campaignPending.length} post(s) awaiting your pre-publish approval.`);
     }
 
-    const daysTotal = Math.max(
-      1,
-      Math.ceil((campaign.end_date.getTime() - campaign.start_date.getTime()) / 86400000)
-    );
+    const daysTotal = Math.max(1, Math.ceil((campaign.end_date.getTime() - campaign.start_date.getTime()) / 86400000));
     const daysElapsed = Math.min(
       daysTotal,
       Math.max(0, Math.ceil((now.getTime() - campaign.start_date.getTime()) / 86400000))
@@ -76,10 +66,7 @@ export class CampaignHealthService {
       reasons.push("Ahead of planned publishing pace.");
     }
 
-    if (
-      campaign.lifecycle_status === CampaignLifecycleStatus.PAUSED ||
-      campaign.status === CampaignStatus.PAUSED
-    ) {
+    if (campaign.lifecycle_status === CampaignLifecycleStatus.PAUSED || campaign.status === CampaignStatus.PAUSED) {
       reasons.push("Campaign automation is paused.");
     }
 

@@ -87,9 +87,7 @@ export class ReferralService {
           status: r.status,
           signed_up_at: r.created_at,
           referred_email: referred ? maskEmail(referred.email) : undefined,
-          referred_name: referred
-            ? `${referred.first_name} ${referred.last_name}`.trim()
-            : undefined,
+          referred_name: referred ? `${referred.first_name} ${referred.last_name}`.trim() : undefined,
         };
       }),
     };

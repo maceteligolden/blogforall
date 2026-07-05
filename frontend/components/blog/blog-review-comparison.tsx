@@ -17,18 +17,12 @@ interface BlogReviewComparisonProps {
   onApplyAll?: () => void;
 }
 
-export function BlogReviewComparison({
-  original,
-  reviewResult,
-  onClose,
-  onApplyAll,
-}: BlogReviewComparisonProps) {
+export function BlogReviewComparison({ original, reviewResult, onClose, onApplyAll }: BlogReviewComparisonProps) {
   const [activeTab, setActiveTab] = useState<"title" | "content" | "excerpt">("content");
 
   const hasTitleChange = reviewResult.improved_title && reviewResult.improved_title !== original.title;
   const hasContentChange = reviewResult.improved_content && reviewResult.improved_content !== original.content;
-  const hasExcerptChange =
-    reviewResult.improved_excerpt && reviewResult.improved_excerpt !== original.excerpt;
+  const hasExcerptChange = reviewResult.improved_excerpt && reviewResult.improved_excerpt !== original.excerpt;
 
   const renderDiff = (originalText: string, improvedText: string) => {
     // Simple diff visualization - highlight differences
@@ -85,12 +79,7 @@ export function BlogReviewComparison({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-800">
           <h2 className="text-2xl font-semibold text-white">Review Comparison</h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="text-gray-400 hover:text-white"
-          >
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
           </Button>
         </div>
@@ -138,9 +127,7 @@ export function BlogReviewComparison({
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === "title" && hasTitleChange && (
-            <div className="space-y-4">
-              {renderDiff(original.title, reviewResult.improved_title || original.title)}
-            </div>
+            <div className="space-y-4">{renderDiff(original.title, reviewResult.improved_title || original.title)}</div>
           )}
 
           {activeTab === "content" && hasContentChange && (
@@ -168,18 +155,11 @@ export function BlogReviewComparison({
             Review Score: <span className="text-white font-semibold">{reviewResult.overall_score}/100</span>
           </div>
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
-            >
+            <Button variant="outline" onClick={onClose} className="border-gray-700 text-gray-300 hover:bg-gray-800">
               Close
             </Button>
             {onApplyAll && (hasTitleChange || hasContentChange || hasExcerptChange) && (
-              <Button
-                onClick={onApplyAll}
-                className="bg-primary hover:bg-primary/90 text-white"
-              >
+              <Button onClick={onApplyAll} className="bg-primary hover:bg-primary/90 text-white">
                 Apply All Changes
               </Button>
             )}

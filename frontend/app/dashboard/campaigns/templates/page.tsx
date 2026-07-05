@@ -90,26 +90,15 @@ export default function CampaignTemplatesPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb
-          items={[
-            { label: "Campaigns", href: "/dashboard/campaigns" },
-            { label: "Templates" },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Campaigns", href: "/dashboard/campaigns" }, { label: "Templates" }]} />
 
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="text-gray-400 hover:text-white mb-4"
-          >
+          <Button variant="ghost" onClick={() => router.back()} className="text-gray-400 hover:text-white mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
           <h1 className="text-3xl font-display text-white">Campaign Templates</h1>
-          <p className="text-gray-400 mt-2">
-            Choose a template to quickly set up your marketing campaign
-          </p>
+          <p className="text-gray-400 mt-2">Choose a template to quickly set up your marketing campaign</p>
         </div>
 
         {/* Filter Tabs */}
@@ -149,16 +138,10 @@ export default function CampaignTemplatesPage() {
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${getTypeColor(template.type)}`}>
-                      {getTypeIcon(template.type)}
-                    </div>
+                    <div className={`p-2 rounded-lg ${getTypeColor(template.type)}`}>{getTypeIcon(template.type)}</div>
                     <div>
                       <h3 className="text-lg font-semibold text-white">{template.name}</h3>
-                      <span
-                        className={`px-2 py-1 text-xs rounded capitalize border ${getTypeColor(
-                          template.type
-                        )}`}
-                      >
+                      <span className={`px-2 py-1 text-xs rounded capitalize border ${getTypeColor(template.type)}`}>
                         {template.type.replace("_", " ")}
                       </span>
                     </div>
@@ -185,10 +168,7 @@ export default function CampaignTemplatesPage() {
                       <p className="text-gray-400 text-xs mb-2">Suggested Topics:</p>
                       <div className="flex flex-wrap gap-1">
                         {template.suggested_topics.slice(0, 3).map((topic, idx) => (
-                          <span
-                            key={idx}
-                            className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300"
-                          >
+                          <span key={idx} className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-300">
                             {topic}
                           </span>
                         ))}

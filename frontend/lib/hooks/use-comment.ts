@@ -41,8 +41,7 @@ export function useUpdateComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { content: string } }) =>
-      CommentService.updateComment(id, data),
+    mutationFn: ({ id, data }: { id: string; data: { content: string } }) => CommentService.updateComment(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.COMMENTS });
     },
@@ -59,11 +58,11 @@ export function useDeleteComment() {
       // Invalidate all blog comment queries
       queryClient.invalidateQueries({ queryKey: ["comments", "blog"] });
       // Also invalidate queries that start with COMMENTS_BY_BLOG pattern
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         predicate: (query) => {
           const key = query.queryKey;
           return Array.isArray(key) && key[0] === "comments" && key[1] === "blog";
-        }
+        },
       });
     },
   });
@@ -79,4 +78,3 @@ export function useToggleCommentLike() {
     },
   });
 }
-

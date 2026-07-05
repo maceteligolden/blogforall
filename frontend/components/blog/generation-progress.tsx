@@ -38,12 +38,7 @@ const stages: { key: GenerationStage; label: string; description: string }[] = [
   },
 ];
 
-export function GenerationProgress({
-  isOpen,
-  onCancel,
-  currentStage,
-  canCancel = true,
-}: GenerationProgressProps) {
+export function GenerationProgress({ isOpen, onCancel, currentStage, canCancel = true }: GenerationProgressProps) {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -77,10 +72,7 @@ export function GenerationProgress({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-white">Generating Blog Post</h2>
           {canCancel && currentStage !== "complete" && (
-            <button
-              onClick={onCancel}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
+            <button onClick={onCancel} className="text-gray-400 hover:text-white transition-colors">
               <X className="w-5 h-5" />
             </button>
           )}
@@ -90,9 +82,7 @@ export function GenerationProgress({
           {/* Progress Bar */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-400">
-                {stages[currentStageIndex]?.label || "Processing..."}
-              </span>
+              <span className="text-sm text-gray-400">{stages[currentStageIndex]?.label || "Processing..."}</span>
               <span className="text-sm text-gray-400">{Math.round(progress)}%</span>
             </div>
             <Progress value={progress} className="h-2" />
@@ -135,9 +125,7 @@ export function GenerationProgress({
                     >
                       {stage.label}
                     </p>
-                    {(isActive || isComplete) && (
-                      <p className="text-xs text-gray-500 mt-1">{stage.description}</p>
-                    )}
+                    {(isActive || isComplete) && <p className="text-xs text-gray-500 mt-1">{stage.description}</p>}
                   </div>
                 </div>
               );

@@ -60,8 +60,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken =
-          typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
+        const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
 
         if (!refreshToken) {
           if (typeof window !== "undefined") {
@@ -105,4 +104,3 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
-

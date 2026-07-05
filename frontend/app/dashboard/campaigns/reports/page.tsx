@@ -31,12 +31,7 @@ export default function CampaignReportsInboxPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-5xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb
-          items={[
-            { label: "Campaigns", href: "/dashboard/campaigns" },
-            { label: "Daily reports" },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Campaigns", href: "/dashboard/campaigns" }, { label: "Daily reports" }]} />
         <h1 className="text-3xl font-display text-white mt-4 mb-2">Campaign reports</h1>
         <p className="text-gray-400 mb-8">Today&apos;s progress across active campaigns — at-risk first.</p>
 
@@ -58,8 +53,8 @@ export default function CampaignReportsInboxPage() {
                 </div>
                 <p className="text-sm text-gray-400 line-clamp-2">{report.narrative_summary}</p>
                 <p className="text-xs text-gray-500 mt-2">
-                  {Math.round(report.progress.percent_complete)}% complete ·{" "}
-                  {report.progress.awaiting_approval} awaiting approval
+                  {Math.round(report.progress.percent_complete)}% complete · {report.progress.awaiting_approval}{" "}
+                  awaiting approval
                 </p>
               </Link>
             ))}

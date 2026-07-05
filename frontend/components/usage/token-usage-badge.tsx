@@ -31,9 +31,7 @@ export function TokenUsageBadge({ className, compact }: TokenUsageBadgeProps) {
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] sm:text-xs font-medium tabular-nums",
-        low
-          ? "border-red-800/60 bg-red-950/40 text-red-200"
-          : "border-gray-700 bg-gray-900/80 text-gray-300",
+        low ? "border-red-800/60 bg-red-950/40 text-red-200" : "border-gray-700 bg-gray-900/80 text-gray-300",
         className
       )}
       title={`${data.used.toLocaleString()} used of ${data.allocation.toLocaleString()} daily tokens`}

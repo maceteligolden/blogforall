@@ -81,10 +81,7 @@ function parseSseBlocks(buffer: string): { events: Array<{ event: string; data: 
 }
 
 export class BlogGenerationService {
-  static async analyzePrompt(
-    prompt: string,
-    opts?: AnalyzePromptOptions
-  ): Promise<{ data: { data: PromptAnalysis } }> {
+  static async analyzePrompt(prompt: string, opts?: AnalyzePromptOptions): Promise<{ data: { data: PromptAnalysis } }> {
     const siteId = requireSiteId();
     const { signal, tone, target_audience, topics_to_explore, word_count, purpose, structure, length_preset } =
       opts ?? {};

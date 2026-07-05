@@ -12,9 +12,7 @@ export function CampaignHealthBadge({ status }: { status?: string }) {
   const key = (status ?? "unknown").toLowerCase();
   const label = key.replace(/_/g, " ");
   return (
-    <span
-      className={`px-2 py-0.5 text-xs rounded capitalize border ${HEALTH_STYLES[key] ?? HEALTH_STYLES.unknown}`}
-    >
+    <span className={`px-2 py-0.5 text-xs rounded capitalize border ${HEALTH_STYLES[key] ?? HEALTH_STYLES.unknown}`}>
       {label}
     </span>
   );

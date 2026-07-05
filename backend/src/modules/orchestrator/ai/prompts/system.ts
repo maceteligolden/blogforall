@@ -168,9 +168,7 @@ Onboarding progress (authoritative — from workspace memory):
  * Render the active-mode system prompt with the workspace context filled in.
  */
 export function renderActiveSystemPrompt(ctx: SystemPromptContext): string {
-  const sessionBlock = ctx.session_mode_instructions
-    ? `# Session mode\n\n${ctx.session_mode_instructions}\n`
-    : "";
+  const sessionBlock = ctx.session_mode_instructions ? `# Session mode\n\n${ctx.session_mode_instructions}\n` : "";
   return BASE_BLUEPRINT.replace("{{WORKSPACE_NAME}}", ctx.workspace_name)
     .replace("{{WORKSPACE_ID}}", ctx.workspace_id)
     .replace("{{SESSION_MODE_INSTRUCTIONS}}", sessionBlock)

@@ -50,8 +50,7 @@ export function useBlogGeneration() {
       if (err?.name === "AbortError" || err?.code === "ERR_CANCELED") {
         return;
       }
-      const duration_ms =
-        analyzeStartedAtRef.current != null ? Date.now() - analyzeStartedAtRef.current : undefined;
+      const duration_ms = analyzeStartedAtRef.current != null ? Date.now() - analyzeStartedAtRef.current : undefined;
       generationTracker.failed({
         stage: "analyze",
         error_code: extractApiErrorCode(error),
@@ -71,19 +70,11 @@ export function useBlogGeneration() {
   });
 
   const generateBlogMutation = useMutation({
-    mutationFn: ({
-      prompt,
-      analysis,
-      signal,
-    }: {
-      prompt: string;
-      analysis?: PromptAnalysis;
-      signal?: AbortSignal;
-    }) => BlogGenerationService.generateBlog(prompt, analysis, signal),
+    mutationFn: ({ prompt, analysis, signal }: { prompt: string; analysis?: PromptAnalysis; signal?: AbortSignal }) =>
+      BlogGenerationService.generateBlog(prompt, analysis, signal),
     onSuccess: (response) => {
       invalidateTokenUsage();
-      const duration_ms =
-        generateStartedAtRef.current != null ? Date.now() - generateStartedAtRef.current : 0;
+      const duration_ms = generateStartedAtRef.current != null ? Date.now() - generateStartedAtRef.current : 0;
       const content = response?.data?.data?.content?.content;
       const wordCount = content?.split(/\s+/).filter(Boolean).length;
       generationTracker.success({
@@ -102,8 +93,7 @@ export function useBlogGeneration() {
       if (err?.name === "AbortError" || err?.code === "ERR_CANCELED") {
         return;
       }
-      const duration_ms =
-        generateStartedAtRef.current != null ? Date.now() - generateStartedAtRef.current : undefined;
+      const duration_ms = generateStartedAtRef.current != null ? Date.now() - generateStartedAtRef.current : undefined;
       generationTracker.failed({
         stage: "generate",
         error_code: extractApiErrorCode(error),

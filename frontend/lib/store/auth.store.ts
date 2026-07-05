@@ -52,11 +52,11 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== "undefined") {
           localStorage.setItem("access_token", accessToken);
           localStorage.setItem("refresh_token", refreshToken);
-          
+
           if (currentSiteId) {
             localStorage.setItem("current_site_id", currentSiteId);
           }
-          
+
           // Set cookie for Next.js Middleware
           const expires = new Date();
           expires.setDate(expires.getDate() + 7);
@@ -126,7 +126,7 @@ export const useAuthStore = create<AuthState>()(
           localStorage.removeItem("refresh_token");
           localStorage.removeItem("user_email");
           localStorage.removeItem("current_site_id");
-          
+
           // Clear cookie
           document.cookie = "auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         }
@@ -162,4 +162,3 @@ export const useAuthStore = create<AuthState>()(
 
 /** Selector: true when the current user has admin role. Use to guard admin-only UI. */
 export const useIsAdmin = (): boolean => useAuthStore((s) => s.user?.role === USER_ROLE.ADMIN);
-

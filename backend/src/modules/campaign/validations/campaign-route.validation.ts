@@ -160,4 +160,3 @@ export const campaignTemplateListQuerySchema = z.object({
     .transform((v) => (v === undefined ? undefined : v === "true")),
   industry: z.string().optional(),
 });
-

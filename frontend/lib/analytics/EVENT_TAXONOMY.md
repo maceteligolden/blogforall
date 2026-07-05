@@ -4,13 +4,13 @@ Event naming: **`[object] [action]`** (lowercase, space-separated). All captures
 
 ## Base properties (every event)
 
-| Property | Source |
-|----------|--------|
-| `user_id` | PostHog distinct_id after identify |
-| `workspace_id` | `useAuthStore.currentSiteId` |
-| `session_id` | `getOrCreateSessionId()` |
-| `plan_type` | User/subscription plan |
-| `environment` | `NEXT_PUBLIC_APP_ENV` or `NODE_ENV` |
+| Property       | Source                              |
+| -------------- | ----------------------------------- |
+| `user_id`      | PostHog distinct_id after identify  |
+| `workspace_id` | `useAuthStore.currentSiteId`        |
+| `session_id`   | `getOrCreateSessionId()`            |
+| `plan_type`    | User/subscription plan              |
+| `environment`  | `NEXT_PUBLIC_APP_ENV` or `NODE_ENV` |
 
 ## Funnels (configure in PostHog UI)
 
@@ -32,16 +32,16 @@ Event naming: **`[object] [action]`** (lowercase, space-separated). All captures
 
 ## Daily metrics checklist
 
-| Metric | Definition |
-|--------|------------|
-| Signup → login rate | `login success` / `signup completed` within 24h |
-| Onboarding completion | `workspace onboarding completed` / `workspace created` |
-| Activation rate | Users with ≥1 `generation success` / new signups (7d) |
+| Metric                   | Definition                                              |
+| ------------------------ | ------------------------------------------------------- |
+| Signup → login rate      | `login success` / `signup completed` within 24h         |
+| Onboarding completion    | `workspace onboarding completed` / `workspace created`  |
+| Activation rate          | Users with ≥1 `generation success` / new signups (7d)   |
 | Time to first generation | Median: `signup completed` → first `generation success` |
-| Generation success rate | `generation success` / `generation started` |
-| Generation failures | Breakdown of `generation failed` by `error_code` |
-| Token limit friction | `error_code: TOKEN_LIMIT_EXCEEDED` count |
-| Orchestrator adoption | % with `orchestrator message sent` |
+| Generation success rate  | `generation success` / `generation started`             |
+| Generation failures      | Breakdown of `generation failed` by `error_code`        |
+| Token limit friction     | `error_code: TOKEN_LIMIT_EXCEEDED` count                |
+| Orchestrator adoption    | % with `orchestrator message sent`                      |
 
 ## Session replay
 

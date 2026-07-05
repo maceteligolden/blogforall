@@ -233,8 +233,7 @@ campaignSchema.pre("save", function (next) {
   }
   const now = new Date();
   const activeLifecycle =
-    this.lifecycle_status === CampaignLifecycleStatus.ACTIVE ||
-    this.status === CampaignStatus.ACTIVE;
+    this.lifecycle_status === CampaignLifecycleStatus.ACTIVE || this.status === CampaignStatus.ACTIVE;
   if (activeLifecycle && this.end_date < now) {
     this.status = CampaignStatus.COMPLETED;
     this.lifecycle_status = CampaignLifecycleStatus.COMPLETED;

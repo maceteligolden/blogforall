@@ -19,6 +19,5 @@ export function useTokenUsage() {
 
 export function useInvalidateTokenUsage() {
   const queryClient = useQueryClient();
-  return () =>
-    queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TOKEN_USAGE });
+  return () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TOKEN_USAGE });
 }

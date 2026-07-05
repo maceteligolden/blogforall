@@ -58,12 +58,8 @@ export class CampaignScheduleMaterializerService {
           `Campaign goal: ${campaign.goal}`,
           `Post objective: ${item.objective}`,
           `Strategic intent: ${item.strategic_intent}`,
-          item.target_keywords?.length
-            ? `Keywords: ${item.target_keywords.join(", ")}`
-            : "",
-          campaign.cta_strategy?.primary_cta
-            ? `CTA: ${campaign.cta_strategy.primary_cta}`
-            : "",
+          item.target_keywords?.length ? `Keywords: ${item.target_keywords.join(", ")}` : "",
+          campaign.cta_strategy?.primary_cta ? `CTA: ${campaign.cta_strategy.primary_cta}` : "",
         ]
           .filter(Boolean)
           .join("\n"),

@@ -33,11 +33,7 @@ export function extractUrlFromText(text: string): string | null {
   return match ? match[0] : null;
 }
 
-export const VIEWABLE_ARTIFACT_TOOLS = new Set([
-  "blogs.generateDraft",
-  "blogs.createDraft",
-  "blogs.review",
-]);
+export const VIEWABLE_ARTIFACT_TOOLS = new Set(["blogs.generateDraft", "blogs.createDraft", "blogs.review"]);
 
 export function isViewableArtifactTool(tool?: string): boolean {
   return !!tool && VIEWABLE_ARTIFACT_TOOLS.has(tool);
@@ -49,15 +45,11 @@ export function findArtifactIdForToolMessage(
   artifacts: OrchestratorArtifact[]
 ): string | undefined {
   if (!isViewableArtifactTool(toolName)) return undefined;
-  const exact = artifacts.find(
-    (a) => a.tool === toolName && a.summary != null && a.summary === content
-  );
+  const exact = artifacts.find((a) => a.tool === toolName && a.summary != null && a.summary === content);
   if (exact) return exact.id;
   const fuzzy = artifacts.find(
     (a) =>
-      a.tool === toolName &&
-      ((a.summary && content.includes(a.summary)) ||
-        (a.summary && a.summary.includes(content)))
+      a.tool === toolName && ((a.summary && content.includes(a.summary)) || (a.summary && a.summary.includes(content)))
   );
   if (fuzzy) return fuzzy.id;
   const sameTool = artifacts.filter((a) => a.tool === toolName);
@@ -78,8 +70,7 @@ export function findArtifactIdForAssistantMessage(
         a.tool === call.tool &&
         call.output_data &&
         typeof call.output_data === "object" &&
-        (call.output_data as { blog_id?: string }).blog_id ===
-          (a.outputData.blog_id as string | undefined)
+        (call.output_data as { blog_id?: string }).blog_id === (a.outputData.blog_id as string | undefined)
     );
     if (byData) return byData.id;
   }

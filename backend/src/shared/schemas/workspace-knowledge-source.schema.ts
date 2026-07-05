@@ -54,7 +54,4 @@ workspaceKnowledgeSourceSchema.pre("save", function (next) {
 
 workspaceKnowledgeSourceSchema.index({ site_id: 1, status: 1 });
 
-export default model<WorkspaceKnowledgeSource>(
-  "WorkspaceKnowledgeSource",
-  workspaceKnowledgeSourceSchema
-);
+export default model<WorkspaceKnowledgeSource>("WorkspaceKnowledgeSource", workspaceKnowledgeSourceSchema);

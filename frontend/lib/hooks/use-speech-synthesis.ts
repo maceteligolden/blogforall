@@ -14,9 +14,7 @@ export function useSpeechSynthesis() {
         return;
       }
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(
-        text.replace(/[#*_`[\]()]/g, "").slice(0, 2000)
-      );
+      const utterance = new SpeechSynthesisUtterance(text.replace(/[#*_`[\]()]/g, "").slice(0, 2000));
       utterance.rate = 1;
       utterance.pitch = 1;
       utterance.onend = () => onEnd?.();
@@ -33,4 +31,4 @@ export function useSpeechSynthesis() {
   }, [isSupported]);
 
   return { isSupported, speak, stop };
-};
+}

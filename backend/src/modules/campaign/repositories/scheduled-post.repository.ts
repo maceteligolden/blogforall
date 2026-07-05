@@ -157,11 +157,7 @@ export class ScheduledPostRepository {
    * publish between `from` and `to`. Used by the weekly digest cron to roll
    * up "what needs your sign-off this week" across all workspaces.
    */
-  async findPendingApprovalsInWindow(
-    from: Date,
-    to: Date,
-    limit: number = 500
-  ): Promise<ScheduledPostType[]> {
+  async findPendingApprovalsInWindow(from: Date, to: Date, limit: number = 500): Promise<ScheduledPostType[]> {
     return ScheduledPost.find({
       status: ScheduledPostStatus.AWAITING_APPROVAL,
       $or: [{ approved_at: { $exists: false } }, { approved_at: null }],
@@ -176,11 +172,7 @@ export class ScheduledPostRepository {
    * once the prepare worker has produced a draft. Returns the updated row,
    * or null if a concurrent worker already prepared it.
    */
-  async markPrepared(
-    id: string,
-    siteId: string,
-    update: { blog_id?: string }
-  ): Promise<ScheduledPostType | null> {
+  async markPrepared(id: string, siteId: string, update: { blog_id?: string }): Promise<ScheduledPostType | null> {
     return ScheduledPost.findOneAndUpdate(
       {
         _id: id,
@@ -205,11 +197,7 @@ export class ScheduledPostRepository {
    * Atomically record the reviewer's approval. Returns null if the post is
    * not currently AWAITING_APPROVAL (e.g. already approved on another tab).
    */
-  async markApproved(
-    id: string,
-    siteId: string,
-    approverUserId: string
-  ): Promise<ScheduledPostType | null> {
+  async markApproved(id: string, siteId: string, approverUserId: string): Promise<ScheduledPostType | null> {
     return ScheduledPost.findOneAndUpdate(
       {
         _id: id,

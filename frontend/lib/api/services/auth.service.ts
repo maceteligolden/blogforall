@@ -88,4 +88,3 @@ export class AuthService {
     return apiClient.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
   }
 }
-

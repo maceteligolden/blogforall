@@ -10,7 +10,15 @@ import type {
   SiteWithMemberCount,
 } from "../types/site.types";
 
-export type { Site, CreateSiteRequest, UpdateSiteRequest, SiteMember, AddMemberRequest, UpdateMemberRoleRequest, SiteWithMemberCount } from "../types/site.types";
+export type {
+  Site,
+  CreateSiteRequest,
+  UpdateSiteRequest,
+  SiteMember,
+  AddMemberRequest,
+  UpdateMemberRoleRequest,
+  SiteWithMemberCount,
+} from "../types/site.types";
 
 export class SiteService {
   /**

@@ -4,11 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-const HUB_TAB_PATHS = new Set([
-  "/dashboard/blogs",
-  "/dashboard/blogs/categories",
-  "/dashboard/blogs/scheduled",
-]);
+const HUB_TAB_PATHS = new Set(["/dashboard/blogs", "/dashboard/blogs/categories", "/dashboard/blogs/scheduled"]);
 
 function getBackNav(pathname: string): { href: string; label: string } | null {
   if (HUB_TAB_PATHS.has(pathname)) return null;

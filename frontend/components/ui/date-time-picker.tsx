@@ -131,13 +131,7 @@ export function DateTimePicker({
   const handleSelectDay = (day: Date) => {
     if (minDay && isBefore(day, minDay)) return;
     const base = draftDate ?? selectedDate ?? new Date();
-    const next = setMilliseconds(
-      setSeconds(
-        setMinutes(setHours(day, base.getHours()), base.getMinutes()),
-        0
-      ),
-      0
-    );
+    const next = setMilliseconds(setSeconds(setMinutes(setHours(day, base.getHours()), base.getMinutes()), 0), 0);
     setDraftDate(next);
     setError(null);
   };
@@ -174,10 +168,7 @@ export function DateTimePicker({
       hour24 = h;
     }
 
-    let combined = setMilliseconds(
-      setSeconds(setMinutes(setHours(draftDate, hour24), m), 0),
-      0
-    );
+    let combined = setMilliseconds(setSeconds(setMinutes(setHours(draftDate, hour24), m), 0), 0);
 
     if (minDate && isBefore(combined, minDate)) {
       combined = clamp(combined, minDate);
@@ -264,9 +255,7 @@ export function DateTimePicker({
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <div className="text-sm font-semibold text-white">
-              {format(viewMonth, "MMMM yyyy")}
-            </div>
+            <div className="text-sm font-semibold text-white">{format(viewMonth, "MMMM yyyy")}</div>
             <div className="flex items-center gap-1">
               <button
                 type="button"

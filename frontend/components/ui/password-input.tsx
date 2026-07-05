@@ -39,12 +39,7 @@ export function PasswordInput({
   return (
     <div>
       <div className="relative">
-        <Input
-          {...props}
-          type={showPassword ? "text" : "password"}
-          value={value}
-          className={cn("pr-10", className)}
-        />
+        <Input {...props} type={showPassword ? "text" : "password"} value={value} className={cn("pr-10", className)} />
         <Button
           type="button"
           variant="ghost"
@@ -57,11 +52,7 @@ export function PasswordInput({
           }}
           aria-label={showPassword ? "Hide password" : "Show password"}
         >
-          {showPassword ? (
-            <EyeOff className="h-4 w-4" />
-          ) : (
-            <Eye className="h-4 w-4" />
-          )}
+          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </Button>
       </div>
       {showValidation && validationErrors.length > 0 && (

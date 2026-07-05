@@ -33,10 +33,7 @@ export default function ViewBlogPage() {
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
           <p className="text-gray-400 mb-4">Blog not found</p>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => router.push("/dashboard/blogs")}
-          >
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => router.push("/dashboard/blogs")}>
             Back to Contents
           </Button>
         </div>
@@ -47,12 +44,7 @@ export default function ViewBlogPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb
-          items={[
-            { label: "Contents", href: "/dashboard/blogs" },
-            { label: blog.title || "View Blog" },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: blog.title || "View Blog" }]} />
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-display text-white">View Blog</h1>
           <Link href={`/dashboard/blogs/${id}`}>
@@ -85,12 +77,8 @@ export default function ViewBlogPage() {
           <div className="flex items-center space-x-6 text-sm text-gray-400 mb-6">
             <span>{blog.views || 0} views</span>
             <span>{blog.likes || 0} likes</span>
-            {blog.created_at && (
-              <span>Created: {new Date(blog.created_at).toLocaleDateString()}</span>
-            )}
-            {blog.updated_at && (
-              <span>Updated: {new Date(blog.updated_at).toLocaleDateString()}</span>
-            )}
+            {blog.created_at && <span>Created: {new Date(blog.created_at).toLocaleDateString()}</span>}
+            {blog.updated_at && <span>Updated: {new Date(blog.updated_at).toLocaleDateString()}</span>}
           </div>
 
           {/* Featured Image */}
@@ -114,10 +102,7 @@ export default function ViewBlogPage() {
           )}
 
           {/* Content */}
-          <div
-            className="blog-content-view"
-            dangerouslySetInnerHTML={{ __html: blog.content }}
-          />
+          <div className="blog-content-view" dangerouslySetInnerHTML={{ __html: blog.content }} />
           <style jsx global>{`
             .blog-content-view {
               line-height: 1.8;
@@ -214,7 +199,7 @@ export default function ViewBlogPage() {
               padding: 0.2rem 0.4rem;
               border-radius: 0.25rem;
               font-size: 0.875em;
-              font-family: 'Courier New', monospace;
+              font-family: "Courier New", monospace;
             }
 
             .blog-content-view pre code {
@@ -382,22 +367,15 @@ function CommentsSection({ blogId }: { blogId: string }) {
         <>
           <div className="space-y-6 mb-6">
             {comments.map((comment: any) => (
-              <div
-                key={comment._id}
-                className="bg-gray-800 rounded-lg border border-gray-700 p-6"
-              >
+              <div key={comment._id} className="bg-gray-800 rounded-lg border border-gray-700 p-6">
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="font-semibold text-white">{comment.author_name}</span>
-                      {comment.author_email && (
-                        <span className="text-sm text-gray-400">({comment.author_email})</span>
-                      )}
+                      {comment.author_email && <span className="text-sm text-gray-400">({comment.author_email})</span>}
                     </div>
                     {comment.created_at && (
-                      <span className="text-xs text-gray-500">
-                        {new Date(comment.created_at).toLocaleString()}
-                      </span>
+                      <span className="text-xs text-gray-500">{new Date(comment.created_at).toLocaleString()}</span>
                     )}
                   </div>
                   <Button
@@ -467,4 +445,3 @@ function CommentsSection({ blogId }: { blogId: string }) {
     </div>
   );
 }
-

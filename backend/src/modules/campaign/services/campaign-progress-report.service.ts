@@ -25,18 +25,13 @@ export class CampaignProgressReportService {
     private scheduledPostRepository: ScheduledPostRepository
   ) {}
 
-  async buildDailyReport(
-    campaignId: string,
-    siteId: string,
-    reportDate?: string
-  ): Promise<CampaignProgressReport> {
+  async buildDailyReport(campaignId: string, siteId: string, reportDate?: string): Promise<CampaignProgressReport> {
     const campaign = await this.campaignRepository.findById(campaignId, siteId);
     if (!campaign) {
       throw new NotFoundError("Campaign not found");
     }
 
-    const dateStr =
-      reportDate ?? new Date().toISOString().slice(0, 10);
+    const dateStr = reportDate ?? new Date().toISOString().slice(0, 10);
     const health = await this.healthService.compute(campaign);
     const items = await this.postItemRepository.findByCampaign(campaignId, siteId);
     const total = items.length || campaign.total_posts_planned || 0;
@@ -44,19 +39,13 @@ export class CampaignProgressReportService {
     const now = new Date();
 
     const scheduledPosts = await this.scheduledPostRepository.findByCampaign(campaignId, siteId);
-    const awaiting = scheduledPosts.filter(
-      (p) => p.status === ScheduledPostStatus.AWAITING_APPROVAL && !p.approved_at
-    );
+    const awaiting = scheduledPosts.filter((p) => p.status === ScheduledPostStatus.AWAITING_APPROVAL && !p.approved_at);
     const upcoming = scheduledPosts.filter(
       (p) =>
-        p.scheduled_at > now &&
-        (p.status === ScheduledPostStatus.PENDING || p.status === ScheduledPostStatus.SCHEDULED)
+        p.scheduled_at > now && (p.status === ScheduledPostStatus.PENDING || p.status === ScheduledPostStatus.SCHEDULED)
     );
 
-    const daysTotal = Math.max(
-      1,
-      Math.ceil((campaign.end_date.getTime() - campaign.start_date.getTime()) / 86400000)
-    );
+    const daysTotal = Math.max(1, Math.ceil((campaign.end_date.getTime() - campaign.start_date.getTime()) / 86400000));
     const daysElapsed = Math.min(
       daysTotal,
       Math.max(0, Math.ceil((now.getTime() - campaign.start_date.getTime()) / 86400000))
@@ -70,9 +59,7 @@ export class CampaignProgressReportService {
     const risks = [...health.health_reasons];
     const overdue = awaiting.filter((p) => p.scheduled_at <= now);
     if (overdue.length > 0) {
-      risks.push(
-        `${overdue.length} post(s) missed publish window — approval required before they can go live.`
-      );
+      risks.push(`${overdue.length} post(s) missed publish window — approval required before they can go live.`);
     }
 
     const narrative_summary = [
@@ -90,8 +77,7 @@ export class CampaignProgressReportService {
       site_id: siteId,
       report_date: dateStr,
       period_label: `Daily report — ${dateStr}`,
-      lifecycle_status:
-        campaign.lifecycle_status ?? CampaignLifecycleStatus.DRAFT,
+      lifecycle_status: campaign.lifecycle_status ?? CampaignLifecycleStatus.DRAFT,
       health_status: health.health_status,
       health_reasons: health.health_reasons,
       progress: {

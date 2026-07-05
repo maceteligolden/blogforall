@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { PROMPT_TEMPLATES, TEMPLATE_CATEGORIES, PromptTemplate, getTemplatesByCategory } from "@/lib/constants/prompt-templates";
+import {
+  PROMPT_TEMPLATES,
+  TEMPLATE_CATEGORIES,
+  PromptTemplate,
+  getTemplatesByCategory,
+} from "@/lib/constants/prompt-templates";
 import { Button } from "@/components/ui/button";
 import { Sparkles, X } from "lucide-react";
 
@@ -39,10 +44,7 @@ export function PromptTemplates({ onSelectTemplate, onClose }: PromptTemplatesPr
             <Sparkles className="w-5 h-5 text-purple-400" />
             <h2 className="text-xl font-semibold text-white">Prompt Templates</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -108,9 +110,7 @@ export function PromptTemplates({ onSelectTemplate, onClose }: PromptTemplatesPr
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-300 mb-2 block">
-                      Customize Your Prompt
-                    </label>
+                    <label className="text-sm font-medium text-gray-300 mb-2 block">Customize Your Prompt</label>
                     <textarea
                       value={customizedPrompt}
                       onChange={(e) => setCustomizedPrompt(e.target.value)}

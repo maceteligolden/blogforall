@@ -7,10 +7,7 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/modal";
 import { SiteService, SiteMember } from "@/lib/api/services/site.service";
-import {
-  SiteInvitationService,
-  SiteInvitation,
-} from "@/lib/api/services/site-invitation.service";
+import { SiteInvitationService, SiteInvitation } from "@/lib/api/services/site-invitation.service";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { Plus, Trash2, User, Shield, Edit, Eye, X } from "lucide-react";
@@ -158,15 +155,10 @@ export default function SiteMembersPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
-              <h1 className="text-4xl font-display mb-2 tracking-tight">
-                {currentSite?.name || "Site"} Members
-              </h1>
+              <h1 className="text-4xl font-display mb-2 tracking-tight">{currentSite?.name || "Site"} Members</h1>
               <p className="text-gray-400">Manage team members and their roles</p>
             </div>
-            <Button
-              onClick={() => setShowInviteDialog(true)}
-              className="bg-primary hover:bg-primary/90 text-white"
-            >
+            <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90 text-white">
               <Plus className="w-4 h-4 mr-2" />
               Invite Member
             </Button>
@@ -223,10 +215,7 @@ export default function SiteMembersPage() {
               <User className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">No members yet</h3>
               <p className="text-gray-400 mb-6">Invite team members to collaborate on this site</p>
-              <Button
-                onClick={() => setShowInviteDialog(true)}
-                className="bg-primary hover:bg-primary/90 text-white"
-              >
+              <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90 text-white">
                 <Plus className="w-4 h-4 mr-2" />
                 Invite Member
               </Button>
@@ -264,13 +253,9 @@ export default function SiteMembersPage() {
                             </div>
                             <div>
                               <div className="text-white font-medium">
-                                {member.user
-                                  ? `${member.user.first_name} ${member.user.last_name}`
-                                  : "Unknown User"}
+                                {member.user ? `${member.user.first_name} ${member.user.last_name}` : "Unknown User"}
                               </div>
-                              <div className="text-sm text-gray-400">
-                                {member.user?.email || "No email"}
-                              </div>
+                              <div className="text-sm text-gray-400">{member.user?.email || "No email"}</div>
                             </div>
                           </div>
                         </td>
@@ -287,10 +272,7 @@ export default function SiteMembersPage() {
                                   });
                                 }
                               }}
-                              disabled={
-                                member.role === "owner" ||
-                                updateRoleMutation.isPending
-                              }
+                              disabled={member.role === "owner" || updateRoleMutation.isPending}
                               className="bg-gray-800 border border-gray-700 text-white rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               {Object.entries(roleLabels).map(([value, label]) => (
@@ -301,13 +283,9 @@ export default function SiteMembersPage() {
                             </select>
                           </div>
                         </td>
+                        <td className="px-6 py-4 text-gray-400 text-sm">{member.posts_count ?? 0}</td>
                         <td className="px-6 py-4 text-gray-400 text-sm">
-                          {member.posts_count ?? 0}
-                        </td>
-                        <td className="px-6 py-4 text-gray-400 text-sm">
-                          {member.joined_at
-                            ? new Date(member.joined_at).toLocaleDateString()
-                            : "N/A"}
+                          {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : "N/A"}
                         </td>
                         <td className="px-6 py-4 text-right">
                           {member.role !== "owner" && (
@@ -351,9 +329,7 @@ export default function SiteMembersPage() {
           }}
           title="Remove Member"
           message={`Are you sure you want to remove ${
-            memberToRemove.user
-              ? `${memberToRemove.user.first_name} ${memberToRemove.user.last_name}`
-              : "this member"
+            memberToRemove.user ? `${memberToRemove.user.first_name} ${memberToRemove.user.last_name}` : "this member"
           } from the site?`}
           confirmText="Remove"
           cancelText="Cancel"

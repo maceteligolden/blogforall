@@ -17,11 +17,7 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { QUERY_KEYS } from "@/lib/api/config";
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
@@ -126,10 +122,7 @@ export default function DashboardLayout({
               </Suspense>
               <Navbar onMenuClick={() => setSidebarOpen(true)} />
               <div className="flex min-h-[calc(100vh-4rem)] bg-black text-white">
-                <DashboardSidebar
-                  mobileOpen={sidebarOpen}
-                  onMobileClose={() => setSidebarOpen(false)}
-                />
+                <DashboardSidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
                 <div className="flex-1 min-w-0">{children}</div>
               </div>
             </OrchestratorProvider>

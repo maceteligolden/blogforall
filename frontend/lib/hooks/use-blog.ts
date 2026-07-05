@@ -1,11 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import {
-  BlogService,
-  CreateBlogRequest,
-  UpdateBlogRequest,
-  BlogQueryParams,
-} from "../api/services/blog.service";
+import { BlogService, CreateBlogRequest, UpdateBlogRequest, BlogQueryParams } from "../api/services/blog.service";
 import { QUERY_KEYS } from "../api/config";
 import { useAuthStore } from "../store/auth.store";
 
@@ -25,7 +20,7 @@ export function useBlogs(params?: BlogQueryParams) {
 
 export function useBlog(id: string) {
   const { currentSiteId } = useAuthStore();
-  
+
   return useQuery({
     queryKey: [...QUERY_KEYS.BLOG(id), currentSiteId],
     queryFn: async () => {
@@ -58,8 +53,7 @@ export function useUpdateBlog() {
   const { currentSiteId } = useAuthStore();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateBlogRequest }) =>
-      BlogService.updateBlog(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateBlogRequest }) => BlogService.updateBlog(id, data),
     onSuccess: (response, variables) => {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOG(variables.id), currentSiteId] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
@@ -134,4 +128,3 @@ export function useToggleBlogLike() {
     },
   });
 }
-

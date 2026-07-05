@@ -22,14 +22,13 @@ export function InviteMemberDialog({ isOpen, onClose, siteId }: InviteMemberDial
   const queryClient = useQueryClient();
 
   const inviteMemberMutation = useMutation({
-    mutationFn: (data: CreateInvitationRequest) =>
-      SiteInvitationService.createInvitation(siteId, data),
+    mutationFn: (data: CreateInvitationRequest) => SiteInvitationService.createInvitation(siteId, data),
     onSuccess: () => {
       // Invalidate invitations query to refetch
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.SITE_INVITATIONS(siteId),
       });
-      
+
       // Reset form and close
       setEmail("");
       setRole("editor");
@@ -90,9 +89,7 @@ export function InviteMemberDialog({ isOpen, onClose, siteId }: InviteMemberDial
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">
-            {error}
-          </div>
+          <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
         )}
 
         <div>
@@ -109,9 +106,7 @@ export function InviteMemberDialog({ isOpen, onClose, siteId }: InviteMemberDial
             required
             autoFocus
           />
-          <p className="mt-1 text-xs text-gray-400">
-            An invitation will be sent to this email address
-          </p>
+          <p className="mt-1 text-xs text-gray-400">An invitation will be sent to this email address</p>
         </div>
 
         <div>
@@ -128,9 +123,7 @@ export function InviteMemberDialog({ isOpen, onClose, siteId }: InviteMemberDial
             <option value="editor">Editor - Can create and edit content</option>
             <option value="viewer">Viewer - Can only view content</option>
           </select>
-          <p className="mt-1 text-xs text-gray-400">
-            Select the role for this team member
-          </p>
+          <p className="mt-1 text-xs text-gray-400">Select the role for this team member</p>
         </div>
       </form>
     </Modal>

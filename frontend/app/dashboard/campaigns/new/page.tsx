@@ -57,7 +57,7 @@ function NewCampaignPageContent() {
     if (template) {
       const startDate = new Date();
       const endDate = addDays(startDate, template.default_duration_days);
-      
+
       setFormData({
         name: "",
         description: "",
@@ -80,7 +80,6 @@ function NewCampaignPageContent() {
       setIsCustomFrequency(template.default_frequency === "custom");
     }
   }, [template]);
-
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,7 +159,7 @@ function NewCampaignPageContent() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === "posting_frequency") {
       setIsCustomFrequency(value === "custom");
       setFormData({
@@ -192,19 +191,10 @@ function NewCampaignPageContent() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-4xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb
-          items={[
-            { label: "Campaigns", href: "/dashboard/campaigns" },
-            { label: "Create Campaign" },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Campaigns", href: "/dashboard/campaigns" }, { label: "Create Campaign" }]} />
 
         <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.back()}
-            className="text-gray-400 hover:text-white mb-4"
-          >
+          <Button variant="ghost" onClick={() => router.back()} className="text-gray-400 hover:text-white mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -215,16 +205,12 @@ function NewCampaignPageContent() {
         <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">
-                {error}
-              </div>
+              <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">{error}</div>
             )}
 
             {/* Basic Information */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-                Basic Information
-              </h3>
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Basic Information</h3>
 
               <div>
                 <Label htmlFor="name" className="text-gray-300">
@@ -294,9 +280,7 @@ function NewCampaignPageContent() {
 
             {/* Schedule */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-                Schedule
-              </h3>
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Schedule</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -367,9 +351,7 @@ function NewCampaignPageContent() {
                     className="mt-1 bg-black border-gray-700 text-white"
                     required={isCustomFrequency}
                   />
-                  <p className="mt-1 text-xs text-gray-400">
-                    Enter a cron expression for custom scheduling
-                  </p>
+                  <p className="mt-1 text-xs text-gray-400">Enter a cron expression for custom scheduling</p>
                 </div>
               )}
 
@@ -386,17 +368,13 @@ function NewCampaignPageContent() {
                   placeholder="UTC"
                   className="mt-1 bg-black border-gray-700 text-white"
                 />
-                <p className="mt-1 text-xs text-gray-400">
-                  Defaults to your browser timezone
-                </p>
+                <p className="mt-1 text-xs text-gray-400">Defaults to your browser timezone</p>
               </div>
             </div>
 
             {/* Planning */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
-                Planning
-              </h3>
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">Planning</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -514,11 +492,7 @@ function NewCampaignPageContent() {
 export default function NewCampaignPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen bg-black flex items-center justify-center text-gray-400">
-          Loading...
-        </div>
-      }
+      fallback={<div className="min-h-screen bg-black flex items-center justify-center text-gray-400">Loading...</div>}
     >
       <NewCampaignPageContent />
     </Suspense>

@@ -53,23 +53,16 @@ export function FullConversationView({
         className="pointer-events-none absolute inset-0 opacity-40"
         aria-hidden="true"
         style={{
-          background:
-            "radial-gradient(ellipse 80% 50% at 50% 35%, hsl(var(--primary) / 0.25), transparent 70%)",
+          background: "radial-gradient(ellipse 80% 50% at 50% 35%, hsl(var(--primary) / 0.25), transparent 70%)",
         }}
       />
 
       <header className="relative z-10 flex items-center justify-between px-4 md:px-6 py-4 shrink-0 border-b border-white/5">
         <div className="min-w-0">
-          <p className="text-xs uppercase tracking-widest text-primary/80 font-medium">
-            Voice conversation
-          </p>
+          <p className="text-xs uppercase tracking-widest text-primary/80 font-medium">Voice conversation</p>
           <p className="text-sm font-semibold text-white truncate mt-0.5">{threadTitle}</p>
         </div>
-        <ChatModeSelector
-          value={sessionMode}
-          onChange={onSessionModeChange}
-          disabled={disabled}
-        />
+        <ChatModeSelector value={sessionMode} onChange={onSessionModeChange} disabled={disabled} />
       </header>
 
       <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-6 py-8 gap-8">
@@ -89,10 +82,7 @@ export function FullConversationView({
             )}
           >
             <Sparkles
-              className={cn(
-                "w-10 h-10 transition-colors",
-                activeOrb ? "text-primary" : "text-gray-500"
-              )}
+              className={cn("w-10 h-10 transition-colors", activeOrb ? "text-primary" : "text-gray-500")}
               aria-hidden="true"
             />
           </div>
@@ -105,9 +95,7 @@ export function FullConversationView({
         <div className="w-full max-w-md space-y-3 min-h-[8rem]">
           {(interimTranscript || lastUserMessage) && (
             <div className="rounded-2xl rounded-tr-sm bg-primary/90 text-white px-4 py-3 text-sm ml-auto max-w-[90%]">
-              <p className="text-[10px] uppercase tracking-wide text-primary-foreground/70 mb-1">
-                You
-              </p>
+              <p className="text-[10px] uppercase tracking-wide text-primary-foreground/70 mb-1">You</p>
               <p className="whitespace-pre-wrap">{interimTranscript || lastUserMessage}</p>
             </div>
           )}

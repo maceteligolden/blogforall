@@ -1,0 +1,17 @@
+{
+  "name": "blogforall",
+  "private": true,
+  "scripts": {
+    "prepare": "husky",
+    "lint": "yarn --cwd backend lint && yarn --cwd frontend lint",
+    "format": "yarn --cwd backend format && yarn --cwd frontend format",
+    "format:check": "yarn --cwd backend format:check && yarn --cwd frontend format:check",
+    "build": "yarn --cwd backend build && yarn --cwd frontend build:ci"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

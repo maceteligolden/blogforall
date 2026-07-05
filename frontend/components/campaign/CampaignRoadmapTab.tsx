@@ -92,10 +92,7 @@ export function CampaignRoadmapTab({ campaignId }: { campaignId: string }) {
           </div>
           <div className="space-y-3">
             {roadmap.items.map((item) => (
-              <div
-                key={item.sequence_index}
-                className="bg-black rounded-lg border border-gray-800 p-4"
-              >
+              <div key={item.sequence_index} className="bg-black rounded-lg border border-gray-800 p-4">
                 <div className="flex justify-between gap-4 mb-2">
                   <h4 className="font-medium text-white">{item.title}</h4>
                   {item.scheduled_at && (
@@ -106,9 +103,7 @@ export function CampaignRoadmapTab({ campaignId }: { campaignId: string }) {
                 </div>
                 <p className="text-sm text-gray-400">{item.objective}</p>
                 {item.narrative_phase && (
-                  <span className="inline-block mt-2 text-xs text-primary capitalize">
-                    {item.narrative_phase}
-                  </span>
+                  <span className="inline-block mt-2 text-xs text-primary capitalize">{item.narrative_phase}</span>
                 )}
               </div>
             ))}

@@ -30,21 +30,20 @@ export class CategoryListTool implements OrchestratorTool {
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(listInputSchema, invocation.input, this.name);
     if (input.as_tree) {
-      const tree = await this.categoryService.getSiteCategoriesTree(
-        invocation.siteId,
-        input.include_inactive ?? false
-      );
+      const tree = await this.categoryService.getSiteCategoriesTree(invocation.siteId, input.include_inactive ?? false);
       return {
         summary: truncateSummary(`Workspace has ${tree.length} top-level categories.`),
         data: { tree },
       };
     }
-    const flat = await this.categoryService.getSiteCategories(
-      invocation.siteId,
-      input.include_inactive ?? false
-    );
+    const flat = await this.categoryService.getSiteCategories(invocation.siteId, input.include_inactive ?? false);
     return {
-      summary: truncateSummary(`Workspace has ${flat.length} categories: ${flat.slice(0, 8).map((c) => c.name).join(", ")}${flat.length > 8 ? "..." : ""}.`),
+      summary: truncateSummary(
+        `Workspace has ${flat.length} categories: ${flat
+          .slice(0, 8)
+          .map((c) => c.name)
+          .join(", ")}${flat.length > 8 ? "..." : ""}.`
+      ),
       data: {
         categories: flat.map((c) => ({
           id: c._id?.toString(),
@@ -96,8 +95,7 @@ const createInputSchema = z.object({
 @injectable()
 export class CategoryCreateTool implements OrchestratorTool {
   name = "categories.create";
-  description =
-    "Create a new category. Optional parent (category id) nests it; optional color is a UI hex/string.";
+  description = "Create a new category. Optional parent (category id) nests it; optional color is a UI hex/string.";
   requiresConfirmation = false;
   constructor(private readonly categoryService: CategoryService) {}
 
@@ -210,12 +208,9 @@ export class CategoryRemoveFromBlogTool implements OrchestratorTool {
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(removeFromBlogInputSchema, invocation.input, this.name);
-    const updated = await this.blogService.updateBlog(
-      input.blog_id,
-      invocation.siteId,
-      invocation.userId,
-      { category: undefined }
-    );
+    const updated = await this.blogService.updateBlog(input.blog_id, invocation.siteId, invocation.userId, {
+      category: undefined,
+    });
     return {
       summary: `Removed category from '${updated.title}'.`,
       data: { blog_id: updated._id?.toString() },

@@ -58,7 +58,9 @@ export function useAuth() {
       }
     },
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Invalid email or password";
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Invalid email or password";
       authTracker.loginFailed({ error_message: message });
       console.error("Login failed:", message);
     },
@@ -91,7 +93,8 @@ export function useAuth() {
       router.push("/onboarding/create-site?step=chat");
     },
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";
       authTracker.signupFailed({ error_message: message });
       console.error("Signup failed:", message);
       throw error; // Re-throw to allow component to handle
@@ -147,7 +150,9 @@ export function useAuth() {
       }
     },
     onError: (error: unknown) => {
-      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to update site context";
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to update site context";
       console.error("Update site context failed:", message);
     },
   });
@@ -170,7 +175,11 @@ export function useAuth() {
     changePassword: changePasswordMutation.mutate,
     updateSiteContext: updateSiteContextMutation.mutate,
     profile: profileQuery.data,
-    isLoading: loginMutation.isPending || signupMutation.isPending || logoutMutation.isPending || updateSiteContextMutation.isPending,
+    isLoading:
+      loginMutation.isPending ||
+      signupMutation.isPending ||
+      logoutMutation.isPending ||
+      updateSiteContextMutation.isPending,
     isUpdatingProfile: updateProfileMutation.isPending,
     isChangingPassword: changePasswordMutation.isPending,
     signupError: signupMutation.error,
@@ -180,4 +189,3 @@ export function useAuth() {
     profileQuery,
   };
 }
-

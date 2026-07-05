@@ -134,9 +134,7 @@ export function parseSupervisorDecisionFromRaw(raw: SupervisorDecisionRaw): Supe
     reasoning: raw.reasoning,
     next: raw.next,
     reply: raw.reply,
-    tool: raw.tool
-      ? { name: raw.tool.name, input: safeParseObject(raw.tool.input_json) }
-      : null,
+    tool: raw.tool ? { name: raw.tool.name, input: safeParseObject(raw.tool.input_json) } : null,
     confirmation: raw.confirmation
       ? {
           action: raw.confirmation.action,

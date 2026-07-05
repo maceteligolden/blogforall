@@ -49,7 +49,11 @@ export function ChatComposer({
   const [isListening, setIsListening] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const { isSupported: sttSupported, startListening, stopListening } = useSpeechRecognition({
+  const {
+    isSupported: sttSupported,
+    startListening,
+    stopListening,
+  } = useSpeechRecognition({
     onResult: (text, isFinal) => {
       if (text) onChange(value ? `${value} ${text}` : text);
       if (isFinal) setIsListening(false);
@@ -165,11 +169,7 @@ export function ChatComposer({
 
         <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-800/80 mt-1">
           <div className="flex items-center gap-0.5">
-            <ChatModeSelector
-              value={sessionMode}
-              onChange={setSessionMode}
-              disabled={disabled}
-            />
+            <ChatModeSelector value={sessionMode} onChange={setSessionMode} disabled={disabled} />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -195,9 +195,7 @@ export function ChatComposer({
                 aria-label={isListening ? "Stop listening" : "Start speech input"}
                 className={cn(
                   "p-1.5 rounded-md disabled:opacity-40",
-                  isListening
-                    ? "text-red-400 bg-red-900/30"
-                    : "text-gray-400 hover:text-white hover:bg-gray-800"
+                  isListening ? "text-red-400 bg-red-900/30" : "text-gray-400 hover:text-white hover:bg-gray-800"
                 )}
               >
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}

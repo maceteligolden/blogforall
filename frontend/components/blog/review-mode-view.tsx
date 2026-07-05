@@ -70,9 +70,7 @@ export function ReviewModeView({
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to edit
         </Button>
-        <div className="text-sm text-gray-400">
-          Review mode — apply suggestions below; use version history to undo
-        </div>
+        <div className="text-sm text-gray-400">Review mode — apply suggestions below; use version history to undo</div>
       </div>
 
       <Card className="bg-gray-900 border-gray-800 p-6">
@@ -99,16 +97,16 @@ export function ReviewModeView({
                     {block.type === "paragraph" && <p>{block.data.text as string}</p>}
                     {block.type === "heading" && (
                       <p
-                            className={`font-semibold ${
-                              block.data.level === 1 ? "text-xl" : block.data.level === 2 ? "text-lg" : "text-base"
-                            }`}
-                          >
-                            {block.data.text as string}
-                          </p>
-                        )}
+                        className={`font-semibold ${
+                          block.data.level === 1 ? "text-xl" : block.data.level === 2 ? "text-lg" : "text-base"
+                        }`}
+                      >
+                        {block.data.text as string}
+                      </p>
+                    )}
                     {block.type === "list" && (
                       <ul className="list-disc list-inside">
-                        {(block.data.items as string[] ?? []).map((item, i) => (
+                        {((block.data.items as string[]) ?? []).map((item, i) => (
                           <li key={i}>{item}</li>
                         ))}
                       </ul>
@@ -122,18 +120,13 @@ export function ReviewModeView({
                       </pre>
                     )}
                     {block.type === "image" && (
-                      <div className="text-gray-500">
-                        [Image: {block.data.caption as string ?? "no caption"}]
-                      </div>
+                      <div className="text-gray-500">[Image: {(block.data.caption as string) ?? "no caption"}]</div>
                     )}
                   </div>
                 ))}
               </div>
             ) : (
-              <div
-                className="text-gray-300 whitespace-pre-wrap"
-                dangerouslySetInnerHTML={{ __html: content || "" }}
-              />
+              <div className="text-gray-300 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: content || "" }} />
             )}
           </div>
         </div>
@@ -158,9 +151,7 @@ export function ReviewModeView({
                     <Badge variant="outline" className="border-gray-600 text-gray-300">
                       {getTypeLabel(suggestion.type)}
                     </Badge>
-                    {suggestion.target && (
-                      <span className="text-xs text-gray-500">Target: {suggestion.target}</span>
-                    )}
+                    {suggestion.target && <span className="text-xs text-gray-500">Target: {suggestion.target}</span>}
                   </div>
                   {!applied && (
                     <Button
@@ -172,9 +163,7 @@ export function ReviewModeView({
                       {isApplyingOne ? "Applying…" : "Apply"}
                     </Button>
                   )}
-                  {applied && (
-                    <span className="text-xs text-gray-500 shrink-0">Applied</span>
-                  )}
+                  {applied && <span className="text-xs text-gray-500 shrink-0">Applied</span>}
                 </div>
                 <div className="space-y-2 text-sm">
                   <div>

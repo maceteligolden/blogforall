@@ -87,12 +87,7 @@ export class PostSchedulerService {
     try {
       await this.prepareService.sweep();
     } catch (error) {
-      logger.error(
-        "Error in scheduled post prepare phase",
-        error as Error,
-        {},
-        "PostSchedulerService"
-      );
+      logger.error("Error in scheduled post prepare phase", error as Error, {}, "PostSchedulerService");
     }
   }
 
@@ -109,18 +104,12 @@ export class PostSchedulerService {
         return;
       }
 
-      logger.info(
-        `Publishing ${readyPosts.length} approved scheduled post(s)`,
-        {},
-        "PostSchedulerService"
-      );
+      logger.info(`Publishing ${readyPosts.length} approved scheduled post(s)`, {}, "PostSchedulerService");
 
       const batchSize = 10;
       for (let i = 0; i < readyPosts.length; i += batchSize) {
         const batch = readyPosts.slice(i, i + batchSize);
-        await Promise.allSettled(
-          batch.map((post) => this.executeScheduledPost(post._id!.toString()))
-        );
+        await Promise.allSettled(batch.map((post) => this.executeScheduledPost(post._id!.toString())));
       }
     } catch (error) {
       logger.error("Error processing scheduled posts", error, {}, "PostSchedulerService");
@@ -164,13 +153,9 @@ export class PostSchedulerService {
     }
 
     if (scheduledPost.campaign_id) {
-      const campaign = await this.campaignRepository.findById(
-        scheduledPost.campaign_id,
-        scheduledPost.site_id
-      );
+      const campaign = await this.campaignRepository.findById(scheduledPost.campaign_id, scheduledPost.site_id);
       const paused =
-        campaign?.lifecycle_status === CampaignLifecycleStatus.PAUSED ||
-        campaign?.status === CampaignStatus.PAUSED;
+        campaign?.lifecycle_status === CampaignLifecycleStatus.PAUSED || campaign?.status === CampaignStatus.PAUSED;
       if (paused) {
         logger.info(
           "Skipping publish — campaign is paused",
@@ -181,16 +166,10 @@ export class PostSchedulerService {
       }
       const itemId = scheduledPost.metadata?.campaign_post_item_id as string | undefined;
       if (itemId) {
-        const item = await this.campaignPostItemRepository.findById(
-          itemId,
-          scheduledPost.site_id
-        );
+        const item = await this.campaignPostItemRepository.findById(itemId, scheduledPost.site_id);
         if (item?.dependencies?.length) {
           for (const depId of item.dependencies) {
-            const dep = await this.campaignPostItemRepository.findById(
-              depId,
-              scheduledPost.site_id
-            );
+            const dep = await this.campaignPostItemRepository.findById(depId, scheduledPost.site_id);
             if (dep && dep.status !== CampaignPostItemStatus.PUBLISHED) {
               logger.info(
                 "Skipping publish — dependency not yet published",
@@ -228,24 +207,16 @@ export class PostSchedulerService {
 
       const blogId = scheduledPost.blog_id;
       if (!blogId) {
-        throw new Error(
-          "Approved scheduled post is missing blog_id; prepare phase did not set it."
-        );
+        throw new Error("Approved scheduled post is missing blog_id; prepare phase did not set it.");
       }
       const blog = await this.blogRepository.findById(blogId, scheduledPost.site_id);
       if (!blog) {
-        throw new NotFoundError(
-          `Blog ${blogId} not found for scheduled post ${scheduledPostId}`
-        );
+        throw new NotFoundError(`Blog ${blogId} not found for scheduled post ${scheduledPostId}`);
       }
 
       if (blog.status !== BlogStatus.PUBLISHED) {
         await this.blogService.publishBlog(blogId, scheduledPost.site_id, scheduledPost.user_id);
-        logger.info(
-          `Published blog ${blogId} for scheduled post ${scheduledPostId}`,
-          {},
-          "PostSchedulerService"
-        );
+        logger.info(`Published blog ${blogId} for scheduled post ${scheduledPostId}`, {}, "PostSchedulerService");
       }
 
       await this.scheduledPostRepository.markAsPublished(scheduledPostId, new Date());
@@ -253,27 +224,16 @@ export class PostSchedulerService {
       if (scheduledPost.campaign_id) {
         await this.campaignRepository.updatePostsPublished(scheduledPost.campaign_id, 1);
 
-        const campaign = await this.campaignRepository.findById(
-          scheduledPost.campaign_id,
-          scheduledPost.site_id
-        );
+        const campaign = await this.campaignRepository.findById(scheduledPost.campaign_id, scheduledPost.site_id);
         if (campaign && campaign.end_date <= now && campaign.status === CampaignStatus.ACTIVE) {
           await this.campaignRepository.update(scheduledPost.campaign_id, scheduledPost.site_id, {
             status: CampaignStatus.COMPLETED,
           });
-          logger.info(
-            `Campaign ${scheduledPost.campaign_id} marked as completed`,
-            {},
-            "PostSchedulerService"
-          );
+          logger.info(`Campaign ${scheduledPost.campaign_id} marked as completed`, {}, "PostSchedulerService");
         }
       }
 
-      logger.info(
-        `Successfully executed scheduled post ${scheduledPostId}`,
-        { blogId },
-        "PostSchedulerService"
-      );
+      logger.info(`Successfully executed scheduled post ${scheduledPostId}`, { blogId }, "PostSchedulerService");
     } catch (error) {
       logger.error(
         `Failed to execute scheduled post ${scheduledPostId}`,
@@ -283,10 +243,7 @@ export class PostSchedulerService {
       );
 
       if (scheduledPost.publish_attempts + 1 >= this.MAX_RETRY_ATTEMPTS) {
-        await this.scheduledPostRepository.markAsFailed(
-          scheduledPostId,
-          (error as Error).message || "Unknown error"
-        );
+        await this.scheduledPostRepository.markAsFailed(scheduledPostId, (error as Error).message || "Unknown error");
       } else {
         await this.scheduledPostRepository.update(scheduledPostId, scheduledPost.site_id, {
           error_message: (error as Error).message || "Unknown error",

@@ -13,12 +13,7 @@ import type {
   OrchestratorToolInvocation,
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
-import {
-  normalizeCampaignToolInput,
-  parseToolInput,
-  resolveCampaignIdForTool,
-  truncateSummary,
-} from "./_helpers";
+import { normalizeCampaignToolInput, parseToolInput, resolveCampaignIdForTool, truncateSummary } from "./_helpers";
 
 @injectable()
 export class CampaignListTool implements OrchestratorTool {
@@ -112,12 +107,9 @@ export class CampaignGenerateRoadmapTool implements OrchestratorTool {
       { ...normalizeCampaignToolInput(invocation.input ?? {}), campaign_id: resolved.campaignId },
       this.name
     );
-    const roadmap = await this.planningService.planCampaign(
-      input.campaign_id,
-      invocation.siteId,
-      invocation.userId,
-      { threadId: invocation.threadId || undefined }
-    );
+    const roadmap = await this.planningService.planCampaign(input.campaign_id, invocation.siteId, invocation.userId, {
+      threadId: invocation.threadId || undefined,
+    });
     return {
       summary: truncateSummary(
         `Proposed roadmap v${roadmap.version} with ${roadmap.items.length} posts. Approve in the campaign UI.`
@@ -153,11 +145,7 @@ export class CampaignGetProgressReportTool implements OrchestratorTool {
       { ...normalizeCampaignToolInput(invocation.input ?? {}), campaign_id: resolved.campaignId },
       this.name
     );
-    const report = await this.progressService.buildDailyReport(
-      input.campaign_id,
-      invocation.siteId,
-      input.date
-    );
+    const report = await this.progressService.buildDailyReport(input.campaign_id, invocation.siteId, input.date);
     return {
       summary: truncateSummary(report.narrative_summary),
       data: report,
@@ -192,9 +180,7 @@ export class CampaignGetHealthTool implements OrchestratorTool {
     );
     const health = await this.healthService.persist(input.campaign_id, invocation.siteId);
     return {
-      summary: truncateSummary(
-        `Health: ${health.health_status}. ${health.health_reasons.join(" ") || ""}`
-      ),
+      summary: truncateSummary(`Health: ${health.health_status}. ${health.health_reasons.join(" ") || ""}`),
       data: health,
     };
   }
@@ -237,10 +223,7 @@ export class CampaignScheduleAdditionalPostsTool implements OrchestratorTool {
 
     let campaignId = parsed.campaign_id;
     let anchor = parsed.anchor_scheduled_post_id
-      ? await this.scheduledPostRepository.findById(
-          parsed.anchor_scheduled_post_id,
-          invocation.siteId
-        )
+      ? await this.scheduledPostRepository.findById(parsed.anchor_scheduled_post_id, invocation.siteId)
       : null;
 
     if (anchor?.campaign_id) {
@@ -258,10 +241,7 @@ export class CampaignScheduleAdditionalPostsTool implements OrchestratorTool {
     }
 
     if (!campaignId) {
-      const userPosts = await this.scheduledPostRepository.findByUser(
-        invocation.userId,
-        invocation.siteId
-      );
+      const userPosts = await this.scheduledPostRepository.findByUser(invocation.userId, invocation.siteId);
       const withCampaign = userPosts.filter((p) => p.campaign_id);
       const ids = new Set(withCampaign.map((p) => p.campaign_id!));
       if (ids.size === 1) {
@@ -281,18 +261,11 @@ export class CampaignScheduleAdditionalPostsTool implements OrchestratorTool {
     }
 
     if (!anchor) {
-      const inCampaign = await this.scheduledPostRepository.findByCampaign(
-        campaignId,
-        invocation.siteId
-      );
+      const inCampaign = await this.scheduledPostRepository.findByCampaign(campaignId, invocation.siteId);
       const active = inCampaign.filter(
-        (p) =>
-          p.status !== ScheduledPostStatus.CANCELLED &&
-          p.status !== ScheduledPostStatus.PUBLISHED
+        (p) => p.status !== ScheduledPostStatus.CANCELLED && p.status !== ScheduledPostStatus.PUBLISHED
       );
-      anchor = active.sort(
-        (a, b) => a.scheduled_at.getTime() - b.scheduled_at.getTime()
-      )[0];
+      anchor = active.sort((a, b) => a.scheduled_at.getTime() - b.scheduled_at.getTime())[0];
     }
 
     if (!anchor) {
@@ -301,8 +274,7 @@ export class CampaignScheduleAdditionalPostsTool implements OrchestratorTool {
       );
     }
 
-    const created: Array<{ scheduled_post_id: string; scheduled_at: string; title: string }> =
-      [];
+    const created: Array<{ scheduled_post_id: string; scheduled_at: string; title: string }> = [];
     const basePrompt = [
       parsed.topic_hint,
       `Campaign goal: ${campaign.goal}`,
@@ -319,23 +291,19 @@ export class CampaignScheduleAdditionalPostsTool implements OrchestratorTool {
         );
       }
       const title = `${campaign.name} — follow-up ${i}`;
-      const post = await this.scheduledPostService.createScheduledPost(
-        invocation.userId,
-        invocation.siteId,
-        {
-          campaign_id: campaignId,
-          title,
-          scheduled_at: at,
-          timezone: anchor.timezone || campaign.timezone,
-          auto_generate: true,
-          generation_prompt: basePrompt,
-          metadata: {
-            campaign_goal: campaign.goal,
-            target_audience: campaign.target_audience,
-            content_theme: parsed.topic_hint ?? `Follow-up ${i}`,
-          },
-        }
-      );
+      const post = await this.scheduledPostService.createScheduledPost(invocation.userId, invocation.siteId, {
+        campaign_id: campaignId,
+        title,
+        scheduled_at: at,
+        timezone: anchor.timezone || campaign.timezone,
+        auto_generate: true,
+        generation_prompt: basePrompt,
+        metadata: {
+          campaign_goal: campaign.goal,
+          target_audience: campaign.target_audience,
+          content_theme: parsed.topic_hint ?? `Follow-up ${i}`,
+        },
+      });
       created.push({
         scheduled_post_id: post._id!.toString(),
         scheduled_at: at.toISOString(),

@@ -5,7 +5,11 @@ import { Label } from "@/components/ui/label";
 import type { BlogGenerationFormParams, BlogLengthPreset } from "@/lib/utils/blog-ai-generation-params";
 
 export type { BlogGenerationFormParams, BlogLengthPreset } from "@/lib/utils/blog-ai-generation-params";
-export { defaultBlogGenerationFormParams, getWordCountFromFormParams, topicsInputToArray } from "@/lib/utils/blog-ai-generation-params";
+export {
+  defaultBlogGenerationFormParams,
+  getWordCountFromFormParams,
+  topicsInputToArray,
+} from "@/lib/utils/blog-ai-generation-params";
 
 interface BlogAiGenerationSettingsProps {
   value: BlogGenerationFormParams;

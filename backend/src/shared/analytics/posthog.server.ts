@@ -27,8 +27,7 @@ export const ServerAnalyticsEvents = {
   GENERATION_SUCCESS: "generation success",
 } as const;
 
-export type ServerAnalyticsEvent =
-  (typeof ServerAnalyticsEvents)[keyof typeof ServerAnalyticsEvents];
+export type ServerAnalyticsEvent = (typeof ServerAnalyticsEvents)[keyof typeof ServerAnalyticsEvents];
 
 export interface ServerCaptureOptions {
   userId: string;
@@ -36,10 +35,7 @@ export interface ServerCaptureOptions {
   properties?: Record<string, unknown>;
 }
 
-export function captureServerEvent(
-  event: ServerAnalyticsEvent,
-  options: ServerCaptureOptions
-): void {
+export function captureServerEvent(event: ServerAnalyticsEvent, options: ServerCaptureOptions): void {
   try {
     const ph = getClient();
     if (!ph) return;
@@ -67,10 +63,7 @@ export function captureServerEvent(
   }
 }
 
-export function identifyServerUser(
-  userId: string,
-  traits?: Record<string, unknown>
-): void {
+export function identifyServerUser(userId: string, traits?: Record<string, unknown>): void {
   try {
     const ph = getClient();
     if (!ph) return;

@@ -63,21 +63,12 @@ export class OrchestratorService {
   }
 
   static async getThread(siteId: string, threadId: string): Promise<ThreadWithMessages> {
-    const response = await apiClient.get(
-      API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId)
-    );
+    const response = await apiClient.get(API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId));
     return response.data?.data ?? response.data;
   }
 
-  static async renameThread(
-    siteId: string,
-    threadId: string,
-    title: string
-  ): Promise<OrchestratorThread> {
-    const response = await apiClient.patch(
-      API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId),
-      { title }
-    );
+  static async renameThread(siteId: string, threadId: string, title: string): Promise<OrchestratorThread> {
+    const response = await apiClient.patch(API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId), { title });
     const data = response.data?.data ?? response.data;
     return data?.thread ?? data;
   }
@@ -103,28 +94,21 @@ export class OrchestratorService {
     decision: "approved" | "rejected",
     note?: string
   ): Promise<OrchestratorApproval> {
-    const response = await apiClient.post(
-      API_ENDPOINTS.ORCHESTRATOR.APPROVAL_DECIDE(siteId, approvalId),
-      { decision, ...(note ? { note } : {}) }
-    );
+    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.APPROVAL_DECIDE(siteId, approvalId), {
+      decision,
+      ...(note ? { note } : {}),
+    });
     const data = response.data?.data ?? response.data;
     return data?.approval ?? data;
   }
 
-  static async uploadContextFile(
-    siteId: string,
-    file: File
-  ): Promise<OrchestratorChatAttachment> {
+  static async uploadContextFile(siteId: string, file: File): Promise<OrchestratorChatAttachment> {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await apiClient.post(
-      API_ENDPOINTS.ORCHESTRATOR.CONTEXT_UPLOAD(siteId),
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-        timeout: 60000,
-      }
-    );
+    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.CONTEXT_UPLOAD(siteId), formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 60000,
+    });
     const data = response.data?.data ?? response.data;
     return data?.file ?? data;
   }
@@ -135,20 +119,13 @@ export class OrchestratorService {
     return data?.sources ?? [];
   }
 
-  static async uploadKnowledgeSource(
-    siteId: string,
-    file: File
-  ): Promise<WorkspaceKnowledgeSource> {
+  static async uploadKnowledgeSource(siteId: string, file: File): Promise<WorkspaceKnowledgeSource> {
     const formData = new FormData();
     formData.append("file", file);
-    const response = await apiClient.post(
-      API_ENDPOINTS.ORCHESTRATOR.KNOWLEDGE(siteId),
-      formData,
-      {
-        headers: { "Content-Type": "multipart/form-data" },
-        timeout: 60000,
-      }
-    );
+    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.KNOWLEDGE(siteId), formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 60000,
+    });
     const data = response.data?.data ?? response.data;
     return data?.source ?? data;
   }
@@ -158,9 +135,7 @@ export class OrchestratorService {
   }
 
   static async getGoogleDriveAuthUrl(siteId: string): Promise<string | null> {
-    const response = await apiClient.get(
-      API_ENDPOINTS.ORCHESTRATOR.GOOGLE_DRIVE_AUTH(siteId)
-    );
+    const response = await apiClient.get(API_ENDPOINTS.ORCHESTRATOR.GOOGLE_DRIVE_AUTH(siteId));
     const data = response.data?.data ?? response.data;
     return data?.auth_url ?? null;
   }

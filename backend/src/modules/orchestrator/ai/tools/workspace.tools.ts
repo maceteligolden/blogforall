@@ -94,7 +94,11 @@ const updateMemoryInputSchema = z.object({
       operational: z
         .object({
           publishing_cadence: z.string().max(200).optional(),
-          review_lead_time_hours: z.number().min(1).max(24 * 14).optional(),
+          review_lead_time_hours: z
+            .number()
+            .min(1)
+            .max(24 * 14)
+            .optional(),
           approval_rules: z
             .object({
               publish_blog_requires_approval: z.boolean().optional(),
@@ -205,7 +209,11 @@ const completeOnboardingInputSchema = z.object({
   operational: z
     .object({
       publishing_cadence: z.string().max(200).optional(),
-      review_lead_time_hours: z.number().min(1).max(24 * 14).optional(),
+      review_lead_time_hours: z
+        .number()
+        .min(1)
+        .max(24 * 14)
+        .optional(),
     })
     .optional(),
   memory_summary: z.string().max(4000).optional(),
@@ -243,8 +251,7 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
         communication_style: input.preferences?.communication_style,
       },
       memory_summary:
-        input.memory_summary ||
-        this.buildMemorySummary(input.strategic.business_type, input.strategic.business_goals),
+        input.memory_summary || this.buildMemorySummary(input.strategic.business_type, input.strategic.business_goals),
     };
     if (input.operational) {
       patch.operational = {

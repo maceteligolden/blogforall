@@ -132,9 +132,7 @@ export class BrevoFacade {
       email: input.email,
       listIds: input.listIds,
       updateEnabled: true,
-      ...(input.attributes && Object.keys(input.attributes).length > 0
-        ? { attributes: input.attributes }
-        : {}),
+      ...(input.attributes && Object.keys(input.attributes).length > 0 ? { attributes: input.attributes } : {}),
     };
 
     try {
@@ -161,9 +159,7 @@ export class BrevoFacade {
           identifier: input.email,
           identifierType: "email_id",
           listIds: input.listIds,
-          ...(input.attributes && Object.keys(input.attributes).length > 0
-            ? { attributes: input.attributes }
-            : {}),
+          ...(input.attributes && Object.keys(input.attributes).length > 0 ? { attributes: input.attributes } : {}),
         });
 
         logger.info(

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { OrchestratorArtifact } from "@/lib/utils/orchestrator-artifacts";
 import type {
   OrchestratorChatAttachment,
@@ -72,9 +65,7 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const [threadId, setThreadIdState] = useState<string | null>(null);
   const [liveArtifacts, setLiveArtifacts] = useState<OrchestratorArtifact[]>([]);
   const [sessionMode, setSessionModeState] = useState<OrchestratorSessionMode>("planning");
-  const [selectionContext, setSelectionContext] = useState<OrchestratorSelectionContext | null>(
-    null
-  );
+  const [selectionContext, setSelectionContext] = useState<OrchestratorSelectionContext | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<OrchestratorChatAttachment[]>([]);
   const [voiceMode, setVoiceMode] = useState(false);
   const [conversationMode, setConversationMode] = useState(false);

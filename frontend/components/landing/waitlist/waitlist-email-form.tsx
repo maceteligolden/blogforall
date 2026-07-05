@@ -64,10 +64,7 @@ export function WaitlistEmailForm({ id, className, inputId = "waitlist-email" }:
   if (submitted) {
     return (
       <div
-        className={cn(
-          "rounded-lg border border-primary/30 bg-primary/10 px-6 py-4 text-center",
-          className
-        )}
+        className={cn("rounded-lg border border-primary/30 bg-primary/10 px-6 py-4 text-center", className)}
         role="status"
       >
         <p className="text-sm font-medium text-white">You&apos;re on the list.</p>

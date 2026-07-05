@@ -39,7 +39,9 @@ export function blocksToHtml(blocks: ContentBlock[]): string {
         parts.push(`<p>${escapeHtml((d as { text?: string }).text ?? "")}</p>`);
         break;
       case "heading":
-        parts.push(`<h${Math.min(3, Math.max(1, (d as { level?: number }).level ?? 1))}>${escapeHtml((d as { text?: string }).text ?? "")}</h${Math.min(3, Math.max(1, (d as { level?: number }).level ?? 1))}>`);
+        parts.push(
+          `<h${Math.min(3, Math.max(1, (d as { level?: number }).level ?? 1))}>${escapeHtml((d as { text?: string }).text ?? "")}</h${Math.min(3, Math.max(1, (d as { level?: number }).level ?? 1))}>`
+        );
         break;
       case "list": {
         const tag = d.listType === "ordered" ? "ol" : "ul";
@@ -48,7 +50,10 @@ export function blocksToHtml(blocks: ContentBlock[]): string {
         break;
       }
       case "image":
-        if (d.url) parts.push(`<figure><img src="${escapeHtml((d as { url?: string }).url ?? "")}" alt="${escapeHtml((d as { caption?: string }).caption ?? "")}" /><figcaption>${escapeHtml((d as { caption?: string }).caption ?? "")}</figcaption></figure>`);
+        if (d.url)
+          parts.push(
+            `<figure><img src="${escapeHtml((d as { url?: string }).url ?? "")}" alt="${escapeHtml((d as { caption?: string }).caption ?? "")}" /><figcaption>${escapeHtml((d as { caption?: string }).caption ?? "")}</figcaption></figure>`
+          );
         break;
       case "blockquote":
         parts.push(`<blockquote>${escapeHtml((d as { text?: string }).text ?? "")}</blockquote>`);

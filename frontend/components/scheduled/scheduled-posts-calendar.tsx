@@ -76,9 +76,7 @@ export function ScheduledPostsCalendar({
     }
   };
 
-  const selectedDatePosts = selectedDate
-    ? postsByDate.get(format(selectedDate, "yyyy-MM-dd")) || []
-    : [];
+  const selectedDatePosts = selectedDate ? postsByDate.get(format(selectedDate, "yyyy-MM-dd")) || [] : [];
 
   const navigateMonth = (direction: "prev" | "next") => {
     setCurrentDate((prev) => (direction === "prev" ? subMonths(prev, 1) : addMonths(prev, 1)));
@@ -188,25 +186,19 @@ export function ScheduledPostsCalendar({
                   >
                     {format(day, "d")}
                   </span>
-                  {dayPosts.length > 0 && (
-                    <span className="text-xs text-gray-400">{dayPosts.length}</span>
-                  )}
+                  {dayPosts.length > 0 && <span className="text-xs text-gray-400">{dayPosts.length}</span>}
                 </div>
                 <div className="space-y-1">
                   {dayPosts.slice(0, 3).map((post) => (
                     <div
                       key={post._id}
-                      className={`text-xs px-1 py-0.5 rounded truncate ${getStatusColor(
-                        post.status
-                      )} text-white`}
+                      className={`text-xs px-1 py-0.5 rounded truncate ${getStatusColor(post.status)} text-white`}
                       title={post.title}
                     >
                       {post.title}
                     </div>
                   ))}
-                  {dayPosts.length > 3 && (
-                    <div className="text-xs text-gray-400">+{dayPosts.length - 3} more</div>
-                  )}
+                  {dayPosts.length > 3 && <div className="text-xs text-gray-400">+{dayPosts.length - 3} more</div>}
                 </div>
               </div>
             );
@@ -248,9 +240,7 @@ export function ScheduledPostsCalendar({
                         >
                           {post.status}
                         </span>
-                        <span className="text-sm text-gray-400">
-                          {format(new Date(post.scheduled_at), "h:mm a")}
-                        </span>
+                        <span className="text-sm text-gray-400">{format(new Date(post.scheduled_at), "h:mm a")}</span>
                       </div>
                       <h4 className="text-white font-medium mb-1">{post.title}</h4>
                       {post.campaign_id && (

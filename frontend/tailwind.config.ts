@@ -4,12 +4,7 @@ import bloggrPreset from "../design-tokens/tailwind.preset";
 const config: Config = {
   darkMode: ["class"],
   presets: [bloggrPreset],
-  content: [
-    "./pages/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-    "./app/**/*.{ts,tsx}",
-    "./src/**/*.{ts,tsx}",
-  ],
+  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       borderRadius: {

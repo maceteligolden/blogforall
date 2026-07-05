@@ -7,8 +7,7 @@ if (dsn) {
     dsn,
     environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
     tracesSampleRate: parseFloat(
-      process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE ??
-        (process.env.NODE_ENV === "production" ? "0.1" : "1.0")
+      process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE ?? (process.env.NODE_ENV === "production" ? "0.1" : "1.0")
     ),
     enabled: process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false",
   });

@@ -10,19 +10,20 @@ export type TokenLedgerEventName =
   | "token_refund_applied"
   | "token_window_reset";
 
-export function logTokenEvent(
-  event: TokenLedgerEventName,
-  metadata: LogMetadata,
-  context = "TokenLedger"
-): void {
+export function logTokenEvent(event: TokenLedgerEventName, metadata: LogMetadata, context = "TokenLedger"): void {
   const enriched = { ...metadata, event };
 
   switch (event) {
     case "token_rejected":
-      AppLogger.critical(`Token ledger: ${event}`, undefined, {
-        ...enriched,
-        flow: ObservabilityFlow.TOKEN_RESERVATION,
-      }, context);
+      AppLogger.critical(
+        `Token ledger: ${event}`,
+        undefined,
+        {
+          ...enriched,
+          flow: ObservabilityFlow.TOKEN_RESERVATION,
+        },
+        context
+      );
       break;
     default:
       AppLogger.info(`Token ledger: ${event}`, enriched, context);

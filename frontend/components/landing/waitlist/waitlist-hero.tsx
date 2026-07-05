@@ -15,8 +15,8 @@ export function WaitlistHero() {
           Get context-aware blog posts by talking about your business.
         </h1>
         <p className="landing-lead text-gray-400 max-w-xl mx-auto mb-10">
-          For founders, marketers, creators, and agencies who&apos;d rather talk about their business than wrestle
-          with a blank doc.
+          For founders, marketers, creators, and agencies who&apos;d rather talk about their business than wrestle with
+          a blank doc.
         </p>
         <WaitlistEmailForm inputId="waitlist-email-hero" />
         <p className="landing-caption text-gray-500 mt-6">Join 400+ marketers already on the waitlist.</p>

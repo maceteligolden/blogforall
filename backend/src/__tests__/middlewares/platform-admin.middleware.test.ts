@@ -1,9 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response, NextFunction } from "express";
-import {
-  requirePlatformAdmin,
-  requireSuperAdmin,
-} from "../../shared/middlewares/auth.middleware";
+import { requirePlatformAdmin, requireSuperAdmin } from "../../shared/middlewares/auth.middleware";
 import { UserRole } from "../../shared/constants";
 
 function mockReq(role?: string): Request {

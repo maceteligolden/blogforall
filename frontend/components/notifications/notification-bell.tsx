@@ -46,13 +46,7 @@ export function NotificationBell() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const {
-    notifications,
-    unreadCount,
-    isLoadingList,
-    markAsRead,
-    markAllAsRead,
-  } = useNotifications();
+  const { notifications, unreadCount, isLoadingList, markAsRead, markAllAsRead } = useNotifications();
 
   const closeDropdown = useCallback(() => setIsOpen(false), []);
 
@@ -90,16 +84,8 @@ export function NotificationBell() {
     closeDropdown();
   };
 
-  const badgeLabel =
-    unreadCount > 0
-      ? unreadCount > 9
-        ? "9+"
-        : String(unreadCount)
-      : "0";
-  const ariaLabel =
-    unreadCount > 0
-      ? `Notifications (${unreadCount} unread)`
-      : "Notifications";
+  const badgeLabel = unreadCount > 0 ? (unreadCount > 9 ? "9+" : String(unreadCount)) : "0";
+  const ariaLabel = unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications";
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -194,13 +180,9 @@ export function NotificationBell() {
                           {getIconForType(notification.type)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-medium">
-                            {notification.title ?? notification.type}
-                          </p>
+                          <p className="text-sm text-white font-medium">{notification.title ?? notification.type}</p>
                           {notification.body && (
-                            <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">
-                              {notification.body}
-                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{notification.body}</p>
                           )}
                           <p className="text-xs text-gray-500 mt-1">
                             {formatDistanceToNow(new Date(notification.created_at), {
@@ -208,12 +190,7 @@ export function NotificationBell() {
                             })}
                           </p>
                         </div>
-                        {isUnread && (
-                          <div
-                            className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2"
-                            aria-hidden
-                          />
-                        )}
+                        {isUnread && <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" aria-hidden />}
                       </div>
                     </div>
                   );

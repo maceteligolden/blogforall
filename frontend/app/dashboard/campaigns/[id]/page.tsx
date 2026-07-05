@@ -2,7 +2,13 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import { useCampaign, useDeleteCampaign, useActivateCampaign, usePauseCampaign, useCancelCampaign } from "@/lib/hooks/use-campaign";
+import {
+  useCampaign,
+  useDeleteCampaign,
+  useActivateCampaign,
+  usePauseCampaign,
+  useCancelCampaign,
+} from "@/lib/hooks/use-campaign";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CampaignService } from "@/lib/api/services/campaign.service";
 import { Button } from "@/components/ui/button";
@@ -109,7 +115,10 @@ function CampaignDetailContent() {
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
           <h2 className="text-2xl font-semibold text-white mb-2">Campaign not found</h2>
-          <Button onClick={() => router.push("/dashboard/campaigns")} className="bg-primary hover:bg-primary/90 text-white">
+          <Button
+            onClick={() => router.push("/dashboard/campaigns")}
+            className="bg-primary hover:bg-primary/90 text-white"
+          >
             Back to Campaigns
           </Button>
         </div>
@@ -165,21 +174,26 @@ function CampaignDetailContent() {
         <p className="text-gray-400 text-center py-8">No scheduled posts yet.</p>
       ) : (
         <div className="space-y-3">
-          {scheduledPosts.map((post: { _id: string; title: string; status: string; scheduled_at: string; blog_id?: string }) => (
-            <div key={post._id} className="bg-black rounded-lg border border-gray-800 p-4">
-              <div className="flex items-center gap-2 mb-1">
-                {getPostStatusIcon(post.status)}
-                <h3 className="text-base font-semibold text-white">{post.title}</h3>
-                <span className="text-xs text-gray-500 capitalize">{post.status}</span>
+          {scheduledPosts.map(
+            (post: { _id: string; title: string; status: string; scheduled_at: string; blog_id?: string }) => (
+              <div key={post._id} className="bg-black rounded-lg border border-gray-800 p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  {getPostStatusIcon(post.status)}
+                  <h3 className="text-base font-semibold text-white">{post.title}</h3>
+                  <span className="text-xs text-gray-500 capitalize">{post.status}</span>
+                </div>
+                <p className="text-sm text-gray-400">{new Date(post.scheduled_at).toLocaleString()}</p>
+                {post.blog_id && (
+                  <Link
+                    href={`/dashboard/blogs/${post.blog_id}/view`}
+                    className="text-primary text-sm mt-2 inline-block"
+                  >
+                    View blog →
+                  </Link>
+                )}
               </div>
-              <p className="text-sm text-gray-400">{new Date(post.scheduled_at).toLocaleString()}</p>
-              {post.blog_id && (
-                <Link href={`/dashboard/blogs/${post.blog_id}/view`} className="text-primary text-sm mt-2 inline-block">
-                  View blog →
-                </Link>
-              )}
-            </div>
-          ))}
+            )
+          )}
         </div>
       )}
     </div>
@@ -188,12 +202,7 @@ function CampaignDetailContent() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb
-          items={[
-            { label: "Campaigns", href: "/dashboard/campaigns" },
-            { label: campaign.name },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Campaigns", href: "/dashboard/campaigns" }, { label: campaign.name }]} />
 
         <div className="flex justify-between items-start mb-4 mt-4">
           <div className="flex-1">
@@ -208,23 +217,37 @@ function CampaignDetailContent() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {campaign.status === "draft" && (
-              <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={() => activateCampaign.mutate(campaignId)}>
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => activateCampaign.mutate(campaignId)}
+              >
                 <Play className="w-4 h-4 mr-2" />
                 Activate
               </Button>
             )}
             {campaign.status === "active" && (
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => pauseCampaign.mutate(campaignId)}>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => pauseCampaign.mutate(campaignId)}
+              >
                 <Pause className="w-4 h-4 mr-2" />
                 Pause
               </Button>
             )}
-            <Button variant="outline" className="border-gray-700 text-gray-300" onClick={() => router.push(`/dashboard/campaigns/${campaignId}/edit`)}>
+            <Button
+              variant="outline"
+              className="border-gray-700 text-gray-300"
+              onClick={() => router.push(`/dashboard/campaigns/${campaignId}/edit`)}
+            >
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </Button>
             {campaign.status === "draft" && (
-              <Button variant="outline" className="border-red-600 text-red-400" onClick={() => setShowDeleteModal(true)}>
+              <Button
+                variant="outline"
+                className="border-red-600 text-red-400"
+                onClick={() => setShowDeleteModal(true)}
+              >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete
               </Button>
@@ -239,9 +262,7 @@ function CampaignDetailContent() {
               type="button"
               onClick={() => setTab(t.id)}
               className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                tab === t.id
-                  ? "border-primary text-white"
-                  : "border-transparent text-gray-500 hover:text-gray-300"
+                tab === t.id ? "border-primary text-white" : "border-transparent text-gray-500 hover:text-gray-300"
               }`}
             >
               {t.label}
@@ -300,8 +321,8 @@ function CampaignDetailContent() {
 
         {tab === "roadmap" && <CampaignRoadmapTab campaignId={campaignId} />}
         {tab === "schedule" && scheduleSection}
-        {tab === "progress" && (
-          progressLoading ? (
+        {tab === "progress" &&
+          (progressLoading ? (
             <p className="text-gray-400 py-12 text-center">Loading progress report…</p>
           ) : progressResponse ? (
             <CampaignProgressReportView
@@ -316,10 +337,9 @@ function CampaignDetailContent() {
                 Generate report
               </Button>
             </div>
-          )
-        )}
-        {tab === "activity" && (
-          eventsLoading ? (
+          ))}
+        {tab === "activity" &&
+          (eventsLoading ? (
             <p className="text-gray-400 py-8 text-center">Loading activity…</p>
           ) : (
             <div className="space-y-2">
@@ -333,8 +353,7 @@ function CampaignDetailContent() {
                 <p className="text-gray-500 text-center py-8">No events recorded yet.</p>
               )}
             </div>
-          )
-        )}
+          ))}
 
         <ConfirmModal
           isOpen={showDeleteModal}
@@ -352,7 +371,9 @@ function CampaignDetailContent() {
 
 export default function CampaignDetailPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-gray-400">Loading…</div>}>
+    <Suspense
+      fallback={<div className="min-h-screen bg-black flex items-center justify-center text-gray-400">Loading…</div>}
+    >
       <CampaignDetailContent />
     </Suspense>
   );

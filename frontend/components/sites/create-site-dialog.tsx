@@ -27,10 +27,10 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
     onSuccess: async (newSite) => {
       // Invalidate sites query to refetch
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
-      
+
       // Switch to the new site
       updateSiteContext(newSite._id);
-      
+
       // Reset form and close
       setName("");
       setDescription("");
@@ -91,9 +91,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">
-            {error}
-          </div>
+          <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
         )}
 
         <div>

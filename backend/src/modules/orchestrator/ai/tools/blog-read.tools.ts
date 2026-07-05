@@ -97,7 +97,9 @@ export class BlogListTool implements OrchestratorTool {
     }
     if (input.search) {
       const needle = input.search.toLowerCase();
-      out = out.filter((b) => b.title.toLowerCase().includes(needle) || (b.excerpt || "").toLowerCase().includes(needle));
+      out = out.filter(
+        (b) => b.title.toLowerCase().includes(needle) || (b.excerpt || "").toLowerCase().includes(needle)
+      );
     }
     return out.slice(0, input.limit ?? 10);
   }
@@ -108,7 +110,10 @@ export class BlogListTool implements OrchestratorTool {
 
   private previewTitles(blogs: Blog[]): string {
     if (blogs.length === 0) return "";
-    return `Recent: ${blogs.slice(0, 5).map((b) => `'${b.title}'`).join(", ")}.`;
+    return `Recent: ${blogs
+      .slice(0, 5)
+      .map((b) => `'${b.title}'`)
+      .join(", ")}.`;
   }
 }
 
@@ -188,10 +193,7 @@ export class BlogStatisticsTool implements OrchestratorTool {
       if (b.status === BlogStatus.PUBLISHED) {
         totalViews += (b as unknown as { views?: number }).views ?? 0;
         totalLikes += (b as unknown as { likes?: number }).likes ?? 0;
-        if (
-          b.published_at &&
-          (!mostRecentPublishedAt || new Date(b.published_at) > mostRecentPublishedAt)
-        ) {
+        if (b.published_at && (!mostRecentPublishedAt || new Date(b.published_at) > mostRecentPublishedAt)) {
           mostRecentPublishedAt = new Date(b.published_at);
         }
       }

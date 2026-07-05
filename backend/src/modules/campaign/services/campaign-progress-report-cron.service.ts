@@ -27,19 +27,10 @@ export class CampaignProgressReportCronService {
     }
     cron.schedule(expression, () => {
       this.sweep().catch((err) =>
-        logger.error(
-          "Campaign progress report cron failed",
-          err as Error,
-          {},
-          "CampaignProgressReportCronService"
-        )
+        logger.error("Campaign progress report cron failed", err as Error, {}, "CampaignProgressReportCronService")
       );
     });
-    logger.info(
-      `Campaign progress report cron scheduled (${expression})`,
-      {},
-      "CampaignProgressReportCronService"
-    );
+    logger.info(`Campaign progress report cron scheduled (${expression})`, {}, "CampaignProgressReportCronService");
   }
 
   async sweep(): Promise<void> {

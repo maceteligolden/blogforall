@@ -29,8 +29,7 @@ const publishInputSchema = z.object({ id: z.string().min(1) });
 @injectable()
 export class BlogPublishTool implements OrchestratorTool {
   name = "blogs.publish";
-  description =
-    "Publish a blog post immediately (no schedule). Destructive: confirmation is required.";
+  description = "Publish a blog post immediately (no schedule). Destructive: confirmation is required.";
   requiresConfirmation = true;
   confirmationKind = OrchestratorApprovalKind.IN_CHAT_CONFIRMATION;
   constructor(
@@ -83,10 +82,7 @@ export class BlogUnpublishTool implements OrchestratorTool {
 
 const scheduleInputSchema = z.object({
   id: z.string().min(1),
-  scheduled_at: z
-    .string()
-    .min(1)
-    .describe("ISO-8601 datetime in the future."),
+  scheduled_at: z.string().min(1).describe("ISO-8601 datetime in the future."),
   timezone: z.string().max(64).optional(),
 });
 
@@ -104,12 +100,10 @@ export class BlogScheduleTool implements OrchestratorTool {
     if (Number.isNaN(at.getTime())) {
       throw new Error("scheduled_at must be a valid ISO-8601 datetime.");
     }
-    const scheduled = await this.blogService.scheduleBlogPublish(
-      input.id,
-      invocation.siteId,
-      invocation.userId,
-      { scheduled_at: at, timezone: input.timezone }
-    );
+    const scheduled = await this.blogService.scheduleBlogPublish(input.id, invocation.siteId, invocation.userId, {
+      scheduled_at: at,
+      timezone: input.timezone,
+    });
     return {
       summary: `Scheduled '${scheduled.title}' for ${at.toISOString()}.`,
       data: {
@@ -152,12 +146,10 @@ export class BlogRescheduleTool implements OrchestratorTool {
       const msg = e instanceof Error ? e.message : String(e);
       if (!msg.includes("not scheduled")) throw e;
     }
-    const scheduled = await this.blogService.scheduleBlogPublish(
-      input.id,
-      invocation.siteId,
-      invocation.userId,
-      { scheduled_at: at, timezone: input.timezone }
-    );
+    const scheduled = await this.blogService.scheduleBlogPublish(input.id, invocation.siteId, invocation.userId, {
+      scheduled_at: at,
+      timezone: input.timezone,
+    });
     return {
       summary: `Rescheduled '${scheduled.title}' to ${at.toISOString()}.`,
       data: {

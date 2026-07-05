@@ -96,8 +96,7 @@ function CreateSitePageContent() {
     },
   });
 
-  const activeSiteName =
-    sites?.find((s) => s._id === activeSiteId)?.name ?? "this workspace";
+  const activeSiteName = sites?.find((s) => s._id === activeSiteId)?.name ?? "this workspace";
 
   const cancelSetupMutation = useMutation({
     mutationFn: async (siteId: string) => {
@@ -106,8 +105,7 @@ function CreateSitePageContent() {
       workspaceTracker.deleted({ workspace_name: siteName });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
       const remaining = await SiteService.getSites();
-      const nextSite =
-        remaining.find((s) => s.status === "active") ?? remaining[0] ?? null;
+      const nextSite = remaining.find((s) => s.status === "active") ?? remaining[0] ?? null;
       if (nextSite) {
         const response = await AuthService.updateSiteContext(nextSite._id);
         const accessToken = response.data?.data?.access_token;
@@ -126,8 +124,7 @@ function CreateSitePageContent() {
       router.push("/dashboard");
     },
     onError: (err: unknown) => {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response
-        ?.data?.message;
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setCancelError(apiMessage ?? "Could not cancel setup. Please try again.");
     },
   });
@@ -190,10 +187,7 @@ function CreateSitePageContent() {
             )}
             <div className="flex-1 min-h-0 rounded-2xl border border-gray-800 overflow-hidden">
               <TokenExhaustionProvider>
-                <OnboardingChat
-                  siteId={activeSiteId}
-                  onCompleted={handleOnboardingCompleted}
-                />
+                <OnboardingChat siteId={activeSiteId} onCompleted={handleOnboardingCompleted} />
               </TokenExhaustionProvider>
             </div>
           </div>
@@ -233,21 +227,17 @@ function CreateSitePageContent() {
       <div className="min-h-screen bg-black text-white">
         <div className="max-w-2xl mx-auto px-6 py-16">
           <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Create Your First Site
-            </h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Create Your First Site</h1>
             <p className="text-xl text-gray-400">
-              Step 1 of 2 — name your workspace. Next, the orchestrator will ask a few questions
-              to tailor content to your business.
+              Step 1 of 2 — name your workspace. Next, the orchestrator will ask a few questions to tailor content to
+              your business.
             </p>
           </div>
 
           <div className="bg-gray-900 rounded-xl border border-gray-800 p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">
-                  {error}
-                </div>
+                <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
               )}
 
               <div>
@@ -264,9 +254,7 @@ function CreateSitePageContent() {
                   required
                   autoFocus
                 />
-                <p className="mt-1 text-xs text-gray-400">
-                  Choose a name for your site. You can change this later.
-                </p>
+                <p className="mt-1 text-xs text-gray-400">Choose a name for your site. You can change this later.</p>
               </div>
 
               <div>
@@ -305,9 +293,7 @@ function CreateSitePageContent() {
           </div>
 
           <div className="mt-8 text-center">
-            <p className="text-sm text-gray-400">
-              You can create additional workspaces later from the dashboard.
-            </p>
+            <p className="text-sm text-gray-400">You can create additional workspaces later from the dashboard.</p>
           </div>
         </div>
       </div>

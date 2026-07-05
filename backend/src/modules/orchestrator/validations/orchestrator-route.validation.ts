@@ -69,11 +69,7 @@ export const threadListQuerySchema = z.object({
 });
 
 export const renameThreadBodySchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, "Title is required")
-    .max(120, "Title must be at most 120 characters"),
+  title: z.string().trim().min(1, "Title is required").max(120, "Title must be at most 120 characters"),
 });
 
 export const knowledgeSourceIdParamSchema = z.object({

@@ -65,9 +65,7 @@ export function PromptInput({
         <div className="flex items-center justify-between mt-2">
           <div className="text-xs text-gray-500">
             {value.length}/{maxLength} characters
-            {wordCount && (
-              <span className="ml-2 text-primary">• Target: {wordCount} words</span>
-            )}
+            {wordCount && <span className="ml-2 text-primary">• Target: {wordCount} words</span>}
           </div>
           <Button
             onClick={handleAnalyze}

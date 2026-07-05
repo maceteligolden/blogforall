@@ -52,11 +52,7 @@ interface UseSpeechRecognitionOptions {
   continuous?: boolean;
 }
 
-export function useSpeechRecognition({
-  onResult,
-  onError,
-  continuous = false,
-}: UseSpeechRecognitionOptions) {
+export function useSpeechRecognition({ onResult, onError, continuous = false }: UseSpeechRecognitionOptions) {
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const onResultRef = useRef(onResult);
   const onErrorRef = useRef(onError);
@@ -66,9 +62,7 @@ export function useSpeechRecognition({
     onErrorRef.current = onError;
   }, [onResult, onError]);
 
-  const isSupported =
-    typeof window !== "undefined" &&
-    !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const isSupported = typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 
   useEffect(() => {
     if (!isSupported) return;

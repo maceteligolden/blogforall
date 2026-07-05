@@ -11,7 +11,13 @@ interface ParagraphBlockProps {
   selected?: boolean;
 }
 
-export function ParagraphBlock({ block, onChange, onKeyDown, placeholder = "Write something...", selected }: ParagraphBlockProps) {
+export function ParagraphBlock({
+  block,
+  onChange,
+  onKeyDown,
+  placeholder = "Write something...",
+  selected,
+}: ParagraphBlockProps) {
   const text = block.data?.text ?? "";
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);

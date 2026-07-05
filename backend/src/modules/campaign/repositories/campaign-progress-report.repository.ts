@@ -24,9 +24,7 @@ export class CampaignProgressReportRepository {
   }
 
   async list(campaignId: string, limit = 30): Promise<CampaignProgressReport[]> {
-    return CampaignProgressReportModel.find({ campaign_id: campaignId })
-      .sort({ report_date: -1 })
-      .limit(limit);
+    return CampaignProgressReportModel.find({ campaign_id: campaignId }).sort({ report_date: -1 }).limit(limit);
   }
 
   async listBySiteForDate(siteId: string, reportDate: string): Promise<CampaignProgressReport[]> {

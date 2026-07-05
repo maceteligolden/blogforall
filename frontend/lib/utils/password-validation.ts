@@ -10,7 +10,7 @@ export interface PasswordValidationResult {
 
 export function validatePassword(password: string): PasswordValidationResult {
   const errors: string[] = [];
-  
+
   const hasLowercase = /[a-z]/.test(password);
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);

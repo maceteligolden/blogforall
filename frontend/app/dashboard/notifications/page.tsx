@@ -53,16 +53,9 @@ export default function NotificationsPage() {
   const queryClient = useQueryClient();
   const { refetch: refetchProvider } = useNotifications();
 
-  const {
-    data,
-    isLoading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useInfiniteQuery({
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
     queryKey: [...QUERY_KEYS.NOTIFICATIONS, "list"],
-    queryFn: ({ pageParam = 1 }) =>
-      NotificationService.list({ page: pageParam, limit: PAGE_SIZE }),
+    queryFn: ({ pageParam = 1 }) => NotificationService.list({ page: pageParam, limit: PAGE_SIZE }),
     getNextPageParam: (lastPage) => {
       const { page, totalPages } = lastPage.pagination;
       return page < totalPages ? page + 1 : undefined;
@@ -110,23 +103,14 @@ export default function NotificationsPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-3xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb
-          items={[
-            { label: "Dashboard", href: "/dashboard" },
-            { label: "Notifications" },
-          ]}
-        />
+        <Breadcrumb items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Notifications" }]} />
 
         <main className="py-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
             <div>
-              <h1 className="text-4xl font-display mb-2 tracking-tight">
-                Notifications
-              </h1>
+              <h1 className="text-4xl font-display mb-2 tracking-tight">Notifications</h1>
               <p className="text-gray-400">
-                {total > 0
-                  ? `${total} notification${total !== 1 ? "s" : ""}`
-                  : "Your notifications appear here"}
+                {total > 0 ? `${total} notification${total !== 1 ? "s" : ""}` : "Your notifications appear here"}
               </p>
             </div>
             {total > 0 && (
@@ -146,9 +130,7 @@ export default function NotificationsPage() {
           {notifications.length === 0 ? (
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
               <Bell className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">
-                No notifications yet
-              </h3>
+              <h3 className="text-xl font-semibold text-white mb-2">No notifications yet</h3>
               <p className="text-gray-400">
                 You&apos;re all caught up. When you get notifications, they&apos;ll appear here.
               </p>
@@ -163,9 +145,7 @@ export default function NotificationsPage() {
                     role="button"
                     tabIndex={0}
                     className={`rounded-lg border p-4 transition-colors cursor-pointer hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-inset ${
-                      isUnread
-                        ? "bg-gray-800/30 border-gray-700"
-                        : "bg-gray-900 border-gray-800"
+                      isUnread ? "bg-gray-800/30 border-gray-700" : "bg-gray-900 border-gray-800"
                     }`}
                     onClick={() => handleItemClick(notification)}
                     onKeyDown={(e) => {
@@ -184,13 +164,9 @@ export default function NotificationsPage() {
                         {getIconForType(notification.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">
-                          {notification.title ?? notification.type}
-                        </p>
+                        <p className="text-sm font-medium text-white">{notification.title ?? notification.type}</p>
                         {notification.body && (
-                          <p className="text-sm text-gray-400 mt-0.5 line-clamp-2">
-                            {notification.body}
-                          </p>
+                          <p className="text-sm text-gray-400 mt-0.5 line-clamp-2">{notification.body}</p>
                         )}
                         <p className="text-xs text-gray-500 mt-2">
                           {formatDistanceToNow(new Date(notification.created_at), {
@@ -199,10 +175,7 @@ export default function NotificationsPage() {
                         </p>
                       </div>
                       {isUnread && (
-                        <div
-                          className="w-2.5 h-2.5 bg-primary rounded-full flex-shrink-0 mt-2"
-                          aria-hidden
-                        />
+                        <div className="w-2.5 h-2.5 bg-primary rounded-full flex-shrink-0 mt-2" aria-hidden />
                       )}
                     </div>
                   </div>

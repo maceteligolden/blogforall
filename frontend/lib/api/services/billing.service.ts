@@ -10,7 +10,6 @@ export interface Card {
   is_default: boolean;
 }
 
-
 export interface Invoice {
   id: string;
   number: string | null;
@@ -40,15 +39,12 @@ export interface InvoiceDetails extends Invoice {
   }>;
 }
 
-
 export class BillingService {
   /**
    * Initialize add card process - returns setup intent client secret
    */
   static async initializeAddCard(): Promise<{ client_secret: string }> {
-    const response = await apiClient.post<{ data: { client_secret: string } }>(
-      API_ENDPOINTS.BILLING.INITIALIZE_CARD
-    );
+    const response = await apiClient.post<{ data: { client_secret: string } }>(API_ENDPOINTS.BILLING.INITIALIZE_CARD);
     return response.data.data;
   }
 
@@ -98,9 +94,7 @@ export class BillingService {
    * Get invoice details
    */
   static async getInvoiceDetails(invoiceId: string): Promise<InvoiceDetails> {
-    const response = await apiClient.get<{ data: InvoiceDetails }>(
-      API_ENDPOINTS.BILLING.GET_INVOICE(invoiceId)
-    );
+    const response = await apiClient.get<{ data: InvoiceDetails }>(API_ENDPOINTS.BILLING.GET_INVOICE(invoiceId));
     return response.data.data;
   }
 }

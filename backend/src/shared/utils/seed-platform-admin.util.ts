@@ -22,9 +22,7 @@ export async function seedPlatformAdminIfNeeded(input: SeedPlatformAdminInput): 
   const lastName = input.lastName?.trim() || "Admin";
   const roleCandidate = input.roleRaw?.trim() || UserRole.SUPER_ADMIN;
   const role =
-    roleCandidate === UserRole.SUPER_ADMIN || roleCandidate === UserRole.ADMIN
-      ? roleCandidate
-      : UserRole.SUPER_ADMIN;
+    roleCandidate === UserRole.SUPER_ADMIN || roleCandidate === UserRole.ADMIN ? roleCandidate : UserRole.SUPER_ADMIN;
 
   if (!email || !password) {
     return { status: "skipped", reason: "missing_credentials" };

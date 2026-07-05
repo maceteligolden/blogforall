@@ -96,12 +96,15 @@ export class AdminUserService {
       return acc;
     }, {});
     const categoriesBySite = await this.categoryRepository.countBySiteIds(siteIds);
-    const categoriesByOwner = Object.entries(categoriesBySite).reduce<Record<string, number>>((acc, [siteId, count]) => {
-      const ownerId = siteOwnerMap[siteId];
-      if (!ownerId) return acc;
-      acc[ownerId] = (acc[ownerId] ?? 0) + count;
-      return acc;
-    }, {});
+    const categoriesByOwner = Object.entries(categoriesBySite).reduce<Record<string, number>>(
+      (acc, [siteId, count]) => {
+        const ownerId = siteOwnerMap[siteId];
+        if (!ownerId) return acc;
+        acc[ownerId] = (acc[ownerId] ?? 0) + count;
+        return acc;
+      },
+      {}
+    );
 
     const rows: AdminUserListItem[] = users.map((u) => {
       const id = u._id!.toString();

@@ -13,10 +13,7 @@ import { CampaignProgressReportRepository } from "../repositories/campaign-progr
 import { NotificationService } from "../../notification/services/notification.service";
 import { UserRepository } from "../../auth/repositories/user.repository";
 import { SiteRepository } from "../../site/repositories/site.repository";
-import {
-  CampaignLifecycleStatus,
-  CampaignEventType,
-} from "../../../shared/constants/campaign.constant";
+import { CampaignLifecycleStatus, CampaignEventType } from "../../../shared/constants/campaign.constant";
 import { CampaignEventRepository } from "../repositories/campaign-event.repository";
 
 @injectable()
@@ -37,12 +34,7 @@ export class CampaignProgressEmailService {
     if (this.cronJob) return;
     const expression = env.campaign.progressEmailCron;
     if (!cron.validate(expression)) {
-      logger.error(
-        "Invalid campaign progress email cron",
-        new Error(expression),
-        {},
-        "CampaignProgressEmailService"
-      );
+      logger.error("Invalid campaign progress email cron", new Error(expression), {}, "CampaignProgressEmailService");
       return;
     }
     this.cronJob = cron.schedule(expression, () => {
@@ -58,20 +50,13 @@ export class CampaignProgressEmailService {
     const campaigns = await this.campaignRepository.findForDailyProgress();
     for (const campaign of campaigns) {
       const lifecycle = campaign.lifecycle_status ?? CampaignLifecycleStatus.ACTIVE;
-      if (
-        lifecycle !== CampaignLifecycleStatus.ACTIVE &&
-        lifecycle !== CampaignLifecycleStatus.PAUSED
-      ) {
+      if (lifecycle !== CampaignLifecycleStatus.ACTIVE && lifecycle !== CampaignLifecycleStatus.PAUSED) {
         continue;
       }
       if (campaign.notifications?.daily_progress_email === false) {
         continue;
       }
-      const report = await this.progressService.buildDailyReport(
-        campaign._id!.toString(),
-        campaign.site_id,
-        dateStr
-      );
+      const report = await this.progressService.buildDailyReport(campaign._id!.toString(), campaign.site_id, dateStr);
       if (report.emailed_at) {
         continue;
       }

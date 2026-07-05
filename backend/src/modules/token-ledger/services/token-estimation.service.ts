@@ -1,9 +1,6 @@
 import { injectable } from "tsyringe";
 import { getEncoding } from "js-tiktoken";
-import {
-  TOKEN_ESTIMATE_BUFFER_RATIO,
-  TokenLedgerFeature,
-} from "../../../shared/constants/token-ledger.constant";
+import { TOKEN_ESTIMATE_BUFFER_RATIO, TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
 import type { TokenEstimateInput } from "../interfaces/token-ledger.interface";
 
 const encoding = getEncoding("cl100k_base");
@@ -30,10 +27,7 @@ export class TokenEstimationService {
       switch (input.feature) {
         case TokenLedgerFeature.BLOG_GENERATE:
         case TokenLedgerFeature.BLOG_ANALYZE:
-          outputEstimate = Math.max(
-            Math.ceil((input.wordCount ?? 1500) * 1.3),
-            2500
-          );
+          outputEstimate = Math.max(Math.ceil((input.wordCount ?? 1500) * 1.3), 2500);
           break;
         case TokenLedgerFeature.BLOG_REVIEW:
           outputEstimate = 800;

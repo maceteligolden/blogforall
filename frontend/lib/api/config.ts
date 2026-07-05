@@ -134,11 +134,9 @@ export const API_ENDPOINTS = {
     ROADMAP_APPROVE: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/roadmap/approve`,
     ROADMAP_REJECT: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/roadmap/reject`,
     HEALTH: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/health`,
-    PROGRESS_LATEST: (siteId: string, id: string) =>
-      `/sites/${siteId}/campaigns/${id}/progress-reports/latest`,
+    PROGRESS_LATEST: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/progress-reports/latest`,
     PROGRESS_REPORTS: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/progress-reports`,
-    PROGRESS_GENERATE: (siteId: string, id: string) =>
-      `/sites/${siteId}/campaigns/${id}/progress-reports/generate`,
+    PROGRESS_GENERATE: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/progress-reports/generate`,
     EVENTS: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/events`,
     MEMORY: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/memory`,
     REPORTS_INBOX: (siteId: string) => `/sites/${siteId}/campaigns/reports/inbox`,
@@ -170,17 +168,14 @@ export const API_ENDPOINTS = {
     CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/chat`,
     ONBOARDING_CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/onboarding/chat`,
     THREADS: (siteId: string) => `/sites/${siteId}/orchestrator/threads`,
-    THREAD: (siteId: string, threadId: string) =>
-      `/sites/${siteId}/orchestrator/threads/${threadId}`,
+    THREAD: (siteId: string, threadId: string) => `/sites/${siteId}/orchestrator/threads/${threadId}`,
     APPROVALS: (siteId: string) => `/sites/${siteId}/orchestrator/approvals`,
     APPROVAL_DECIDE: (siteId: string, approvalId: string) =>
       `/sites/${siteId}/orchestrator/approvals/${approvalId}/decide`,
     CONTEXT_UPLOAD: (siteId: string) => `/sites/${siteId}/orchestrator/context/upload`,
     KNOWLEDGE: (siteId: string) => `/sites/${siteId}/orchestrator/knowledge`,
-    KNOWLEDGE_ITEM: (siteId: string, id: string) =>
-      `/sites/${siteId}/orchestrator/knowledge/${id}`,
-    GOOGLE_DRIVE_AUTH: (siteId: string) =>
-      `/sites/${siteId}/orchestrator/knowledge/google/auth`,
+    KNOWLEDGE_ITEM: (siteId: string, id: string) => `/sites/${siteId}/orchestrator/knowledge/${id}`,
+    GOOGLE_DRIVE_AUTH: (siteId: string) => `/sites/${siteId}/orchestrator/knowledge/google/auth`,
   },
   /**
    * Public, token-authenticated scheduled-post review endpoints. Reached
@@ -228,14 +223,8 @@ export const QUERY_KEYS = {
   MY_SCHEDULED_POSTS: ["scheduled-posts", "my-posts"],
   CAMPAIGN_TEMPLATES: ["campaign-templates"],
   ORCHESTRATOR_THREADS: (siteId: string) => ["orchestrator", siteId, "threads"],
-  ORCHESTRATOR_THREAD: (siteId: string, threadId: string) => [
-    "orchestrator",
-    siteId,
-    "threads",
-    threadId,
-  ],
+  ORCHESTRATOR_THREAD: (siteId: string, threadId: string) => ["orchestrator", siteId, "threads", threadId],
   ORCHESTRATOR_APPROVALS: (siteId: string) => ["orchestrator", siteId, "approvals"],
   ORCHESTRATOR_KNOWLEDGE: (siteId: string) => ["orchestrator", siteId, "knowledge"],
   TOKEN_USAGE: ["usage", "tokens"],
 };
-

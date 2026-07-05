@@ -35,18 +35,11 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
   const contentRef = useRef<HTMLDivElement>(null);
-  const [selectionToolbar, setSelectionToolbar] = useState<{ top: number; left: number } | null>(
-    null
-  );
+  const [selectionToolbar, setSelectionToolbar] = useState<{ top: number; left: number } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const data = artifact.outputData;
-  const blogId =
-    typeof data.blog_id === "string"
-      ? data.blog_id
-      : typeof data.id === "string"
-        ? data.id
-        : undefined;
+  const blogId = typeof data.blog_id === "string" ? data.blog_id : typeof data.id === "string" ? data.id : undefined;
 
   const { data: blogResponse, isLoading } = useQuery({
     queryKey: blogId ? QUERY_KEYS.BLOG(blogId) : ["blog", "none"],
@@ -203,9 +196,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
               <Loader2 className="w-3 h-3 animate-spin" /> Saving…
             </>
           )}
-          {saveMutation.isSuccess && !saveMutation.isPending && !dirty && (
-            <span className="text-green-500">Saved</span>
-          )}
+          {saveMutation.isSuccess && !saveMutation.isPending && !dirty && <span className="text-green-500">Saved</span>}
         </span>
         <div className="flex items-center gap-2">
           {blogId && (
@@ -254,11 +245,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
                 />
               </div>
 
-              <div
-                ref={contentRef}
-                className="relative min-w-0"
-                onMouseUp={handleMouseUp}
-              >
+              <div ref={contentRef} className="relative min-w-0" onMouseUp={handleMouseUp}>
                 <Label htmlFor="orchestrator-draft-content" className="text-gray-300 mb-2 block">
                   Content *
                 </Label>
@@ -273,9 +260,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
                     onUploadImage={handleEditorImageUpload}
                   />
                 </div>
-                <p className="text-xs text-gray-500">
-                  Use + or type / to add blocks. Every image requires a caption.
-                </p>
+                <p className="text-xs text-gray-500">Use + or type / to add blocks. Every image requires a caption.</p>
                 {selectionToolbar && (
                   <button
                     type="button"

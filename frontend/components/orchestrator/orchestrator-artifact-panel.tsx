@@ -6,10 +6,7 @@ import { ExternalLink, FileText, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import { useOrchestratorArtifacts } from "@/lib/hooks/use-orchestrator-artifacts";
-import {
-  extractUrlFromText,
-  type OrchestratorArtifact,
-} from "@/lib/utils/orchestrator-artifacts";
+import { extractUrlFromText, type OrchestratorArtifact } from "@/lib/utils/orchestrator-artifacts";
 import type { BlogReviewResult } from "@/lib/api/services/blog-review.service";
 import { Card } from "@/components/ui/card";
 import { BlogDraftResultEditor } from "@/components/orchestrator/blog-draft-result-editor";
@@ -53,9 +50,7 @@ function BlogReviewArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
     <Card className="bg-gray-900 border-gray-800 p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-white truncate">{title}</h3>
-        {score !== undefined && (
-          <span className={cn("text-lg font-bold shrink-0", scoreColor)}>{score}/10</span>
-        )}
+        {score !== undefined && <span className={cn("text-lg font-bold shrink-0", scoreColor)}>{score}/10</span>}
       </div>
       {summary && <p className="text-xs text-gray-400">{summary}</p>}
       {suggestions.length > 0 && (
@@ -80,9 +75,7 @@ function GenericArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
   return (
     <Card className="bg-gray-900 border-gray-800 p-4 space-y-2">
       <p className="text-sm font-medium text-white">{artifactLabel(artifact.tool)}</p>
-      {artifact.summary && (
-        <p className="text-xs text-gray-400 whitespace-pre-wrap">{artifact.summary}</p>
-      )}
+      {artifact.summary && <p className="text-xs text-gray-400 whitespace-pre-wrap">{artifact.summary}</p>}
       {url && (
         <Link
           href={url}
@@ -115,8 +108,7 @@ export function OrchestratorArtifactPanel({
   mobileOpen = false,
   onMobileClose,
 }: OrchestratorArtifactPanelProps) {
-  const { threadId, selectedArtifactId, setSelectedArtifactId, closeResultsPanel } =
-    useOrchestrator();
+  const { threadId, selectedArtifactId, setSelectedArtifactId, closeResultsPanel } = useOrchestrator();
   const { artifacts } = useOrchestratorArtifacts();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
@@ -144,11 +136,9 @@ export function OrchestratorArtifactPanel({
     }
   }, [selectedIndex, artifacts, setSelectedArtifactId]);
 
-  const activeArtifact =
-    selectedIndex !== null && artifacts[selectedIndex] ? artifacts[selectedIndex] : null;
+  const activeArtifact = selectedIndex !== null && artifacts[selectedIndex] ? artifacts[selectedIndex] : null;
 
-  const isBlogDraft =
-    activeArtifact?.tool === "blogs.generateDraft" || activeArtifact?.tool === "blogs.createDraft";
+  const isBlogDraft = activeArtifact?.tool === "blogs.generateDraft" || activeArtifact?.tool === "blogs.createDraft";
 
   const handleClose = () => {
     closeResultsPanel();
@@ -179,9 +169,7 @@ export function OrchestratorArtifactPanel({
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0 bg-gray-950">
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
-            <span className="text-sm font-semibold truncate">
-              {isBlogDraft ? "Blog draft" : "Results"}
-            </span>
+            <span className="text-sm font-semibold truncate">{isBlogDraft ? "Blog draft" : "Results"}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {artifacts.length > 1 && (

@@ -80,11 +80,7 @@ router.get("/reports/inbox", campaignFeatureController.siteReportsInbox);
 
 router.post("/:id/plan", validateParams(V.campaignIdParamSchema), campaignFeatureController.plan);
 router.get("/:id/roadmap", validateParams(V.campaignIdParamSchema), campaignFeatureController.getRoadmap);
-router.post(
-  "/:id/roadmap/approve",
-  validateParams(V.campaignIdParamSchema),
-  campaignFeatureController.approveRoadmap
-);
+router.post("/:id/roadmap/approve", validateParams(V.campaignIdParamSchema), campaignFeatureController.approveRoadmap);
 router.post(
   "/:id/roadmap/reject",
   validateParams(V.campaignIdParamSchema),
@@ -97,11 +93,7 @@ router.get(
   validateParams(V.campaignIdParamSchema),
   campaignFeatureController.getProgressLatest
 );
-router.get(
-  "/:id/progress-reports",
-  validateParams(V.campaignIdParamSchema),
-  campaignFeatureController.listProgress
-);
+router.get("/:id/progress-reports", validateParams(V.campaignIdParamSchema), campaignFeatureController.listProgress);
 router.post(
   "/:id/progress-reports/generate",
   validateParams(V.campaignIdParamSchema),

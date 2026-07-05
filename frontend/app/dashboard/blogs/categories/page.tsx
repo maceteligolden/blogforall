@@ -49,13 +49,15 @@ export default function BlogCategoriesPage() {
       setShowCreateForm(false);
     } catch (err: unknown) {
       const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to create category";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to create category";
       setError(errorMessage);
     }
   };
 
-  const handleUpdate = async (id: string, data: { name?: string; description?: string; parent?: string; color?: string }) => {
+  const handleUpdate = async (
+    id: string,
+    data: { name?: string; description?: string; parent?: string; color?: string }
+  ) => {
     try {
       await updateCategory.mutateAsync({ id, data });
       setEditingId(null);
@@ -87,12 +89,7 @@ export default function BlogCategoriesPage() {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-2">
-                {category.color && (
-                  <div
-                    className="w-4 h-4 rounded"
-                    style={{ backgroundColor: category.color }}
-                  />
-                )}
+                {category.color && <div className="w-4 h-4 rounded" style={{ backgroundColor: category.color }} />}
                 <h3 className="text-lg font-semibold text-white">{category.name}</h3>
                 {category.is_active ? (
                   <span className="px-2 py-1 text-xs rounded bg-green-900/30 text-green-400 border border-green-800">
@@ -104,9 +101,7 @@ export default function BlogCategoriesPage() {
                   </span>
                 )}
               </div>
-              {category.description && (
-                <p className="text-sm text-gray-400 mb-2">{category.description}</p>
-              )}
+              {category.description && <p className="text-sm text-gray-400 mb-2">{category.description}</p>}
               <p className="text-xs text-gray-500">Slug: {category.slug}</p>
             </div>
             <div className="flex space-x-2">
@@ -172,10 +167,7 @@ export default function BlogCategoriesPage() {
             <Download className="w-4 h-4 mr-2" />
             Import Categories
           </Button>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => setShowCreateForm(true)}
-          >
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => setShowCreateForm(true)}>
             Create Category
           </Button>
         </div>
@@ -192,7 +184,17 @@ export default function BlogCategoriesPage() {
                 {error}
               </div>
             )}
-            <form onSubmit={editingId ? (e) => { e.preventDefault(); handleUpdate(editingId, formData); } : handleCreate} className="space-y-4">
+            <form
+              onSubmit={
+                editingId
+                  ? (e) => {
+                      e.preventDefault();
+                      handleUpdate(editingId, formData);
+                    }
+                  : handleCreate
+              }
+              className="space-y-4"
+            >
               <div>
                 <Label htmlFor="name" className="text-gray-300">
                   Name *
@@ -294,10 +296,7 @@ export default function BlogCategoriesPage() {
         {!categories || categories.length === 0 ? (
           <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
             <p className="text-gray-400 mb-4">No categories found.</p>
-            <Button
-              className="bg-primary hover:bg-primary/90 text-white"
-              onClick={() => setShowCreateForm(true)}
-            >
+            <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => setShowCreateForm(true)}>
               Create Your First Category
             </Button>
           </div>
@@ -323,10 +322,7 @@ export default function BlogCategoriesPage() {
         variant="danger"
       />
 
-      <ImportCategoriesDialog
-        isOpen={showImportDialog}
-        onClose={() => setShowImportDialog(false)}
-      />
+      <ImportCategoriesDialog isOpen={showImportDialog} onClose={() => setShowImportDialog(false)} />
     </>
   );
 }

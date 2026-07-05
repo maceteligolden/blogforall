@@ -14,14 +14,7 @@ interface ModalProps {
   size?: "sm" | "md" | "lg" | "xl";
 }
 
-export function Modal({
-  isOpen,
-  onClose,
-  title,
-  children,
-  footer,
-  size = "md",
-}: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, footer, size = "md" }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -54,14 +47,9 @@ export function Modal({
         {/* Header */}
         {(title !== undefined || onClose !== undefined) && (
           <div className="flex items-center justify-between p-6 border-b border-gray-800">
-            {title && (
-              <h2 className="text-xl font-semibold text-white">{title}</h2>
-            )}
+            {title && <h2 className="text-xl font-semibold text-white">{title}</h2>}
             {onClose && (
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-white transition-colors p-1"
-              >
+              <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors p-1">
                 <X className="w-5 h-5" />
               </button>
             )}
@@ -72,9 +60,7 @@ export function Modal({
         <div className="flex-1 overflow-y-auto p-6">{children}</div>
 
         {/* Footer */}
-        {footer && (
-          <div className="border-t border-gray-800 p-6">{footer}</div>
-        )}
+        {footer && <div className="border-t border-gray-800 p-6">{footer}</div>}
       </div>
     </div>
   );
@@ -155,4 +141,3 @@ export function ConfirmModal({
     </Modal>
   );
 }
-

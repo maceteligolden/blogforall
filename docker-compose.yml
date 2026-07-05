@@ -45,7 +45,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: "5005"
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/blogforall}
-      REDIS_URL: ${REDIS_URL:-redis://valkey:6379}
+      REDIS_URL: 
       ACCESS_SECRET: ${ACCESS_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}

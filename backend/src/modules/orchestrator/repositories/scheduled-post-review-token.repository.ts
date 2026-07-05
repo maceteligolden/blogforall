@@ -56,10 +56,7 @@ export class ScheduledPostReviewTokenRepository {
    * Atomically mark a token as used. Returns null if the token was already
    * consumed (race-safe; defends against double-clicks on email links).
    */
-  async consume(
-    tokenId: string,
-    action: ReviewTokenAction
-  ): Promise<ScheduledPostReviewToken | null> {
+  async consume(tokenId: string, action: ReviewTokenAction): Promise<ScheduledPostReviewToken | null> {
     return ScheduledPostReviewTokenModel.findOneAndUpdate(
       { _id: tokenId, used_at: { $exists: false } },
       {
@@ -94,10 +91,7 @@ export class ScheduledPostReviewTokenRepository {
     return result.modifiedCount ?? 0;
   }
 
-  async findActiveForScheduledPost(
-    siteId: string,
-    scheduledPostId: string
-  ): Promise<ScheduledPostReviewToken | null> {
+  async findActiveForScheduledPost(siteId: string, scheduledPostId: string): Promise<ScheduledPostReviewToken | null> {
     return ScheduledPostReviewTokenModel.findOne({
       site_id: siteId,
       scheduled_post_id: scheduledPostId,

@@ -6,10 +6,7 @@ function genId(): string {
 }
 
 function strip(md: string): string {
-  return String(md)
-    .replace(/\r/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(md).replace(/\r/g, "").replace(/\s+/g, " ").trim();
 }
 
 /**
@@ -137,7 +134,13 @@ function looksLikeHtml(content: string): boolean {
 }
 
 function looksLikeMarkdown(content: string): boolean {
-  return /(^|\n)#{1,3}\s+/m.test(content) || /(^|\n)[-*]\s+.+/m.test(content) || /(^|\n)\d+\.\s+.+/m.test(content) || /(^|\n)>\s+.+/m.test(content) || /```/m.test(content);
+  return (
+    /(^|\n)#{1,3}\s+/m.test(content) ||
+    /(^|\n)[-*]\s+.+/m.test(content) ||
+    /(^|\n)\d+\.\s+.+/m.test(content) ||
+    /(^|\n)>\s+.+/m.test(content) ||
+    /```/m.test(content)
+  );
 }
 
 /**
@@ -150,4 +153,3 @@ export function contentToBlocks(content: string): ContentBlock[] {
   // Fallback: try HTML parser; if it's markdown without tags, it will degrade to paragraphs.
   return htmlToBlocks(c);
 }
-

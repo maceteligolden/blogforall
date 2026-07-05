@@ -50,8 +50,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
   const { data: tokenUsage } = useTokenUsage();
   const invalidateTokenUsage = useInvalidateTokenUsage();
   const { showFromError } = useTokenExhaustion();
-  const tokensExhausted =
-    tokenUsage && !tokenUsage.unlimited && tokenUsage.available <= 0;
+  const tokensExhausted = tokenUsage && !tokenUsage.unlimited && tokenUsage.available <= 0;
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -114,8 +113,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
         invalidateTokenUsage();
         setError("Daily AI token limit reached.");
       } else {
-        const apiMessage = (e as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message;
+        const apiMessage = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
         setError(apiMessage ?? "Something went wrong. Please try again.");
       }
       setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
@@ -148,9 +146,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
         ))}
         {isSending && <ThinkingIndicator />}
         {error && (
-          <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">
-            {error}
-          </div>
+          <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">{error}</div>
         )}
       </div>
 
@@ -162,9 +158,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
           disabled={isSending || !!tokensExhausted}
           autoFocus
           placeholder={
-            tokensExhausted
-              ? "Daily AI token limit reached"
-              : "Tell me about your business, audience, and goals..."
+            tokensExhausted ? "Daily AI token limit reached" : "Tell me about your business, audience, and goals..."
           }
         />
         <p className="mt-2 text-xs text-gray-500 hidden sm:block">

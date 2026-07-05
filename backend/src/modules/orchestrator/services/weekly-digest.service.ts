@@ -66,20 +66,9 @@ export class WeeklyDigestService {
       return;
     }
     this.cronJob = cron.schedule(expression, () => {
-      this.runOnce().catch((err) =>
-        logger.error(
-          "Weekly digest run failed",
-          err as Error,
-          {},
-          "WeeklyDigestService"
-        )
-      );
+      this.runOnce().catch((err) => logger.error("Weekly digest run failed", err as Error, {}, "WeeklyDigestService"));
     });
-    logger.info(
-      `Weekly digest scheduled (${expression})`,
-      {},
-      "WeeklyDigestService"
-    );
+    logger.info(`Weekly digest scheduled (${expression})`, {}, "WeeklyDigestService");
   }
 
   stop(): void {
@@ -98,17 +87,9 @@ export class WeeklyDigestService {
     const from = new Date();
     const to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const pending = await this.scheduledPostRepository.findPendingApprovalsInWindow(
-      from,
-      to,
-      500
-    );
+    const pending = await this.scheduledPostRepository.findPendingApprovalsInWindow(from, to, 500);
     if (pending.length === 0) {
-      logger.info(
-        "Weekly digest: no pending approvals in the next 7 days",
-        {},
-        "WeeklyDigestService"
-      );
+      logger.info("Weekly digest: no pending approvals in the next 7 days", {}, "WeeklyDigestService");
       return { recipients: 0, postsConsidered: 0 };
     }
 
@@ -138,15 +119,10 @@ export class WeeklyDigestService {
   private groupByRecipient(
     posts: ScheduledPost[]
   ): Map<string, { userId: string; siteId: string; posts: ScheduledPost[] }> {
-    const out = new Map<
-      string,
-      { userId: string; siteId: string; posts: ScheduledPost[] }
-    >();
+    const out = new Map<string, { userId: string; siteId: string; posts: ScheduledPost[] }>();
     for (const p of posts) {
       const key = `${p.user_id}::${p.site_id}`;
-      const bucket =
-        out.get(key) ??
-        ({ userId: p.user_id, siteId: p.site_id, posts: [] as ScheduledPost[] });
+      const bucket = out.get(key) ?? { userId: p.user_id, siteId: p.site_id, posts: [] as ScheduledPost[] };
       bucket.posts.push(p);
       out.set(key, bucket);
     }
@@ -164,11 +140,7 @@ export class WeeklyDigestService {
       this.siteRepository.findById(siteId),
     ]);
     if (!user?.email) {
-      logger.warn(
-        "Weekly digest skipped: user has no email",
-        { userId, siteId },
-        "WeeklyDigestService"
-      );
+      logger.warn("Weekly digest skipped: user has no email", { userId, siteId }, "WeeklyDigestService");
       return;
     }
 
@@ -205,11 +177,7 @@ export class WeeklyDigestService {
     });
   }
 
-  private async buildEntries(
-    siteId: string,
-    userId: string,
-    posts: ScheduledPost[]
-  ): Promise<DigestPostEntry[]> {
+  private async buildEntries(siteId: string, userId: string, posts: ScheduledPost[]): Promise<DigestPostEntry[]> {
     const ttlMs = env.orchestrator.reviewTokenTtlDays * 24 * 60 * 60 * 1000;
     const expiresAt = new Date(Date.now() + ttlMs);
     const base = env.frontend.baseUrl.replace(/\/$/, "");
