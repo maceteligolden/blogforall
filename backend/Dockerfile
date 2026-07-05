@@ -31,6 +31,6 @@ COPY --from=builder /app/dist ./dist
 
 RUN mkdir -p uploads
 
-EXPOSE 3005
+EXPOSE 5005
 
 CMD ["node", "dist/src/index.js"]

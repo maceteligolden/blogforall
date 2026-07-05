@@ -1,0 +1,79 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: bloggr-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - bloggr-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: bloggr-valkey
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey-data:/data
+    networks:
+      - bloggr-network
+    restart: unless-stopped
+    command: ["--save", "60", "1000"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: bloggr-backend
+    ports:
+      - "5005:5005"
+    env_file:
+      - backend/.env
+    environment:
+      PORT: "5005"
+      REDIS_URL: redis://valkey:6379
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/blogforall}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - backend-uploads:/app/uploads
+    networks:
+      - bloggr-network
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  mongodb-data:
+    driver: local
+  valkey-data:
+    driver: local
+  backend-uploads:
+    driver: local
+
+networks:
+  bloggr-network:
+    driver: bridge

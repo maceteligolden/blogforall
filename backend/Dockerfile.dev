@@ -12,6 +12,6 @@ COPY . .
 
 RUN mkdir -p uploads
 
-EXPOSE 3006
+EXPOSE 5005
 
 CMD ["nodemon", "src/index.ts"]
