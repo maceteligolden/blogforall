@@ -34,6 +34,18 @@ import {
   ServerAnalyticsEvents,
 } from "../../../shared/analytics/posthog.server";
 import { CampaignRoadmapService } from "../../campaign/services/campaign-roadmap.service";
+import { OrchestratorKnowledgeService } from "./orchestrator-knowledge.service";
+import {
+  buildEnrichedUserMessage,
+  type OrchestratorSessionMode,
+} from "../utils/turn-context.helper";
+
+interface ChatAttachment {
+  name: string;
+  url: string;
+  mime_type: string;
+  extracted_text?: string;
+}
 
 interface BaseTurnInput {
   siteId: string;
@@ -41,6 +53,9 @@ interface BaseTurnInput {
   message: string;
   threadId?: string;
   requestId?: string;
+  sessionMode?: OrchestratorSessionMode;
+  selectionContext?: { blog_id: string; text: string };
+  attachments?: ChatAttachment[];
 }
 
 /**
@@ -69,7 +84,8 @@ export class OrchestratorService {
     private readonly toolRegistry: OrchestratorToolRegistry,
     private readonly siteService: SiteService,
     private readonly tokenEnforcement: TokenEnforcementService,
-    private readonly campaignRoadmapService: CampaignRoadmapService
+    private readonly campaignRoadmapService: CampaignRoadmapService,
+    private readonly knowledgeService: OrchestratorKnowledgeService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -192,6 +208,16 @@ export class OrchestratorService {
     const { siteId, userId, message, mode } = input;
     await this.assertSiteAccess(siteId, userId);
 
+    const knowledgeSummary =
+      mode === "active" ? await this.knowledgeService.buildKnowledgeSummary(siteId) : "";
+    const enrichedMessage = buildEnrichedUserMessage({
+      message,
+      sessionMode: input.sessionMode,
+      selectionContext: input.selectionContext,
+      attachments: input.attachments,
+      knowledgeSummary,
+    });
+
     const site = await this.siteService.getSiteById(siteId, userId);
     if (mode === "active" && site.status === SiteStatus.ONBOARDING) {
       throw new ForbiddenError(
@@ -233,6 +259,8 @@ export class OrchestratorService {
       return this.resolveConfirmationFromText(siteId, userId, thread, pendingApproval, message);
     }
 
+    const llmMessage = enrichedMessage;
+
     const feature =
       mode === "onboarding"
         ? TokenLedgerFeature.ORCHESTRATOR_ONBOARDING
@@ -252,7 +280,7 @@ export class OrchestratorService {
       requestId: input.requestId,
       estimate: {
         feature,
-        promptText: message,
+        promptText: llmMessage,
         contextText,
       },
       fn: async () => {
@@ -273,6 +301,8 @@ export class OrchestratorService {
           memory,
           history,
           newUserMessage: message,
+          enrichedUserMessage: llmMessage,
+          sessionMode: input.sessionMode,
         });
 
         const historyForApply = await this.messageRepository.listByThread(
@@ -428,7 +458,13 @@ export class OrchestratorService {
         created_at: assistant.created_at,
       },
       tool_calls: plan.tool_invocation
-        ? [{ tool: plan.tool_invocation.name, summary: plan.tool_invocation.summary }]
+        ? [
+            {
+              tool: plan.tool_invocation.name,
+              summary: plan.tool_invocation.summary,
+              output_data: plan.tool_invocation.data,
+            },
+          ]
         : [],
       pending_approval: pendingApproval ? serializeApproval(pendingApproval) : null,
       workspace_status: workspaceStatus,

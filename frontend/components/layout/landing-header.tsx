@@ -1,38 +1,62 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { cn } from "@/lib/utils/cn";
+
+const NAV_LINKS = [
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#difference", label: "The difference" },
+  { href: "/#why-not-generic", label: "Why Bloggr" },
+  { href: "/docs", label: "Docs", hideOnMobile: true },
+  { href: "/contact", label: "Contact" },
+] as const;
+
+function scrollToWaitlistHero() {
+  const hero = document.getElementById("waitlist-hero");
+  const emailInput = document.getElementById("waitlist-email-hero");
+  if (hero) {
+    hero.scrollIntoView({ behavior: "smooth" });
+  }
+  window.setTimeout(() => emailInput?.focus(), 400);
+}
 
 export function LandingHeader() {
   const { isAuthenticated } = useAuthStore();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const closeMobile = () => setMobileOpen(false);
+
+  const handleEarlyAccess = () => {
+    closeMobile();
+    scrollToWaitlistHero();
+  };
 
   return (
     <header className="bg-black/90 backdrop-blur-md border-b border-gray-800/80 sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
         <nav className="flex justify-between items-center h-16">
-          <Link href="/" className="flex items-center font-semibold text-white hover:text-primary transition-colors">
+          <Link
+            href="/"
+            className="flex items-center font-semibold text-white hover:text-primary transition-colors"
+            onClick={closeMobile}
+          >
             Bloggr
           </Link>
-          <div className="flex items-center gap-8">
-            <Link
-              href="/#orchestrator"
-              className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline"
-            >
-              AI workspace
-            </Link>
-            <Link
-              href="/#features"
-              className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:inline"
-            >
-              Features
-            </Link>
-            <Link href="/docs" className="text-sm text-gray-400 hover:text-white transition-colors">
-              Docs
-            </Link>
-            <Link href="/contact" className="text-sm text-gray-400 hover:text-white transition-colors">
-              Contact
-            </Link>
+
+          <div className="hidden md:flex items-center gap-8">
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
             {isAuthenticated ? (
               <Link href="/dashboard">
                 <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2">
@@ -40,19 +64,66 @@ export function LandingHeader() {
                 </Button>
               </Link>
             ) : (
-              <>
-                <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
-                  Login
-                </Link>
-                <Link href="/auth/signup">
-                  <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2">
-                    Sign up
-                  </Button>
-                </Link>
-              </>
+              <Button
+                type="button"
+                onClick={handleEarlyAccess}
+                className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2"
+              >
+                Get early access
+              </Button>
             )}
           </div>
+
+          <div className="flex items-center gap-3 md:hidden">
+            {isAuthenticated && (
+              <Link href="/dashboard">
+                <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-3 py-2">
+                  Dashboard
+                </Button>
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => setMobileOpen((open) => !open)}
+              className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-gray-400 hover:text-white transition-colors"
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-nav"
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
         </nav>
+      </div>
+
+      <div
+        id="mobile-nav"
+        className={cn(
+          "md:hidden border-t border-gray-800/80 bg-black/95 backdrop-blur-md overflow-hidden transition-all duration-200",
+          mobileOpen ? "max-h-[28rem] opacity-100" : "max-h-0 opacity-0 pointer-events-none"
+        )}
+      >
+        <div className="px-6 py-4 flex flex-col gap-1">
+          {NAV_LINKS.filter((link) => !("hideOnMobile" in link && link.hideOnMobile)).map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={closeMobile}
+              className="text-sm text-gray-400 hover:text-white transition-colors py-3 min-h-[44px] flex items-center"
+            >
+              {link.label}
+            </Link>
+          ))}
+          {!isAuthenticated && (
+            <Button
+              type="button"
+              onClick={handleEarlyAccess}
+              className="mt-2 min-h-[48px] w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg"
+            >
+              Get early access
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   );

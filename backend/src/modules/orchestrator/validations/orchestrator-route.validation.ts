@@ -22,6 +22,24 @@ export const approvalIdParamSchema = z.object({
 export const orchestratorChatBodySchema = z.object({
   thread_id: z.string().min(1).optional(),
   message: z.string().min(1).max(8000),
+  session_mode: z.enum(["planning", "writing", "research", "review", "casual"]).optional(),
+  selection_context: z
+    .object({
+      blog_id: z.string().min(1),
+      text: z.string().min(1).max(4000),
+    })
+    .optional(),
+  attachments: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(256),
+        url: z.string().url(),
+        mime_type: z.string().min(1).max(128),
+        extracted_text: z.string().max(8000).optional(),
+      })
+    )
+    .max(10)
+    .optional(),
 });
 
 /**
@@ -56,6 +74,11 @@ export const renameThreadBodySchema = z.object({
     .trim()
     .min(1, "Title is required")
     .max(120, "Title must be at most 120 characters"),
+});
+
+export const knowledgeSourceIdParamSchema = z.object({
+  siteId: z.string().min(1),
+  id: z.string().min(1),
 });
 
 export const approvalListQuerySchema = z.object({

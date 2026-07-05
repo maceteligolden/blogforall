@@ -191,6 +191,8 @@ export class NotificationService {
         return EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST;
       case NotificationType.WELCOME:
         return EMAIL_TEMPLATE_KEYS.WELCOME;
+      case NotificationType.WAITLIST_CONFIRMATION:
+        return EMAIL_TEMPLATE_KEYS.WAITLIST_CONFIRMATION;
       default:
         return "site_invitation";
     }

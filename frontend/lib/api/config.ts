@@ -69,6 +69,12 @@ export const API_ENDPOINTS = {
     CHANGE_PLAN: "/subscriptions/change-plan",
     CANCEL: "/subscriptions/cancel",
   },
+  REFERRALS: {
+    ME: "/referrals/me",
+  },
+  WAITLIST: {
+    JOIN: "/waitlist",
+  },
   BILLING: {
     INITIALIZE_CARD: "/billing/cards/initialize",
     CONFIRM_CARD: "/billing/cards/confirm",
@@ -169,6 +175,12 @@ export const API_ENDPOINTS = {
     APPROVALS: (siteId: string) => `/sites/${siteId}/orchestrator/approvals`,
     APPROVAL_DECIDE: (siteId: string, approvalId: string) =>
       `/sites/${siteId}/orchestrator/approvals/${approvalId}/decide`,
+    CONTEXT_UPLOAD: (siteId: string) => `/sites/${siteId}/orchestrator/context/upload`,
+    KNOWLEDGE: (siteId: string) => `/sites/${siteId}/orchestrator/knowledge`,
+    KNOWLEDGE_ITEM: (siteId: string, id: string) =>
+      `/sites/${siteId}/orchestrator/knowledge/${id}`,
+    GOOGLE_DRIVE_AUTH: (siteId: string) =>
+      `/sites/${siteId}/orchestrator/knowledge/google/auth`,
   },
   /**
    * Public, token-authenticated scheduled-post review endpoints. Reached
@@ -195,6 +207,7 @@ export const QUERY_KEYS = {
   PLANS: ["subscription", "plans"],
   BILLING_CARDS: ["billing", "cards"],
   BILLING_INVOICES: ["billing", "invoices"],
+  REFERRALS: ["referrals", "me"],
   SITES: ["sites"],
   SITE: (id: string) => ["sites", id],
   SITE_MEMBERS: (siteId: string) => ["sites", siteId, "members"],
@@ -222,6 +235,7 @@ export const QUERY_KEYS = {
     threadId,
   ],
   ORCHESTRATOR_APPROVALS: (siteId: string) => ["orchestrator", siteId, "approvals"],
+  ORCHESTRATOR_KNOWLEDGE: (siteId: string) => ["orchestrator", siteId, "knowledge"],
   TOKEN_USAGE: ["usage", "tokens"],
 };
 

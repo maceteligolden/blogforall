@@ -19,6 +19,7 @@ import {
 import { renderActiveSystemPrompt, renderOnboardingSystemPrompt } from "./prompts/system";
 import { OrchestratorToolRegistry } from "./tool-registry";
 import { formatOnboardingProgress } from "../utils/onboarding-interview.helper";
+import { getSessionModeInstructions } from "../utils/turn-context.helper";
 
 export interface PlanTurnInput {
   siteId: string;
@@ -32,6 +33,9 @@ export interface PlanTurnInput {
   history: OrchestratorMessage[];
   /** The user's new turn (already validated, not yet persisted). */
   newUserMessage: string;
+  /** Enriched message for the LLM (includes attachments/selection/knowledge). */
+  enrichedUserMessage?: string;
+  sessionMode?: import("../utils/turn-context.helper").OrchestratorSessionMode;
   /** Optional abort signal forwarded to the underlying ChatOpenAI calls. */
   signal?: AbortSignal;
 }
@@ -120,13 +124,19 @@ export class OrchestratorGraphService {
       available_tools: availableTools,
       current_time_iso: currentTimeIso,
       current_date_human: currentDateHuman,
+      session_mode_instructions:
+        input.mode === "active" ? getSessionModeInstructions(input.sessionMode) : undefined,
     };
     const systemPromptText =
       input.mode === "onboarding"
         ? renderOnboardingSystemPrompt(promptCtx)
         : renderActiveSystemPrompt(promptCtx);
 
-    const messages = this.buildMessageHistory(systemPromptText, input.history, input.newUserMessage);
+    const messages = this.buildMessageHistory(
+      systemPromptText,
+      input.history,
+      input.enrichedUserMessage ?? input.newUserMessage
+    );
 
     const chat = this.buildChat();
     const planner = chat.withStructuredOutput(supervisorDecisionRawSchema);

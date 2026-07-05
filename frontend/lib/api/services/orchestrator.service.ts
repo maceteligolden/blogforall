@@ -4,45 +4,47 @@ import type {
   ChatTurnResponse,
   OrchestratorApproval,
   OrchestratorApprovalStatus,
+  OrchestratorChatAttachment,
+  OrchestratorChatRequest,
+  OrchestratorSessionMode,
   OrchestratorThread,
   ThreadWithMessages,
+  WorkspaceKnowledgeSource,
 } from "../types/orchestrator.types";
 
-/**
- * Tool-bearing orchestrator turns can run the full blog-generation pipeline
- * (research → planner → editor → reviewer), which routinely takes 30-90s and
- * occasionally up to ~2 min for long posts. The shared apiClient default of
- * 30 s aborts those turns even though the backend completes successfully and
- * persists the result; the user just sees "Something went wrong". (debug
- * session H15.)
- */
 const ORCHESTRATOR_TURN_TIMEOUT_MS = 180_000;
 
 export class OrchestratorService {
-  /**
-   * Send one active-mode turn to the orchestrator. Optionally resumes an
-   * existing thread; backend assigns one on first turn.
-   */
   static async chat(
     siteId: string,
     message: string,
-    threadId?: string
+    threadId?: string,
+    options?: {
+      sessionMode?: OrchestratorSessionMode;
+      attachments?: OrchestratorChatAttachment[];
+      selectionContext?: { blogId: string; selectedText: string };
+    }
   ): Promise<ChatTurnResponse> {
-    const response = await apiClient.post(
-      API_ENDPOINTS.ORCHESTRATOR.CHAT(siteId),
-      {
-        message,
-        ...(threadId ? { thread_id: threadId } : {}),
-      },
-      { timeout: ORCHESTRATOR_TURN_TIMEOUT_MS }
-    );
+    const body: OrchestratorChatRequest = {
+      message,
+      ...(threadId ? { thread_id: threadId } : {}),
+      ...(options?.sessionMode ? { session_mode: options.sessionMode } : {}),
+      ...(options?.attachments?.length ? { attachments: options.attachments } : {}),
+      ...(options?.selectionContext
+        ? {
+            selection_context: {
+              blog_id: options.selectionContext.blogId,
+              text: options.selectionContext.selectedText,
+            },
+          }
+        : {}),
+    };
+    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.CHAT(siteId), body, {
+      timeout: ORCHESTRATOR_TURN_TIMEOUT_MS,
+    });
     return response.data?.data ?? response.data;
   }
 
-  /**
-   * Send one onboarding-mode turn. The backend forces this into the
-   * workspace's single canonical onboarding thread regardless of any local id.
-   */
   static async onboardingChat(siteId: string, message: string): Promise<ChatTurnResponse> {
     const response = await apiClient.post(
       API_ENDPOINTS.ORCHESTRATOR.ONBOARDING_CHAT(siteId),
@@ -61,7 +63,9 @@ export class OrchestratorService {
   }
 
   static async getThread(siteId: string, threadId: string): Promise<ThreadWithMessages> {
-    const response = await apiClient.get(API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId));
+    const response = await apiClient.get(
+      API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId)
+    );
     return response.data?.data ?? response.data;
   }
 
@@ -70,9 +74,10 @@ export class OrchestratorService {
     threadId: string,
     title: string
   ): Promise<OrchestratorThread> {
-    const response = await apiClient.patch(API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId), {
-      title,
-    });
+    const response = await apiClient.patch(
+      API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId),
+      { title }
+    );
     const data = response.data?.data ?? response.data;
     return data?.thread ?? data;
   }
@@ -104,5 +109,59 @@ export class OrchestratorService {
     );
     const data = response.data?.data ?? response.data;
     return data?.approval ?? data;
+  }
+
+  static async uploadContextFile(
+    siteId: string,
+    file: File
+  ): Promise<OrchestratorChatAttachment> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await apiClient.post(
+      API_ENDPOINTS.ORCHESTRATOR.CONTEXT_UPLOAD(siteId),
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 60000,
+      }
+    );
+    const data = response.data?.data ?? response.data;
+    return data?.file ?? data;
+  }
+
+  static async listKnowledgeSources(siteId: string): Promise<WorkspaceKnowledgeSource[]> {
+    const response = await apiClient.get(API_ENDPOINTS.ORCHESTRATOR.KNOWLEDGE(siteId));
+    const data = response.data?.data ?? response.data;
+    return data?.sources ?? [];
+  }
+
+  static async uploadKnowledgeSource(
+    siteId: string,
+    file: File
+  ): Promise<WorkspaceKnowledgeSource> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await apiClient.post(
+      API_ENDPOINTS.ORCHESTRATOR.KNOWLEDGE(siteId),
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 60000,
+      }
+    );
+    const data = response.data?.data ?? response.data;
+    return data?.source ?? data;
+  }
+
+  static async deleteKnowledgeSource(siteId: string, id: string): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.ORCHESTRATOR.KNOWLEDGE_ITEM(siteId, id));
+  }
+
+  static async getGoogleDriveAuthUrl(siteId: string): Promise<string | null> {
+    const response = await apiClient.get(
+      API_ENDPOINTS.ORCHESTRATOR.GOOGLE_DRIVE_AUTH(siteId)
+    );
+    const data = response.data?.data ?? response.data;
+    return data?.auth_url ?? null;
   }
 }

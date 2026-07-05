@@ -13,6 +13,10 @@ export class UserRepository {
     return User.findOne({ email: email.toLowerCase() });
   }
 
+  async findByReferralCode(code: string): Promise<UserType | null> {
+    return User.findOne({ referral_code: code.toUpperCase() });
+  }
+
   async findById(id: string): Promise<UserType | null> {
     return User.findById(id);
   }

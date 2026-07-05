@@ -10,13 +10,13 @@ const tabClass = (active: boolean) =>
       : "text-gray-400 hover:text-white hover:bg-gray-800"
   }`;
 
-export function BlogHubTabs() {
+export function ContentHubTabs() {
   const pathname = usePathname();
 
   return (
     <nav
       className="flex flex-wrap gap-2 border-b border-gray-800 pb-4 mb-6"
-      aria-label="Blogs section"
+      aria-label="Contents section"
     >
       <Link href="/dashboard/blogs" className={tabClass(pathname === "/dashboard/blogs")}>
         Posts
@@ -36,3 +36,6 @@ export function BlogHubTabs() {
     </nav>
   );
 }
+
+/** @deprecated Use ContentHubTabs */
+export const BlogHubTabs = ContentHubTabs;

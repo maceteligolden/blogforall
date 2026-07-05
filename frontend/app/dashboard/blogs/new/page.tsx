@@ -616,7 +616,7 @@ export default function NewBlogPage() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex-shrink-0">
         <Breadcrumb
           items={[
-            { label: "Blogs", href: "/dashboard/blogs" },
+            { label: "Contents", href: "/dashboard/blogs" },
             { label: "Create New Blog" },
           ]}
         />

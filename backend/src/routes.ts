@@ -17,6 +17,8 @@ import siteOrchestratorRouter from "./modules/orchestrator/routes/site-orchestra
 import scheduledPostReviewRouter from "./modules/orchestrator/routes/scheduled-post-review.router";
 import usageRouter from "./modules/token-ledger/routes/usage.router";
 import adminRouter from "./modules/admin/routes/admin.router";
+import referralRouter from "./modules/referral/routes/referral.router";
+import waitlistRouter from "./modules/waitlist/routes/waitlist.router";
 
 const router = Router();
 
@@ -71,5 +73,11 @@ router.use("/invitations", userInvitationsRouter);
 
 // Account-level token usage (protected with JWT)
 router.use("/usage", usageRouter);
+
+// Referral program (protected with JWT)
+router.use("/referrals", referralRouter);
+
+// Waitlist signup (public)
+router.use("/waitlist", waitlistRouter);
 
 export { router as routes };

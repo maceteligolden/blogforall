@@ -198,7 +198,7 @@ export default function BlogNewScheduledPostPage() {
     <div className="max-w-4xl mx-auto">
       <Breadcrumb
         items={[
-          { label: "Blogs", href: "/dashboard/blogs" },
+          { label: "Contents", href: "/dashboard/blogs" },
           { label: "Scheduled", href: SCHEDULED_BASE },
           { label: "Schedule Post" },
         ]}

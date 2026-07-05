@@ -108,7 +108,7 @@ export default function BlogScheduledPostsPage() {
       <>
         <Breadcrumb
           items={[
-            { label: "Blogs", href: "/dashboard/blogs" },
+            { label: "Contents", href: "/dashboard/blogs" },
             { label: "Scheduled" },
           ]}
         />
@@ -127,7 +127,7 @@ export default function BlogScheduledPostsPage() {
     <>
       <Breadcrumb
         items={[
-          { label: "Blogs", href: "/dashboard/blogs" },
+          { label: "Contents", href: "/dashboard/blogs" },
           { label: "Scheduled" },
         ]}
       />

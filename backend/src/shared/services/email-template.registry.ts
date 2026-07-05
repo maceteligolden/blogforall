@@ -94,6 +94,8 @@ function getSubjectForTemplate(key: EmailTemplateKey, params: Record<string, str
       return `New comment on "${params.blogTitle ?? "your post"}"`;
     case EMAIL_TEMPLATE_KEYS.WELCOME:
       return `Welcome to Bloggr, ${params.firstName ?? "there"}!`;
+    case EMAIL_TEMPLATE_KEYS.WAITLIST_CONFIRMATION:
+      return "You're on the Bloggr waitlist";
     case EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REVIEW:
       return `Review needed: "${params.blogTitle ?? "scheduled post"}"`;
     case EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REWORKED:
@@ -135,6 +137,12 @@ function getCodeBackedTemplate(key: EmailTemplateKey, _locale: string, params: R
         subject: getSubjectForTemplate(key, params),
         html: buildWelcomeHtml(params),
         text: buildWelcomeText(params),
+      };
+    case EMAIL_TEMPLATE_KEYS.WAITLIST_CONFIRMATION:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildWaitlistConfirmationHtml(params),
+        text: buildWaitlistConfirmationText(params),
       };
     case EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REVIEW:
       return {
@@ -185,6 +193,29 @@ function buildWelcomeText(params: Record<string, string>): string {
   const firstName = params.firstName ?? "there";
   const loginUrl = params.loginUrl ?? "#";
   return `Welcome to Bloggr, ${firstName}. Sign in: ${loginUrl}`;
+}
+
+function buildWaitlistConfirmationHtml(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const siteUrl = params.siteUrl ?? "#";
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1>You're on the list!</h1>
+  <p>Hi ${escapeHtml(firstName)},</p>
+  <p>Thanks for joining the Bloggr waitlist. We'll notify you when early access opens — we're targeting mid-July 2026.</p>
+  <p>Early access gets you founding-member pricing, a private beta invite, and a shot at lifetime access when you share Bloggr with your team.</p>
+  <p><a href="${escapeHtml(siteUrl)}" style="color: #1e40af;">Visit Bloggr</a></p>
+  <p style="color: #999; font-size: 12px;">If you didn't sign up for the waitlist, you can ignore this email.</p>
+</body>
+</html>`;
+}
+
+function buildWaitlistConfirmationText(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const siteUrl = params.siteUrl ?? "#";
+  return `Hi ${firstName}, you're on the Bloggr waitlist. We'll notify you when early access opens (targeting mid-July 2026). Visit: ${siteUrl}`;
 }
 
 function buildSiteInvitationHtml(params: Record<string, string>): string {

@@ -205,6 +205,7 @@ export interface ChatTurnResponse {
   tool_calls: Array<{
     tool: string;
     summary: string;
+    output_data?: unknown;
   }>;
   pending_approval: SerializedApproval | null;
   workspace_status: "onboarding" | "active";

@@ -21,6 +21,18 @@ export interface BrevoSendOutput {
   messageId: string;
 }
 
+/** Input for creating or updating a marketing contact in Brevo. */
+export interface BrevoContactInput {
+  email: string;
+  listIds: number[];
+  attributes?: Record<string, string>;
+}
+
+/** Result of a successful contact create/update. */
+export interface BrevoContactOutput {
+  contactId: number;
+}
+
 /** Request payload built for Brevo sendTransacEmail API. */
 export interface BrevoTransacEmailRequest {
   sender: { name: string; email: string };
@@ -104,6 +116,76 @@ export class BrevoFacade {
       if (error instanceof AppError) throw error;
       const message = error instanceof Error ? error.message : "Brevo send failed";
       throw new AppError(message, 502);
+    }
+  }
+
+  /**
+   * Create or update a Brevo contact and add them to the given lists.
+   * Uses updateEnabled so existing contacts are merged into the waitlist list.
+   */
+  async createOrUpdateContact(input: BrevoContactInput): Promise<BrevoContactOutput> {
+    if (!this.client) {
+      throw new AppError("Brevo API not configured. Set BREVO_API_KEY.", 503);
+    }
+
+    const request = {
+      email: input.email,
+      listIds: input.listIds,
+      updateEnabled: true,
+      ...(input.attributes && Object.keys(input.attributes).length > 0
+        ? { attributes: input.attributes }
+        : {}),
+    };
+
+    try {
+      const response = await this.client.contacts.createContact(request);
+      const contactId =
+        response && typeof response === "object" && "id" in response && typeof response.id === "number"
+          ? response.id
+          : 0;
+
+      logger.info(
+        "Brevo contact created or updated",
+        {
+          contactId: contactId || undefined,
+          to: input.email.substring(0, 3) + "***",
+          listIds: input.listIds,
+        },
+        "BrevoFacade"
+      );
+
+      return { contactId };
+    } catch (error: unknown) {
+      try {
+        await this.client.contacts.updateContact({
+          identifier: input.email,
+          identifierType: "email_id",
+          listIds: input.listIds,
+          ...(input.attributes && Object.keys(input.attributes).length > 0
+            ? { attributes: input.attributes }
+            : {}),
+        });
+
+        logger.info(
+          "Brevo contact updated via fallback",
+          {
+            to: input.email.substring(0, 3) + "***",
+            listIds: input.listIds,
+          },
+          "BrevoFacade"
+        );
+
+        return { contactId: 0 };
+      } catch (fallbackError: unknown) {
+        if (error instanceof AppError) throw error;
+        const message =
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : error instanceof Error
+              ? error.message
+              : "Brevo contact sync failed";
+        throw new AppError(message, 502);
+      }
     }
   }
 }

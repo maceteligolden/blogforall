@@ -3,17 +3,29 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { User, Sparkles } from "lucide-react";
+import {
+  User,
+  Sparkles,
+  Menu,
+  Settings,
+  HelpCircle,
+  LogOut,
+  BookOpen,
+  Code,
+  CreditCard,
+  Gift,
+} from "lucide-react";
 import { useState } from "react";
-import { SiteSwitcher } from "@/components/sites/site-switcher";
-import { useAIPanel } from "@/components/orchestrator/ai-panel-provider";
 import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 
-export function Navbar() {
+interface NavbarProps {
+  onMenuClick?: () => void;
+}
+
+export function Navbar({ onMenuClick }: NavbarProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const { open: openAIPanel } = useAIPanel();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleLogout = () => {
@@ -21,49 +33,42 @@ export function Navbar() {
     router.push("/auth/login");
   };
 
+  const closeMenu = () => setShowUserMenu(false);
+
+  const menuLinks = [
+    { href: "/dashboard/profile", label: "Settings", icon: Settings },
+    { href: "/dashboard/subscription", label: "Subscription", icon: CreditCard },
+    { href: "/dashboard/referrals", label: "Referrals", icon: Gift },
+    { href: "/contact", label: "Get help", icon: HelpCircle },
+    { href: "/", label: "How it works", icon: BookOpen },
+    { href: "/dashboard/developer", label: "Developer", icon: Code },
+  ] as const;
+
   return (
     <nav className="bg-black/95 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-[9999]">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-[9999]">
+      <div className="w-full px-4 lg:px-6 relative z-[9999]">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link href="/dashboard" className="flex items-center">
-            <h1 className="text-2xl font-display text-primary tracking-tight">Bloggr</h1>
-          </Link>
-
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center space-x-8">
-            <SiteSwitcher />
-            <Link
-              href="/dashboard"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/dashboard/blogs"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Blogs
-            </Link>
-            <Link
-              href="/dashboard/approvals"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              Approvals
-            </Link>
-            <Link
-              href="/dashboard/api-keys"
-              className="text-sm text-gray-400 hover:text-white transition-colors font-medium"
-            >
-              API Keys
+          <div className="flex items-center gap-3">
+            {onMenuClick && (
+              <button
+                type="button"
+                onClick={onMenuClick}
+                className="md:hidden p-2 text-gray-400 hover:text-white"
+                aria-label="Open menu"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
+            <Link href="/dashboard" className="flex items-center">
+              <h1 className="text-2xl font-display text-primary tracking-tight">Bloggr</h1>
             </Link>
           </div>
 
-          {/* Right Side */}
           <div className="flex items-center space-x-4 relative z-[9999]">
             <TokenUsageBadge className="hidden sm:inline-flex" compact />
+            <NotificationBell />
             <button
-              onClick={() => openAIPanel()}
+              onClick={() => router.push("/dashboard")}
               className="hidden sm:flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
               aria-label="Open workspace AI assistant"
               title="Workspace orchestrator"
@@ -72,7 +77,7 @@ export function Navbar() {
               <span className="hidden md:inline">Ask AI</span>
             </button>
             <button
-              onClick={() => openAIPanel()}
+              onClick={() => router.push("/dashboard")}
               className="sm:hidden flex items-center justify-center w-9 h-9 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
               aria-label="Open workspace AI assistant"
               title="Workspace orchestrator"
@@ -80,23 +85,25 @@ export function Navbar() {
               <Sparkles className="w-4 h-4" aria-hidden="true" />
             </button>
 
-            {/* User Menu */}
             <div className="relative z-[10000]">
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => router.push("/dashboard/profile")}
                   className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
-                  title="Go to Profile"
-                  aria-label="Go to Profile"
+                  title="Go to Settings"
+                  aria-label="Go to Settings"
                 >
-                  <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center cursor-pointer hover:bg-primary/30 transition-colors" aria-hidden="true">
+                  <div
+                    className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center cursor-pointer hover:bg-primary/30 transition-colors"
+                    aria-hidden="true"
+                  >
                     <User className="w-4 h-4 text-primary" />
                   </div>
                   <span className="hidden md:block text-sm font-medium">
                     {user?.first_name} {user?.last_name}
                   </span>
                 </button>
-                
+
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="text-gray-400 hover:text-white transition-colors"
@@ -116,39 +123,34 @@ export function Navbar() {
                   id="user-menu-dropdown"
                   role="menu"
                   aria-label="User menu"
-                  className="absolute right-0 mt-2 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl py-2 z-[10000]"
+                  className="absolute right-0 mt-2 w-52 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl py-2 z-[10000]"
                   style={{ zIndex: 10000 }}
                 >
-                  <Link
-                    href="/dashboard/profile"
-                    role="menuitem"
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                    aria-label="Go to Profile page"
-                  >
-                    <User className="w-4 h-4" aria-hidden="true" />
-                    Profile
-                  </Link>
-                  <Link
-                    href="/"
-                    role="menuitem"
-                    className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
-                    onClick={() => setShowUserMenu(false)}
-                    aria-label="Go to Home page"
-                  >
-                    Home
-                  </Link>
+                  {menuLinks.map(({ href, label, icon: Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      role="menuitem"
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
+                      onClick={closeMenu}
+                      aria-label={label}
+                    >
+                      <Icon className="w-4 h-4" aria-hidden="true" />
+                      {label}
+                    </Link>
+                  ))}
                   <hr className="my-2 border-gray-800" role="separator" aria-orientation="horizontal" />
                   <button
                     role="menuitem"
                     onClick={() => {
-                      setShowUserMenu(false);
+                      closeMenu();
                       handleLogout();
                     }}
-                    className="block w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800 transition-colors"
-                    aria-label="Logout from account"
+                    className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800 transition-colors"
+                    aria-label="Sign out"
                   >
-                    Logout
+                    <LogOut className="w-4 h-4" aria-hidden="true" />
+                    Sign out
                   </button>
                 </div>
               )}
@@ -159,4 +161,3 @@ export function Navbar() {
     </nav>
   );
 }
-

@@ -17,6 +17,7 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const { signupAsync, isLoading, signupError } = useAuth();
   const inviteToken = searchParams.get("invite");
+  const referralCode = searchParams.get("ref")?.trim().toUpperCase() || undefined;
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -55,6 +56,7 @@ function SignupForm() {
         ...formData,
         accept_terms: true,
         terms_version: "2025-01",
+        ...(referralCode ? { referral_code: referralCode } : {}),
       });
     } catch (err: unknown) {
       const errorMessage =
@@ -86,9 +88,16 @@ function SignupForm() {
             subtitle={
               inviteToken
                 ? "You're signing up to accept a workspace invitation."
-                : "Start managing your blogs today"
+                : referralCode
+                  ? "You were invited to join Bloggr."
+                  : "Start managing your blogs today"
             }
           />
+          {referralCode && !inviteToken && (
+            <div className="rounded-md bg-primary/10 border border-primary/30 px-3 py-2 text-sm text-primary">
+              Referral code <span className="font-mono font-semibold">{referralCode}</span> will be applied.
+            </div>
+          )}
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>

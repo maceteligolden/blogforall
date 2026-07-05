@@ -22,6 +22,8 @@ export interface SystemPromptContext {
   onboarding_progress?: string;
   /** Names of tools available in the current turn (so the model knows them). */
   available_tools: string[];
+  /** Mode-specific instructions for this chat session. */
+  session_mode_instructions?: string;
   /**
    * Authoritative server-side current time, ISO-8601 UTC. Required so the
    * model anchors all relative-date arithmetic (scheduling, "next week",
@@ -124,6 +126,8 @@ If you can't form a valid \`confirmation.action\` + \`payload\` pair (e.g. you d
 
 Workspace: {{WORKSPACE_NAME}} ({{WORKSPACE_ID}})
 
+{{SESSION_MODE_INSTRUCTIONS}}
+
 Strategic & preference snapshot:
 {{WORKSPACE_CONTEXT_JSON}}
 
@@ -164,8 +168,12 @@ Onboarding progress (authoritative — from workspace memory):
  * Render the active-mode system prompt with the workspace context filled in.
  */
 export function renderActiveSystemPrompt(ctx: SystemPromptContext): string {
+  const sessionBlock = ctx.session_mode_instructions
+    ? `# Session mode\n\n${ctx.session_mode_instructions}\n`
+    : "";
   return BASE_BLUEPRINT.replace("{{WORKSPACE_NAME}}", ctx.workspace_name)
     .replace("{{WORKSPACE_ID}}", ctx.workspace_id)
+    .replace("{{SESSION_MODE_INSTRUCTIONS}}", sessionBlock)
     .replace("{{WORKSPACE_CONTEXT_JSON}}", ctx.workspace_context_json || "{}")
     .replace("{{MEMORY_SUMMARY}}", ctx.memory_summary || "(no rolling summary yet)")
     .replace(

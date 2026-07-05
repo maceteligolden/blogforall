@@ -231,6 +231,8 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
         blog_id: savedBlogId,
         title: content.title,
         excerpt: content.excerpt,
+        content: content.content,
+        meta: content.meta,
         review_score: review.overall_score,
         review_summary: review.summary,
         saved_as_draft: !!savedBlogId,

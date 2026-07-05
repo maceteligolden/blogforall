@@ -137,6 +137,12 @@ export const env = {
     ).trim(),
   },
 
+  googleDrive: {
+    clientId: (process.env.GOOGLE_DRIVE_CLIENT_ID || "").trim(),
+    clientSecret: (process.env.GOOGLE_DRIVE_CLIENT_SECRET || "").trim(),
+    redirectUri: (process.env.GOOGLE_DRIVE_REDIRECT_URI || "").trim(),
+  },
+
   frontend: {
     baseUrl: process.env.FRONTEND_URL?.split(",")[0]?.trim() || FRONTEND_BASE_URL_DEFAULT,
     urls: process.env.FRONTEND_URL
@@ -190,6 +196,7 @@ export const env = {
     brevoApiKey: (process.env.BREVO_API_KEY || "").trim(),
     brevoSenderEmail: (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || "noreply@bloggr.com").trim(),
     brevoSenderName: (process.env.BREVO_SENDER_NAME || "Bloggr").trim(),
+    brevoWaitlistListId: parseIntEnv(process.env.BREVO_WAITLIST_LIST_ID, 0) || undefined,
     redisUrl: process.env.REDIS_URL?.trim() ?? (NODE_ENV === "development" ? "" : "redis://localhost:6379"),
     retentionDaysRead: parseIntEnv(
       process.env.NOTIFICATION_RETENTION_DAYS_READ,

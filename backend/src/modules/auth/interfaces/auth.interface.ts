@@ -6,6 +6,7 @@ export interface SignupInput {
   phone_number?: string;
   accept_terms: boolean;
   terms_version?: string;
+  referral_code?: string;
 }
 
 export interface LoginInput {

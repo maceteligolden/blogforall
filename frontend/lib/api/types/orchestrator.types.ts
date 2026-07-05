@@ -43,6 +43,7 @@ export interface OrchestratorMessage {
   tool_calls?: Array<{
     tool: string;
     output_summary?: string;
+    output_data?: Record<string, unknown>;
     errored?: boolean;
   }>;
   tool_name?: string;
@@ -57,7 +58,11 @@ export interface ChatTurnResponse {
     content: string;
     created_at: string;
   };
-  tool_calls: Array<{ tool: string; summary: string }>;
+  tool_calls: Array<{
+    tool: string;
+    summary: string;
+    output_data?: Record<string, unknown>;
+  }>;
   pending_approval: OrchestratorApproval | null;
   workspace_status: "onboarding" | "active";
   onboarding_completed: boolean;
@@ -66,4 +71,45 @@ export interface ChatTurnResponse {
 export interface ThreadWithMessages {
   thread: OrchestratorThread;
   messages: OrchestratorMessage[];
+}
+
+export type OrchestratorSessionMode =
+  | "planning"
+  | "writing"
+  | "research"
+  | "review"
+  | "casual";
+
+export interface OrchestratorChatAttachment {
+  name: string;
+  url: string;
+  mime_type: string;
+  extracted_text?: string;
+}
+
+export interface OrchestratorChatRequest {
+  message: string;
+  thread_id?: string;
+  session_mode?: OrchestratorSessionMode;
+  attachments?: OrchestratorChatAttachment[];
+  selection_context?: {
+    blog_id: string;
+    text: string;
+  };
+}
+
+export interface WorkspaceKnowledgeSource {
+  _id: string;
+  site_id: string;
+  provider: "upload" | "google_drive";
+  name: string;
+  status: "active" | "disconnected";
+  file_refs: Array<{
+    name: string;
+    url: string;
+    mime_type: string;
+    extracted_text?: string;
+  }>;
+  created_at: string;
+  updated_at: string;
 }

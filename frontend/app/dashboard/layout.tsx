@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Navbar } from "@/components/layout/navbar";
+import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { NotificationProvider } from "@/components/notifications/notification-provider";
 import { ToastProvider } from "@/components/ui/toast";
-import { AIPanel } from "@/components/orchestrator/ai-panel";
-import { AIPanelProvider } from "@/components/orchestrator/ai-panel-provider";
+import { OrchestratorProvider } from "@/components/orchestrator/orchestrator-provider";
+import { OrchestratorUrlSync } from "@/components/orchestrator/orchestrator-url-sync";
 import { TokenExhaustionProvider } from "@/components/usage/token-exhaustion-provider";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { SiteService } from "@/lib/api/services/site.service";
@@ -24,6 +25,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { currentSiteId, isAuthenticated } = useAuthStore();
   const { updateSiteContext } = useAuth();
 
@@ -34,7 +36,6 @@ export default function DashboardLayout({
     enabled: isAuthenticated,
   });
 
-  // Check if user has sites
   const { data: sitesData, isLoading: sitesLoading } = useQuery({
     queryKey: QUERY_KEYS.SITES,
     queryFn: () => SiteService.getSites(),
@@ -44,12 +45,15 @@ export default function DashboardLayout({
   const sites = Array.isArray(sitesData) ? sitesData : [];
 
   useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     if (!isAuthenticated) {
       if (typeof window !== "undefined") {
         const at = localStorage.getItem("access_token");
         const rt = localStorage.getItem("refresh_token");
         if (at && rt) {
-          // Zustand can briefly disagree with localStorage (e.g. after token refresh updates LS only).
           useAuthStore.getState().setTokens(at, rt);
           return;
         }
@@ -71,28 +75,19 @@ export default function DashboardLayout({
       return;
     }
 
-    // Then check if user has sites
     if (sites.length === 0) {
-      // User needs to create a site
       router.push("/onboarding/create-site");
       return;
     }
 
-    // Check if currentSiteId is set and valid
     if (!currentSiteId || !sites.find((s) => s._id === currentSiteId)) {
-      // Set the first site as current if no currentSiteId or invalid
       const firstSite = sites[0];
       if (firstSite) {
         updateSiteContext(firstSite._id);
-        // Don't set checkingOnboarding to false yet - wait for site context update
         return;
       }
     }
 
-    // Workspace-level onboarding gate: only the **currently selected** workspace
-    // must finish orchestrator onboarding before dashboard routes load. (Do not
-    // redirect just because some *other* workspace is still in onboarding — that
-    // incorrectly hijacked multi-workspace users; see debug log H5/H7.)
     const currentSite = sites.find((s) => s._id === currentSiteId);
     if (currentSite && currentSite.status === "onboarding") {
       router.push("/onboarding/create-site?step=chat");
@@ -125,15 +120,22 @@ export default function DashboardLayout({
       <NotificationProvider>
         <ToastProvider>
           <TokenExhaustionProvider>
-            <AIPanelProvider>
-              <Navbar />
-              <div className="min-h-screen bg-black text-white">{children}</div>
-              <AIPanel />
-            </AIPanelProvider>
+            <OrchestratorProvider>
+              <Suspense fallback={null}>
+                <OrchestratorUrlSync />
+              </Suspense>
+              <Navbar onMenuClick={() => setSidebarOpen(true)} />
+              <div className="flex min-h-[calc(100vh-4rem)] bg-black text-white">
+                <DashboardSidebar
+                  mobileOpen={sidebarOpen}
+                  onMobileClose={() => setSidebarOpen(false)}
+                />
+                <div className="flex-1 min-w-0">{children}</div>
+              </div>
+            </OrchestratorProvider>
           </TokenExhaustionProvider>
         </ToastProvider>
       </NotificationProvider>
     </ProtectedRoute>
   );
 }
-

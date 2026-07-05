@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useAuthStore } from "@/lib/store/auth.store";
-import { useAIPanel } from "@/components/orchestrator/ai-panel-provider";
+import { useRouter } from "next/navigation";
 import type {
   OrchestratorApproval,
   OrchestratorApprovalStatus,
@@ -106,7 +106,7 @@ function ApprovalCard({
 export default function ApprovalsPage() {
   const { currentSiteId } = useAuthStore();
   const queryClient = useQueryClient();
-  const { open: openAIPanel } = useAIPanel();
+  const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<OrchestratorApprovalStatus>("pending");
 
   const approvalsQuery = useQuery({
@@ -151,7 +151,7 @@ export default function ApprovalsPage() {
               </p>
             </div>
             <Button
-              onClick={() => openAIPanel()}
+              onClick={() => router.push("/dashboard")}
               variant="outline"
               size="sm"
               className="border-primary/40 text-primary hover:bg-primary/10"

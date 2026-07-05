@@ -10,6 +10,8 @@ export interface ChatMessageProps {
   content: string;
   toolName?: string;
   className?: string;
+  artifactId?: string;
+  onViewArtifact?: (artifactId: string) => void;
 }
 
 /**
@@ -32,20 +34,43 @@ function autoLinkBareUrls(input: string): string {
  * Single conversation bubble. Tool messages render compact as a status row so
  * they don't visually compete with assistant prose.
  */
-export function ChatMessage({ role, content, toolName, className }: ChatMessageProps) {
+export function ChatMessage({
+  role,
+  content,
+  toolName,
+  className,
+  artifactId,
+  onViewArtifact,
+}: ChatMessageProps) {
   if (role === "tool") {
+    const clickable = !!artifactId && !!onViewArtifact;
     return (
-      <div className={cn("flex items-start gap-2 text-xs text-gray-400", className)}>
-        <Wrench className="w-3.5 h-3.5 mt-0.5 text-primary" aria-hidden="true" />
+      <button
+        type="button"
+        disabled={!clickable}
+        onClick={() => artifactId && onViewArtifact?.(artifactId)}
+        className={cn(
+          "flex items-start gap-2 text-xs text-left w-full rounded-lg px-2 py-1.5 -mx-2 transition-colors",
+          clickable
+            ? "text-gray-300 hover:bg-gray-900/80 hover:text-white cursor-pointer"
+            : "text-gray-400 cursor-default",
+          className
+        )}
+      >
+        <Wrench className="w-3.5 h-3.5 mt-0.5 text-primary shrink-0" aria-hidden="true" />
         <span className="font-mono">
           {toolName ? `${toolName} · ` : ""}
           {content}
+          {clickable && (
+            <span className="ml-2 text-primary font-sans not-italic">View result →</span>
+          )}
         </span>
-      </div>
+      </button>
     );
   }
 
   const isUser = role === "user";
+  const assistantClickable = !isUser && !!artifactId && !!onViewArtifact;
 
   return (
     <div className={cn("flex items-start gap-3", isUser ? "flex-row-reverse" : "flex-row", className)}>
@@ -60,6 +85,48 @@ export function ChatMessage({ role, content, toolName, className }: ChatMessageP
       >
         {isUser ? <UserIcon className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
       </div>
+      {assistantClickable ? (
+        <button
+          type="button"
+          onClick={() => onViewArtifact(artifactId)}
+          className={cn(
+            "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-left",
+            "bg-gray-900 text-gray-100 border border-gray-800 rounded-tl-sm",
+            "hover:border-primary/40 hover:bg-gray-900/90 transition-colors cursor-pointer"
+          )}
+        >
+          <ReactMarkdown
+            urlTransform={(value) => value}
+            components={{
+              a: ({ href, children }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-primary hover:text-primary/80 break-all"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {children}
+                </a>
+              ),
+              p: ({ children }) => (
+                <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>
+              ),
+              ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
+              ol: ({ children }) => (
+                <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>
+              ),
+              li: ({ children }) => <li>{children}</li>,
+              code: ({ children }) => (
+                <code className="px-1 py-0.5 rounded bg-gray-800 text-xs">{children}</code>
+              ),
+            }}
+          >
+            {autoLinkBareUrls(content)}
+          </ReactMarkdown>
+          <span className="mt-2 block text-xs text-primary">View blog draft →</span>
+        </button>
+      ) : (
       <div
         className={cn(
           "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
@@ -71,9 +138,6 @@ export function ChatMessage({ role, content, toolName, className }: ChatMessageP
         {isUser ? (
           content
         ) : (
-          // Assistant replies can include markdown links (e.g. preview URLs)
-          // and short paragraphs. Render them with react-markdown so URLs are
-          // clickable and bullets render. Auto-link bare URLs too.
           <ReactMarkdown
             urlTransform={(value) => value}
             components={{
@@ -100,6 +164,7 @@ export function ChatMessage({ role, content, toolName, className }: ChatMessageP
           </ReactMarkdown>
         )}
       </div>
+      )}
     </div>
   );
 }

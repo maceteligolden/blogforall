@@ -23,6 +23,7 @@ import { SubscriptionService } from "../../subscription/services/subscription.se
 import { SiteService } from "../../site/services/site.service";
 import { NotificationService } from "../../notification/services/notification.service";
 import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
+import { ReferralService } from "../../referral/services/referral.service";
 import { env } from "../../../shared/config/env";
 import {
   captureServerEvent,
@@ -37,7 +38,8 @@ export class AuthService {
     private stripeFacade: StripeFacade,
     private subscriptionService: SubscriptionService,
     private siteService: SiteService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private referralService: ReferralService
   ) {}
 
   /**
@@ -52,7 +54,7 @@ export class AuthService {
    * 8. LOG success and RETURN LoginResponse (auto-login tokens)
    */
   async signup(input: SignupInput): Promise<LoginResponse> {
-    const { email, password, first_name, last_name, phone_number, terms_version } = input;
+    const { email, password, first_name, last_name, phone_number, terms_version, referral_code } = input;
 
     const formattedEmail = email.toLocaleLowerCase();
 
@@ -91,6 +93,13 @@ export class AuthService {
     } catch (error) {
       logger.error("Failed to create free subscription on signup", error as Error, { userId: user._id }, "AuthService");
       // Continue even if subscription creation fails - can be created later
+    }
+
+    try {
+      await this.referralService.ensureReferralCode(user._id!.toString());
+      await this.referralService.recordReferralOnSignup(user._id!.toString(), referral_code);
+    } catch (error) {
+      logger.error("Failed to process referral on signup", error as Error, { userId: user._id }, "AuthService");
     }
 
     // Ensure user has a default workspace (uses env.workspace.defaultName)

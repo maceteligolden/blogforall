@@ -63,12 +63,12 @@ export default function BlogsPage() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: "Blogs" }, { label: "Posts" }]} />
+        <Breadcrumb items={[{ label: "Contents" }, { label: "Posts" }]} />
         <BlogHubTabs />
         <div className="flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-            <p className="text-gray-400">Loading blogs...</p>
+            <p className="text-gray-400">Loading content...</p>
           </div>
         </div>
       </>
@@ -77,11 +77,11 @@ export default function BlogsPage() {
 
   return (
     <>
-        <Breadcrumb items={[{ label: "Blogs" }, { label: "Posts" }]} />
+        <Breadcrumb items={[{ label: "Contents" }, { label: "Posts" }]} />
         <BlogHubTabs />
         
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-display text-white">My Blogs</h1>
+          <h1 className="text-2xl font-display text-white">My Content</h1>
           <Button
             className="bg-primary hover:bg-primary/90 text-white"
             onClick={() => router.push("/dashboard/blogs/new")}

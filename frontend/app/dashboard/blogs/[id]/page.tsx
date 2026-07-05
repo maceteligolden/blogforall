@@ -422,7 +422,7 @@ export default function EditBlogPage() {
             className="bg-primary hover:bg-primary/90 text-white"
             onClick={() => router.push("/dashboard/blogs")}
           >
-            Back to Blogs
+            Back to Contents
           </Button>
         </div>
       </div>
@@ -434,7 +434,7 @@ export default function EditBlogPage() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex-shrink-0">
         <Breadcrumb
           items={[
-            { label: "Blogs", href: "/dashboard/blogs" },
+            { label: "Contents", href: "/dashboard/blogs" },
             { label: blog?.title || "Edit Blog" },
           ]}
         />

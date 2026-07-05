@@ -145,7 +145,7 @@ export default function BlogCategoriesPage() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: "Blogs", href: "/dashboard/blogs" }, { label: "Categories" }]} />
+        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Categories" }]} />
         <BlogHubTabs />
         <div className="flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
@@ -159,7 +159,7 @@ export default function BlogCategoriesPage() {
 
   return (
     <>
-      <Breadcrumb items={[{ label: "Blogs", href: "/dashboard/blogs" }, { label: "Categories" }]} />
+      <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Categories" }]} />
       <BlogHubTabs />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-display text-white">Categories</h1>

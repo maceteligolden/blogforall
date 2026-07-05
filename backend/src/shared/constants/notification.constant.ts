@@ -25,6 +25,8 @@ export enum NotificationType {
   WEEKLY_REVIEW_DIGEST = "weekly_review_digest",
   /** Daily campaign progress report for active initiatives. */
   CAMPAIGN_DAILY_PROGRESS_REPORT = "campaign_daily_progress_report",
+  /** Waitlist signup confirmation for early access. */
+  WAITLIST_CONFIRMATION = "waitlist_confirmation",
 }
 
 export enum NotificationStatus {
@@ -52,6 +54,7 @@ export const EMAIL_TEMPLATE_KEYS = {
   /** Weekly digest of pending pre-publish approvals. */
   WEEKLY_REVIEW_DIGEST: "weekly_review_digest",
   CAMPAIGN_DAILY_PROGRESS_REPORT: "campaign_daily_progress_report",
+  WAITLIST_CONFIRMATION: "waitlist_confirmation",
 } as const;
 
 export type EmailTemplateKey = (typeof EMAIL_TEMPLATE_KEYS)[keyof typeof EMAIL_TEMPLATE_KEYS];

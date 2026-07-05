@@ -10,6 +10,7 @@ export const signupSchema = z.object({
     errorMap: () => ({ message: "You must accept the Terms and Conditions to sign up" }),
   }),
   terms_version: z.string().optional(),
+  referral_code: z.string().trim().min(4).max(32).optional(),
 });
 
 export const loginSchema = z.object({

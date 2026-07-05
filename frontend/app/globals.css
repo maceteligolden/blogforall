@@ -19,3 +19,33 @@
     letter-spacing: 0.05em;
   }
 }
+
+@layer components {
+  .landing-hero-title {
+    @apply text-[2rem] sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1];
+  }
+
+  .landing-section-title {
+    @apply text-2xl sm:text-3xl font-bold tracking-tight;
+  }
+
+  .landing-card-title {
+    @apply text-lg sm:text-xl font-semibold;
+  }
+
+  .landing-eyebrow {
+    @apply text-xs font-medium uppercase tracking-[0.12em] text-primary/90;
+  }
+
+  .landing-body {
+    @apply text-base text-gray-400 leading-relaxed;
+  }
+
+  .landing-lead {
+    @apply text-lg sm:text-xl leading-relaxed;
+  }
+
+  .landing-caption {
+    @apply text-sm text-gray-500;
+  }
+}

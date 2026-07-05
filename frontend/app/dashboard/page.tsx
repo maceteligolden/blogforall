@@ -1,183 +1,34 @@
 "use client";
 
-import { useAuth } from "@/lib/hooks/use-auth";
-import { useBlogs } from "@/lib/hooks/use-blog";
-import { useApiKeys } from "@/lib/hooks/use-api-key";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Breadcrumb } from "@/components/layout/breadcrumb";
-import { useQuery } from "@tanstack/react-query";
-import { SubscriptionService } from "@/lib/api/services/subscription.service";
-import { QUERY_KEYS } from "@/lib/api/config";
-import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
+import { useState } from "react";
+import { OrchestratorChat } from "@/components/orchestrator/orchestrator-chat";
+import { OrchestratorArtifactPanel } from "@/components/orchestrator/orchestrator-artifact-panel";
+import { WorkspaceSplitLayout } from "@/components/orchestrator/workspace-split-layout";
+import { useOrchestratorArtifacts } from "@/lib/hooks/use-orchestrator-artifacts";
 
 export default function DashboardPage() {
-  const { user, isLoading: authLoading, currentSiteId } = useAuth();
-  const { data: blogs, isLoading: blogsLoading } = useBlogs();
-  const { data: apiKeys, isLoading: keysLoading } = useApiKeys(currentSiteId ?? undefined);
-  const router = useRouter();
-
-  const { data: subscriptionData } = useQuery({
-    queryKey: QUERY_KEYS.SUBSCRIPTION,
-    queryFn: () => SubscriptionService.getSubscription(),
-    retry: false,
-  });
-
-  const activePlanName =
-    subscriptionData?.plan?.name ?? user?.plan ?? "Free";
-  const isLoading = authLoading || blogsLoading || keysLoading;
-  const blogsList = Array.isArray(blogs) ? blogs : [];
-  const totalBlogs = blogsList.length;
-  const publishedBlogs = blogsList.filter((b: { status?: string }) => b.status === "published").length;
-  const totalApiKeys = Array.isArray(apiKeys) ? apiKeys.length : 0;
-  const recentBlogs = Array.isArray(blogs) ? blogs.slice(0, 5) : [];
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const [mobileArtifactsOpen, setMobileArtifactsOpen] = useState(false);
+  const { showResultsPanel } = useOrchestratorArtifacts();
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb items={[{ label: "Dashboard" }]} />
-        
-        {/* Main Content */}
-        <main className="py-8">
-          {/* Welcome Section */}
-          <div className="mb-12">
-            <h2 className="text-4xl font-display mb-2 tracking-tight">Welcome back, {user?.first_name}!</h2>
-            <p className="text-gray-400 text-lg">Manage your blogs and API keys from here</p>
-          </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-colors">
-            <h3 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wide">Plan</h3>
-            <p className="text-3xl font-bold text-white capitalize mb-1">{activePlanName}</p>
-            <p className="text-xs text-gray-500">Current subscription</p>
-          </div>
-          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-colors">
-            <h3 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wide">Total Blogs</h3>
-            <p className="text-3xl font-bold text-white mb-1">{totalBlogs}</p>
-            <p className="text-xs text-gray-500">{publishedBlogs} published</p>
-          </div>
-          <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 hover:border-gray-700 transition-colors">
-            <h3 className="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wide">API Keys</h3>
-            <p className="text-3xl font-bold text-white mb-1">{totalApiKeys}</p>
-            <p className="text-xs text-gray-500">Active keys</p>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-12">
-          <h3 className="text-xl font-semibold mb-4 text-white">Quick Actions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button
-              className="w-full justify-start bg-primary hover:bg-primary/90 text-white h-12 text-base font-medium"
-              onClick={() => router.push("/dashboard/blogs/new")}
-            >
-              Create Blog Post
-            </Button>
-            <Button
-              className="w-full justify-start bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 h-12 text-base font-medium"
-              onClick={() => router.push("/dashboard/blogs")}
-            >
-              Manage Blogs
-            </Button>
-            <Button
-              className="w-full justify-start bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 h-12 text-base font-medium"
-              onClick={() => router.push("/dashboard/api-keys")}
-            >
-              Manage API Keys
-            </Button>
-            <Button
-              className="w-full justify-start bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 h-12 text-base font-medium"
-              onClick={() => router.push("/dashboard/blogs/categories")}
-            >
-              Manage Categories
-            </Button>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold text-white">Recent Activity</h3>
-            {recentBlogs.length > 0 && (
-              <Link
-                href="/dashboard/blogs"
-                className="text-sm text-primary hover:text-primary/80 transition-colors"
-              >
-                View all →
-              </Link>
-            )}
-          </div>
-
-          {(recentBlogs ?? []).length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(recentBlogs ?? []).map((blog: { _id: string; title?: string; status?: string; content?: string; views?: number; likes?: number; updated_at?: string }) => {
-                const preview = deriveExcerptFromContent(blog.content || "");
-                return (
-                <div
-                  key={blog._id}
-                  className="bg-gray-900 rounded-lg border border-gray-800 p-4 hover:border-gray-700 transition-colors cursor-pointer"
-                  onClick={() => router.push(`/dashboard/blogs/${blog._id}/view`)}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="text-base font-semibold text-white line-clamp-2 flex-1">
-                      {blog.title}
-                    </h4>
-                    <span
-                      className={`ml-2 px-2 py-1 text-xs rounded capitalize ${
-                        blog.status === "published"
-                          ? "bg-green-900/30 text-green-400 border border-green-800"
-                          : blog.status === "draft"
-                            ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
-                            : "bg-gray-800 text-gray-400 border border-gray-700"
-                      }`}
-                    >
-                      {blog.status}
-                    </span>
-                  </div>
-                  {preview && (
-                    <p className="text-sm text-gray-400 line-clamp-2 mb-3">{preview}</p>
-                  )}
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                    <span>{blog.views || 0} views</span>
-                    <span>{blog.likes || 0} likes</span>
-                  </div>
-                  {blog.updated_at && (
-                    <p className="text-xs text-gray-500">
-                      Updated {new Date(blog.updated_at).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              );
-              })}
-            </div>
-          ) : (
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
-              <h3 className="text-xl font-semibold text-white mb-2">No activity yet</h3>
-              <p className="text-gray-400 mb-6">Start by creating your first blog post!</p>
-              <Button
-                className="bg-primary hover:bg-primary/90 text-white"
-                onClick={() => router.push("/dashboard/blogs/new")}
-              >
-                Create Your First Blog
-              </Button>
-            </div>
-          )}
-        </div>
-        </main>
-      </div>
+    <div className="h-[calc(100vh-4rem)] min-h-0 overflow-hidden">
+      <WorkspaceSplitLayout
+        showRight={showResultsPanel}
+        left={
+          <OrchestratorChat
+            className="h-full"
+            mobileArtifactsOpen={mobileArtifactsOpen}
+            onShowMobileArtifacts={() => setMobileArtifactsOpen(true)}
+            onToggleMobileArtifacts={() => setMobileArtifactsOpen((v) => !v)}
+          />
+        }
+        right={
+          <OrchestratorArtifactPanel
+            mobileOpen={mobileArtifactsOpen}
+            onMobileClose={() => setMobileArtifactsOpen(false)}
+          />
+        }
+      />
     </div>
   );
 }

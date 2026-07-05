@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { container } from "tsyringe";
 import { OrchestratorController } from "../controllers/orchestrator.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
@@ -8,6 +8,7 @@ import {
   validateQuery,
 } from "../../../shared/middlewares/validate.middleware";
 import * as V from "../validations/orchestrator-route.validation";
+import { uploadContextSingle } from "../../../shared/middlewares/context-upload.middleware";
 
 /**
  * Workspace Orchestrator Agent router. Mounted at `/sites/:siteId/orchestrator`
@@ -50,5 +51,16 @@ router.post(
   validateBody(V.orchestratorApprovalDecisionBodySchema),
   controller.decideApproval
 );
+
+router.post("/context/upload", uploadContextSingle as unknown as RequestHandler, controller.uploadContextFile);
+
+router.get("/knowledge", controller.listKnowledgeSources);
+router.post("/knowledge", uploadContextSingle as unknown as RequestHandler, controller.uploadKnowledgeSource);
+router.delete(
+  "/knowledge/:id",
+  validateParams(V.knowledgeSourceIdParamSchema),
+  controller.deleteKnowledgeSource
+);
+router.get("/knowledge/google/auth", controller.googleDriveAuth);
 
 export default router;

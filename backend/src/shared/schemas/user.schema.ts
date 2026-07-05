@@ -18,6 +18,8 @@ export interface User extends BaseEntity {
   onboarding_completed: boolean; // Whether initial account setup is complete (free plan assigned)
   terms_accepted_at?: Date; // When user accepted terms at signup (audit)
   terms_version?: string; // Terms version accepted (e.g. "2025-01") for audit
+  referral_code?: string; // Unique code for inviting others
+  referred_by_user_id?: string; // User who referred this account
 }
 
 const userSchema = new Schema<User>(
@@ -89,6 +91,19 @@ const userSchema = new Schema<User>(
       type: String,
       required: false,
       trim: true,
+    },
+    referral_code: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
+      index: true,
+    },
+    referred_by_user_id: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
     },
     created_at: {
       type: Date,
