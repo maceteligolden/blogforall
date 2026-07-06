@@ -4,11 +4,11 @@ services:
     image: valkey/valkey:8-alpine
     container_name: bloggr-valkey-prod
     ports:
-      - "6379:6379"
+      - "6380:6380"
     volumes:
       - valkey-data-prod:/data
     networks:
-      - bloggr-network-prod
+      - bloggr-network
     restart: unless-stopped
     command: ["--save", "60", "1000"]
     healthcheck:
@@ -24,10 +24,10 @@ services:
       dockerfile: Dockerfile
     container_name: bloggr-backend-prod
     ports:
-      - "5005:5005"
+      - "5006:5006"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: "5005"
+      PORT: "5006"
       MONGODB_URI: ${MONGODB_URI:-}
       REDIS_URL: 
       ACCESS_SECRET: ${ACCESS_SECRET}
@@ -73,7 +73,7 @@ services:
     volumes:
       - backend-uploads-prod:/app/uploads
     networks:
-      - bloggr-network-prod
+      - bloggr-network
     restart: unless-stopped
     depends_on:
       valkey:
@@ -92,5 +92,5 @@ volumes:
     driver: local
 
 networks:
-  bloggr-network-prod:
+  bloggr-network:
     driver: bridge

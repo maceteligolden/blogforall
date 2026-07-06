@@ -33,6 +33,6 @@ RUN mkdir -p uploads
 
 RUN apk add --no-cache wget
 
-EXPOSE 5005
+EXPOSE 5006
 
 CMD ["node", "dist/src/index.js"]
