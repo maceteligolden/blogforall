@@ -1,20 +1,4 @@
 services:
-  mongodb:
-    image: mongo:7
-    container_name: bloggr-mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb-data:/data/db
-    networks:
-      - bloggr-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
 
   valkey:
     image: valkey/valkey:8-alpine
@@ -92,8 +76,6 @@ services:
       - bloggr-network
     restart: unless-stopped
     depends_on:
-      mongodb:
-        condition: service_healthy
       valkey:
         condition: service_healthy
     healthcheck:
@@ -104,8 +86,6 @@ services:
       start_period: 40s
 
 volumes:
-  mongodb-data:
-    driver: local
   valkey-data:
     driver: local
   backend-uploads:
