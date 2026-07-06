@@ -38,4 +38,45 @@ export class OnboardingController {
       next(error);
     }
   };
+
+  getInvitePromptStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const siteId = typeof req.query.site_id === "string" ? req.query.site_id : undefined;
+      const status = await this.onboardingService.getInvitePromptStatus(userId, siteId);
+      sendSuccess(res, "Invite prompt status retrieved", status);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  dismissInvitePrompt = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      await this.onboardingService.dismissInvitePrompt(userId);
+      sendSuccess(res, "Invite prompt dismissed", { dismissed: true });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getSignupWizardStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const status = await this.onboardingService.getSignupWizardStatus(userId);
+      sendSuccess(res, "Signup wizard status retrieved", status);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  completePlanSelection = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      await this.onboardingService.completePlanSelection(userId);
+      sendSuccess(res, "Plan selection completed", { completed: true });
+    } catch (error) {
+      next(error);
+    }
+  };
 }

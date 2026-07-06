@@ -134,6 +134,16 @@ describe("TokenEnforcementService", () => {
       active_request_id: "in-flight",
       active_request_expires_at: new Date(Date.now() + 60_000),
     });
+    entries.set("in-flight", {
+      request_id: "in-flight",
+      user_id: USER_ID,
+      feature: "orchestrator_chat",
+      status: TokenLedgerEntryStatus.RESERVED,
+      estimated_tokens: 5_000,
+      reserved_tokens: 5_000,
+      created_at: new Date(),
+      updated_at: new Date(),
+    } as TokenLedgerEntry);
 
     await expect(
       service.runWithReservation({
@@ -147,6 +157,37 @@ describe("TokenEnforcementService", () => {
       statusCode: 409,
       code: "AI_REQUEST_IN_PROGRESS",
     });
+  });
+
+  it("releases orphaned RESERVED lock older than activeRequestTtlMs", async () => {
+    const staleRequestId = "orphaned-req";
+    ledger = makeLedger({
+      active_request_id: staleRequestId,
+      active_request_expires_at: new Date(Date.now() + 60_000),
+      reserved_tokens: 5_000,
+    });
+    entries.set(staleRequestId, {
+      request_id: staleRequestId,
+      user_id: USER_ID,
+      feature: "orchestrator_chat",
+      status: TokenLedgerEntryStatus.RESERVED,
+      estimated_tokens: 5_000,
+      reserved_tokens: 5_000,
+      created_at: new Date(Date.now() - 300_000),
+      updated_at: new Date(),
+    } as TokenLedgerEntry);
+
+    const result = await service.runWithReservation({
+      userId: USER_ID,
+      feature: "orchestrator_chat",
+      requestId: "req-after-orphan",
+      estimate: { feature: "orchestrator_chat", promptText: "hi" },
+      fn: async () => "ok",
+    });
+
+    expect(result).toBe("ok");
+    expect(ledger.active_request_id).toBeNull();
+    expect(entries.get(staleRequestId)?.status).toBe(TokenLedgerEntryStatus.RELEASED);
   });
 
   it("refunds unused reserved tokens when actual usage is lower than estimate", async () => {

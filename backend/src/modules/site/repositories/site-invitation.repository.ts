@@ -86,6 +86,61 @@ export class SiteInvitationRepository {
   }
 
   /**
+   * Rotate token and extend expiry for a pending invitation.
+   */
+  async rotateToken(
+    invitationId: string,
+    siteId: string,
+    token: string,
+    expiresAt: Date
+  ): Promise<SiteInvitationType | null> {
+    return SiteInvitation.findOneAndUpdate(
+      { _id: invitationId, site_id: siteId, status: InvitationStatus.PENDING },
+      { token, expires_at: expiresAt, updated_at: new Date() },
+      { new: true }
+    );
+  }
+
+  /**
+   * Mark expired pending invitations for a single site.
+   */
+  async markExpiredForSite(siteId: string): Promise<number> {
+    const result = await SiteInvitation.updateMany(
+      {
+        site_id: siteId,
+        status: InvitationStatus.PENDING,
+        expires_at: { $lt: new Date() },
+      },
+      {
+        status: InvitationStatus.EXPIRED,
+        updated_at: new Date(),
+      }
+    );
+    return result.modifiedCount;
+  }
+
+  /**
+   * Reactivate an expired invitation with a fresh token and expiry.
+   */
+  async reactivateInvitation(
+    invitationId: string,
+    siteId: string,
+    token: string,
+    expiresAt: Date
+  ): Promise<SiteInvitationType | null> {
+    return SiteInvitation.findOneAndUpdate(
+      { _id: invitationId, site_id: siteId, status: InvitationStatus.EXPIRED },
+      {
+        token,
+        expires_at: expiresAt,
+        status: InvitationStatus.PENDING,
+        updated_at: new Date(),
+      },
+      { new: true }
+    );
+  }
+
+  /**
    * Mark expired invitations
    */
   async markExpiredInvitations(): Promise<number> {

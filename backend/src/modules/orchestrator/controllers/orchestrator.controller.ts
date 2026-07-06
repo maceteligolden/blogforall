@@ -32,7 +32,12 @@ export class OrchestratorController {
         thread_id?: string;
         message: string;
         session_mode?: OrchestratorSessionMode;
-        selection_context?: { blog_id: string; text: string };
+        conversation_mode?: boolean;
+        selection_context?: {
+          blog_id: string;
+          reference_type?: "highlight" | "blog";
+          text?: string;
+        };
         attachments?: Array<{
           name: string;
           url: string;
@@ -47,6 +52,7 @@ export class OrchestratorController {
         threadId: body.thread_id,
         requestId: getRequestIdFromHeaders(req),
         sessionMode: body.session_mode,
+        conversationMode: body.conversation_mode,
         selectionContext: body.selection_context,
         attachments: body.attachments,
       });

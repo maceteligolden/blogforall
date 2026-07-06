@@ -18,12 +18,32 @@ import {
 } from "../interfaces/orchestrator.interface";
 import { renderActiveSystemPrompt, renderOnboardingSystemPrompt } from "./prompts/system";
 import { OrchestratorToolRegistry } from "./tool-registry";
+import { normalizeBlogToolInput } from "./tools/_helpers";
 import { formatOnboardingProgress } from "../utils/onboarding-interview.helper";
 import { getSessionModeInstructions } from "../utils/turn-context.helper";
+import { buildSelectionFocusSystemInstructions, isDraftApplyRequest } from "../utils/selection-focus.helper";
+import {
+  assessSurgicalUpdatePreservation,
+  buildConcernedEditReply,
+  buildContextualSurgicalEditPrompt,
+} from "../utils/surgical-edit.helper";
+import type { SelectionContextPayload } from "../utils/selection-focus.helper";
+import { SiteMemberRole } from "../../../shared/constants";
+import {
+  canRunOrchestratorTool,
+  filterToolsForRole,
+} from "../../../shared/utils/site-permissions.util";
+import {
+  buildVoiceConversationInstructions,
+  buildVoiceDeclineReply,
+  getVoiceAllowedToolNames,
+  isVoiceToolAllowed,
+} from "../utils/voice-conversation.helper";
 
 export interface PlanTurnInput {
   siteId: string;
   userId: string;
+  memberRole: SiteMemberRole | null;
   threadId: string;
   workspaceName: string;
   workspaceId: string;
@@ -35,7 +55,11 @@ export interface PlanTurnInput {
   newUserMessage: string;
   /** Enriched message for the LLM (includes attachments/selection/knowledge). */
   enrichedUserMessage?: string;
-  sessionMode?: import("../utils/turn-context.helper").OrchestratorSessionMode;
+  sessionMode?: import("../utils/turn-context.helper").OperationalSessionMode;
+  clientSessionMode?: import("../utils/turn-context.helper").ClientSessionMode;
+  selectionContext?: SelectionContextPayload;
+  /** Live voice call — restricts tools and enforces conversational probing. */
+  conversationMode?: boolean;
   /** Optional abort signal forwarded to the underlying ChatOpenAI calls. */
   signal?: AbortSignal;
 }
@@ -52,6 +76,8 @@ export interface PlanTurnOutput {
     data?: unknown;
     error?: string;
   };
+  /** When a draft edit chains blogs.get → blogs.update in one turn, the get step is stored here for history. */
+  prior_tool_invocation?: PlanTurnOutput["tool_invocation"];
   /** Final user-facing assistant reply for this turn (may be empty if tool errored). */
   assistant_reply: string;
 }
@@ -103,12 +129,23 @@ export class OrchestratorGraphService {
     // model previously hallucinated `blog_generation` because we only fed it
     // bare names like `blogs.generateDraft` with no description, then later
     // claimed in chat that the tool was "unavailable".)
+    const roleFiltered =
+      input.mode === "onboarding"
+        ? []
+        : filterToolsForRole(this.toolRegistry.manifest(), input.memberRole);
+
+    let manifestTools = roleFiltered;
+    if (input.conversationMode && input.mode === "active") {
+      const allowed = getVoiceAllowedToolNames(input.newUserMessage);
+      manifestTools = roleFiltered.filter((t) => allowed.has(t.name));
+    }
+
     const availableTools =
       input.mode === "onboarding"
         ? [
             "workspace.completeOnboarding — Capture business_type, target_audience, brand_voice, business_goals, seo_priorities, publishing_channels and finalize onboarding.",
           ]
-        : this.toolRegistry.manifest().map((t) => {
+        : manifestTools.map((t) => {
             const tag = t.requiresConfirmation ? " (requires confirmation)" : "";
             return `${t.name}${tag} — ${t.description}`;
           });
@@ -125,7 +162,18 @@ export class OrchestratorGraphService {
       available_tools: availableTools,
       current_time_iso: currentTimeIso,
       current_date_human: currentDateHuman,
-      session_mode_instructions: input.mode === "active" ? getSessionModeInstructions(input.sessionMode) : undefined,
+      session_mode_instructions:
+        input.mode === "active"
+          ? getSessionModeInstructions(input.sessionMode, { clientMode: input.clientSessionMode })
+          : undefined,
+      selection_focus_instructions:
+        input.mode === "active" && input.selectionContext
+          ? buildSelectionFocusSystemInstructions(input.selectionContext)
+          : undefined,
+      voice_conversation_instructions:
+        input.mode === "active" && input.conversationMode
+          ? buildVoiceConversationInstructions(input.sessionMode, { userMessage: input.newUserMessage })
+          : undefined,
     };
     const systemPromptText =
       input.mode === "onboarding" ? renderOnboardingSystemPrompt(promptCtx) : renderActiveSystemPrompt(promptCtx);
@@ -184,12 +232,31 @@ export class OrchestratorGraphService {
       };
     }
 
+    if (input.conversationMode && !isVoiceToolAllowed(toolName, input.newUserMessage)) {
+      const decline = buildVoiceDeclineReply();
+      return {
+        decision: { ...decision, next: "respond", tool: null, reply: decline },
+        tool_invocation: null,
+        assistant_reply: decline,
+      };
+    }
+
     const tool = this.toolRegistry.get(toolName);
     if (!tool) {
       const reply = `The tool '${toolName}' isn't available in this workspace yet. I'll skip it.`;
       return {
         decision,
         tool_invocation: { name: toolName, input: decision.tool!.input, ok: false, summary: reply, error: "not_found" },
+        assistant_reply: reply,
+      };
+    }
+
+    if (!canRunOrchestratorTool(input.memberRole, toolName, tool.requiresConfirmation)) {
+      const reply =
+        "Your workspace role doesn't allow that action. Editors can create and update content but cannot delete or change workspace settings. Ask a workspace admin if you need this done.";
+      return {
+        decision,
+        tool_invocation: { name: toolName, input: decision.tool!.input, ok: false, summary: reply, error: "forbidden" },
         assistant_reply: reply,
       };
     }
@@ -228,14 +295,127 @@ export class OrchestratorGraphService {
     }
 
     try {
+      const highlightExcerpt =
+        input.selectionContext?.reference_type !== "blog" ? input.selectionContext?.text?.trim() : undefined;
+      const highlightDiscussionOnly =
+        toolName === "blogs.get" && !!highlightExcerpt && !isDraftApplyRequest(input.newUserMessage);
+
+      if (highlightDiscussionOnly) {
+        // #region agent log
+        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+          body: JSON.stringify({
+            sessionId: "4b087c",
+            runId: "highlight-fix",
+            hypothesisId: "H-bypass",
+            location: "orchestrator-graph.service.ts:planTurn",
+            message: "highlight discussion bypass — skipping blogs.get",
+            data: { blogId: input.selectionContext?.blog_id, excerptLen: highlightExcerpt?.length ?? 0 },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        const assistantReply = await this.discussHighlightInChat({
+          chat,
+          messages,
+          excerpt: highlightExcerpt!,
+          userMessage: input.newUserMessage,
+          signal: input.signal,
+        });
+        return {
+          decision: { ...decision, next: "respond", tool: null },
+          tool_invocation: null,
+          assistant_reply: assistantReply,
+        };
+      }
+
+      const rawToolInput = (decision.tool!.input ?? {}) as Record<string, unknown>;
+      const toolInput = prepareBlogToolInput(toolName, rawToolInput, input.selectionContext);
+      // #region agent log
+      if (toolName === "blogs.update" || toolName === "blogs.get") {
+        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
+          body: JSON.stringify({
+            sessionId: "3cad4f",
+            runId: "blog-id-fix",
+            hypothesisId: "H-id",
+            location: "orchestrator-graph.service.ts:planTurn",
+            message: "prepared blog tool input",
+            data: {
+              tool: toolName,
+              rawKeys: Object.keys(rawToolInput),
+              hasId: typeof toolInput.id === "string",
+              injectedFromSelection: !rawToolInput.id && !rawToolInput.blog_id && !!toolInput.id,
+              selectionBlogId: input.selectionContext?.blog_id,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+      }
+      // #endregion
+
+      if (
+        toolName === "blogs.update" &&
+        input.selectionContext?.text &&
+        typeof toolInput.content === "string"
+      ) {
+        const originalHtml = await this.fetchBlogContentHtml(
+          input,
+          String(toolInput.id ?? input.selectionContext.blog_id)
+        );
+        if (originalHtml.length > 200) {
+          const preservation = assessSurgicalUpdatePreservation(originalHtml, toolInput.content, {
+            excerpt: input.selectionContext.text,
+            userMessage: input.newUserMessage,
+          });
+          if (!preservation.ok) {
+            return {
+              decision,
+              tool_invocation: null,
+              assistant_reply: buildConcernedEditReply(
+                preservation.concern ?? "the edit may remove too much of the draft"
+              ),
+            };
+          }
+        }
+      }
+
       const result = await this.tokenEnforcement.runNested(() =>
         tool.run({
           siteId: input.siteId,
           userId: input.userId,
           threadId: input.threadId,
-          input: decision.tool!.input,
+          input: toolInput,
         })
       );
+
+      const getInvocation = {
+        name: toolName,
+        input: toolInput,
+        ok: true as const,
+        summary: result.summary,
+        data: result.data,
+      };
+
+      if (
+        toolName === "blogs.get" &&
+        input.selectionContext?.blog_id &&
+        isDraftApplyRequest(input.newUserMessage)
+      ) {
+        const chained = await this.attemptChainedBlogUpdate({
+          input,
+          messages,
+          chat,
+          systemPromptText,
+          getInvocation,
+          getData: (result.data ?? {}) as Record<string, unknown>,
+          signal: input.signal,
+        });
+        if (chained) return chained;
+      }
+
       const reply = await this.summarizeToolResult({
         chat,
         systemPromptText,
@@ -246,13 +426,7 @@ export class OrchestratorGraphService {
       });
       return {
         decision,
-        tool_invocation: {
-          name: toolName,
-          input: decision.tool!.input,
-          ok: true,
-          summary: result.summary,
-          data: result.data,
-        },
+        tool_invocation: getInvocation,
         assistant_reply: reply,
       };
     } catch (e) {
@@ -276,11 +450,39 @@ export class OrchestratorGraphService {
     }
   }
 
-  /**
-   * After a successful tool call, ask the supervisor to phrase a short,
-   * user-facing reply that incorporates the tool's summary. Falls back to
-   * the raw tool summary on failure so we never lose information.
-   */
+  /** Answer highlight discussion in chat without blogs.get — excerpt is already in the enriched user message. */
+  private async discussHighlightInChat(args: {
+    chat: ChatOpenAI;
+    messages: BaseMessage[];
+    excerpt: string;
+    userMessage: string;
+    signal?: AbortSignal;
+  }): Promise<string> {
+    const followUp = [
+      ...args.messages,
+      new HumanMessage(
+        [
+          "The user highlighted an excerpt (see the focused selection block above). Reply in chat only — explain, critique, or rephrase as they asked.",
+          "Do NOT call tools or mention fetching the draft unless they explicitly asked to apply changes to it.",
+          `Their message: ${args.userMessage}`,
+          "End with one clear next question or offered action.",
+        ].join("\n")
+      ),
+    ];
+    try {
+      const out = await args.chat.invoke(followUp, { signal: args.signal });
+      const text = typeof out.content === "string" ? out.content : JSON.stringify(out.content);
+      return text.trim() || "What would you like to do with that passage — discuss it further or apply an edit to the draft?";
+    } catch (e) {
+      logger.warn(
+        "Highlight discussion follow-up failed",
+        { error: (e as Error).message },
+        "OrchestratorGraphService"
+      );
+      return "I had trouble responding about that highlight — could you rephrase your question?";
+    }
+  }
+
   private async summarizeToolResult(args: {
     chat: ChatOpenAI;
     systemPromptText: string;
@@ -315,6 +517,198 @@ export class OrchestratorGraphService {
         "OrchestratorGraphService"
       );
       return args.toolSummary;
+    }
+  }
+
+  /**
+   * After blogs.get, immediately re-plan so blogs.update can run in the same user turn.
+   * The supervisor only gets one tool per planTurn call; this chains a second plan.
+   */
+  private async attemptChainedBlogUpdate(args: {
+    input: PlanTurnInput;
+    messages: BaseMessage[];
+    chat: ChatOpenAI;
+    systemPromptText: string;
+    getInvocation: NonNullable<PlanTurnOutput["tool_invocation"]>;
+    getData: Record<string, unknown>;
+    signal?: AbortSignal;
+  }): Promise<PlanTurnOutput | null> {
+    const blogId = args.input.selectionContext!.blog_id;
+    const excerpt = args.input.selectionContext!.text?.trim();
+    const contentHtml =
+      typeof args.getData.content_html === "string"
+        ? args.getData.content_html
+        : typeof args.getData.content === "string"
+          ? args.getData.content
+          : "";
+
+    const chainPrompt = buildContextualSurgicalEditPrompt({
+      blogId,
+      originalHtml: contentHtml,
+      userMessage: args.input.newUserMessage,
+      excerpt,
+    });
+
+    const chainMessages = [
+      ...args.messages,
+      new AIMessage(`[Tool 'blogs.get' result] ${args.getInvocation.summary}`),
+      new HumanMessage(chainPrompt),
+    ];
+
+    const planner = args.chat.withStructuredOutput(supervisorDecisionRawSchema);
+    let updateDecision: SupervisorDecision;
+    try {
+      const raw = await planner.invoke(chainMessages, { signal: args.signal });
+      updateDecision = parseSupervisorDecisionFromRaw(raw);
+    } catch (e) {
+      logger.warn(
+        "Chained blogs.update planner failed",
+        { error: (e as Error).message, blogId },
+        "OrchestratorGraphService"
+      );
+      return null;
+    }
+
+    if (updateDecision.next !== "call_tool" || updateDecision.tool?.name !== "blogs.update") {
+      if (updateDecision.next === "respond" && updateDecision.reply?.trim()) {
+        return {
+          decision: updateDecision,
+          prior_tool_invocation: args.getInvocation,
+          tool_invocation: null,
+          assistant_reply: updateDecision.reply.trim(),
+        };
+      }
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
+        body: JSON.stringify({
+          sessionId: "3cad4f",
+          runId: "chain-fix",
+          hypothesisId: "H-chain",
+          location: "orchestrator-graph.service.ts:attemptChainedBlogUpdate",
+          message: "chain skipped — planner did not call blogs.update",
+          data: { next: updateDecision.next, tool: updateDecision.tool?.name, blogId },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return null;
+    }
+
+    const updateTool = this.toolRegistry.get("blogs.update");
+    if (!updateTool) return null;
+
+    const rawUpdateInput = (updateDecision.tool?.input ?? {}) as Record<string, unknown>;
+    const updateInput = prepareBlogToolInput("blogs.update", rawUpdateInput, args.input.selectionContext);
+
+    const proposedContent = typeof updateInput.content === "string" ? updateInput.content : "";
+    if (proposedContent && excerpt && contentHtml.length > 200) {
+      const preservation = assessSurgicalUpdatePreservation(contentHtml, proposedContent, {
+        excerpt,
+        userMessage: args.input.newUserMessage,
+      });
+      if (!preservation.ok) {
+        // #region agent log
+        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
+          body: JSON.stringify({
+            sessionId: "3cad4f",
+            runId: "surgical-fix",
+            hypothesisId: "H-preserve",
+            location: "orchestrator-graph.service.ts:attemptChainedBlogUpdate",
+            message: "blocked excerpt-only update",
+            data: {
+              blogId,
+              originalLen: contentHtml.length,
+              proposedLen: proposedContent.length,
+              concern: preservation.concern,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        return {
+          decision: { ...updateDecision, next: "respond", tool: null },
+          prior_tool_invocation: args.getInvocation,
+          tool_invocation: null,
+          assistant_reply: buildConcernedEditReply(preservation.concern ?? "the edit may remove too much of the draft"),
+        };
+      }
+    }
+
+    try {
+      const updateResult = await this.tokenEnforcement.runNested(() =>
+        updateTool.run({
+          siteId: args.input.siteId,
+          userId: args.input.userId,
+          threadId: args.input.threadId,
+          input: updateInput,
+        })
+      );
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
+        body: JSON.stringify({
+          sessionId: "3cad4f",
+          runId: "chain-fix",
+          hypothesisId: "H-chain",
+          location: "orchestrator-graph.service.ts:attemptChainedBlogUpdate",
+          message: "chained blogs.update succeeded",
+          data: {
+            blogId,
+            contentLen: typeof (updateResult.data as { content?: string })?.content === "string"
+              ? (updateResult.data as { content: string }).content.length
+              : 0,
+            updatedAt: (updateResult.data as { updated_at?: string })?.updated_at,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+
+      const reply = await this.summarizeToolResult({
+        chat: args.chat,
+        systemPromptText: args.systemPromptText,
+        history: chainMessages,
+        toolName: "blogs.update",
+        toolSummary: updateResult.summary,
+        signal: args.signal,
+      });
+
+      return {
+        decision: updateDecision,
+        prior_tool_invocation: args.getInvocation,
+        tool_invocation: {
+          name: "blogs.update",
+          input: updateInput,
+          ok: true,
+          summary: updateResult.summary,
+          data: updateResult.data,
+        },
+        assistant_reply: reply,
+      };
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      logger.warn(
+        "Chained blogs.update errored",
+        { error: errorMessage, blogId },
+        "OrchestratorGraphService"
+      );
+      return {
+        decision: updateDecision,
+        prior_tool_invocation: args.getInvocation,
+        tool_invocation: {
+          name: "blogs.update",
+          input: updateInput,
+          ok: false,
+          summary: errorMessage,
+          error: errorMessage,
+        },
+        assistant_reply: `I fetched the draft but couldn't save your edits: ${errorMessage}`,
+      };
     }
   }
 
@@ -391,4 +785,38 @@ export class OrchestratorGraphService {
     out.push(new HumanMessage(newUserMessage));
     return out;
   }
+
+  private async fetchBlogContentHtml(input: PlanTurnInput, blogId: string): Promise<string> {
+    const getTool = this.toolRegistry.get("blogs.get");
+    if (!getTool) return "";
+    try {
+      const got = await this.tokenEnforcement.runNested(() =>
+        getTool.run({
+          siteId: input.siteId,
+          userId: input.userId,
+          threadId: input.threadId,
+          input: { id: blogId },
+        })
+      );
+      const data = (got.data ?? {}) as Record<string, unknown>;
+      if (typeof data.content_html === "string") return data.content_html;
+      if (typeof data.content === "string") return data.content;
+      return "";
+    } catch {
+      return "";
+    }
+  }
+}
+
+function prepareBlogToolInput(
+  toolName: string,
+  raw: Record<string, unknown>,
+  selectionContext?: SelectionContextPayload
+): Record<string, unknown> {
+  if (!toolName.startsWith("blogs.")) return raw;
+  let input = normalizeBlogToolInput(raw);
+  if (selectionContext?.blog_id && !input.id) {
+    input = { ...input, id: selectionContext.blog_id };
+  }
+  return input;
 }

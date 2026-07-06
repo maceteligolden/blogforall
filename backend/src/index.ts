@@ -5,6 +5,7 @@ import path from "path";
 import { connectDatabase } from "./shared/database";
 import { logger } from "./shared/utils/logger";
 import { errorHandler } from "./shared/middlewares/error-handler.middleware";
+import { registerGoogleDriveCallbackRoute } from "./modules/memory/controllers/google-drive-callback.controller";
 import { requestLogger } from "./shared/middlewares/request-logger.middleware";
 import { routes } from "./routes";
 import { seedPlansIfNeeded, syncFreePlanTokenLimit } from "./shared/utils/seed-plans.util";
@@ -51,6 +52,8 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/v1", routes);
+
+registerGoogleDriveCallbackRoute(app);
 
 if (isSentryEnabled()) {
   setupExpressErrorHandler(app);

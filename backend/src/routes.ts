@@ -19,6 +19,7 @@ import usageRouter from "./modules/token-ledger/routes/usage.router";
 import adminRouter from "./modules/admin/routes/admin.router";
 import referralRouter from "./modules/referral/routes/referral.router";
 import waitlistRouter from "./modules/waitlist/routes/waitlist.router";
+import siteMemoryRouter from "./modules/memory/routes/site-memory.router";
 
 const router = Router();
 
@@ -76,6 +77,9 @@ router.use("/usage", usageRouter);
 
 // Referral program (protected with JWT)
 router.use("/referrals", referralRouter);
+
+// Workspace memory & strategy (site-scoped, JWT via site router parent)
+router.use("/sites/:siteId/memory", siteMemoryRouter);
 
 // Waitlist signup (public)
 router.use("/waitlist", waitlistRouter);

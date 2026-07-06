@@ -14,15 +14,18 @@ import { ChatMessage, ThinkingIndicator } from "./chat-message";
 import { FullConversationView, type ConversationStatus } from "./full-conversation-view";
 import { KnowledgeBaseModal } from "./knowledge-base-modal";
 import { useOrchestrator } from "./orchestrator-provider";
-import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
 import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
 import { orchestratorTracker } from "@/lib/analytics/flows/orchestrator.tracker";
 import {
   findArtifactIdForAssistantMessage,
   findArtifactIdForToolMessage,
+  extractBlogIdFromArtifactData,
+  DRAFT_ARTIFACT_TOOLS,
+  patchBlogCacheFromToolOutput,
   type OrchestratorArtifact,
 } from "@/lib/utils/orchestrator-artifacts";
+import { parseExplicitSessionModeSwitch, isWritingEffectiveMode } from "@/lib/utils/session-mode-parser";
 import { useOrchestratorArtifacts } from "@/lib/hooks/use-orchestrator-artifacts";
 import { useSpeechSynthesis } from "@/lib/hooks/use-speech-synthesis";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
@@ -58,9 +61,16 @@ export function OrchestratorChat({
   const {
     threadId,
     setThreadId,
-    addLiveArtifacts,
+    mergeLiveArtifacts,
     clearLiveArtifacts,
     sessionMode,
+    setSessionMode,
+    setEffectiveSessionMode,
+    effectiveSessionMode,
+    isWritingPinned,
+    setDraftGenerating,
+    setActiveDraftBlogId,
+    activeDraftBlogId,
     selectionContext,
     pendingAttachments,
     clearPendingAttachments,
@@ -68,7 +78,6 @@ export function OrchestratorChat({
     openResultsPanel,
     conversationMode,
     exitConversationMode,
-    setSessionMode,
   } = useOrchestrator();
   const { artifacts, hasArtifacts, showResultsPanel } = useOrchestratorArtifacts();
   const { currentSiteId } = useAuthStore();
@@ -290,27 +299,115 @@ export function OrchestratorChat({
     };
     setOptimisticMessages((prev) => [...prev, userMsg]);
     setPending({ userText: text });
+
+    const explicitMode = parseExplicitSessionModeSwitch(text);
+    if (explicitMode) {
+      setSessionMode(explicitMode);
+      if (explicitMode !== "auto") {
+        setEffectiveSessionMode(explicitMode);
+      }
+    }
+
+    if (
+      !conversationModeRef.current &&
+      (isWritingEffectiveMode(sessionMode, effectiveSessionMode) || explicitMode === "writing")
+    ) {
+      setDraftGenerating(true);
+      openResultsPanel();
+      onShowMobileArtifacts?.();
+    }
+
     orchestratorTracker.messageSent({ thread_id: threadId ?? undefined });
+    const effectiveSelectionContext =
+      selectionContext ??
+      (activeDraftBlogId
+        ? {
+            blogId: activeDraftBlogId,
+            blogTitle: "Current draft",
+            referenceType: "blog" as const,
+          }
+        : undefined);
+    const sendStartedAt = Date.now();
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+      body: JSON.stringify({
+        sessionId: "4b087c",
+        runId: "highlight-fix",
+        hypothesisId: "H-fe",
+        location: "orchestrator-chat.tsx:handleSend",
+        message: "chat send started",
+        data: {
+          hasHighlight: effectiveSelectionContext?.referenceType === "highlight",
+          hasSelection: !!effectiveSelectionContext,
+          textLen: text.length,
+        },
+        timestamp: sendStartedAt,
+      }),
+    }).catch(() => {});
+    // #endregion
     try {
       const res: ChatTurnResponse = await OrchestratorService.chat(currentSiteId, text, threadId ?? undefined, {
-        sessionMode,
+        sessionMode: explicitMode ?? sessionMode,
         attachments: pendingAttachments.length ? pendingAttachments : undefined,
-        selectionContext: selectionContext
-          ? { blogId: selectionContext.blogId, selectedText: selectionContext.selectedText }
-          : undefined,
+        selectionContext: effectiveSelectionContext,
+        conversationMode: conversationModeRef.current || undefined,
       });
+
+      if (res.active_session_mode) {
+        setEffectiveSessionMode(res.active_session_mode);
+      }
+      if (res.session_mode_source === "explicit" && explicitMode && explicitMode !== "auto") {
+        setSessionMode(explicitMode);
+      }
+
       const newOptimistic: OptimisticMessage[] = [];
       const newLiveArtifacts: OrchestratorArtifact[] = [];
       for (const call of res.tool_calls ?? []) {
         orchestratorTracker.toolExecuted({ tool_name: call.tool, thread_id: res.thread_id });
         const liveId = `live-${Date.now()}-${newLiveArtifacts.length}`;
         if (call.output_data && typeof call.output_data === "object") {
+          const outputData = call.output_data as Record<string, unknown>;
           newLiveArtifacts.push({
             id: liveId,
             tool: call.tool,
             summary: call.summary,
-            outputData: call.output_data as Record<string, unknown>,
+            outputData,
           });
+          const blogId = extractBlogIdFromArtifactData(outputData);
+          if (blogId && DRAFT_ARTIFACT_TOOLS.has(call.tool)) {
+            setActiveDraftBlogId(blogId);
+            const patched =
+              call.tool === "blogs.update" && patchBlogCacheFromToolOutput(queryClient, blogId, outputData);
+            // #region agent log
+            fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
+              body: JSON.stringify({
+                sessionId: "3cad4f",
+                runId: "highlight-fix",
+                hypothesisId: "H-cache",
+                location: "orchestrator-chat.tsx:handleSend",
+                message: "draft tool cache update",
+                data: {
+                  tool: call.tool,
+                  blogId,
+                  patched,
+                  hasContent: typeof outputData.content === "string",
+                  hasBlocks: Array.isArray(outputData.content_blocks),
+                  updatedAt: outputData.updated_at,
+                },
+                timestamp: Date.now(),
+              }),
+            }).catch(() => {});
+            // #endregion
+            if (!patched) {
+              void queryClient.refetchQueries({ queryKey: QUERY_KEYS.BLOG(blogId) });
+            }
+          } else if (call.tool === "blogs.get" && blogId) {
+            void queryClient.refetchQueries({ queryKey: QUERY_KEYS.BLOG(blogId) });
+          }
         }
         newOptimistic.push({
           id: `tool-${Date.now()}-${newOptimistic.length}`,
@@ -321,9 +418,11 @@ export function OrchestratorChat({
         });
       }
       if (newLiveArtifacts.length > 0) {
-        addLiveArtifacts(newLiveArtifacts);
-        openResultsPanel(newLiveArtifacts[newLiveArtifacts.length - 1]?.id);
-        onShowMobileArtifacts?.();
+        mergeLiveArtifacts(newLiveArtifacts);
+        if (!conversationModeRef.current) {
+          openResultsPanel(newLiveArtifacts[newLiveArtifacts.length - 1]?.id);
+          onShowMobileArtifacts?.();
+        }
       }
       clearPendingAttachments();
       newOptimistic.push({
@@ -364,19 +463,63 @@ export function OrchestratorChat({
         });
       }
       invalidateTokenUsage();
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+        body: JSON.stringify({
+          sessionId: "4b087c",
+          runId: "highlight-fix",
+          hypothesisId: "H-fe",
+          location: "orchestrator-chat.tsx:handleSend",
+          message: "chat send succeeded",
+          data: {
+            durationMs: Date.now() - sendStartedAt,
+            tool: res.tool_calls?.[0]?.tool,
+            threadId: res.thread_id,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     } catch (e: unknown) {
       if (showFromError(e)) {
         invalidateTokenUsage();
         setError("Daily AI token limit reached.");
       } else {
-        const err = e as { response?: { data?: { message?: string } } };
+        const err = e as { response?: { status?: number; data?: { message?: string; code?: string } } };
         const apiMessage = err?.response?.data?.message;
-        setError(apiMessage ?? "Something went wrong. Please try again.");
+        const apiCode = err?.response?.data?.code;
+        if (err?.response?.status === 409 && apiCode === "AI_REQUEST_IN_PROGRESS") {
+          setError("A previous AI request is still finishing. Wait a moment, then try again.");
+        } else {
+          setError(apiMessage ?? "Something went wrong. Please try again.");
+        }
       }
       setOptimisticMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
       if (!overrideText) setInput(text);
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+        body: JSON.stringify({
+          sessionId: "4b087c",
+          runId: "highlight-fix",
+          hypothesisId: "H-fe",
+          location: "orchestrator-chat.tsx:handleSend",
+          message: "chat send failed",
+          data: {
+            durationMs: Date.now() - sendStartedAt,
+            isTimeout: (e as { code?: string })?.code === "ECONNABORTED",
+            apiMessage: (e as { response?: { data?: { message?: string } } })?.response?.data?.message,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
     } finally {
       setPending(null);
+      setDraftGenerating(false);
     }
   };
 
@@ -450,6 +593,7 @@ export function OrchestratorChat({
         <FullConversationView
           threadTitle={threadId ? activeThreadTitle : "New conversation"}
           sessionMode={sessionMode}
+          effectiveSessionMode={effectiveSessionMode}
           onSessionModeChange={setSessionMode}
           status={conversationStatus}
           interimTranscript={interimTranscript}
@@ -557,7 +701,6 @@ export function OrchestratorChat({
               {showResultsPanel || mobileArtifactsOpen ? "Results" : "View results"}
             </button>
           )}
-          <TokenUsageBadge compact />
           <button
             onClick={handleNewThread}
             aria-label="Start new conversation"

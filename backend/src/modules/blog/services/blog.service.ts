@@ -6,19 +6,28 @@ import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/
 import { BlogStatus } from "../../../shared/constants";
 import { ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
 import { logger } from "../../../shared/utils/logger";
-import { validateContentBlocks, blocksToHtml, htmlToPlainText } from "../../../shared/utils/content-blocks.util";
+import { validateContentBlocks, blocksToHtml, htmlToBlocks, htmlToPlainText } from "../../../shared/utils/content-blocks.util";
+import { clampBlogExcerpt } from "../utils/excerpt.util";
 import { CreateBlogInput, UpdateBlogInput, BlogQueryFilters } from "../interfaces/blog.interface";
 import { Blog } from "../../../shared/schemas/blog.schema";
 import { PaginatedResponse } from "../../../shared/interfaces";
 import type { ScheduledPost } from "../../../shared/schemas/scheduled-post.schema";
+import { SiteService } from "../../site/services/site.service";
+import { assertSiteCapability, SiteCapability } from "../../../shared/utils/site-permissions.util";
 
 @injectable()
 export class BlogService {
   constructor(
     private blogRepository: BlogRepository,
     private categoryRepository: CategoryRepository,
-    private scheduledPostRepository: ScheduledPostRepository
+    private scheduledPostRepository: ScheduledPostRepository,
+    private siteService: SiteService
   ) {}
+
+  private async assertBlogCapability(siteId: string, userId: string, capability: SiteCapability): Promise<void> {
+    const role = await this.siteService.getUserRole(siteId, userId);
+    assertSiteCapability(role, capability);
+  }
 
   private generateSlug(title: string): string {
     return title
@@ -61,6 +70,7 @@ export class BlogService {
   }
 
   async createBlog(authorId: string, siteId: string, input: CreateBlogInput): Promise<Blog> {
+    await this.assertBlogCapability(siteId, authorId, SiteCapability.WRITE_CONTENT);
     const slug = await this.ensureUniqueSlug(this.generateSlug(input.title), siteId);
 
     // Validate category if provided
@@ -87,6 +97,8 @@ export class BlogService {
     let excerpt = input.excerpt;
     if (!excerpt || excerpt.trim() === "") {
       excerpt = this.generateExcerptFromHtml(content);
+    } else {
+      excerpt = clampBlogExcerpt(excerpt);
     }
 
     const blog = await this.blogRepository.create({
@@ -139,6 +151,7 @@ export class BlogService {
   }
 
   async updateBlog(blogId: string, siteId: string, authorId: string, input: UpdateBlogInput): Promise<Blog> {
+    await this.assertBlogCapability(siteId, authorId, SiteCapability.WRITE_CONTENT);
     const blog = await this.blogRepository.findById(blogId, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");
@@ -154,11 +167,13 @@ export class BlogService {
       validateContentBlocks(input.content_blocks);
       updateData.content = blocksToHtml(input.content_blocks);
       updateData.content_blocks = input.content_blocks;
+    } else if (input.content !== undefined) {
+      updateData.content_blocks = htmlToBlocks(input.content);
     }
 
     const effectiveContent = updateData.content ?? blog.content;
     if (input.excerpt !== undefined) {
-      updateData.excerpt = input.excerpt || this.generateExcerptFromHtml(effectiveContent);
+      updateData.excerpt = clampBlogExcerpt(input.excerpt || this.generateExcerptFromHtml(effectiveContent));
     } else if (!blog.excerpt) {
       updateData.excerpt = this.generateExcerptFromHtml(effectiveContent);
     }
@@ -198,6 +213,7 @@ export class BlogService {
   }
 
   async deleteBlog(blogId: string, siteId: string, authorId: string): Promise<void> {
+    await this.assertBlogCapability(siteId, authorId, SiteCapability.DESTRUCTIVE);
     const blog = await this.blogRepository.findById(blogId, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");
@@ -224,6 +240,7 @@ export class BlogService {
   }
 
   async unpublishBlog(blogId: string, siteId: string, authorId: string): Promise<Blog> {
+    await this.assertBlogCapability(siteId, authorId, SiteCapability.DESTRUCTIVE);
     return this.updateBlog(blogId, siteId, authorId, {
       status: BlogStatus.UNPUBLISHED,
     });
@@ -244,6 +261,7 @@ export class BlogService {
     authorId: string,
     input: { scheduled_at: Date; timezone?: string }
   ): Promise<ScheduledPost> {
+    await this.assertBlogCapability(siteId, authorId, SiteCapability.WRITE_CONTENT);
     const blog = await this.blogRepository.findById(blogId, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");
@@ -299,6 +317,7 @@ export class BlogService {
 
   /** Remove the schedule so this blog will not be auto-published. */
   async unscheduleBlogPublish(blogId: string, siteId: string, authorId: string): Promise<void> {
+    await this.assertBlogCapability(siteId, authorId, SiteCapability.DESTRUCTIVE);
     const blog = await this.blogRepository.findById(blogId, siteId);
     if (!blog) {
       throw new NotFoundError("Blog not found");

@@ -8,7 +8,8 @@ export type TokenLedgerEventName =
   | "token_rejected"
   | "token_reconciled"
   | "token_refund_applied"
-  | "token_window_reset";
+  | "token_window_reset"
+  | "token_orphan_lock_released";
 
 export function logTokenEvent(event: TokenLedgerEventName, metadata: LogMetadata, context = "TokenLedger"): void {
   const enriched = { ...metadata, event };

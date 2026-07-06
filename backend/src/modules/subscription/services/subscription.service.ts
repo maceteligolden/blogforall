@@ -397,4 +397,8 @@ export class SubscriptionService {
     }
     return updated;
   }
+
+  async deleteUserSubscriptions(userId: string): Promise<void> {
+    await this.subscriptionRepository.deleteByUserId(userId);
+  }
 }

@@ -10,8 +10,13 @@ import { SiteService, SiteMember } from "@/lib/api/services/site.service";
 import { SiteInvitationService, SiteInvitation } from "@/lib/api/services/site-invitation.service";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
-import { Plus, Trash2, User, Shield, Edit, Eye, X } from "lucide-react";
+import { Plus, Trash2, User, Shield, Edit, Eye, X, RefreshCw, Clock } from "lucide-react";
 import { InviteMemberDialog } from "@/components/sites/invite-member-dialog";
+import {
+  formatInvitationExpiry,
+  invitationStatusLabel,
+  isInvitationExpired,
+} from "@/lib/utils/invitation.util";
 
 type SiteMemberRole = "owner" | "admin" | "editor" | "viewer";
 
@@ -43,6 +48,7 @@ export default function SiteMembersPage() {
   const [memberToRemove, setMemberToRemove] = useState<SiteMember | null>(null);
   const [memberToUpdateRole, setMemberToUpdateRole] = useState<SiteMember | null>(null);
   const [invitationToCancel, setInvitationToCancel] = useState<SiteInvitation | null>(null);
+  const [invitationToResend, setInvitationToResend] = useState<SiteInvitation | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch site members
@@ -94,16 +100,19 @@ export default function SiteMembersPage() {
     },
   });
 
-  // Fetch pending invitations for this site
-  const { data: pendingInvitationsData } = useQuery({
+  // Fetch pending and expired invitations for this site
+  const { data: siteInvitationsData } = useQuery({
     queryKey: currentSiteId ? QUERY_KEYS.SITE_INVITATIONS(currentSiteId) : [],
     queryFn: () => {
       if (!currentSiteId) throw new Error("No site selected");
-      return SiteInvitationService.getSiteInvitations(currentSiteId, "pending");
+      return SiteInvitationService.getSiteInvitations(currentSiteId);
     },
     enabled: !!currentSiteId,
   });
-  const pendingInvitations = Array.isArray(pendingInvitationsData) ? pendingInvitationsData : [];
+  const siteInvitations = Array.isArray(siteInvitationsData) ? siteInvitationsData : [];
+  const activeInvitations = siteInvitations.filter(
+    (inv) => inv.status === "pending" || inv.status === "expired"
+  );
 
   // Cancel invitation mutation
   const cancelInvitationMutation = useMutation({
@@ -116,6 +125,19 @@ export default function SiteMembersPage() {
         queryKey: currentSiteId ? QUERY_KEYS.SITE_INVITATIONS(currentSiteId) : [],
       });
       setInvitationToCancel(null);
+    },
+  });
+
+  const resendInvitationMutation = useMutation({
+    mutationFn: (invitationId: string) => {
+      if (!currentSiteId) throw new Error("No site selected");
+      return SiteInvitationService.resendInvitation(currentSiteId, invitationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: currentSiteId ? QUERY_KEYS.SITE_INVITATIONS(currentSiteId) : [],
+      });
+      setInvitationToResend(null);
     },
   });
 
@@ -164,12 +186,16 @@ export default function SiteMembersPage() {
             </Button>
           </div>
 
-          {/* Pending invitations */}
-          {(pendingInvitations ?? []).length > 0 && (
-            <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-8">
-              <h2 className="text-lg font-semibold text-white px-6 py-4 border-b border-gray-800">
-                Pending invitations
-              </h2>
+          {/* Pending & expired invitations */}
+          <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-hidden mb-8">
+            <h2 className="text-lg font-semibold text-white px-6 py-4 border-b border-gray-800">
+              Invitations ({activeInvitations.length})
+            </h2>
+            {activeInvitations.length === 0 ? (
+              <p className="px-6 py-8 text-center text-gray-500 text-sm">
+                No pending invitations. Send one using the button above.
+              </p>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-800/50 border-b border-gray-800">
@@ -180,34 +206,90 @@ export default function SiteMembersPage() {
                       <th className="px-6 py-3 text-left text-sm font-medium text-gray-400 uppercase tracking-wide">
                         Role
                       </th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-400 uppercase tracking-wide">
+                        Sent
+                      </th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-400 uppercase tracking-wide">
+                        Expires
+                      </th>
+                      <th className="px-6 py-3 text-left text-sm font-medium text-gray-400 uppercase tracking-wide">
+                        Status
+                      </th>
                       <th className="px-6 py-3 text-right text-sm font-medium text-gray-400 uppercase tracking-wide">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800">
-                    {(pendingInvitations ?? []).map((inv) => (
-                      <tr key={inv._id} className="hover:bg-gray-800/30 transition-colors">
-                        <td className="px-6 py-3 text-gray-300">{inv.email}</td>
-                        <td className="px-6 py-3 text-gray-400 capitalize">{inv.role}</td>
-                        <td className="px-6 py-3 text-right">
-                          <button
-                            onClick={() => setInvitationToCancel(inv)}
-                            disabled={cancelInvitationMutation.isPending}
-                            className="inline-flex items-center gap-1.5 text-red-400 hover:text-red-300 transition-colors text-sm"
-                            title="Cancel invitation"
-                          >
-                            <X className="w-4 h-4" />
-                            Cancel
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {activeInvitations.map((inv) => {
+                      const expired = isInvitationExpired(inv);
+                      return (
+                        <tr key={inv._id} className="hover:bg-gray-800/30 transition-colors">
+                          <td className="px-6 py-3 text-gray-300">{inv.email}</td>
+                          <td className="px-6 py-3 text-gray-400 capitalize">{inv.role}</td>
+                          <td className="px-6 py-3 text-gray-400 text-sm">
+                            {inv.created_at ? new Date(inv.created_at).toLocaleDateString() : "—"}
+                          </td>
+                          <td className="px-6 py-3 text-gray-400 text-sm">
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {formatInvitationExpiry(inv)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3">
+                            <span
+                              className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${
+                                expired
+                                  ? "border-red-800 bg-red-900/30 text-red-400"
+                                  : "border-amber-800 bg-amber-900/30 text-amber-400"
+                              }`}
+                            >
+                              {invitationStatusLabel(inv)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-3 text-right">
+                            <div className="inline-flex items-center gap-3">
+                              <button
+                                onClick={() => setInvitationToResend(inv)}
+                                disabled={resendInvitationMutation.isPending}
+                                className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors text-sm"
+                                title="Resend invitation email"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                                Resend
+                              </button>
+                              {(inv.status === "pending" && !expired) && (
+                                <button
+                                  onClick={() => setInvitationToCancel(inv)}
+                                  disabled={cancelInvitationMutation.isPending}
+                                  className="inline-flex items-center gap-1.5 text-red-400 hover:text-red-300 transition-colors text-sm"
+                                  title="Cancel invitation"
+                                >
+                                  <X className="w-4 h-4" />
+                                  Cancel
+                                </button>
+                              )}
+                              {expired && (
+                                <button
+                                  onClick={() => setInvitationToCancel(inv)}
+                                  disabled={cancelInvitationMutation.isPending}
+                                  className="inline-flex items-center gap-1.5 text-red-400 hover:text-red-300 transition-colors text-sm"
+                                  title="Remove expired invitation"
+                                >
+                                  <X className="w-4 h-4" />
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Members List */}
           {(members ?? []).length === 0 ? (
@@ -337,6 +419,24 @@ export default function SiteMembersPage() {
         />
       )}
 
+      {/* Resend Invitation Confirmation */}
+      {invitationToResend && (
+        <ConfirmModal
+          isOpen={!!invitationToResend}
+          onClose={() => setInvitationToResend(null)}
+          onConfirm={() => {
+            if (invitationToResend) {
+              resendInvitationMutation.mutate(invitationToResend._id);
+            }
+          }}
+          title="Resend invitation"
+          message={`Send a fresh invitation email to ${invitationToResend.email}? This resets the expiry date.`}
+          confirmText="Resend"
+          cancelText="Cancel"
+          variant="default"
+        />
+      )}
+
       {/* Cancel Invitation Confirmation */}
       {invitationToCancel && (
         <ConfirmModal
@@ -347,11 +447,17 @@ export default function SiteMembersPage() {
               cancelInvitationMutation.mutate(invitationToCancel._id);
             }
           }}
-          title="Cancel invitation"
-          message={`Cancel the invitation sent to ${invitationToCancel.email}? They will no longer be able to join with this link.`}
-          confirmText="Cancel invitation"
+          title={isInvitationExpired(invitationToCancel) ? "Remove invitation" : "Cancel invitation"}
+          message={
+            isInvitationExpired(invitationToCancel)
+              ? `Remove the expired invitation for ${invitationToCancel.email}?`
+              : `Cancel the invitation sent to ${invitationToCancel.email}? They will no longer be able to join with this link.`
+          }
+          confirmText={isInvitationExpired(invitationToCancel) ? "Remove" : "Cancel invitation"}
           cancelText="Keep"
           variant="danger"
+          closeOnConfirm={false}
+          isConfirming={cancelInvitationMutation.isPending}
         />
       )}
     </div>

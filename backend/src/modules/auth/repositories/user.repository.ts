@@ -96,4 +96,9 @@ export class UserRepository {
       $unset: { resetPasswordToken: "", resetPasswordExpires: "" },
     });
   }
+
+  async deleteById(id: string): Promise<boolean> {
+    const result = await User.findByIdAndDelete(id);
+    return !!result;
+  }
 }

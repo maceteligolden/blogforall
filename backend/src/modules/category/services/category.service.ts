@@ -4,12 +4,23 @@ import { NotFoundError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
 import { CreateCategoryInput, UpdateCategoryInput, CategoryTreeItem } from "../interfaces/category.interface";
 import { Category } from "../../../shared/schemas/category.schema";
+import { SiteService } from "../../site/services/site.service";
+import { assertSiteCapability, SiteCapability } from "../../../shared/utils/site-permissions.util";
 
 @injectable()
 export class CategoryService {
-  constructor(private categoryRepository: CategoryRepository) {}
+  constructor(
+    private categoryRepository: CategoryRepository,
+    private siteService: SiteService
+  ) {}
 
-  async createCategory(siteId: string, input: CreateCategoryInput): Promise<Category> {
+  private async assertCategoryCapability(siteId: string, userId: string, capability: SiteCapability): Promise<void> {
+    const role = await this.siteService.getUserRole(siteId, userId);
+    assertSiteCapability(role, capability);
+  }
+
+  async createCategory(siteId: string, userId: string, input: CreateCategoryInput): Promise<Category> {
+    await this.assertCategoryCapability(siteId, userId, SiteCapability.WRITE_CONTENT);
     const category = await this.categoryRepository.create({
       ...input,
       site_id: siteId,
@@ -40,7 +51,13 @@ export class CategoryService {
     return tree as CategoryTreeItem[];
   }
 
-  async updateCategory(categoryId: string, siteId: string, input: UpdateCategoryInput): Promise<Category> {
+  async updateCategory(
+    categoryId: string,
+    siteId: string,
+    userId: string,
+    input: UpdateCategoryInput
+  ): Promise<Category> {
+    await this.assertCategoryCapability(siteId, userId, SiteCapability.WRITE_CONTENT);
     const updatedCategory = await this.categoryRepository.update(categoryId, siteId, input);
     if (!updatedCategory) {
       throw new NotFoundError("Category not found");
@@ -50,7 +67,8 @@ export class CategoryService {
     return updatedCategory;
   }
 
-  async deleteCategory(categoryId: string, siteId: string): Promise<void> {
+  async deleteCategory(categoryId: string, siteId: string, userId: string): Promise<void> {
+    await this.assertCategoryCapability(siteId, userId, SiteCapability.DESTRUCTIVE);
     await this.categoryRepository.delete(categoryId, siteId);
     logger.info("Category deleted", { categoryId, siteId }, "CategoryService");
   }

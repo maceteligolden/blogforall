@@ -3,6 +3,24 @@ import { BadRequestError } from "../../../../shared/errors";
 import type { CampaignRepository } from "../../../campaign/repositories/campaign.repository";
 import { CampaignLifecycleStatus, CampaignStatus } from "../../../../shared/constants/campaign.constant";
 
+/** Map common LLM key aliases to blog tool schemas (`id` is canonical). */
+export function normalizeBlogToolInput(raw: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...raw };
+  const keyAliases: Array<[string, string]> = [
+    ["blog_id", "id"],
+    ["post_id", "id"],
+    ["postId", "id"],
+    ["blogId", "id"],
+  ];
+  for (const [from, to] of keyAliases) {
+    if (from in out && !(to in out)) {
+      out[to] = out[from];
+      delete out[from];
+    }
+  }
+  return out;
+}
+
 /** Map common LLM key aliases to the campaign tool schema. */
 export function normalizeCampaignToolInput(raw: Record<string, unknown>): Record<string, unknown> {
   const out = { ...raw };

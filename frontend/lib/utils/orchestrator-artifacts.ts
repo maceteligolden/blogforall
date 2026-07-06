@@ -1,3 +1,5 @@
+import type { QueryClient } from "@tanstack/react-query";
+import { QUERY_KEYS } from "@/lib/api/config";
 import type { OrchestratorMessage } from "@/lib/api/types/orchestrator.types";
 
 export interface OrchestratorArtifact {
@@ -33,7 +35,48 @@ export function extractUrlFromText(text: string): string | null {
   return match ? match[0] : null;
 }
 
-export const VIEWABLE_ARTIFACT_TOOLS = new Set(["blogs.generateDraft", "blogs.createDraft", "blogs.review"]);
+export const VIEWABLE_ARTIFACT_TOOLS = new Set([
+  "blogs.generateDraft",
+  "blogs.createDraft",
+  "blogs.update",
+  "blogs.review",
+]);
+
+export const DRAFT_ARTIFACT_TOOLS = new Set(["blogs.generateDraft", "blogs.createDraft", "blogs.update"]);
+
+export function extractBlogIdFromArtifactData(data: Record<string, unknown>): string | undefined {
+  if (typeof data.blog_id === "string") return data.blog_id;
+  if (typeof data.id === "string") return data.id;
+  return undefined;
+}
+
+/** Push blogs.update (or similar) tool output into the blog query cache so the result panel updates immediately. */
+export function patchBlogCacheFromToolOutput(
+  queryClient: QueryClient,
+  blogId: string,
+  outputData: Record<string, unknown>
+): boolean {
+  const content = typeof outputData.content === "string" ? outputData.content : undefined;
+  const content_blocks = Array.isArray(outputData.content_blocks) ? outputData.content_blocks : undefined;
+  const updated_at =
+    typeof outputData.updated_at === "string"
+      ? outputData.updated_at
+      : outputData.updated_at instanceof Date
+        ? outputData.updated_at.toISOString()
+        : undefined;
+  if (!content && !content_blocks && !updated_at) return false;
+
+  queryClient.setQueryData(QUERY_KEYS.BLOG(blogId), (old: Record<string, unknown> | undefined) => ({
+    ...(old ?? { _id: blogId }),
+    ...(content !== undefined ? { content } : {}),
+    ...(content_blocks !== undefined ? { content_blocks } : {}),
+    ...(updated_at ? { updated_at } : {}),
+    ...(typeof outputData.title === "string" ? { title: outputData.title } : {}),
+    ...(typeof outputData.excerpt === "string" ? { excerpt: outputData.excerpt } : {}),
+    ...(typeof outputData.status === "string" ? { status: outputData.status } : {}),
+  }));
+  return true;
+}
 
 export function isViewableArtifactTool(tool?: string): boolean {
   return !!tool && VIEWABLE_ARTIFACT_TOOLS.has(tool);

@@ -16,12 +16,29 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { QUERY_KEYS } from "@/lib/api/config";
+import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("dashboard-sidebar-collapsed");
+    if (stored === "true") {
+      setSidebarCollapsed(true);
+    }
+  }, []);
+
+  const handleToggleSidebarCollapse = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("dashboard-sidebar-collapsed", String(next));
+      return next;
+    });
+  };
   const { currentSiteId, isAuthenticated } = useAuthStore();
   const { updateSiteContext } = useAuth();
 
@@ -39,6 +56,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     enabled: isAuthenticated && !onboardingStatus?.requiresOnboarding,
   });
   const sites = Array.isArray(sitesData) ? sitesData : [];
+
+  const { data: wizardStatus, isLoading: wizardLoading } = useQuery({
+    queryKey: ["onboarding", "signup-wizard"],
+    queryFn: () => OnboardingService.getSignupWizardStatus(),
+    retry: false,
+    enabled: isAuthenticated && !onboardingStatus?.requiresOnboarding,
+  });
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -58,7 +82,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
-    if (onboardingLoading || sitesLoading) {
+    if (onboardingLoading || sitesLoading || wizardLoading) {
       return;
     }
 
@@ -68,6 +92,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         .finally(() => {
           router.replace("/onboarding/create-site");
         });
+      return;
+    }
+
+    if (wizardStatus && wizardStatus.stage !== "complete") {
+      router.replace(signupWizardPath(wizardStatus));
       return;
     }
 
@@ -84,17 +113,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
     }
 
-    const currentSite = sites.find((s) => s._id === currentSiteId);
-    if (currentSite && currentSite.status === "onboarding") {
-      router.push("/onboarding/create-site?step=chat");
-      return;
-    }
-
     setCheckingOnboarding(false);
   }, [
     pathname,
     onboardingStatus,
     onboardingLoading,
+    wizardStatus,
+    wizardLoading,
     sites,
     sitesLoading,
     currentSiteId,
@@ -103,7 +128,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     updateSiteContext,
   ]);
 
-  if (checkingOnboarding || onboardingLoading || sitesLoading) {
+  if (checkingOnboarding || onboardingLoading || sitesLoading || wizardLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="animate-pulse">Loading...</div>
@@ -122,7 +147,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Suspense>
               <Navbar onMenuClick={() => setSidebarOpen(true)} />
               <div className="flex min-h-[calc(100vh-4rem)] bg-black text-white">
-                <DashboardSidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
+                <DashboardSidebar
+                  mobileOpen={sidebarOpen}
+                  onMobileClose={() => setSidebarOpen(false)}
+                  collapsed={sidebarCollapsed}
+                  onToggleCollapse={handleToggleSidebarCollapse}
+                />
                 <div className="flex-1 min-w-0">{children}</div>
               </div>
             </OrchestratorProvider>

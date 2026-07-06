@@ -46,6 +46,8 @@ import {
   CampaignGetHealthTool,
   CampaignScheduleAdditionalPostsTool,
 } from "./tools/campaign.tools";
+import { SearchWebTool } from "./tools/search.tools";
+import { StrategyProposeCalendarTool } from "./tools/strategy.tools";
 
 /**
  * Boots the orchestrator's tool surface. Called once from server startup
@@ -102,7 +104,9 @@ export class OrchestratorBootstrap {
     private readonly campaignGenerateRoadmap: CampaignGenerateRoadmapTool,
     private readonly campaignGetProgressReport: CampaignGetProgressReportTool,
     private readonly campaignGetHealth: CampaignGetHealthTool,
-    private readonly campaignScheduleAdditionalPosts: CampaignScheduleAdditionalPostsTool
+    private readonly campaignScheduleAdditionalPosts: CampaignScheduleAdditionalPostsTool,
+    private readonly searchWeb: SearchWebTool,
+    private readonly strategyProposeCalendar: StrategyProposeCalendarTool
   ) {}
 
   registerAllTools(): void {
@@ -142,6 +146,8 @@ export class OrchestratorBootstrap {
       this.campaignGetProgressReport,
       this.campaignGetHealth,
       this.campaignScheduleAdditionalPosts,
+      this.searchWeb,
+      this.strategyProposeCalendar,
     ];
     for (const tool of tools) {
       this.registry.register(tool);

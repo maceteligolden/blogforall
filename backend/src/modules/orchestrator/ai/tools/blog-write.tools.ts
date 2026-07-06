@@ -4,6 +4,7 @@ import { BlogService } from "../../../blog/services/blog.service";
 import { BlogGenerationService } from "../../../blog/services/blog-generation.service";
 import { BlogReviewService } from "../../../blog/services/blog-review.service";
 import { WorkspaceMemoryRepository } from "../../repositories/workspace-memory.repository";
+import { ContextPackBuilderService } from "../../../memory/services/context-pack-builder.service";
 import { BlogStatus } from "../../../../shared/constants";
 import { env } from "../../../../shared/config/env";
 import type {
@@ -11,7 +12,7 @@ import type {
   OrchestratorToolInvocation,
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
-import { parseToolInput, truncateSummary } from "./_helpers";
+import { parseToolInput, normalizeBlogToolInput, truncateSummary } from "./_helpers";
 
 /**
  * Build a stable in-app URL the orchestrator can hand to the user so they can
@@ -96,16 +97,28 @@ const updateInputSchema = z.object({
 @injectable()
 export class BlogUpdateTool implements OrchestratorTool {
   name = "blogs.update";
-  description = "Update a blog post's title, content, excerpt, category, or meta.";
+  description =
+    "Update a blog post. Required: `id`. When the user highlighted an excerpt, `content` MUST be the COMPLETE post HTML with only the focus area (and nearby transitions if needed) changed — never submit just the rewritten snippet. If the edit seems harmful to the post's goal, ask the user before saving.";
   requiresConfirmation = false;
   constructor(private readonly blogService: BlogService) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
-    const { id, ...rest } = parseToolInput(updateInputSchema, invocation.input, this.name);
+    const normalized = normalizeBlogToolInput(invocation.input);
+    const { id, ...rest } = parseToolInput(updateInputSchema, normalized, this.name);
     const updated = await this.blogService.updateBlog(id, invocation.siteId, invocation.userId, rest);
+    const blogId = updated._id?.toString();
     return {
       summary: `Updated blog '${updated.title}'.`,
-      data: { id: updated._id?.toString(), title: updated.title, status: updated.status },
+      data: {
+        id: blogId,
+        blog_id: blogId,
+        title: updated.title,
+        status: updated.status,
+        content: updated.content,
+        content_blocks: updated.content_blocks,
+        excerpt: updated.excerpt,
+        updated_at: updated.updated_at,
+      },
     };
   }
 }
@@ -127,7 +140,7 @@ export class BlogDuplicateTool implements OrchestratorTool {
   constructor(private readonly blogService: BlogService) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
-    const input = parseToolInput(duplicateInputSchema, invocation.input, this.name);
+    const input = parseToolInput(duplicateInputSchema, normalizeBlogToolInput(invocation.input), this.name);
     const original = await this.blogService.getBlogById(input.id, invocation.siteId);
     const title = input.new_title || `${original.title} (copy)`;
     const blog = await this.blogService.createBlog(invocation.userId, invocation.siteId, {
@@ -169,12 +182,20 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
   constructor(
     private readonly generationService: BlogGenerationService,
     private readonly blogService: BlogService,
-    private readonly memoryRepository: WorkspaceMemoryRepository
+    private readonly memoryRepository: WorkspaceMemoryRepository,
+    private readonly contextPackBuilder: ContextPackBuilderService
   ) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(generateDraftInputSchema, invocation.input, this.name);
     const memory = await this.memoryRepository.ensureForSite(invocation.siteId);
+
+    const contextPack = await this.contextPackBuilder.build({
+      siteId: invocation.siteId,
+      memory,
+      userMessage: input.prompt,
+      sessionMode: "writing",
+    });
 
     // Defaults are intentionally generous: previous runs produced very short
     // drafts (~460 words for an 800-word target) because nothing in the chain
@@ -189,6 +210,7 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
       topics_to_explore: input.topics_to_explore,
       target_audience: memory.strategic.target_audience?.join(", ") || undefined,
       purpose: memory.strategic.business_goals?.[0],
+      context_pack: this.contextPackBuilder.toPromptBlock(contextPack),
     };
 
     const analysis = await this.generationService.analyzePrompt(input.prompt, userParams);
@@ -258,7 +280,7 @@ export class BlogReviewTool implements OrchestratorTool {
   ) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
-    const input = parseToolInput(reviewInputSchema, invocation.input, this.name);
+    const input = parseToolInput(reviewInputSchema, normalizeBlogToolInput(invocation.input), this.name);
     const blog = await this.blogService.getBlogById(input.id, invocation.siteId);
     const result = await this.reviewService.reviewBlog(
       blog.title,

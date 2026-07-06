@@ -9,7 +9,8 @@ import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider
 import { extractArtifactsFromMessages } from "@/lib/utils/orchestrator-artifacts";
 
 export function useOrchestratorArtifacts() {
-  const { threadId, liveArtifacts, resultsPanelOpen } = useOrchestrator();
+  const { threadId, liveArtifacts, resultsPanelOpen, sessionMode, effectiveSessionMode, isWritingPinned } =
+    useOrchestrator();
   const { currentSiteId } = useAuthStore();
 
   const threadQuery = useQuery({
@@ -36,7 +37,15 @@ export function useOrchestratorArtifacts() {
   }, [threadQuery.data?.messages, liveArtifacts]);
 
   const hasArtifacts = artifacts.length > 0;
-  const showResultsPanel = hasArtifacts && resultsPanelOpen;
+  const showResultsPanel = isWritingPinned || (hasArtifacts && resultsPanelOpen);
 
-  return { artifacts, hasArtifacts, showResultsPanel, threadQuery };
+  return {
+    artifacts,
+    hasArtifacts,
+    showResultsPanel,
+    isWritingPinned,
+    sessionMode,
+    effectiveSessionMode,
+    threadQuery,
+  };
 }

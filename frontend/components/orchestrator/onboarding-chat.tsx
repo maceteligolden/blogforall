@@ -9,7 +9,6 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
 import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
-import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 import { ChatInput } from "./chat-input";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 
@@ -31,6 +30,18 @@ const WELCOME_MESSAGE: UIMessage = {
 export interface OnboardingChatProps {
   siteId: string;
   onCompleted: () => void;
+  hideHeader?: boolean;
+  firstName?: string;
+}
+
+function buildWelcomeMessage(firstName?: string): UIMessage {
+  const name = firstName?.trim();
+  const greeting = name ? `Hey ${name}, ` : "";
+  return {
+    id: "welcome",
+    role: "assistant",
+    content: `${greeting}what does your business do, in one sentence?`,
+  };
 }
 
 /**
@@ -40,8 +51,10 @@ export interface OnboardingChatProps {
  * thread switching here. When the API reports onboarding_completed we hand
  * off to the parent which routes to the dashboard when setup is complete.
  */
-export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
-  const [messages, setMessages] = useState<UIMessage[]>([WELCOME_MESSAGE]);
+export function OnboardingChat({ siteId, onCompleted, hideHeader = false, firstName }: OnboardingChatProps) {
+  const [messages, setMessages] = useState<UIMessage[]>(() => [
+    hideHeader ? buildWelcomeMessage(firstName) : WELCOME_MESSAGE,
+  ]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +112,7 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
           await Promise.all([
             queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES }),
             queryClient.invalidateQueries({ queryKey: ["onboarding", "status"] }),
+            queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] }),
           ]);
         } catch {
           // best-effort; the dashboard layout's own refetchOnMount will still
@@ -124,23 +138,24 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 w-full bg-black text-white">
-      <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-gray-800 gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 text-primary" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold leading-tight">Workspace setup</p>
-            <p className="text-xs text-gray-400 leading-tight">
-              Tell the orchestrator about your goals so it can tailor content for you.
-            </p>
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-gray-800 bg-black text-white">
+      {!hideHeader && (
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-800 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/20">
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold leading-tight">Workspace setup</p>
+              <p className="text-xs leading-tight text-gray-400">
+                Tell the orchestrator about your goals so it can tailor content for you.
+              </p>
+            </div>
           </div>
         </div>
-        <TokenUsageBadge compact />
-      </div>
+      )}
 
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-6 space-y-4">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto space-y-4 px-4 py-6">
         {messages.map((m) => (
           <ChatMessage key={m.id} role={m.role} content={m.content} toolName={m.toolName} />
         ))}
@@ -161,8 +176,10 @@ export function OnboardingChat({ siteId, onCompleted }: OnboardingChatProps) {
             tokensExhausted ? "Daily AI token limit reached" : "Tell me about your business, audience, and goals..."
           }
         />
-        <p className="mt-2 text-xs text-gray-500 hidden sm:block">
-          When the orchestrator has enough context it will finish setup and unlock your dashboard.
+        <p className="mt-2 hidden text-xs text-gray-500 sm:block">
+          {hideHeader
+            ? "Answer a few questions — then you can pick a plan and invite your team."
+            : "When the orchestrator has enough context it will finish setup and unlock your dashboard."}
         </p>
       </div>
     </div>

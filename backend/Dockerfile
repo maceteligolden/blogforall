@@ -31,6 +31,8 @@ COPY --from=builder /app/dist ./dist
 
 RUN mkdir -p uploads
 
+RUN apk add --no-cache wget
+
 EXPOSE 5005
 
 CMD ["node", "dist/src/index.js"]

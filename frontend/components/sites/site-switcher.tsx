@@ -10,8 +10,14 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { CreateSiteDialog } from "./create-site-dialog";
 import { workspaceTracker } from "@/lib/analytics/flows/workspace.tracker";
+import { SidebarTooltip } from "@/components/ui/sidebar-tooltip";
+import { cn } from "@/lib/utils/cn";
 
-export function SiteSwitcher() {
+interface SiteSwitcherProps {
+  collapsed?: boolean;
+}
+
+export function SiteSwitcher({ collapsed = false }: SiteSwitcherProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
@@ -141,31 +147,48 @@ export function SiteSwitcher() {
 
   return (
     <>
-      <div className="relative z-[9999]" ref={dropdownRef}>
-        <button
-          onClick={() => setShowDropdown(!showDropdown)}
-          className="flex items-center space-x-2 px-3 py-2 rounded-md border border-gray-700 bg-gray-900 hover:bg-gray-800 transition-colors text-sm text-gray-300 hover:text-white min-w-[200px]"
-          aria-label={showDropdown ? "Close site selector" : "Open site selector"}
-          aria-expanded={showDropdown}
-          aria-haspopup="true"
-          aria-controls="site-switcher-dropdown"
-        >
-          <Building2 className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
-          <span className="flex-1 text-left truncate">
-            {isLoading ? "Loading..." : currentSite ? currentSite.name : "Select Site"}
-          </span>
-          <ChevronDown
-            className={`w-4 h-4 transition-transform ${showDropdown ? "rotate-180" : ""}`}
-            aria-hidden="true"
-          />
-        </button>
+      <div className={cn("relative z-[9999]", collapsed && "flex justify-center")} ref={dropdownRef}>
+        {collapsed ? (
+          <SidebarTooltip label={isLoading ? "Loading..." : currentSite ? currentSite.name : "Select Site"}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-900 text-primary hover:bg-gray-800 transition-colors"
+              aria-label={showDropdown ? "Close site selector" : "Open site selector"}
+              aria-expanded={showDropdown}
+              aria-haspopup="true"
+            >
+              <Building2 className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </SidebarTooltip>
+        ) : (
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="flex items-center space-x-2 px-3 py-2 rounded-md border border-gray-700 bg-gray-900 hover:bg-gray-800 transition-colors text-sm text-gray-300 hover:text-white min-w-[200px]"
+            aria-label={showDropdown ? "Close site selector" : "Open site selector"}
+            aria-expanded={showDropdown}
+            aria-haspopup="true"
+            aria-controls="site-switcher-dropdown"
+          >
+            <Building2 className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
+            <span className="flex-1 text-left truncate">
+              {isLoading ? "Loading..." : currentSite ? currentSite.name : "Select Site"}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${showDropdown ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+        )}
 
         {showDropdown && (
           <div
             id="site-switcher-dropdown"
             role="menu"
             aria-label="Site selector menu"
-            className="absolute left-0 mt-2 w-72 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl py-2 z-[10000]"
+            className={cn(
+              "absolute mt-2 w-72 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl py-2 z-[10000]",
+              collapsed ? "left-full ml-2 top-0" : "left-0"
+            )}
             style={{ zIndex: 10000 }}
           >
             {isLoading ? (

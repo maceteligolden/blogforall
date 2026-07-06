@@ -3,7 +3,7 @@ import { container } from "tsyringe";
 import { SiteInvitationController } from "../controllers/site-invitation.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 import { validateBody, validateParams } from "../../../shared/middlewares/validate.middleware";
-import { createInvitationSchema, siteInvitationCancelParamSchema } from "../validations/site-invitation.validation";
+import { createInvitationSchema, siteInvitationCancelParamSchema, siteInvitationResendParamSchema } from "../validations/site-invitation.validation";
 import { siteIdParamSchema } from "../validations/site.validation";
 
 const router = Router({ mergeParams: true });
@@ -23,6 +23,12 @@ router.delete(
   authMiddleware,
   validateParams(siteInvitationCancelParamSchema),
   invitationController.cancelInvitation
+);
+router.post(
+  "/:invitationId/resend",
+  authMiddleware,
+  validateParams(siteInvitationResendParamSchema),
+  invitationController.resendInvitation
 );
 
 export default router;

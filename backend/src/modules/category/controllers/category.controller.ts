@@ -15,10 +15,10 @@ export class CategoryController {
 
   create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      getJwtUserId(req);
+      const userId = getJwtUserId(req);
       const siteId = this.siteId(req);
       const validatedData = req.validatedBody as CreateCategoryInput;
-      const category = await this.categoryService.createCategory(siteId, validatedData);
+      const category = await this.categoryService.createCategory(siteId, userId, validatedData);
       sendCreated(res, "Category created successfully", category);
     } catch (error) {
       next(error);
@@ -59,11 +59,11 @@ export class CategoryController {
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      getJwtUserId(req);
+      const userId = getJwtUserId(req);
       const { id } = req.validatedParams as { siteId: string; id: string };
       const siteId = this.siteId(req);
       const validatedData = req.validatedBody as UpdateCategoryInput;
-      const category = await this.categoryService.updateCategory(id, siteId, validatedData);
+      const category = await this.categoryService.updateCategory(id, siteId, userId, validatedData);
       sendSuccess(res, "Category updated successfully", category);
     } catch (error) {
       next(error);
@@ -72,10 +72,10 @@ export class CategoryController {
 
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      getJwtUserId(req);
+      const userId = getJwtUserId(req);
       const { id } = req.validatedParams as { siteId: string; id: string };
       const siteId = this.siteId(req);
-      await this.categoryService.deleteCategory(id, siteId);
+      await this.categoryService.deleteCategory(id, siteId, userId);
       sendNoContent(res, "Category deleted successfully");
     } catch (error) {
       next(error);

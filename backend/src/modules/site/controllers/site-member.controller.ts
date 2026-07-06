@@ -31,6 +31,17 @@ export class SiteMemberController {
     }
   };
 
+  getMyMembership = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.userId;
+      const { id: siteId } = req.validatedParams as { id: string };
+      const membership = await this.siteMemberService.getMyMembership(siteId, userId);
+      sendSuccess(res, "Membership retrieved successfully", membership);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   updateMemberRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.userId;

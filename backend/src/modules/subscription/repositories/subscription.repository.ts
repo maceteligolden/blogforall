@@ -44,4 +44,8 @@ export class SubscriptionRepository {
     const result = await SubscriptionModel.findByIdAndDelete(id);
     return !!result;
   }
+
+  async deleteByUserId(userId: string): Promise<void> {
+    await SubscriptionModel.deleteMany({ userId });
+  }
 }

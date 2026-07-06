@@ -5,9 +5,15 @@ import { SiteRepository } from "../repositories/site.repository";
 import { SiteMemberRepository } from "../repositories/site-member.repository";
 import { UserRepository } from "../../auth/repositories/user.repository";
 import { NotificationService } from "../../notification/services/notification.service";
-import { NotFoundError, ForbiddenError, BadRequestError } from "../../../shared/errors";
+import { ReferralService } from "../../referral/services/referral.service";
+import { AppError, NotFoundError, ForbiddenError, BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
-import { CreateInvitationInput, SiteInvitationWithSite } from "../interfaces/site-invitation.interface";
+import {
+  CreateInvitationInput,
+  SiteInvitationWithSite,
+  SiteInvitationPreview,
+  SiteInvitationListItem,
+} from "../interfaces/site-invitation.interface";
 import { SiteInvitation } from "../../../shared/schemas/site-invitation.schema";
 import { InvitationStatus, SiteMemberRole } from "../../../shared/constants";
 import Site, { type Site as SiteDocument } from "../../../shared/schemas/site.schema";
@@ -26,7 +32,8 @@ export class SiteInvitationService {
     private siteRepository: SiteRepository,
     private siteMemberRepository: SiteMemberRepository,
     private userRepository: UserRepository,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private referralService: ReferralService
   ) {}
 
   /**
@@ -88,7 +95,7 @@ export class SiteInvitationService {
     );
 
     // Notify invitee: email (async queue) and in-app if they have an account
-    await this.notifyInvitee(invitation, site, invitedBy, input.email);
+    await this.notifyInvitee(invitation, site, invitedBy, input.email, !!user);
     if (user) {
       await this.notifyInviteeInApp(invitation, site, invitedBy, user._id!.toString());
     }
@@ -203,8 +210,11 @@ export class SiteInvitationService {
       throw new NotFoundError("Invitation not found");
     }
 
-    if (invitation.status !== InvitationStatus.PENDING) {
-      throw new BadRequestError("Only pending invitations can be cancelled");
+    if (
+      invitation.status !== InvitationStatus.PENDING &&
+      invitation.status !== InvitationStatus.EXPIRED
+    ) {
+      throw new BadRequestError("Only pending or expired invitations can be cancelled");
     }
 
     await this.invitationRepository.updateStatus(invitation.token, InvitationStatus.CANCELLED);
@@ -214,7 +224,11 @@ export class SiteInvitationService {
   /**
    * Get invitations for a site
    */
-  async getSiteInvitations(siteId: string, userId: string, status?: InvitationStatus): Promise<SiteInvitation[]> {
+  async getSiteInvitations(
+    siteId: string,
+    userId: string,
+    status?: InvitationStatus
+  ): Promise<SiteInvitationListItem[]> {
     // Check if site exists
     const site = await this.siteRepository.findById(siteId);
     if (!site) {
@@ -227,7 +241,11 @@ export class SiteInvitationService {
       throw new ForbiddenError("Only site owner or admin can view invitations");
     }
 
-    return this.invitationRepository.findBySite(siteId, status);
+    await this.invitationRepository.markExpiredForSite(siteId);
+    const invitations = await this.invitationRepository.findBySite(siteId, status);
+    const enriched = invitations.map((invitation) => this.enrichInvitation(invitation));
+
+    return enriched;
   }
 
   /**
@@ -264,6 +282,144 @@ export class SiteInvitationService {
   }
 
   /**
+   * Public preview of an invitation (no auth required).
+   */
+  async getInvitationPreview(token: string): Promise<SiteInvitationPreview> {
+    const invitation = await this.invitationRepository.findByToken(token);
+    if (!invitation) {
+      throw new NotFoundError("Invitation not found");
+    }
+
+    const isExpired =
+      invitation.status === InvitationStatus.EXPIRED ||
+      (invitation.status === InvitationStatus.PENDING && new Date() > invitation.expires_at);
+
+    if (
+      invitation.status === InvitationStatus.CANCELLED ||
+      invitation.status === InvitationStatus.REJECTED ||
+      invitation.status === InvitationStatus.ACCEPTED
+    ) {
+      throw new AppError(`Invitation has already been ${invitation.status}`, 410);
+    }
+
+    if (isExpired) {
+      if (invitation.status === InvitationStatus.PENDING) {
+        await this.invitationRepository.updateStatus(token, InvitationStatus.EXPIRED);
+      }
+      throw new AppError("Invitation has expired", 410);
+    }
+
+    const site = await this.siteRepository.findById(invitation.site_id);
+    const inviter = await User.findById(invitation.invited_by);
+    const inviterName = inviter
+      ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member"
+      : "A team member";
+    const existingUser = await this.userRepository.findByEmail(invitation.email);
+
+    return {
+      site_name: site?.name ?? "Workspace",
+      inviter_name: inviterName,
+      role: invitation.role,
+      email: invitation.email,
+      status: invitation.status,
+      expires_at: invitation.expires_at,
+      is_expired: false,
+      requires_signup: !existingUser,
+    };
+  }
+
+  /**
+   * Resend a pending invitation with a fresh token and expiry.
+   */
+  async resendInvitation(siteId: string, invitationId: string, userId: string): Promise<SiteInvitation> {
+    const site = await this.siteRepository.findById(siteId);
+    if (!site) {
+      throw new NotFoundError("Site not found");
+    }
+
+    const requesterRole = await this.getRequesterRole(siteId, userId);
+    if (requesterRole !== SiteMemberRole.OWNER && requesterRole !== SiteMemberRole.ADMIN) {
+      throw new ForbiddenError("Only site owner or admin can resend invitations");
+    }
+
+    const invitation = await this.invitationRepository.findById(invitationId, siteId);
+    if (!invitation) {
+      throw new NotFoundError("Invitation not found");
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING && invitation.status !== InvitationStatus.EXPIRED) {
+      throw new BadRequestError("Only pending or expired invitations can be resent");
+    }
+
+    const token = this.generateInvitationToken();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + env.workspace.invitationExpiryDays);
+
+    let updated = await this.invitationRepository.rotateToken(invitationId, siteId, token, expiresAt);
+    if (!updated && invitation.status === InvitationStatus.EXPIRED) {
+      updated = await this.invitationRepository.reactivateInvitation(invitationId, siteId, token, expiresAt);
+    }
+    if (!updated) {
+      throw new BadRequestError("Invitation could not be resent");
+    }
+
+    const user = await this.userRepository.findByEmail(invitation.email);
+    await this.notifyInvitee(updated, site, userId, invitation.email, !!user);
+    if (user) {
+      await this.notifyInviteeInApp(updated, site, userId, user._id!.toString());
+    }
+
+    logger.info("Invitation resent", { invitationId, siteId, resentBy: userId }, "SiteInvitationService");
+    return updated;
+  }
+
+  /**
+   * Validate invite token for signup and return inviter referral code when applicable.
+   */
+  async validateInviteForSignup(
+    inviteToken: string,
+    signupEmail: string
+  ): Promise<{ inviterReferralCode?: string }> {
+    const invitation = await this.invitationRepository.findByToken(inviteToken);
+    if (!invitation) {
+      throw new BadRequestError("Invalid invitation token");
+    }
+
+    if (invitation.status !== InvitationStatus.PENDING) {
+      throw new BadRequestError(`Invitation has already been ${invitation.status}`);
+    }
+
+    if (new Date() > invitation.expires_at) {
+      await this.invitationRepository.updateStatus(inviteToken, InvitationStatus.EXPIRED);
+      throw new BadRequestError("Invitation has expired");
+    }
+
+    if (signupEmail.toLowerCase() !== invitation.email.toLowerCase()) {
+      throw new BadRequestError("Signup email must match the invitation email");
+    }
+
+    const inviterReferralCode = await this.referralService.ensureReferralCode(invitation.invited_by);
+    return { inviterReferralCode };
+  }
+
+  /**
+   * Create in-app notifications for all pending invites matching a new user's email.
+   */
+  async deliverPendingInviteNotifications(userId: string, email: string): Promise<void> {
+    const invitations = await this.invitationRepository.findByEmail(email, InvitationStatus.PENDING);
+    const now = new Date();
+
+    for (const invitation of invitations) {
+      if (now > invitation.expires_at) continue;
+
+      const site = await this.siteRepository.findById(invitation.site_id);
+      if (!site) continue;
+
+      await this.notifyInviteeInApp(invitation, site, invitation.invited_by, userId);
+    }
+  }
+
+  /**
    * Get requester's role in site
    */
   private async getRequesterRole(siteId: string, userId: string): Promise<SiteMemberRole | null> {
@@ -283,7 +439,8 @@ export class SiteInvitationService {
     invitation: SiteInvitation,
     site: SiteDocument,
     invitedBy: string,
-    email: string
+    email: string,
+    hasAccount: boolean
   ): Promise<void> {
     try {
       const inviter = await User.findById(invitedBy);
@@ -291,9 +448,22 @@ export class SiteInvitationService {
         ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member"
         : "A team member";
       const siteName = site.name || "a site";
-      const acceptUrl = `${env.frontend.baseUrl}/invitations/accept?token=${invitation.token}`;
       const roleLabel = invitation.role.charAt(0).toUpperCase() + invitation.role.slice(1);
       const expiresAt = new Date(invitation.expires_at).toLocaleString();
+      const baseUrl = env.frontend.baseUrl.replace(/\/$/, "");
+
+      let actionUrl: string;
+      if (hasAccount) {
+        actionUrl = `${baseUrl}/invitations/accept?token=${invitation.token}`;
+      } else {
+        const inviterReferralCode = await this.referralService.ensureReferralCode(invitedBy);
+        const params = new URLSearchParams({
+          invite: invitation.token,
+          email,
+          ref: inviterReferralCode,
+        });
+        actionUrl = `${baseUrl}/auth/signup?${params.toString()}`;
+      }
 
       await this.notificationService.createAndSend({
         channel: NotificationChannel.EMAIL,
@@ -304,8 +474,9 @@ export class SiteInvitationService {
           inviterName,
           siteName,
           roleLabel,
-          acceptUrl,
+          acceptUrl: actionUrl,
           expiresAt,
+          isNewUser: hasAccount ? "false" : "true",
         },
         payload: { site_id: invitation.site_id, invitation_id: String(invitation._id) },
       });
@@ -400,5 +571,28 @@ export class SiteInvitationService {
         "SiteInvitationService"
       );
     }
+  }
+
+  private enrichInvitation(invitation: SiteInvitation): SiteInvitationListItem {
+    const doc = invitation as SiteInvitation & { toObject?: () => Record<string, unknown> };
+    const plain = (doc.toObject ? doc.toObject() : { ...invitation }) as Record<string, unknown>;
+    const isExpired =
+      plain.status === InvitationStatus.EXPIRED ||
+      (plain.status === InvitationStatus.PENDING && new Date() > new Date(plain.expires_at as Date));
+
+    return {
+      _id: String(plain._id ?? invitation._id),
+      site_id: String(plain.site_id),
+      email: String(plain.email),
+      role: plain.role as SiteMemberRole,
+      token: String(plain.token),
+      status: plain.status as InvitationStatus,
+      invited_by: String(plain.invited_by),
+      expires_at: new Date(plain.expires_at as Date),
+      accepted_at: plain.accepted_at ? new Date(plain.accepted_at as Date) : undefined,
+      created_at: new Date(plain.created_at as Date),
+      updated_at: new Date(plain.updated_at as Date),
+      is_expired: isExpired,
+    };
   }
 }

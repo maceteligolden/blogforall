@@ -1,10 +1,16 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
+import type { SignupWizardStatus } from "@/lib/onboarding/signup-wizard";
 
 export interface OnboardingStatus {
   requiresOnboarding: boolean;
   hasCard: boolean;
   hasPlan: boolean;
+}
+
+export interface InvitePromptStatus {
+  should_show: boolean;
+  site_id?: string;
 }
 
 export class OnboardingService {
@@ -13,6 +19,11 @@ export class OnboardingService {
    */
   static async getStatus(): Promise<OnboardingStatus> {
     const response = await apiClient.get<{ data: OnboardingStatus }>(API_ENDPOINTS.ONBOARDING.STATUS);
+    return response.data.data;
+  }
+
+  static async getSignupWizardStatus(): Promise<SignupWizardStatus> {
+    const response = await apiClient.get<{ data: SignupWizardStatus }>(API_ENDPOINTS.ONBOARDING.SIGNUP_WIZARD);
     return response.data.data;
   }
 
@@ -31,5 +42,20 @@ export class OnboardingService {
    */
   static async skip(): Promise<void> {
     await apiClient.post(API_ENDPOINTS.ONBOARDING.SKIP);
+  }
+
+  static async completePlanSelection(): Promise<void> {
+    await apiClient.post(API_ENDPOINTS.ONBOARDING.COMPLETE_PLAN_SELECTION);
+  }
+
+  static async getInvitePromptStatus(siteId?: string): Promise<InvitePromptStatus> {
+    const response = await apiClient.get<{ data: InvitePromptStatus }>(API_ENDPOINTS.ONBOARDING.INVITE_PROMPT, {
+      params: siteId ? { site_id: siteId } : undefined,
+    });
+    return response.data.data;
+  }
+
+  static async dismissInvitePrompt(): Promise<void> {
+    await apiClient.post(API_ENDPOINTS.ONBOARDING.DISMISS_INVITE_PROMPT);
   }
 }

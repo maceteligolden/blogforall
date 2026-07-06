@@ -9,6 +9,8 @@ export interface BlogUserGenerationParams {
   word_count?: number;
   purpose?: string;
   structure?: string;
+  /** RAG context pack from workspace memory (brand, rules, episodic). */
+  context_pack?: string;
 }
 
 export interface PromptAnalysis {

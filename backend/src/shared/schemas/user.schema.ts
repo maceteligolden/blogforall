@@ -20,6 +20,8 @@ export interface User extends BaseEntity {
   terms_version?: string; // Terms version accepted (e.g. "2025-01") for audit
   referral_code?: string; // Unique code for inviting others
   referred_by_user_id?: string; // User who referred this account
+  workspace_invite_prompt_dismissed_at?: Date; // User skipped the invite-teammates onboarding step
+  plan_selection_completed_at?: Date; // User confirmed plan during signup wizard
 }
 
 const userSchema = new Schema<User>(
@@ -104,6 +106,14 @@ const userSchema = new Schema<User>(
       type: Schema.Types.ObjectId,
       ref: "User",
       index: true,
+    },
+    workspace_invite_prompt_dismissed_at: {
+      type: Date,
+      required: false,
+    },
+    plan_selection_completed_at: {
+      type: Date,
+      required: false,
     },
     created_at: {
       type: Date,

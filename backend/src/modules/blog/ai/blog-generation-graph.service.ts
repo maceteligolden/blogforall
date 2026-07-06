@@ -11,6 +11,15 @@ import { logger } from "../../../shared/utils/logger";
 import type { BlogUserGenerationParams, GeneratedBlogContent, PromptAnalysis, ResearchNote } from "./types";
 import { TavilySearchService } from "./tavily-search.service";
 import { runBlogReviewWithChat, type BlogReviewResult } from "./blog-review.runner";
+import { clampBlogExcerpt } from "../utils/excerpt.util";
+
+const OutlineSchema = z.object({
+  title: z.string(),
+  sections: z
+    .array(z.object({ heading: z.string(), summary: z.string() }))
+    .min(2)
+    .max(8),
+});
 
 const AnalysisSchema = z.object({
   topic: z.string(),
@@ -26,7 +35,7 @@ const AnalysisSchema = z.object({
 const DraftSchema = z.object({
   title: z.string(),
   content: z.string(),
-  excerpt: z.string(),
+  excerpt: z.string().max(500),
   meta: z
     .object({
       description: z.string().nullable(),
@@ -266,7 +275,7 @@ export class BlogGenerationGraphService {
     emit("phase", { step: "draft" });
     const chat = this.getMainChat();
     const structured = chat.withStructuredOutput(DraftSchema);
-    const draftPrompt = this.buildDraftPrompt(prompt.trim(), mergedAnalysis, researchNotes);
+    const draftPrompt = this.buildDraftPrompt(prompt.trim(), mergedAnalysis, researchNotes, userParams);
     const stream = await structured.stream([new HumanMessage(draftPrompt)], { signal });
     let last: z.infer<typeof DraftSchema> | null = null;
     for await (const chunk of stream) {
@@ -421,15 +430,70 @@ Return structured output matching the schema.`;
   }
 
   private async nodeDraft(state: BlogGenStateType, config?: RunnableConfig): Promise<BlogGenUpdate> {
+    if (state.userParams?.context_pack?.trim()) {
+      return this.nodeDraftSectional(state, config);
+    }
     const chat = this.getMainChat();
     const structured = chat.withStructuredOutput(DraftSchema);
-    const prompt = this.buildDraftPrompt(state.prompt, state.analysis!, state.researchNotes);
+    const prompt = this.buildDraftPrompt(state.prompt, state.analysis!, state.researchNotes, state.userParams);
     const out = await structured.invoke([new HumanMessage(prompt)], { signal: config?.signal });
     const draft: GeneratedBlogContent = {
       title: out.title,
       content: out.content,
       excerpt: out.excerpt,
       meta: this.normalizeDraftMeta(out.meta),
+    };
+    this.validateDraft(draft, state.analysis!);
+    return { draft };
+  }
+
+  private async nodeDraftSectional(state: BlogGenStateType, config?: RunnableConfig): Promise<BlogGenUpdate> {
+    const chat = this.getMainChat();
+    const outlineStructured = chat.withStructuredOutput(OutlineSchema);
+    const outlinePrompt = `Based on the following blog brief, produce ONLY an outline with a title and 3-6 section headings with one-line summaries.
+Respect the workspace context pack in your outline.
+
+${this.buildDraftPrompt(state.prompt, state.analysis!, state.researchNotes, state.userParams)}`;
+
+    const outline = await outlineStructured.invoke([new HumanMessage(outlinePrompt)], { signal: config?.signal });
+    const sections: string[] = [];
+    let priorSummary = "";
+
+    for (const section of outline.sections.slice(0, 6)) {
+      const sectionPrompt = `Write ONE section of a blog post in HTML (h2 + paragraphs only, no full article wrapper).
+
+Title: ${outline.title}
+Section heading: ${section.heading}
+Section goal: ${section.summary}
+Prior sections summary: ${priorSummary || "(none yet)"}
+Workspace context:
+${state.userParams?.context_pack?.slice(0, 3000) ?? ""}
+
+Topic: ${state.analysis!.topic}
+Tone: ${state.analysis!.tone ?? "professional"}
+Return only the HTML for this section.`;
+
+      const sectionOut = await chat.invoke([new HumanMessage(sectionPrompt)], { signal: config?.signal });
+      const html = typeof sectionOut.content === "string" ? sectionOut.content : String(sectionOut.content ?? "");
+      sections.push(html.trim());
+      priorSummary += `${section.heading}: ${section.summary}. `;
+    }
+
+    const content = sections.join("\n\n");
+    const excerptStructured = chat.withStructuredOutput(
+      z.object({ excerpt: z.string(), meta: DraftSchema.shape.meta })
+    );
+    const excerptOut = await excerptStructured.invoke([
+      new HumanMessage(
+        `Write an excerpt (max 500 characters, roughly 150 words) and meta for this blog titled "${outline.title}".`
+      ),
+    ]);
+
+    const draft: GeneratedBlogContent = {
+      title: outline.title,
+      content,
+      excerpt: excerptOut.excerpt ?? "",
+      meta: this.normalizeDraftMeta(excerptOut.meta),
     };
     this.validateDraft(draft, state.analysis!);
     return { draft };
@@ -507,10 +571,15 @@ Rules:
 - Do not invent statistics, quotes, or sources that were not already present.
 - Update the title only if the feedback explicitly asks for a different angle.
 
-Return structured JSON: title, content (HTML), excerpt (<=150 words), meta.description (<=160 chars), meta.keywords (array).`;
+Return structured JSON: title, content (HTML), excerpt (max 500 characters), meta.description (<=160 chars), meta.keywords (array).`;
   }
 
-  private buildDraftPrompt(prompt: string, analysis: PromptAnalysis, researchNotes: ResearchNote[]): string {
+  private buildDraftPrompt(
+    prompt: string,
+    analysis: PromptAnalysis,
+    researchNotes: ResearchNote[],
+    userParams?: BlogUserGenerationParams
+  ): string {
     const wordCount = analysis.word_count ?? BlogAiConfig.DEFAULT_MAX_WORDS;
     const structure = analysis.structure || "clear sections with headings";
     const topicsLine =
@@ -518,6 +587,9 @@ Return structured JSON: title, content (HTML), excerpt (<=150 words), meta.descr
         ? `Topics to cover: ${analysis.topics_to_explore.join(", ")}`
         : "";
     const toneLine = analysis.tone ? `Tone: ${analysis.tone}` : "";
+    const contextBlock = userParams?.context_pack?.trim()
+      ? `\nWORKSPACE CONTEXT (brand voice, rules, strategy — follow closely):\n${userParams.context_pack.slice(0, 4000)}\n`
+      : "";
     const researchBlock =
       researchNotes.length > 0
         ? `
@@ -536,11 +608,11 @@ USER REQUEST: "${prompt}"
 ${topicsLine}
 Structure: ${structure}
 Target length: approximately ${wordCount} words.
-${researchBlock}
+${contextBlock}${researchBlock}
 
 Write a comprehensive blog post. Use HTML for content: h1 once for title inside content or start with h2 sections, paragraphs, lists as appropriate.
 
-Return structured JSON fields: title (max ~60 chars), content (HTML), excerpt (<=150 words), meta.description (<=160 chars), meta.keywords (array).`;
+Return structured JSON fields: title (max ~60 chars), content (HTML), excerpt (max 500 characters), meta.description (<=160 chars), meta.keywords (array).`;
   }
 
   private normalizeDraftMeta(meta: z.infer<typeof DraftSchema>["meta"]): GeneratedBlogContent["meta"] {
@@ -559,6 +631,7 @@ Return structured JSON fields: title (max ~60 chars), content (HTML), excerpt (<
     if (!content.content?.trim()) {
       throw new BadRequestError("No content was generated. Please try again with a more detailed prompt.");
     }
+    content.excerpt = clampBlogExcerpt(content.excerpt);
     const len = content.content.trim().length;
     if (len < BlogAiConfig.MIN_CONTENT_LENGTH) {
       throw new BadRequestError(

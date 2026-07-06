@@ -3,7 +3,25 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "../store/auth.store";
 import { AuthService, LoginRequest, SignupRequest, ChangePasswordRequest } from "../api/services/auth.service";
 import { OnboardingService } from "../api/services/onboarding.service";
+import { signupWizardPath } from "../onboarding/signup-wizard";
 import { authTracker } from "../analytics/flows/auth.tracker";
+
+async function routeToSignupWizard(router: ReturnType<typeof useRouter>) {
+  try {
+    const onboardingStatus = await OnboardingService.getStatus();
+    if (onboardingStatus.requiresOnboarding) {
+      try {
+        await OnboardingService.skip();
+      } catch {
+        // Continue with workspace setup even if skip fails
+      }
+    }
+    const wizard = await OnboardingService.getSignupWizardStatus();
+    router.push(signupWizardPath(wizard));
+  } catch {
+    router.push("/onboarding/create-site");
+  }
+}
 
 export function useAuth() {
   const router = useRouter();
@@ -15,7 +33,7 @@ export function useAuth() {
       authTracker.loginStarted();
     },
     onSuccess: async (response) => {
-      const { tokens, user: userData, requiresSiteCreation } = response.data.data;
+      const { tokens, user: userData } = response.data.data;
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
       authTracker.loginSuccess({ userId: userData.id, planType: userData.plan });
@@ -29,33 +47,7 @@ export function useAuth() {
         }
       }
 
-      if (requiresSiteCreation) {
-        router.push("/onboarding/create-site");
-        return;
-      }
-
-      try {
-        const onboardingStatus = await OnboardingService.getStatus();
-        if (onboardingStatus.requiresOnboarding) {
-          try {
-            await OnboardingService.skip();
-          } catch {
-            // Continue with workspace setup even if skip fails
-          }
-        }
-
-        const { SiteService } = await import("../api/services/site.service");
-        const sites = await SiteService.getSites();
-        if (sites.length === 0) {
-          router.push("/onboarding/create-site");
-        } else if (sites.some((s) => s.status === "onboarding")) {
-          router.push("/onboarding/create-site?step=chat");
-        } else {
-          router.push("/dashboard");
-        }
-      } catch {
-        router.push("/onboarding/create-site");
-      }
+      await routeToSignupWizard(router);
     },
     onError: (error: unknown) => {
       const message =
@@ -72,7 +64,7 @@ export function useAuth() {
       authTracker.signupStarted();
     },
     onSuccess: (response) => {
-      const { tokens, user: userData, requiresSiteCreation } = response.data.data;
+      const { tokens, user: userData } = response.data.data;
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
       authTracker.signupCompleted();
@@ -86,18 +78,22 @@ export function useAuth() {
         }
       }
 
-      if (requiresSiteCreation) {
-        router.push("/onboarding/create-site");
-        return;
-      }
-      router.push("/onboarding/create-site?step=chat");
+      router.push("/onboarding/create-site");
     },
     onError: (error: unknown) => {
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Registration failed";
       authTracker.signupFailed({ error_message: message });
       console.error("Signup failed:", message);
-      throw error; // Re-throw to allow component to handle
+      throw error;
+    },
+  });
+
+  const abandonSignupMutation = useMutation({
+    mutationFn: () => AuthService.abandonSignup(),
+    onSuccess: () => {
+      clearAuth();
+      router.replace("/auth/signup");
     },
   });
 
@@ -119,7 +115,6 @@ export function useAuth() {
     mutationFn: (data: { first_name?: string; last_name?: string; phone_number?: string }) =>
       AuthService.updateProfile(data),
     onSuccess: (response, variables) => {
-      // Update user in store
       if (variables.first_name || variables.last_name || variables.phone_number) {
         useAuthStore.getState().updateUser({
           first_name: variables.first_name,
@@ -127,7 +122,6 @@ export function useAuth() {
           phone_number: variables.phone_number,
         });
       }
-      // Refetch profile
       profileQuery.refetch();
     },
   });
@@ -136,14 +130,10 @@ export function useAuth() {
     mutationFn: (data: ChangePasswordRequest) => AuthService.changePassword(data),
   });
 
-  /**
-   * Update site context (switch active site)
-   */
   const updateSiteContextMutation = useMutation({
     mutationFn: (siteId: string) => AuthService.updateSiteContext(siteId),
     onSuccess: async (response) => {
       const { access_token } = response.data.data;
-      // Update token in store (which will extract and set currentSiteId)
       const currentRefreshToken = useAuthStore.getState().refreshToken;
       if (currentRefreshToken) {
         setTokens(access_token, currentRefreshToken);
@@ -171,6 +161,9 @@ export function useAuth() {
     signup: signupMutation.mutate,
     signupAsync: signupMutation.mutateAsync,
     logout: logoutMutation.mutate,
+    abandonSignup: abandonSignupMutation.mutate,
+    abandonSignupAsync: abandonSignupMutation.mutateAsync,
+    isAbandoningSignup: abandonSignupMutation.isPending,
     updateProfile: updateProfileMutation.mutate,
     changePassword: changePasswordMutation.mutate,
     updateSiteContext: updateSiteContextMutation.mutate,
@@ -179,7 +172,8 @@ export function useAuth() {
       loginMutation.isPending ||
       signupMutation.isPending ||
       logoutMutation.isPending ||
-      updateSiteContextMutation.isPending,
+      updateSiteContextMutation.isPending ||
+      abandonSignupMutation.isPending,
     isUpdatingProfile: updateProfileMutation.isPending,
     isChangingPassword: changePasswordMutation.isPending,
     signupError: signupMutation.error,

@@ -16,6 +16,7 @@ import { SiteMember } from "../../../shared/schemas/site-member.schema";
 import { SiteMemberRole } from "../../../shared/constants";
 import User from "../../../shared/schemas/user.schema";
 import Blog from "../../../shared/schemas/blog.schema";
+import { buildCapabilitiesPayload, type SiteCapabilitiesPayload } from "../../../shared/utils/site-permissions.util";
 
 @injectable()
 export class SiteMemberService {
@@ -222,6 +223,29 @@ export class SiteMemberService {
 
     await this.siteMemberRepository.remove(siteId, targetUserId);
     logger.info("Member removed from site", { siteId, targetUserId, removedBy: requesterUserId }, "SiteMemberService");
+  }
+
+  /**
+   * Get the current user's membership and capabilities in a site.
+   */
+  async getMyMembership(
+    siteId: string,
+    userId: string
+  ): Promise<{ role: SiteMemberRole; capabilities: SiteCapabilitiesPayload }> {
+    const site = await this.siteRepository.findById(siteId);
+    if (!site) {
+      throw new NotFoundError("Site not found");
+    }
+
+    const role = await this.getRequesterRole(siteId, userId);
+    if (!role) {
+      throw new ForbiddenError("You do not have access to this site");
+    }
+
+    return {
+      role,
+      capabilities: buildCapabilitiesPayload(role),
+    };
   }
 
   /**

@@ -3,13 +3,14 @@
 import { Mic, MicOff, PhoneOff, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { ChatModeSelector } from "./chat-mode-selector";
-import type { OrchestratorSessionMode } from "@/lib/types/orchestrator-session.types";
+import type { OperationalSessionMode, OrchestratorSessionMode } from "@/lib/types/orchestrator-session.types";
 
 export type ConversationStatus = "idle" | "listening" | "thinking" | "speaking";
 
 interface FullConversationViewProps {
   threadTitle: string;
   sessionMode: OrchestratorSessionMode;
+  effectiveSessionMode: OperationalSessionMode;
   onSessionModeChange: (mode: OrchestratorSessionMode) => void;
   status: ConversationStatus;
   interimTranscript: string;
@@ -33,6 +34,7 @@ const STATUS_LABEL: Record<ConversationStatus, string> = {
 export function FullConversationView({
   threadTitle,
   sessionMode,
+  effectiveSessionMode,
   onSessionModeChange,
   status,
   interimTranscript,
@@ -61,8 +63,14 @@ export function FullConversationView({
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-widest text-primary/80 font-medium">Voice conversation</p>
           <p className="text-sm font-semibold text-white truncate mt-0.5">{threadTitle}</p>
+          <p className="text-[11px] text-gray-500 mt-0.5">Conversational call — I&apos;ll discuss and research before drafting.</p>
         </div>
-        <ChatModeSelector value={sessionMode} onChange={onSessionModeChange} disabled={disabled} />
+        <ChatModeSelector
+          value={sessionMode}
+          effectiveMode={effectiveSessionMode}
+          onChange={onSessionModeChange}
+          disabled={disabled}
+        />
       </header>
 
       <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-6 py-8 gap-8">

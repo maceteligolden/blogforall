@@ -3,9 +3,10 @@ import { createHash, randomInt } from "crypto";
 import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
-import { BadRequestError, UnauthorizedError, NotFoundError } from "../../../shared/errors";
-import { UserPlan, UserRole, SiteStatus, isPlatformAdminRole } from "../../../shared/constants";
+import { BadRequestError, UnauthorizedError, NotFoundError, ForbiddenError } from "../../../shared/errors";
+import { UserPlan, UserRole, SiteStatus, BlogStatus, isPlatformAdminRole } from "../../../shared/constants";
 import { Site } from "../../../shared/schemas/site.schema";
+import Blog from "../../../shared/schemas/blog.schema";
 import { logger } from "../../../shared/utils/logger";
 import {
   SignupInput,
@@ -24,6 +25,7 @@ import { SiteService } from "../../site/services/site.service";
 import { NotificationService } from "../../notification/services/notification.service";
 import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 import { ReferralService } from "../../referral/services/referral.service";
+import { SiteInvitationService } from "../../site/services/site-invitation.service";
 import { env } from "../../../shared/config/env";
 import {
   captureServerEvent,
@@ -39,7 +41,8 @@ export class AuthService {
     private subscriptionService: SubscriptionService,
     private siteService: SiteService,
     private notificationService: NotificationService,
-    private referralService: ReferralService
+    private referralService: ReferralService,
+    private siteInvitationService: SiteInvitationService
   ) {}
 
   /**
@@ -54,7 +57,8 @@ export class AuthService {
    * 8. LOG success and RETURN LoginResponse (auto-login tokens)
    */
   async signup(input: SignupInput): Promise<LoginResponse> {
-    const { email, password, first_name, last_name, phone_number, terms_version, referral_code } = input;
+    const { email, password, first_name, last_name, phone_number, terms_version, referral_code, invite_token } =
+      input;
 
     const formattedEmail = email.toLocaleLowerCase();
 
@@ -62,6 +66,16 @@ export class AuthService {
     if (existingUser) {
       logger.warn("Signup attempt with existing email", { email: formattedEmail }, "AuthService");
       throw new BadRequestError("User with this email already exists");
+    }
+
+    let effectiveReferralCode = referral_code;
+    const hasValidInvite = !!invite_token?.trim();
+    if (hasValidInvite) {
+      const { inviterReferralCode } = await this.siteInvitationService.validateInviteForSignup(
+        invite_token!.trim(),
+        formattedEmail
+      );
+      effectiveReferralCode = effectiveReferralCode ?? inviterReferralCode;
     }
 
     const hashedPassword = await hashPassword(password);
@@ -97,17 +111,20 @@ export class AuthService {
 
     try {
       await this.referralService.ensureReferralCode(user._id!.toString());
-      await this.referralService.recordReferralOnSignup(user._id!.toString(), referral_code);
+      await this.referralService.recordReferralOnSignup(user._id!.toString(), effectiveReferralCode);
     } catch (error) {
       logger.error("Failed to process referral on signup", error as Error, { userId: user._id }, "AuthService");
     }
 
-    // Ensure user has a default workspace (uses env.workspace.defaultName)
     try {
-      await this.siteService.ensureDefaultWorkspace(user._id!.toString());
-      logger.info("Default workspace ensured for new user", { userId: user._id, email }, "AuthService");
+      await this.siteInvitationService.deliverPendingInviteNotifications(user._id!.toString(), formattedEmail);
     } catch (error) {
-      logger.error("Failed to create default workspace on signup", error as Error, { userId: user._id }, "AuthService");
+      logger.error(
+        "Failed to deliver pending invite notifications on signup",
+        error as Error,
+        { userId: user._id },
+        "AuthService"
+      );
     }
 
     const loginUrl = `${env.frontend.baseUrl}/auth/login`;
@@ -224,6 +241,74 @@ export class AuthService {
   async logout(userId: string): Promise<void> {
     await this.userRepository.updateSessionToken(userId, null);
     logger.info("User logged out", { userId }, "AuthService");
+  }
+
+  /**
+   * Full signup rollback: delete account, workspaces, and subscriptions.
+   * Only allowed during early onboarding (recent account, onboarding-only workspaces).
+   */
+  async abandonSignup(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    if (isPlatformAdminRole(user.role)) {
+      throw new ForbiddenError("This account cannot abandon signup");
+    }
+
+    const accountAgeMs = Date.now() - new Date(user.created_at ?? 0).getTime();
+    const MAX_ABANDON_AGE_MS = 24 * 60 * 60 * 1000;
+    if (accountAgeMs > MAX_ABANDON_AGE_MS) {
+      throw new BadRequestError("Signup can only be abandoned within 24 hours of registration");
+    }
+
+    const ownedSites = await this.siteService.getOwnedSitesByUser(userId);
+
+    if (user.plan_selection_completed_at) {
+      throw new BadRequestError("Signup cannot be abandoned after workspace setup is complete");
+    }
+
+    if (ownedSites.some((s) => s.status !== SiteStatus.ONBOARDING)) {
+      throw new BadRequestError("Signup can only be abandoned during workspace setup");
+    }
+
+    for (const site of ownedSites) {
+      const siteId = site._id!.toString();
+      const publishedCount = await Blog.countDocuments({
+        site_id: siteId,
+        status: BlogStatus.PUBLISHED,
+      });
+      if (publishedCount > 0) {
+        throw new BadRequestError("Signup cannot be abandoned after content has been published");
+      }
+    }
+
+    for (const site of ownedSites) {
+      await this.siteService.deleteSite(site._id!.toString(), userId);
+    }
+
+    try {
+      await this.subscriptionService.deleteUserSubscriptions(userId);
+    } catch (error) {
+      logger.error("Failed to delete subscriptions on abandon signup", error as Error, { userId }, "AuthService");
+    }
+
+    if (user.stripe_customer_id) {
+      try {
+        await this.stripeFacade.deleteCustomer(user.stripe_customer_id);
+      } catch (error) {
+        logger.error("Failed to delete Stripe customer on abandon signup", error as Error, { userId }, "AuthService");
+      }
+    }
+
+    await this.userRepository.updateSessionToken(userId, null);
+    const deleted = await this.userRepository.deleteById(userId);
+    if (!deleted) {
+      throw new NotFoundError("User not found");
+    }
+
+    logger.info("Signup abandoned and account deleted", { userId, email: user.email }, "AuthService");
   }
 
   /**

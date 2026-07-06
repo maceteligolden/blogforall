@@ -1,5 +1,6 @@
 import { Schema, model } from "mongoose";
 import { BaseEntity } from "../interfaces";
+import type { BehavioralRule, EngagementSignal, StrategyState } from "./memory-types";
 
 /**
  * Strategic, slow-changing facts about the workspace. Captured during the
@@ -58,6 +59,12 @@ export interface WorkspaceMemory extends BaseEntity {
   performance_summary: WorkspaceMemoryPerformance;
   /** Short text injected into every supervisor turn. */
   memory_summary: string;
+  /** User style preferences and constraints learned over time. */
+  behavioral_rules: BehavioralRule[];
+  /** Active content strategy themes and clusters. */
+  strategy_state: StrategyState;
+  /** Optional engagement metrics for strategy tuning. */
+  engagement_signals: EngagementSignal[];
   /** Increment-only version; bumped on every write for optimistic concurrency. */
   version: number;
   /** User id of the last writer (orchestrator tools attribute back to caller). */
@@ -77,6 +84,31 @@ const APPROVAL_RULES_DEFAULTS = {
 const AUTOMATION_SETTINGS_DEFAULTS = {
   auto_generate_scheduled_posts: true,
 };
+
+const STRATEGY_STATE_DEFAULTS: StrategyState = {
+  active_themes: [],
+  content_clusters: [],
+  calendar_horizon_weeks: 4,
+};
+
+const behavioralRuleSchema = new Schema(
+  {
+    rule_id: { type: String, required: true },
+    category: {
+      type: String,
+      enum: ["style", "structure", "topic", "constraint", "workflow"],
+      required: true,
+    },
+    rule_text: { type: String, required: true, maxlength: 500 },
+    polarity: { type: String, enum: ["prefer", "avoid"], required: true },
+    confidence: { type: Number, default: 0.8, min: 0, max: 1 },
+    source: { type: String, enum: ["user_explicit", "inferred", "feedback"], default: "inferred" },
+    evidence_refs: { type: [String], default: [] },
+    created_at: { type: Date, default: Date.now },
+    superseded_by: { type: String },
+  },
+  { _id: false }
+);
 
 const workspaceMemorySchema = new Schema<WorkspaceMemory>(
   {
@@ -139,6 +171,30 @@ const workspaceMemorySchema = new Schema<WorkspaceMemory>(
       summary: { type: String, maxlength: 4000 },
     },
     memory_summary: { type: String, default: "", maxlength: 4000 },
+    behavioral_rules: { type: [behavioralRuleSchema], default: [] },
+    strategy_state: {
+      active_themes: {
+        type: [{ name: String, pillar: String, priority: Number }],
+        default: [],
+      },
+      content_clusters: {
+        type: [{ cluster_id: String, topics: [String], cadence_hint: String }],
+        default: [],
+      },
+      calendar_horizon_weeks: { type: Number, default: STRATEGY_STATE_DEFAULTS.calendar_horizon_weeks },
+      last_strategy_review_at: { type: Date },
+    },
+    engagement_signals: {
+      type: [
+        {
+          metric: String,
+          content_id: String,
+          value: Number,
+          captured_at: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
     version: { type: Number, default: 1, min: 1 },
     updated_by: { type: String },
     created_at: { type: Date, default: Date.now },
@@ -159,4 +215,5 @@ export default model<WorkspaceMemory>("WorkspaceMemory", workspaceMemorySchema);
 export const WORKSPACE_MEMORY_DEFAULTS = {
   approval_rules: APPROVAL_RULES_DEFAULTS,
   automation_settings: AUTOMATION_SETTINGS_DEFAULTS,
+  strategy_state: STRATEGY_STATE_DEFAULTS,
 } as const;

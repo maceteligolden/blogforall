@@ -9,6 +9,7 @@ const router = Router();
 const invitationController = container.resolve(SiteInvitationController);
 
 // Current user's invitations (accept/reject by token)
+router.get("/:token/preview", validateParams(invitationTokenParamSchema), invitationController.getInvitationPreview);
 router.get("/", authMiddleware, invitationController.getUserInvitations);
 router.post(
   "/:token/accept",

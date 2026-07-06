@@ -24,6 +24,10 @@ export interface SystemPromptContext {
   available_tools: string[];
   /** Mode-specific instructions for this chat session. */
   session_mode_instructions?: string;
+  /** Pinned highlight / draft reference instructions for this turn. */
+  selection_focus_instructions?: string;
+  /** Voice call overlay — probing conversational behavior. */
+  voice_conversation_instructions?: string;
   /**
    * Authoritative server-side current time, ISO-8601 UTC. Required so the
    * model anchors all relative-date arithmetic (scheduling, "next week",
@@ -128,6 +132,10 @@ Workspace: {{WORKSPACE_NAME}} ({{WORKSPACE_ID}})
 
 {{SESSION_MODE_INSTRUCTIONS}}
 
+{{VOICE_CONVERSATION_INSTRUCTIONS}}
+
+{{SELECTION_FOCUS_INSTRUCTIONS}}
+
 Strategic & preference snapshot:
 {{WORKSPACE_CONTEXT_JSON}}
 
@@ -169,9 +177,15 @@ Onboarding progress (authoritative — from workspace memory):
  */
 export function renderActiveSystemPrompt(ctx: SystemPromptContext): string {
   const sessionBlock = ctx.session_mode_instructions ? `# Session mode\n\n${ctx.session_mode_instructions}\n` : "";
+  const voiceBlock = ctx.voice_conversation_instructions
+    ? `${ctx.voice_conversation_instructions}\n`
+    : "";
+  const selectionBlock = ctx.selection_focus_instructions ? `${ctx.selection_focus_instructions}\n` : "";
   return BASE_BLUEPRINT.replace("{{WORKSPACE_NAME}}", ctx.workspace_name)
     .replace("{{WORKSPACE_ID}}", ctx.workspace_id)
     .replace("{{SESSION_MODE_INSTRUCTIONS}}", sessionBlock)
+    .replace("{{VOICE_CONVERSATION_INSTRUCTIONS}}", voiceBlock)
+    .replace("{{SELECTION_FOCUS_INSTRUCTIONS}}", selectionBlock)
     .replace("{{WORKSPACE_CONTEXT_JSON}}", ctx.workspace_context_json || "{}")
     .replace("{{MEMORY_SUMMARY}}", ctx.memory_summary || "(no rolling summary yet)")
     .replace(

@@ -31,8 +31,18 @@ import { ensureOnboardingInterviewReply } from "../utils/onboarding-interview.he
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
 import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 import { CampaignRoadmapService } from "../../campaign/services/campaign-roadmap.service";
-import { OrchestratorKnowledgeService } from "./orchestrator-knowledge.service";
-import { buildEnrichedUserMessage, type OrchestratorSessionMode } from "../utils/turn-context.helper";
+import { ContextPackBuilderService } from "../../memory/services/context-pack-builder.service";
+import { MemoryExtractionService } from "../../memory/services/memory-extraction.service";
+import {
+  SessionModeRouterService,
+  type OperationalSessionMode,
+  type SessionModeResolution,
+} from "./session-mode-router.service";
+import { ensureCasualConversationReply } from "../utils/casual-conversation.helper";
+import { ensureVoiceConversationReply } from "../utils/voice-conversation.helper";
+import { ensureConversationContinuation, type SelectionContextPayload } from "../utils/selection-focus.helper";
+import { buildEnrichedUserMessage, type ClientSessionMode } from "../utils/turn-context.helper";
+import { canRunOrchestratorTool } from "../../../shared/utils/site-permissions.util";
 
 interface ChatAttachment {
   name: string;
@@ -47,9 +57,14 @@ interface BaseTurnInput {
   message: string;
   threadId?: string;
   requestId?: string;
-  sessionMode?: OrchestratorSessionMode;
-  selectionContext?: { blog_id: string; text: string };
+  sessionMode?: ClientSessionMode;
+  selectionContext?: {
+    blog_id: string;
+    reference_type?: "highlight" | "blog";
+    text?: string;
+  };
   attachments?: ChatAttachment[];
+  conversationMode?: boolean;
 }
 
 /**
@@ -79,7 +94,9 @@ export class OrchestratorService {
     private readonly siteService: SiteService,
     private readonly tokenEnforcement: TokenEnforcementService,
     private readonly campaignRoadmapService: CampaignRoadmapService,
-    private readonly knowledgeService: OrchestratorKnowledgeService
+    private readonly contextPackBuilder: ContextPackBuilderService,
+    private readonly memoryExtraction: MemoryExtractionService,
+    private readonly sessionModeRouter: SessionModeRouterService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -191,21 +208,42 @@ export class OrchestratorService {
     const { siteId, userId, message, mode } = input;
     await this.assertSiteAccess(siteId, userId);
 
-    const knowledgeSummary = mode === "active" ? await this.knowledgeService.buildKnowledgeSummary(siteId) : "";
+    const memory = await this.memoryRepository.ensureForSite(siteId, userId);
+
+    const modeResolution: SessionModeResolution | null =
+      mode === "active"
+        ? this.sessionModeRouter.resolve({
+            clientMode: input.sessionMode,
+            userMessage: message,
+            hasSelectionContext: !!input.selectionContext,
+          })
+        : null;
+
+    const effectiveSessionMode: OperationalSessionMode = modeResolution?.effectiveMode ?? "planning";
+
+    const contextPack =
+      mode === "active"
+        ? await this.contextPackBuilder.build({
+            siteId,
+            memory,
+            userMessage: message,
+            sessionMode: effectiveSessionMode,
+          })
+        : null;
+
     const enrichedMessage = buildEnrichedUserMessage({
       message,
-      sessionMode: input.sessionMode,
+      sessionMode: effectiveSessionMode,
       selectionContext: input.selectionContext,
       attachments: input.attachments,
-      knowledgeSummary,
+      contextPackBlock: contextPack ? this.contextPackBuilder.toPromptBlock(contextPack) : undefined,
     });
 
     const site = await this.siteService.getSiteById(siteId, userId);
+    const memberRole = await this.siteService.getUserRole(siteId, userId);
     if (mode === "active" && site.status === SiteStatus.ONBOARDING) {
       throw new ForbiddenError("Workspace onboarding is not complete. Use the onboarding chat to finish setup.");
     }
-
-    const memory = await this.memoryRepository.ensureForSite(siteId, userId);
 
     const thread = await this.resolveThread(siteId, userId, input.threadId, mode);
     const history = await this.messageRepository.listByThread(thread._id!.toString(), siteId, {
@@ -248,6 +286,28 @@ export class OrchestratorService {
       historyCount: history.length,
     });
 
+    const turnStartedAt = Date.now();
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+      body: JSON.stringify({
+        sessionId: "4b087c",
+        runId: "highlight-fix",
+        hypothesisId: "H-be",
+        location: "orchestrator.service.ts:runTurn",
+        message: "turn planning starting",
+        data: {
+          hasSelection: !!input.selectionContext,
+          refType: input.selectionContext?.reference_type,
+          effectiveMode: effectiveSessionMode,
+          excerptLen: input.selectionContext?.text?.length ?? 0,
+        },
+        timestamp: turnStartedAt,
+      }),
+    }).catch(() => undefined);
+    // #endregion
+
     return this.tokenEnforcement.runWithReservation({
       userId,
       siteId,
@@ -269,6 +329,7 @@ export class OrchestratorService {
         const plan = await this.graphService.planTurn({
           siteId,
           userId,
+          memberRole,
           threadId: thread._id!.toString(),
           workspaceName: site.name,
           workspaceId: siteId,
@@ -277,13 +338,48 @@ export class OrchestratorService {
           history,
           newUserMessage: message,
           enrichedUserMessage: llmMessage,
-          sessionMode: input.sessionMode,
+          sessionMode: effectiveSessionMode,
+          clientSessionMode: input.sessionMode ?? "auto",
+          selectionContext: input.selectionContext,
+          conversationMode: input.conversationMode,
         });
+        // #region agent log
+        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+          body: JSON.stringify({
+            sessionId: "4b087c",
+            runId: "highlight-fix",
+            hypothesisId: "H-be",
+            location: "orchestrator.service.ts:runTurn",
+            message: "planTurn completed",
+            data: {
+              durationMs: Date.now() - turnStartedAt,
+              next: plan.decision.next,
+              tool: plan.tool_invocation?.name ?? plan.decision.tool?.name,
+              hadPriorTool: !!plan.prior_tool_invocation,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => undefined);
+        // #endregion
 
         const historyForApply = await this.messageRepository.listByThread(thread._id!.toString(), siteId, {
           limit: env.orchestrator.maxThreadMessages,
         });
-        return this.applyPlan(siteId, userId, thread, plan, mode, memory, historyForApply);
+        return this.applyPlan(
+          siteId,
+          userId,
+          thread,
+          plan,
+          mode,
+          memory,
+          historyForApply,
+          message,
+          modeResolution,
+          input.selectionContext,
+          input.conversationMode
+        );
       },
     });
   }
@@ -299,7 +395,11 @@ export class OrchestratorService {
     plan: Awaited<ReturnType<OrchestratorGraphService["planTurn"]>>,
     mode: "active" | "onboarding",
     workspaceMemory?: WorkspaceMemory,
-    threadHistory?: OrchestratorMessage[]
+    threadHistory?: OrchestratorMessage[],
+    userMessage?: string,
+    modeResolution?: SessionModeResolution | null,
+    selectionContext?: SelectionContextPayload,
+    conversationMode?: boolean
   ): Promise<ChatTurnResponse> {
     const rawNext = plan.decision.next;
     let decision = plan.decision;
@@ -320,6 +420,16 @@ export class OrchestratorService {
         "Thanks — I've saved that to your workspace profile. What would you like to refine next — target audience, brand voice, or where you'll publish?";
       decision = { ...decision, next: "respond", reply: ack };
       assistantReply = ack;
+    }
+
+    if (plan.prior_tool_invocation) {
+      await this.messageRepository.create({
+        thread_id: thread._id!.toString(),
+        site_id: siteId,
+        role: OrchestratorMessageRole.TOOL,
+        content: plan.prior_tool_invocation.summary,
+        tool_name: plan.prior_tool_invocation.name,
+      });
     }
 
     if (plan.tool_invocation) {
@@ -350,9 +460,12 @@ export class OrchestratorService {
     }
 
     const hasMemoryPatch = !!decision.memory_patch && Object.keys(decision.memory_patch).length > 0;
+    const effectiveMode = modeResolution?.effectiveMode;
     if (
       hasMemoryPatch &&
-      (rawNext === "update_memory" || (mode === "onboarding" && decision.next !== "complete_onboarding"))
+      (rawNext === "update_memory" ||
+        (mode === "onboarding" && decision.next !== "complete_onboarding") ||
+        (mode === "active" && effectiveMode === "casual" && decision.next === "respond"))
     ) {
       await this.memoryRepository.update(siteId, decision.memory_patch as never, userId);
     }
@@ -363,6 +476,38 @@ export class OrchestratorService {
       if (repaired.repaired) {
         assistantReply = repaired.reply;
         decision = { ...decision, next: "respond", reply: assistantReply };
+      }
+    }
+
+    if (mode === "active" && decision.next === "respond" && workspaceMemory) {
+      const hasSelectionFocus = !!selectionContext;
+      if (hasSelectionFocus) {
+        const repaired = ensureConversationContinuation(assistantReply, {
+          hasSelectionFocus: true,
+          selectionSnippet: selectionContext?.text,
+          memory: workspaceMemory,
+        });
+        if (repaired.repaired) {
+          assistantReply = repaired.reply;
+          decision = { ...decision, reply: assistantReply };
+        }
+      } else if (effectiveMode === "casual") {
+        const repaired = ensureCasualConversationReply(assistantReply, workspaceMemory);
+        if (repaired.repaired) {
+          assistantReply = repaired.reply;
+          decision = { ...decision, reply: assistantReply };
+        }
+      }
+    }
+
+    if (mode === "active" && conversationMode && workspaceMemory) {
+      const voiceRepaired = ensureVoiceConversationReply(assistantReply, {
+        memory: workspaceMemory,
+        userMessage,
+      });
+      assistantReply = voiceRepaired.reply;
+      if (decision.next === "respond") {
+        decision = { ...decision, reply: assistantReply };
       }
     }
 
@@ -416,6 +561,17 @@ export class OrchestratorService {
       "OrchestratorService"
     );
 
+    if (mode === "active" && userMessage) {
+      void this.memoryExtraction.processTurn({
+        siteId,
+        userId,
+        threadId: thread._id!.toString(),
+        userMessage,
+        assistantReply: assistantReply || "",
+        sessionMode: effectiveMode,
+      });
+    }
+
     return {
       thread_id: thread._id!.toString(),
       assistant_message: {
@@ -433,6 +589,8 @@ export class OrchestratorService {
           ]
         : [],
       pending_approval: pendingApproval ? serializeApproval(pendingApproval) : null,
+      active_session_mode: effectiveMode ?? "planning",
+      session_mode_source: modeResolution?.source,
       workspace_status: workspaceStatus,
       onboarding_completed: onboardingCompleted,
     };
@@ -569,6 +727,7 @@ export class OrchestratorService {
       },
       tool_calls: toolName && toolSummary ? [{ tool: toolName, summary: toolSummary }] : [],
       pending_approval: null,
+      active_session_mode: "planning",
       workspace_status: "active",
       onboarding_completed: false,
     };
@@ -669,6 +828,18 @@ export class OrchestratorService {
         });
         return { ok: false, summary };
       }
+
+      const memberRole = await this.siteService.getUserRole(approval.site_id, userId);
+      if (!canRunOrchestratorTool(memberRole, tool.name, tool.requiresConfirmation)) {
+        const summary =
+          "Your workspace role doesn't allow that action. Ask a workspace admin to perform permanent changes.";
+        await this.approvalRepository.markExecuted(approval._id!.toString(), approval.site_id, {
+          ok: false,
+          error: summary,
+        });
+        return { ok: false, summary };
+      }
+
       try {
         const result = await tool.run({
           siteId: approval.site_id,
@@ -899,7 +1070,8 @@ export class OrchestratorService {
   private buildSimpleResponse(
     thread: OrchestratorThread,
     assistant: OrchestratorMessage,
-    workspaceStatus: "onboarding" | "active"
+    workspaceStatus: "onboarding" | "active",
+    activeSessionMode: OperationalSessionMode = "planning"
   ): ChatTurnResponse {
     return {
       thread_id: thread._id!.toString(),
@@ -910,6 +1082,7 @@ export class OrchestratorService {
       },
       tool_calls: [],
       pending_approval: null,
+      active_session_mode: activeSessionMode,
       workspace_status: workspaceStatus,
       onboarding_completed: false,
     };

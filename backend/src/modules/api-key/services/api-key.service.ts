@@ -7,6 +7,7 @@ import { verifyApiKeySecret } from "../../../shared/utils/api-key";
 import { SiteService } from "../../site/services/site.service";
 import { SiteRepository } from "../../site/repositories/site.repository";
 import { decryptWorkspaceApiKeySecret } from "../../../shared/utils/workspace-api-key-crypto";
+import { assertSiteCapability, SiteCapability } from "../../../shared/utils/site-permissions.util";
 
 @injectable()
 export class ApiKeyService {
@@ -16,12 +17,14 @@ export class ApiKeyService {
     private siteRepository: SiteRepository
   ) {}
 
+  private async assertManageWorkspace(siteId: string, userId: string): Promise<void> {
+    const role = await this.siteService.getUserRole(siteId, userId);
+    assertSiteCapability(role, SiteCapability.MANAGE_WORKSPACE);
+  }
+
   async createApiKey(siteId: string, userId: string, input: CreateApiKeyInput): Promise<ApiKeyResponse> {
     const { name } = input;
-    const canAccess = await this.siteService.hasSiteAccess(siteId, userId);
-    if (!canAccess) {
-      throw new ForbiddenError("You do not have access to this workspace");
-    }
+    await this.assertManageWorkspace(siteId, userId);
 
     const site = await this.siteRepository.findById(siteId);
     if (!site) {
@@ -44,10 +47,7 @@ export class ApiKeyService {
   }
 
   async getSiteApiKeys(siteId: string, userId: string): Promise<ApiKeyListItem[]> {
-    const canAccess = await this.siteService.hasSiteAccess(siteId, userId);
-    if (!canAccess) {
-      throw new ForbiddenError("You do not have access to this workspace");
-    }
+    await this.assertManageWorkspace(siteId, userId);
 
     const site = await this.siteRepository.findById(siteId);
     if (!site) {
@@ -77,10 +77,7 @@ export class ApiKeyService {
   }
 
   async deleteApiKey(siteId: string, userId: string, accessKeyId: string): Promise<void> {
-    const canAccess = await this.siteService.hasSiteAccess(siteId, userId);
-    if (!canAccess) {
-      throw new ForbiddenError("You do not have access to this workspace");
-    }
+    await this.assertManageWorkspace(siteId, userId);
 
     const deleted = await this.apiKeyRepository.deleteBySiteAndAccessKey(siteId, accessKeyId);
     if (!deleted) {

@@ -14,6 +14,7 @@ const router = Router({ mergeParams: true }); // mergeParams to access parent ro
 const siteMemberController = container.resolve(SiteMemberController);
 
 // All routes require authentication
+router.get("/me", authMiddleware, validateParams(siteIdParamSchema), siteMemberController.getMyMembership);
 router.get("/", authMiddleware, validateParams(siteIdParamSchema), siteMemberController.getMembers);
 router.post(
   "/",

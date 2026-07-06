@@ -101,7 +101,7 @@ export class CategoryCreateTool implements OrchestratorTool {
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(createInputSchema, invocation.input, this.name);
-    const created = await this.categoryService.createCategory(invocation.siteId, input);
+    const created = await this.categoryService.createCategory(invocation.siteId, invocation.userId, input);
     return {
       summary: `Created category '${created.name}'.`,
       data: { id: created._id?.toString(), name: created.name, slug: created.slug },
@@ -131,7 +131,7 @@ export class CategoryUpdateTool implements OrchestratorTool {
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const { id, ...rest } = parseToolInput(updateInputSchema, invocation.input, this.name);
-    const updated = await this.categoryService.updateCategory(id, invocation.siteId, rest);
+    const updated = await this.categoryService.updateCategory(id, invocation.siteId, invocation.userId, rest);
     return {
       summary: `Updated category '${updated.name}'.`,
       data: updated,
@@ -156,7 +156,7 @@ export class CategoryDeleteTool implements OrchestratorTool {
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(deleteInputSchema, invocation.input, this.name);
     const before = await this.categoryService.getCategoryById(input.id, invocation.siteId);
-    await this.categoryService.deleteCategory(input.id, invocation.siteId);
+    await this.categoryService.deleteCategory(input.id, invocation.siteId, invocation.userId);
     return {
       summary: `Deleted category '${before.name}'.`,
       data: { id: input.id, name: before.name },

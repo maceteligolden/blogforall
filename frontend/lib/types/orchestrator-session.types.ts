@@ -1,9 +1,14 @@
-export type OrchestratorSessionMode = "planning" | "writing" | "research" | "review" | "casual";
+export type OperationalSessionMode = "planning" | "writing" | "research" | "review" | "casual" | "strategy";
+
+export type OrchestratorSessionMode = OperationalSessionMode | "auto";
+
+export type SelectionReferenceType = "highlight" | "blog";
 
 export interface OrchestratorSelectionContext {
   blogId: string;
-  selectedText: string;
-  surroundingContext?: string;
+  blogTitle: string;
+  selectedText?: string;
+  referenceType: SelectionReferenceType;
 }
 
 export interface OrchestratorChatAttachment {

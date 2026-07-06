@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { User, Sparkles, Menu, Settings, HelpCircle, LogOut, BookOpen, Code, CreditCard, Gift } from "lucide-react";
+import { User, Menu, Settings, HelpCircle, LogOut, BookOpen, CreditCard, Gift } from "lucide-react";
 import { useState } from "react";
-import { TokenUsageBadge } from "@/components/usage/token-usage-badge";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { InviteUsersButton } from "@/components/layout/invite-users-button";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -30,7 +30,6 @@ export function Navbar({ onMenuClick }: NavbarProps) {
     { href: "/dashboard/referrals", label: "Referrals", icon: Gift },
     { href: "/contact", label: "Get help", icon: HelpCircle },
     { href: "/", label: "How it works", icon: BookOpen },
-    { href: "/dashboard/developer", label: "Developer", icon: Code },
   ] as const;
 
   return (
@@ -54,25 +53,8 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           </div>
 
           <div className="flex items-center space-x-4 relative z-[9999]">
-            <TokenUsageBadge className="hidden sm:inline-flex" compact />
             <NotificationBell />
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="hidden sm:flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-              aria-label="Open workspace AI assistant"
-              title="Workspace orchestrator"
-            >
-              <Sparkles className="w-4 h-4" aria-hidden="true" />
-              <span className="hidden md:inline">Ask AI</span>
-            </button>
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="sm:hidden flex items-center justify-center w-9 h-9 rounded-full border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-              aria-label="Open workspace AI assistant"
-              title="Workspace orchestrator"
-            >
-              <Sparkles className="w-4 h-4" aria-hidden="true" />
-            </button>
+            <InviteUsersButton />
 
             <div className="relative z-[10000]">
               <div className="flex items-center space-x-2">

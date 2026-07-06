@@ -1,12 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { OrchestratorArtifact } from "@/lib/utils/orchestrator-artifacts";
 import type {
+  OperationalSessionMode,
   OrchestratorChatAttachment,
   OrchestratorSelectionContext,
   OrchestratorSessionMode,
 } from "@/lib/types/orchestrator-session.types";
+import { isWritingEffectiveMode } from "@/lib/utils/session-mode-parser";
 import { useAuthStore } from "@/lib/store/auth.store";
 
 interface OrchestratorContextValue {
@@ -14,11 +16,21 @@ interface OrchestratorContextValue {
   setThreadId: (threadId: string | null) => void;
   liveArtifacts: OrchestratorArtifact[];
   addLiveArtifacts: (artifacts: OrchestratorArtifact[]) => void;
+  mergeLiveArtifacts: (artifacts: OrchestratorArtifact[]) => void;
   clearLiveArtifacts: () => void;
   sessionMode: OrchestratorSessionMode;
   setSessionMode: (mode: OrchestratorSessionMode) => void;
+  effectiveSessionMode: OperationalSessionMode;
+  setEffectiveSessionMode: (mode: OperationalSessionMode) => void;
+  isWritingPinned: boolean;
+  draftGenerating: boolean;
+  setDraftGenerating: (value: boolean) => void;
+  activeDraftBlogId: string | null;
+  setActiveDraftBlogId: (blogId: string | null) => void;
   selectionContext: OrchestratorSelectionContext | null;
   setSelectionContext: (ctx: OrchestratorSelectionContext | null) => void;
+  composerFocusRef: React.MutableRefObject<(() => void) | null>;
+  focusComposer: () => void;
   pendingAttachments: OrchestratorChatAttachment[];
   addPendingAttachment: (attachment: OrchestratorChatAttachment) => void;
   removePendingAttachment: (index: number) => void;
@@ -45,32 +57,45 @@ const OrchestratorContext = createContext<OrchestratorContextValue | null>(null)
 
 const SESSION_MODE_KEY = "orchestrator_session_mode";
 
+const VALID_MODES: OrchestratorSessionMode[] = [
+  "auto",
+  "planning",
+  "writing",
+  "research",
+  "review",
+  "casual",
+  "strategy",
+];
+
 function loadSessionMode(siteId: string | null): OrchestratorSessionMode {
-  if (typeof window === "undefined" || !siteId) return "planning";
+  if (typeof window === "undefined" || !siteId) return "auto";
   const stored = localStorage.getItem(`${SESSION_MODE_KEY}:${siteId}`);
-  if (
-    stored === "planning" ||
-    stored === "writing" ||
-    stored === "research" ||
-    stored === "review" ||
-    stored === "casual"
-  ) {
-    return stored;
+  if (stored && VALID_MODES.includes(stored as OrchestratorSessionMode)) {
+    return stored as OrchestratorSessionMode;
   }
-  return "planning";
+  return "auto";
 }
 
 export function OrchestratorProvider({ children }: { children: React.ReactNode }) {
   const { currentSiteId } = useAuthStore();
   const [threadId, setThreadIdState] = useState<string | null>(null);
   const [liveArtifacts, setLiveArtifacts] = useState<OrchestratorArtifact[]>([]);
-  const [sessionMode, setSessionModeState] = useState<OrchestratorSessionMode>("planning");
+  const [sessionMode, setSessionModeState] = useState<OrchestratorSessionMode>("auto");
+  const [effectiveSessionMode, setEffectiveSessionMode] = useState<OperationalSessionMode>("casual");
+  const [draftGenerating, setDraftGenerating] = useState(false);
+  const [activeDraftBlogId, setActiveDraftBlogId] = useState<string | null>(null);
   const [selectionContext, setSelectionContext] = useState<OrchestratorSelectionContext | null>(null);
+  const composerFocusRef = useRef<(() => void) | null>(null);
+  const focusComposer = useCallback(() => {
+    composerFocusRef.current?.();
+  }, []);
   const [pendingAttachments, setPendingAttachments] = useState<OrchestratorChatAttachment[]>([]);
   const [voiceMode, setVoiceMode] = useState(false);
   const [conversationMode, setConversationMode] = useState(false);
   const [resultsPanelOpen, setResultsPanelOpen] = useState(false);
   const [selectedArtifactId, setSelectedArtifactIdState] = useState<string | null>(null);
+
+  const isWritingPinned = isWritingEffectiveMode(sessionMode, effectiveSessionMode);
 
   useEffect(() => {
     if (currentSiteId) {
@@ -79,11 +104,40 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   }, [currentSiteId]);
 
   useEffect(() => {
-    setResultsPanelOpen(false);
+  // #region agent log
+  fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+    body: JSON.stringify({
+      sessionId: "4b087c",
+      runId: "dashboard-toggle",
+      hypothesisId: "H3-context-clear",
+      location: "orchestrator-provider.tsx:threadId-effect",
+      message: "threadId changed — clearing selectionContext",
+      data: {
+        threadId,
+        isWritingPinned,
+        clearsSelection: true,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
+    if (!isWritingPinned) {
+      setResultsPanelOpen(false);
+    }
     setSelectedArtifactIdState(null);
     setConversationMode(false);
     setVoiceMode(false);
-  }, [threadId]);
+    setDraftGenerating(false);
+    setSelectionContext(null);
+  }, [threadId, isWritingPinned]);
+
+  useEffect(() => {
+    if (isWritingPinned) {
+      setResultsPanelOpen(true);
+    }
+  }, [isWritingPinned]);
 
   const enterConversationMode = useCallback(() => {
     setConversationMode(true);
@@ -105,6 +159,10 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       if (currentSiteId && typeof window !== "undefined") {
         localStorage.setItem(`${SESSION_MODE_KEY}:${currentSiteId}`, mode);
       }
+      if (mode !== "auto" && mode !== "writing") {
+        // manual operational lock
+        setEffectiveSessionMode(mode);
+      }
     },
     [currentSiteId]
   );
@@ -112,6 +170,38 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const addLiveArtifacts = useCallback((artifacts: OrchestratorArtifact[]) => {
     if (artifacts.length === 0) return;
     setLiveArtifacts((prev) => [...prev, ...artifacts]);
+  }, []);
+
+  const mergeLiveArtifacts = useCallback((artifacts: OrchestratorArtifact[]) => {
+    if (artifacts.length === 0) return;
+    setLiveArtifacts((prev) => {
+      const next = [...prev];
+      for (const artifact of artifacts) {
+        const blogId =
+          typeof artifact.outputData.blog_id === "string"
+            ? artifact.outputData.blog_id
+            : typeof artifact.outputData.id === "string"
+              ? artifact.outputData.id
+              : null;
+        const idx = blogId
+          ? next.findIndex((a) => {
+              const id =
+                typeof a.outputData.blog_id === "string"
+                  ? a.outputData.blog_id
+                  : typeof a.outputData.id === "string"
+                    ? a.outputData.id
+                    : null;
+              return id === blogId;
+            })
+          : -1;
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], ...artifact, id: next[idx].id };
+        } else {
+          next.push(artifact);
+        }
+      }
+      return next;
+    });
   }, []);
 
   const clearLiveArtifacts = useCallback(() => setLiveArtifacts([]), []);
@@ -134,8 +224,9 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const closeResultsPanel = useCallback(() => {
+    if (isWritingPinned) return;
     setResultsPanelOpen(false);
-  }, []);
+  }, [isWritingPinned]);
 
   const setSelectedArtifactId = useCallback((artifactId: string | null) => {
     setSelectedArtifactIdState(artifactId);
@@ -156,11 +247,21 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       setThreadId,
       liveArtifacts,
       addLiveArtifacts,
+      mergeLiveArtifacts,
       clearLiveArtifacts,
       sessionMode,
       setSessionMode,
+      effectiveSessionMode,
+      setEffectiveSessionMode,
+      isWritingPinned,
+      draftGenerating,
+      setDraftGenerating,
+      activeDraftBlogId,
+      setActiveDraftBlogId,
       selectionContext,
       setSelectionContext,
+      composerFocusRef,
+      focusComposer,
       pendingAttachments,
       addPendingAttachment,
       removePendingAttachment,
@@ -184,10 +285,16 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       setThreadId,
       liveArtifacts,
       addLiveArtifacts,
+      mergeLiveArtifacts,
       clearLiveArtifacts,
       sessionMode,
       setSessionMode,
+      effectiveSessionMode,
+      isWritingPinned,
+      draftGenerating,
+      activeDraftBlogId,
       selectionContext,
+      focusComposer,
       pendingAttachments,
       addPendingAttachment,
       removePendingAttachment,

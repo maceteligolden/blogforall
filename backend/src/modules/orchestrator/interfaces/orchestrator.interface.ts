@@ -206,6 +206,9 @@ export interface ChatTurnResponse {
     output_data?: unknown;
   }>;
   pending_approval: SerializedApproval | null;
+  /** Effective operational mode used for this turn (never "auto"). */
+  active_session_mode: "planning" | "writing" | "research" | "review" | "casual" | "strategy";
+  session_mode_source?: "explicit" | "manual" | "inferred";
   workspace_status: "onboarding" | "active";
   /** True when the supervisor flipped Site.status during this turn. */
   onboarding_completed: boolean;

@@ -1,20 +1,39 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { validatePassword } from "@/lib/utils/password-validation";
-import Link from "next/link";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { captureEvent } from "@/lib/analytics/posthog";
 import { AnalyticsEvents } from "@/lib/analytics/events";
+import { DeveloperDocsBanner } from "@/components/settings/developer-docs-banner";
+import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
+import { BusinessContextPanel } from "@/components/settings/business-context-panel";
+import { cn } from "@/lib/utils/cn";
 
-export default function ProfilePage() {
+type SettingsTab = "profile" | "password" | "business" | "developer";
+
+const TAB_LABELS: Record<SettingsTab, string> = {
+  profile: "Profile",
+  password: "Password",
+  business: "Business",
+  developer: "Developer",
+};
+
+function parseTab(value: string | null): SettingsTab {
+  if (value === "password" || value === "business" || value === "developer") return value;
+  return "profile";
+}
+
+function ProfileSettingsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = parseTab(searchParams.get("tab"));
   const { user, updateProfile, changePassword, profileQuery, isUpdatingProfile, isChangingPassword } = useAuth();
   const [profileForm, setProfileForm] = useState({
     first_name: "",
@@ -28,8 +47,20 @@ export default function ProfilePage() {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
   const [isNewPasswordValid, setIsNewPasswordValid] = useState(false);
+
+  const setTab = (tab: SettingsTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "profile") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const qs = params.toString();
+    router.replace(qs ? `/dashboard/profile?${qs}` : "/dashboard/profile", { scroll: false });
+    setError("");
+    setSuccess("");
+  };
 
   useEffect(() => {
     if (user) {
@@ -117,10 +148,10 @@ export default function ProfilePage() {
 
   if (profileQuery?.isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-          <p className="text-gray-400">Loading profile...</p>
+          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          <p className="text-gray-400">Loading settings...</p>
         </div>
       </div>
     );
@@ -128,140 +159,115 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb items={[{ label: "Profile" }]} />
-        <h1 className="text-2xl font-display text-white mb-6">Profile Settings</h1>
+      <div className="mx-auto max-w-7xl px-6 py-6 lg:px-8">
+        <Breadcrumb items={[{ label: "Settings" }]} />
+        <h1 className="mb-6 font-display text-2xl text-white">Settings</h1>
 
-        {/* Main Content */}
-        <main className="max-w-4xl mx-auto">
-          {/* Tabs */}
-          <div className="mb-8 flex space-x-4 border-b border-gray-800">
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`pb-4 px-4 font-medium transition-colors ${
-                activeTab === "profile" ? "text-primary border-b-2 border-primary" : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Profile Information
-            </button>
-            <button
-              onClick={() => setActiveTab("password")}
-              className={`pb-4 px-4 font-medium transition-colors ${
-                activeTab === "password" ? "text-primary border-b-2 border-primary" : "text-gray-400 hover:text-white"
-              }`}
-            >
-              Change Password
-            </button>
+        <main className="mx-auto max-w-4xl">
+          <div className="mb-8 flex gap-1 overflow-x-auto border-b border-gray-800">
+            {(Object.keys(TAB_LABELS) as SettingsTab[]).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setTab(tab)}
+                className={cn(
+                  "shrink-0 px-4 pb-4 font-medium transition-colors",
+                  activeTab === tab ? "border-b-2 border-primary text-primary" : "text-gray-400 hover:text-white"
+                )}
+              >
+                {TAB_LABELS[tab]}
+              </button>
+            ))}
           </div>
 
-          {/* Success/Error Messages */}
-          {success && (
-            <div className="mb-6 rounded-md bg-green-900/20 border border-green-800 p-4 text-sm text-green-400">
+          {activeTab !== "developer" && activeTab !== "business" && success && (
+            <div className="mb-6 rounded-md border border-green-800 bg-green-900/20 p-4 text-sm text-green-400">
               {success}
             </div>
           )}
-          {error && (
-            <div className="mb-6 rounded-md bg-red-900/20 border border-red-800 p-4 text-sm text-red-400">{error}</div>
+          {activeTab !== "developer" && activeTab !== "business" && error && (
+            <div className="mb-6 rounded-md border border-red-800 bg-red-900/20 p-4 text-sm text-red-400">{error}</div>
           )}
 
-          {/* Profile Tab */}
           {activeTab === "profile" && (
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">Update Your Profile</h2>
+            <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
+              <h2 className="mb-6 text-xl font-semibold text-white">Profile information</h2>
               <form onSubmit={handleProfileSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div>
                     <Label htmlFor="first_name" className="text-gray-300">
-                      First Name *
+                      First name *
                     </Label>
                     <Input
                       id="first_name"
                       value={profileForm.first_name}
                       onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })}
-                      className="mt-1 bg-black border-gray-700 text-white"
+                      className="mt-1 border-gray-700 bg-black text-white"
                       required
                     />
                   </div>
                   <div>
                     <Label htmlFor="last_name" className="text-gray-300">
-                      Last Name *
+                      Last name *
                     </Label>
                     <Input
                       id="last_name"
                       value={profileForm.last_name}
                       onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })}
-                      className="mt-1 bg-black border-gray-700 text-white"
+                      className="mt-1 border-gray-700 bg-black text-white"
                       required
                     />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="phone_number" className="text-gray-300">
-                    Phone Number
+                    Phone number
                   </Label>
                   <Input
                     id="phone_number"
                     value={profileForm.phone_number}
                     onChange={(e) => setProfileForm({ ...profileForm, phone_number: e.target.value })}
-                    className="mt-1 bg-black border-gray-700 text-white"
+                    className="mt-1 border-gray-700 bg-black text-white"
                     type="tel"
                   />
                 </div>
                 <div>
                   <Label className="text-gray-300">Email</Label>
-                  <Input
-                    value={user?.email || ""}
-                    className="mt-1 bg-gray-800 border-gray-700 text-gray-400"
-                    disabled
-                  />
+                  <Input value={user?.email || ""} className="mt-1 border-gray-700 bg-gray-800 text-gray-400" disabled />
                   <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
                 </div>
-                <div className="flex space-x-4">
-                  <Button
-                    type="submit"
-                    className="bg-primary hover:bg-primary/90 text-white"
-                    disabled={isUpdatingProfile}
-                  >
-                    {isUpdatingProfile ? "Saving..." : "Save Changes"}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                    onClick={() => router.push("/dashboard")}
-                  >
-                    Cancel
-                  </Button>
-                </div>
+                <Button type="submit" className="bg-primary text-white hover:bg-primary/90" disabled={isUpdatingProfile}>
+                  {isUpdatingProfile ? "Saving..." : "Save changes"}
+                </Button>
               </form>
             </div>
           )}
 
-          {/* Password Tab */}
           {activeTab === "password" && (
-            <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
-              <h2 className="text-xl font-semibold text-white mb-6">Change Your Password</h2>
+            <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
+              <h2 className="mb-6 text-xl font-semibold text-white">Change password</h2>
               <form onSubmit={handlePasswordSubmit} className="space-y-6">
                 <div>
                   <Label htmlFor="old_password" className="text-gray-300">
-                    Current Password *
+                    Current password *
                   </Label>
                   <PasswordInput
                     id="old_password"
                     value={passwordForm.old_password}
                     onChange={(e) => setPasswordForm({ ...passwordForm, old_password: e.target.value })}
-                    className="mt-1 bg-black border-gray-700 text-white"
+                    className="mt-1 border-gray-700 bg-black text-white"
                     required
                   />
                 </div>
                 <div>
                   <Label htmlFor="new_password" className="text-gray-300">
-                    New Password *
+                    New password *
                   </Label>
                   <PasswordInput
                     id="new_password"
                     value={passwordForm.new_password}
                     onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })}
-                    className="mt-1 bg-black border-gray-700 text-white"
+                    className="mt-1 border-gray-700 bg-black text-white"
                     required
                     showValidation={true}
                     onValidationChange={setIsNewPasswordValid}
@@ -272,13 +278,13 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <Label htmlFor="confirm_password" className="text-gray-300">
-                    Confirm New Password *
+                    Confirm new password *
                   </Label>
                   <PasswordInput
                     id="confirm_password"
                     value={passwordForm.confirm_password}
                     onChange={(e) => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })}
-                    className="mt-1 bg-black border-gray-700 text-white"
+                    className="mt-1 border-gray-700 bg-black text-white"
                     required
                   />
                   {passwordForm.confirm_password && passwordForm.new_password !== passwordForm.confirm_password && (
@@ -288,34 +294,48 @@ export default function ProfilePage() {
                     <p className="mt-1 text-xs text-green-500">Passwords match</p>
                   )}
                 </div>
-                <div className="flex space-x-4">
-                  <Button
-                    type="submit"
-                    className="bg-primary hover:bg-primary/90 text-white"
-                    disabled={isChangingPassword || !isNewPasswordValid}
-                  >
-                    {isChangingPassword ? "Changing..." : "Change Password"}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                    onClick={() => {
-                      setPasswordForm({
-                        old_password: "",
-                        new_password: "",
-                        confirm_password: "",
-                      });
-                      setError("");
-                    }}
-                  >
-                    Clear
-                  </Button>
-                </div>
+                <Button
+                  type="submit"
+                  className="bg-primary text-white hover:bg-primary/90"
+                  disabled={isChangingPassword || !isNewPasswordValid}
+                >
+                  {isChangingPassword ? "Changing..." : "Change password"}
+                </Button>
               </form>
+            </div>
+          )}
+
+          {activeTab === "business" && (
+            <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
+              <BusinessContextPanel />
+            </div>
+          )}
+
+          {activeTab === "developer" && (
+            <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
+              <DeveloperDocsBanner />
+              <ApiKeysPanel />
             </div>
           )}
         </main>
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-black">
+          <div className="text-center">
+            <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+            <p className="text-gray-400">Loading settings...</p>
+          </div>
+        </div>
+      }
+    >
+      <ProfileSettingsContent />
+    </Suspense>
   );
 }

@@ -38,6 +38,15 @@ export enum SiteStatus {
   ACTIVE = "active",
 }
 
+/** Owner signup wizard stages (derived from sites + user fields). */
+export enum SignupWizardStage {
+  WORKSPACE_NAME = "workspace_name",
+  BUSINESS_CHAT = "business_chat",
+  PLAN_SELECTION = "plan_selection",
+  INVITE = "invite",
+  COMPLETE = "complete",
+}
+
 export enum InvitationStatus {
   PENDING = "pending",
   ACCEPTED = "accepted",

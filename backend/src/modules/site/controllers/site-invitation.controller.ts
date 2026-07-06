@@ -84,4 +84,25 @@ export class SiteInvitationController {
       next(error);
     }
   };
+
+  getInvitationPreview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { token } = req.validatedParams as { token: string };
+      const preview = await this.invitationService.getInvitationPreview(token);
+      sendSuccess(res, "Invitation preview retrieved successfully", preview);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resendInvitation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user!.userId;
+      const { id: siteId, invitationId } = req.validatedParams as { id: string; invitationId: string };
+      const invitation = await this.invitationService.resendInvitation(siteId, invitationId, userId);
+      sendSuccess(res, "Invitation resent successfully", invitation);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

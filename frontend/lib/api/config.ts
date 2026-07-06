@@ -19,6 +19,7 @@ export const API_ENDPOINTS = {
     FORGOT_PASSWORD: "/auth/forgot-password",
     VERIFY_RESET_CODE: "/auth/verify-reset-code",
     RESET_PASSWORD: "/auth/reset-password",
+    ABANDON_SIGNUP: "/auth/abandon-signup",
   },
   BLOGS: {
     CREATE: (siteId: string) => `/sites/${siteId}/blogs`,
@@ -88,6 +89,10 @@ export const API_ENDPOINTS = {
     STATUS: "/onboarding/status",
     COMPLETE: "/onboarding/complete",
     SKIP: "/onboarding/skip",
+    INVITE_PROMPT: "/onboarding/invite-prompt",
+    DISMISS_INVITE_PROMPT: "/onboarding/invite-prompt/dismiss",
+    SIGNUP_WIZARD: "/onboarding/signup-wizard",
+    COMPLETE_PLAN_SELECTION: "/onboarding/plan-selection/complete",
   },
   SITES: {
     CREATE: "/sites",
@@ -103,12 +108,15 @@ export const API_ENDPOINTS = {
     CREATE_INVITATION: (siteId: string) => `/sites/${siteId}/invitations`,
     GET_INVITATIONS: (siteId: string) => `/sites/${siteId}/invitations`,
     CANCEL_INVITATION: (siteId: string, invitationId: string) => `/sites/${siteId}/invitations/${invitationId}`,
+    RESEND_INVITATION: (siteId: string, invitationId: string) => `/sites/${siteId}/invitations/${invitationId}/resend`,
+    GET_MY_MEMBERSHIP: (siteId: string) => `/sites/${siteId}/members/me`,
     LIST_API_KEYS: (siteId: string) => `/sites/${siteId}/api-keys`,
     CREATE_API_KEY: (siteId: string) => `/sites/${siteId}/api-keys`,
     DELETE_API_KEY: (siteId: string, accessKeyId: string) => `/sites/${siteId}/api-keys/${accessKeyId}`,
   },
   INVITATIONS: {
     LIST: "/invitations",
+    PREVIEW: (token: string) => `/invitations/${token}/preview`,
     ACCEPT: (token: string) => `/invitations/${token}/accept`,
     REJECT: (token: string) => `/invitations/${token}/reject`,
   },
@@ -177,6 +185,11 @@ export const API_ENDPOINTS = {
     KNOWLEDGE_ITEM: (siteId: string, id: string) => `/sites/${siteId}/orchestrator/knowledge/${id}`,
     GOOGLE_DRIVE_AUTH: (siteId: string) => `/sites/${siteId}/orchestrator/knowledge/google/auth`,
   },
+  MEMORY: {
+    GET: (siteId: string) => `/sites/${siteId}/memory`,
+    STRATEGY: (siteId: string) => `/sites/${siteId}/memory/strategy`,
+    GENERATE_STRATEGY: (siteId: string) => `/sites/${siteId}/memory/strategy/generate`,
+  },
   /**
    * Public, token-authenticated scheduled-post review endpoints. Reached
    * from the weekly digest email link; no JWT, no dashboard required.
@@ -226,5 +239,7 @@ export const QUERY_KEYS = {
   ORCHESTRATOR_THREAD: (siteId: string, threadId: string) => ["orchestrator", siteId, "threads", threadId],
   ORCHESTRATOR_APPROVALS: (siteId: string) => ["orchestrator", siteId, "approvals"],
   ORCHESTRATOR_KNOWLEDGE: (siteId: string) => ["orchestrator", siteId, "knowledge"],
+  WORKSPACE_MEMORY: (siteId: string) => ["memory", siteId],
+  WORKSPACE_STRATEGY: (siteId: string) => ["memory", siteId, "strategy"],
   TOKEN_USAGE: ["usage", "tokens"],
 };

@@ -11,6 +11,7 @@ import type {
   ThreadWithMessages,
   WorkspaceKnowledgeSource,
 } from "../types/orchestrator.types";
+import type { OrchestratorSelectionContext } from "@/lib/types/orchestrator-session.types";
 
 const ORCHESTRATOR_TURN_TIMEOUT_MS = 180_000;
 
@@ -22,19 +23,24 @@ export class OrchestratorService {
     options?: {
       sessionMode?: OrchestratorSessionMode;
       attachments?: OrchestratorChatAttachment[];
-      selectionContext?: { blogId: string; selectedText: string };
+      selectionContext?: OrchestratorSelectionContext;
+      conversationMode?: boolean;
     }
   ): Promise<ChatTurnResponse> {
     const body: OrchestratorChatRequest = {
       message,
       ...(threadId ? { thread_id: threadId } : {}),
       ...(options?.sessionMode ? { session_mode: options.sessionMode } : {}),
+      ...(options?.conversationMode ? { conversation_mode: true } : {}),
       ...(options?.attachments?.length ? { attachments: options.attachments } : {}),
       ...(options?.selectionContext
         ? {
             selection_context: {
               blog_id: options.selectionContext.blogId,
-              text: options.selectionContext.selectedText,
+              reference_type: options.selectionContext.referenceType,
+              ...(options.selectionContext.referenceType === "highlight" && options.selectionContext.selectedText
+                ? { text: options.selectionContext.selectedText }
+                : {}),
             },
           }
         : {}),

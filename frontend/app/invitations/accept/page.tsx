@@ -2,9 +2,11 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useInvitationResponseMutations } from "@/lib/hooks/use-invitation-response-mutations";
+import { SiteInvitationService } from "@/lib/api/services/site-invitation.service";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
@@ -18,6 +20,17 @@ function AcceptInviteContent() {
   const [status, setStatus] = useState<InvitationStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
 
+  const {
+    data: preview,
+    isLoading: previewLoading,
+    error: previewError,
+  } = useQuery({
+    queryKey: ["invitation-preview", token],
+    queryFn: () => SiteInvitationService.getInvitationPreview(token!),
+    enabled: !!token,
+    retry: false,
+  });
+
   const { acceptMutation, rejectMutation } = useInvitationResponseMutations({
     token,
     onAcceptSuccess: () => setStatus("accepted"),
@@ -30,11 +43,20 @@ function AcceptInviteContent() {
   });
 
   useEffect(() => {
-    if (!isAuthenticated && typeof window !== "undefined" && token) {
+    if (!token || previewLoading || !preview) return;
+    if (!isAuthenticated) {
+      if (preview.requires_signup) {
+        const params = new URLSearchParams({
+          invite: token,
+          email: preview.email,
+        });
+        router.replace(`/auth/signup?${params.toString()}`);
+        return;
+      }
       const returnUrl = `/invitations/accept?token=${encodeURIComponent(token)}`;
-      router.push(`/auth/login?redirect=${encodeURIComponent(returnUrl)}`);
+      router.replace(`/auth/login?redirect=${encodeURIComponent(returnUrl)}`);
     }
-  }, [isAuthenticated, router, token]);
+  }, [isAuthenticated, preview, previewLoading, router, token]);
 
   useEffect(() => {
     if (status === "accepted") {
@@ -42,14 +64,6 @@ function AcceptInviteContent() {
       return () => clearTimeout(t);
     }
   }, [status, router]);
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="animate-pulse">Redirecting to sign in...</div>
-      </div>
-    );
-  }
 
   if (!token) {
     return (
@@ -66,13 +80,52 @@ function AcceptInviteContent() {
     );
   }
 
+  if (previewLoading || (!isAuthenticated && preview && !preview.requires_signup)) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="animate-pulse">Loading invitation...</div>
+      </div>
+    );
+  }
+
+  if (previewError) {
+    const message =
+      (previewError as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+      "This invitation is no longer valid.";
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-400 mb-4">{message}</p>
+          <Link href="/auth/login" className="text-primary hover:underline">
+            Sign in
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="animate-pulse">Redirecting...</div>
+      </div>
+    );
+  }
+
+  const roleLabel = preview?.role ? preview.role.charAt(0).toUpperCase() + preview.role.slice(1) : "Member";
+
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-lg bg-gray-900 border border-gray-800 p-8 text-center">
         {status === "idle" && (
           <>
             <h1 className="text-2xl font-bold text-white mb-2">Workspace invitation</h1>
-            <p className="text-gray-400 mb-6">You have been invited to join a workspace. Accept to get access.</p>
+            <p className="text-gray-400 mb-2">
+              <strong className="text-white">{preview?.inviter_name}</strong> invited you to join{" "}
+              <strong className="text-white">{preview?.site_name}</strong> as {roleLabel}.
+            </p>
+            <p className="text-xs text-gray-500 mb-6">Invitation for {preview?.email}</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
                 variant="outline"

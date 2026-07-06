@@ -44,79 +44,71 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      {/* Gradient Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-black to-black pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(30,64,175,0.1),transparent_50%)] pointer-events-none" />
-
-      <div className="relative flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-md space-y-8 rounded-lg bg-gray-900/80 backdrop-blur-sm border border-gray-800 p-8 shadow-xl">
-          <AuthPageHeader title="Sign in to your account" subtitle="Manage your blogs with ease" />
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
-            )}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email" className="text-gray-300">
-                  Email address
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-gray-300">
-                    Password
-                  </Label>
-                  <button
-                    type="button"
-                    onClick={() => router.push("/auth/forgot-password")}
-                    className="text-sm font-medium text-primary hover:text-primary/80"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-                <PasswordInput
-                  id="password"
-                  name="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign in"}
-              </Button>
-            </div>
-
-            <div className="text-center text-sm">
-              <span className="text-gray-400">Don&apos;t have an account? </span>
+    <>
+      <AuthPageHeader title="Sign in to your account" subtitle="Manage your blogs with ease" />
+      <form className="space-y-6" onSubmit={handleSubmit}>
+        {error && (
+          <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
+        )}
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="email" className="text-gray-300">
+              Email address
+            </Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+          <div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-gray-300">
+                Password
+              </Label>
               <button
                 type="button"
-                onClick={() => router.push("/auth/signup")}
-                className="font-medium text-primary hover:text-primary/80"
+                onClick={() => router.push("/auth/forgot-password")}
+                className="text-sm font-medium text-primary hover:text-primary/80"
               >
-                Sign up
+                Forgot password?
               </button>
             </div>
-          </form>
+            <PasswordInput
+              id="password"
+              name="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-1 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div>
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? "Signing in..." : "Sign in"}
+          </Button>
+        </div>
+
+        <div className="text-center text-sm">
+          <span className="text-gray-400">Don&apos;t have an account? </span>
+          <button
+            type="button"
+            onClick={() => router.push("/auth/signup")}
+            className="font-medium text-primary hover:text-primary/80"
+          >
+            Sign up
+          </button>
+        </div>
+      </form>
+    </>
   );
 }
 
@@ -124,9 +116,9 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
             <p className="text-gray-400">Loading...</p>
           </div>
         </div>

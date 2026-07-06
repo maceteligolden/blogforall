@@ -7,6 +7,7 @@ export interface SignupInput {
   accept_terms: boolean;
   terms_version?: string;
   referral_code?: string;
+  invite_token?: string;
 }
 
 export interface LoginInput {

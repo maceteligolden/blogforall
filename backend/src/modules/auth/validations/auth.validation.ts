@@ -11,6 +11,7 @@ export const signupSchema = z.object({
   }),
   terms_version: z.string().optional(),
   referral_code: z.string().trim().min(4).max(32).optional(),
+  invite_token: z.string().trim().min(16).max(128).optional(),
 });
 
 export const loginSchema = z.object({

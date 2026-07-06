@@ -3,6 +3,7 @@ import WorkspaceMemoryModel, {
   WorkspaceMemory,
   WORKSPACE_MEMORY_DEFAULTS,
 } from "../../../shared/schemas/workspace-memory.schema";
+import { sanitizeMemoryPatch } from "../../orchestrator/utils/sanitize-memory-patch.helper";
 
 /**
  * Persistent, per-workspace memory used by the Workspace Orchestrator Agent.
@@ -42,6 +43,9 @@ export class WorkspaceMemoryRepository {
       content_summary: "",
       performance_summary: {},
       memory_summary: "",
+      behavioral_rules: [],
+      strategy_state: { ...WORKSPACE_MEMORY_DEFAULTS.strategy_state },
+      engagement_signals: [],
       version: 1,
       updated_by: updatedBy,
     });
@@ -57,11 +61,52 @@ export class WorkspaceMemoryRepository {
     patch: Partial<Omit<WorkspaceMemory, "_id" | "site_id" | "version" | "created_at">>,
     updatedBy?: string
   ): Promise<WorkspaceMemory | null> {
+    const rawPatch = patch as Record<string, unknown>;
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+      body: JSON.stringify({
+        sessionId: "4b087c",
+        hypothesisId: "A",
+        location: "workspace-memory.repository.ts:update:before",
+        message: "memory patch before sanitize",
+        data: {
+          siteId,
+          defaultWordCount: (rawPatch.preferences as Record<string, unknown> | undefined)?.default_word_count,
+          dotPathDefaultWordCount: rawPatch["preferences.default_word_count"],
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
+    const sanitized = sanitizeMemoryPatch(rawPatch);
+
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+      body: JSON.stringify({
+        sessionId: "4b087c",
+        hypothesisId: "B",
+        location: "workspace-memory.repository.ts:update:after",
+        message: "memory patch after sanitize",
+        data: {
+          siteId,
+          defaultWordCount: (sanitized.preferences as Record<string, unknown> | undefined)?.default_word_count,
+          dotPathDefaultWordCount: sanitized["preferences.default_word_count"],
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
     return WorkspaceMemoryModel.findOneAndUpdate(
       { site_id: siteId },
       {
         $set: {
-          ...patch,
+          ...sanitized,
           updated_at: new Date(),
           ...(updatedBy ? { updated_by: updatedBy } : {}),
         },

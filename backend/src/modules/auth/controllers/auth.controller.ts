@@ -133,4 +133,14 @@ export class AuthController {
       next(error);
     }
   };
+
+  abandonSignup = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      await this.authService.abandonSignup(userId);
+      sendNoContent(res, "Signup abandoned");
+    } catch (error) {
+      next(error);
+    }
+  };
 }

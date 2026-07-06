@@ -12,6 +12,7 @@ import { env } from "../../../shared/config/env";
 import { ApiKeyRepository } from "../../api-key/repositories/api-key.repository";
 import type { SiteMember as SiteMemberType } from "../../../shared/schemas/site-member.schema";
 import { mongooseDocToPlain } from "../../../shared/utils/mongoose-plain.util";
+import SiteInvitation from "../../../shared/schemas/site-invitation.schema";
 
 @injectable()
 export class SiteService {
@@ -136,6 +137,13 @@ export class SiteService {
   }
 
   /**
+   * Get sites owned by the user.
+   */
+  async getOwnedSitesByUser(userId: string): Promise<Site[]> {
+    return this.siteRepository.findByOwner(userId);
+  }
+
+  /**
    * Ensure user has at least one workspace; create one with default name from env if none.
    * Returns the created site or null if user already had sites.
    */
@@ -221,6 +229,8 @@ export class SiteService {
 
     // Delete all site members
     await this.siteMemberRepository.deleteBySite(siteId);
+
+    await SiteInvitation.deleteMany({ site_id: siteId });
 
     // Delete the site
     await this.siteRepository.delete(siteId);

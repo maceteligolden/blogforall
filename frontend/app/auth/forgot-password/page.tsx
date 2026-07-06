@@ -100,13 +100,8 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-black to-black pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(30,64,175,0.1),transparent_50%)] pointer-events-none" />
-
-      <div className="relative flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-md space-y-8 rounded-lg bg-gray-900/80 backdrop-blur-sm border border-gray-800 p-8 shadow-xl">
-          <AuthPageHeader
+    <>
+      <AuthPageHeader
             title={
               step === "done"
                 ? "Password updated"
@@ -257,8 +252,6 @@ export default function ForgotPasswordPage() {
               </Button>
             </div>
           )}
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

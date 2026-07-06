@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Paperclip, Phone, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
@@ -9,7 +9,49 @@ import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
 import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import { BlogService } from "@/lib/api/services/blog.service";
 import { useAuthStore } from "@/lib/store/auth.store";
+import type { OrchestratorSelectionContext } from "@/lib/types/orchestrator-session.types";
 import { ChatModeSelector } from "./chat-mode-selector";
+
+function SelectionReferenceChip({
+  context,
+  onClear,
+}: {
+  context: OrchestratorSelectionContext;
+  onClear: () => void;
+}) {
+  const excerpt =
+    context.referenceType === "highlight" && context.selectedText
+      ? context.selectedText.length > 80
+        ? `${context.selectedText.slice(0, 80)}…`
+        : context.selectedText
+      : null;
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-xs text-primary">
+      <span className="flex-1 truncate">
+        {context.referenceType === "highlight" && excerpt ? (
+          <>
+            Discussion focus: <span className="font-medium">{context.blogTitle}</span>
+            {" — "}
+            &ldquo;{excerpt}&rdquo;
+          </>
+        ) : (
+          <>
+            Referencing draft: <span className="font-medium">{context.blogTitle}</span>
+          </>
+        )}
+      </span>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label="Clear reference"
+        className="text-primary/80 hover:text-primary shrink-0"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
 
 export interface ChatComposerProps {
   value: string;
@@ -36,8 +78,10 @@ export function ChatComposer({
   const {
     sessionMode,
     setSessionMode,
+    effectiveSessionMode,
     selectionContext,
     setSelectionContext,
+    composerFocusRef,
     pendingAttachments,
     addPendingAttachment,
     removePendingAttachment,
@@ -48,6 +92,41 @@ export function ChatComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isListening, setIsListening] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    composerFocusRef.current = () => textareaRef.current?.focus();
+    return () => {
+      composerFocusRef.current = null;
+    };
+  }, [composerFocusRef]);
+
+  useEffect(() => {
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+      body: JSON.stringify({
+        sessionId: "4b087c",
+        runId: "dashboard-toggle",
+        hypothesisId: "H3-selection-visible",
+        location: "chat-composer.tsx:selectionContext",
+        message: "selectionContext changed",
+        data: {
+          hasContext: !!selectionContext,
+          referenceType: selectionContext?.referenceType ?? null,
+          blogId: selectionContext?.blogId ?? null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+  }, [selectionContext]);
+
+  const resolvedPlaceholder = selectionContext
+    ? selectionContext.referenceType === "highlight"
+      ? "Ask about this selection — explain, rephrase, or ask me to update the draft…"
+      : "Ask about this draft or selection…"
+    : placeholder;
 
   const {
     isSupported: sttSupported,
@@ -111,20 +190,7 @@ export function ChatComposer({
   return (
     <div className={cn("space-y-2", className)}>
       {selectionContext && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-xs text-primary">
-          <span className="flex-1 truncate">
-            AI will focus on: &ldquo;{selectionContext.selectedText.slice(0, 80)}
-            {selectionContext.selectedText.length > 80 ? "…" : ""}&rdquo;
-          </span>
-          <button
-            type="button"
-            onClick={() => setSelectionContext(null)}
-            aria-label="Clear selection focus"
-            className="text-primary/80 hover:text-primary"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <SelectionReferenceChip context={selectionContext} onClear={() => setSelectionContext(null)} />
       )}
 
       {pendingAttachments.length > 0 && (
@@ -160,7 +226,7 @@ export function ChatComposer({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           rows={1}
           disabled={disabled}
           autoFocus={autoFocus}
@@ -169,7 +235,12 @@ export function ChatComposer({
 
         <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-800/80 mt-1">
           <div className="flex items-center gap-0.5">
-            <ChatModeSelector value={sessionMode} onChange={setSessionMode} disabled={disabled} />
+            <ChatModeSelector
+              value={sessionMode}
+              effectiveMode={effectiveSessionMode}
+              onChange={setSessionMode}
+              disabled={disabled}
+            />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}

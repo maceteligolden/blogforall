@@ -16,5 +16,9 @@ router.post(
   onboardingController.completeOnboarding
 );
 router.post("/skip", authMiddleware, onboardingController.skipOnboarding);
+router.get("/invite-prompt", authMiddleware, onboardingController.getInvitePromptStatus);
+router.post("/invite-prompt/dismiss", authMiddleware, onboardingController.dismissInvitePrompt);
+router.get("/signup-wizard", authMiddleware, onboardingController.getSignupWizardStatus);
+router.post("/plan-selection/complete", authMiddleware, onboardingController.completePlanSelection);
 
 export default router;

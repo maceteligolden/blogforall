@@ -11,6 +11,8 @@ export const siteInvitationCancelParamSchema = z.object({
   invitationId: z.string().min(1, "Invitation id is required"),
 });
 
+export const siteInvitationResendParamSchema = siteInvitationCancelParamSchema;
+
 export const invitationTokenParamSchema = z.object({
   token: z.string().min(1, "Invitation token is required"),
 });

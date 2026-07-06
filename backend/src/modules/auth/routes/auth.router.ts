@@ -32,5 +32,6 @@ router.get("/profile", authMiddleware, authController.getProfile);
 router.put("/profile", authMiddleware, validateBody(updateProfileSchema), authController.updateProfile);
 router.put("/change-password", authMiddleware, validateBody(changePasswordSchema), authController.changePassword);
 router.put("/site-context", authMiddleware, validateBody(updateSiteContextSchema), authController.updateSiteContext);
+router.post("/abandon-signup", authMiddleware, authController.abandonSignup);
 
 export default router;

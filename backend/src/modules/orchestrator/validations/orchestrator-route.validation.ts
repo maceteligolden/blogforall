@@ -22,11 +22,16 @@ export const approvalIdParamSchema = z.object({
 export const orchestratorChatBodySchema = z.object({
   thread_id: z.string().min(1).optional(),
   message: z.string().min(1).max(8000),
-  session_mode: z.enum(["planning", "writing", "research", "review", "casual"]).optional(),
+  session_mode: z.enum(["auto", "planning", "writing", "research", "review", "casual", "strategy"]).optional(),
+  conversation_mode: z.boolean().optional(),
   selection_context: z
     .object({
       blog_id: z.string().min(1),
-      text: z.string().min(1).max(4000),
+      reference_type: z.enum(["highlight", "blog"]).default("highlight"),
+      text: z.string().max(4000).optional(),
+    })
+    .refine((v) => v.reference_type === "blog" || (v.text?.trim().length ?? 0) > 0, {
+      message: "text required for highlight references",
     })
     .optional(),
   attachments: z

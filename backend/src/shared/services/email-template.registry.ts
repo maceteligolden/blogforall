@@ -13,7 +13,7 @@ export interface RenderedEmail {
  * or to code-backed subject/html/text. Add or change templates here only.
  */
 const BREVO_TEMPLATE_IDS: Partial<Record<EmailTemplateKey, number>> = {
-  [EMAIL_TEMPLATE_KEYS.SITE_INVITATION]: 1,
+  // SITE_INVITATION uses code-backed HTML (signup vs accept CTA, expiry text).
   [EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST]: 3,
 };
 
@@ -224,14 +224,20 @@ function buildSiteInvitationHtml(params: Record<string, string>): string {
   const roleLabel = params.roleLabel ?? "member";
   const acceptUrl = params.acceptUrl ?? "#";
   const expiresAt = params.expiresAt ?? "";
+  const isNewUser = params.isNewUser === "true";
+  const ctaLabel = isNewUser ? "Create account & join" : "Accept invitation";
+  const intro = isNewUser
+    ? `<p>You don't have a Bloggr account yet. Create one with the same email address to join the workspace.</p>`
+    : "";
   return `
 <!DOCTYPE html>
 <html>
 <body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
   <h1>You've been invited!</h1>
   <p><strong>${escapeHtml(inviterName)}</strong> has invited you to collaborate on <strong>${escapeHtml(siteName)}</strong> as a <strong>${escapeHtml(roleLabel)}</strong>.</p>
+  ${intro}
   <p>Expires: ${escapeHtml(expiresAt)}</p>
-  <p><a href="${escapeHtml(acceptUrl)}" style="background: #3b82f6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">Accept invitation</a></p>
+  <p><a href="${escapeHtml(acceptUrl)}" style="background: #3b82f6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px;">${escapeHtml(ctaLabel)}</a></p>
   <p style="color: #999; font-size: 12px;">If you didn't expect this, you can ignore this email.</p>
 </body>
 </html>`;
@@ -242,7 +248,9 @@ function buildSiteInvitationText(params: Record<string, string>): string {
   const siteName = params.siteName ?? "a site";
   const roleLabel = params.roleLabel ?? "member";
   const acceptUrl = params.acceptUrl ?? "#";
-  return `${inviterName} invited you to ${siteName} as ${roleLabel}. Accept: ${acceptUrl}`;
+  const isNewUser = params.isNewUser === "true";
+  const prefix = isNewUser ? "Create an account to join: " : "Accept: ";
+  return `${inviterName} invited you to ${siteName} as ${roleLabel}. ${prefix}${acceptUrl}`;
 }
 
 function buildPasswordResetHtml(params: Record<string, string>): string {

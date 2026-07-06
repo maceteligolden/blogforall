@@ -26,6 +26,13 @@ export class StripeFacade {
   }
 
   /**
+   * Delete a Stripe customer (best-effort cleanup on signup abandon).
+   */
+  async deleteCustomer(customerId: string): Promise<void> {
+    await this.stripe.customers.del(customerId);
+  }
+
+  /**
    * Create a subscription
    */
   async createSubscription(customerId: string, priceId: string) {

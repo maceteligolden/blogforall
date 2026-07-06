@@ -59,6 +59,8 @@ export interface ChatTurnResponse {
     output_data?: Record<string, unknown>;
   }>;
   pending_approval: OrchestratorApproval | null;
+  active_session_mode: "planning" | "writing" | "research" | "review" | "casual" | "strategy";
+  session_mode_source?: "explicit" | "manual" | "inferred";
   workspace_status: "onboarding" | "active";
   onboarding_completed: boolean;
 }
@@ -68,7 +70,14 @@ export interface ThreadWithMessages {
   messages: OrchestratorMessage[];
 }
 
-export type OrchestratorSessionMode = "planning" | "writing" | "research" | "review" | "casual";
+export type OrchestratorSessionMode =
+  | "auto"
+  | "planning"
+  | "writing"
+  | "research"
+  | "review"
+  | "casual"
+  | "strategy";
 
 export interface OrchestratorChatAttachment {
   name: string;
@@ -81,10 +90,12 @@ export interface OrchestratorChatRequest {
   message: string;
   thread_id?: string;
   session_mode?: OrchestratorSessionMode;
+  conversation_mode?: boolean;
   attachments?: OrchestratorChatAttachment[];
   selection_context?: {
     blog_id: string;
-    text: string;
+    reference_type?: "highlight" | "blog";
+    text?: string;
   };
 }
 

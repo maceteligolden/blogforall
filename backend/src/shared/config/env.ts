@@ -133,6 +133,18 @@ export const env = {
     reviewTokenSecret: (process.env.ORCHESTRATOR_REVIEW_TOKEN_SECRET || process.env.ACCESS_SECRET || "").trim(),
   },
 
+  memory: {
+    embeddingModel: (process.env.MEMORY_EMBEDDING_MODEL || "text-embedding-3-small").trim(),
+    contextPackTokenBudget: parseIntEnv(process.env.MEMORY_CONTEXT_PACK_TOKEN_BUDGET, 12_000),
+    qdrantUrl: (process.env.QDRANT_URL || "").trim(),
+    qdrantApiKey: (process.env.QDRANT_API_KEY || "").trim(),
+    qdrantCollection: (process.env.QDRANT_COLLECTION || "workspace_memory").trim(),
+    chunkSize: parseIntEnv(process.env.MEMORY_CHUNK_SIZE, 512),
+    chunkOverlap: parseIntEnv(process.env.MEMORY_CHUNK_OVERLAP, 64),
+    minImportanceScore: parseFloat(process.env.MEMORY_MIN_IMPORTANCE_SCORE || "0.4"),
+    maxChunksPerTurn: parseIntEnv(process.env.MEMORY_MAX_CHUNKS_PER_TURN, 20),
+  },
+
   googleDrive: {
     clientId: (process.env.GOOGLE_DRIVE_CLIENT_ID || "").trim(),
     clientSecret: (process.env.GOOGLE_DRIVE_CLIENT_SECRET || "").trim(),
@@ -161,7 +173,7 @@ export const env = {
   },
   tokenLedger: {
     defaultDailyFree: parseIntEnv(process.env.TOKEN_LEDGER_DEFAULT_DAILY_FREE, 400_000),
-    activeRequestTtlMs: parseIntEnv(process.env.TOKEN_LEDGER_ACTIVE_REQUEST_TTL_MS, 600_000),
+    activeRequestTtlMs: parseIntEnv(process.env.TOKEN_LEDGER_ACTIVE_REQUEST_TTL_MS, 240_000),
     windowMs: parseIntEnv(process.env.TOKEN_LEDGER_WINDOW_MS, 86_400_000),
   },
 

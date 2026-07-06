@@ -16,6 +16,7 @@ export interface SiteInvitation {
   accepted_at?: Date;
   created_at: Date;
   updated_at: Date;
+  is_expired?: boolean;
 }
 
 export interface SiteInvitationWithSite extends SiteInvitation {
@@ -28,7 +29,18 @@ export interface SiteInvitationWithSite extends SiteInvitation {
 
 export interface CreateInvitationRequest {
   email: string;
+  role: Exclude<SiteMemberRole, "owner">;
+}
+
+export interface SiteInvitationPreview {
+  site_name: string;
+  inviter_name: string;
   role: SiteMemberRole;
+  email: string;
+  status: InvitationStatus;
+  expires_at: string;
+  is_expired: boolean;
+  requires_signup: boolean;
 }
 
 export interface AcceptInvitationRequest {
@@ -83,5 +95,15 @@ export class SiteInvitationService {
    */
   static async cancelInvitation(siteId: string, invitationId: string): Promise<void> {
     await apiClient.delete(API_ENDPOINTS.SITES.CANCEL_INVITATION(siteId, invitationId));
+  }
+
+  static async resendInvitation(siteId: string, invitationId: string): Promise<SiteInvitation> {
+    const response = await apiClient.post(API_ENDPOINTS.SITES.RESEND_INVITATION(siteId, invitationId));
+    return response.data?.data || response.data;
+  }
+
+  static async getInvitationPreview(token: string): Promise<SiteInvitationPreview> {
+    const response = await apiClient.get(API_ENDPOINTS.INVITATIONS.PREVIEW(token));
+    return response.data?.data || response.data;
   }
 }

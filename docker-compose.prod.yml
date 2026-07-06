@@ -1,9 +1,116 @@
 services:
+  mongodb:
+    image: mongo:7
+    container_name: bloggr-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - bloggr-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: bloggr-valkey
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkey-data:/data
+    networks:
+      - bloggr-network
+    restart: unless-stopped
+    command: ["--save", "60", "1000"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    container_name: bloggr-backend
+    ports:
+      - "5005:5005"
     environment:
-      NODE_ENV: production
-    volumes: !override
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "5005"
+      MONGODB_URI: ${MONGODB_URI:-}
+      REDIS_URL: 
+      ACCESS_SECRET: ${ACCESS_SECRET}
+      REFRESH_SECRET: ${REFRESH_SECRET}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:5005}
+      UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-5242880}
+      STRIPE_API_KEY: ${STRIPE_API_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      BLOG_AI_OPENAI_API_KEY: ${BLOG_AI_OPENAI_API_KEY:-}
+      BLOG_AI_CHAT_MODEL: ${BLOG_AI_CHAT_MODEL:-gpt-4o-mini}
+      BLOG_AI_REVIEW_MODEL: ${BLOG_AI_REVIEW_MODEL:-gpt-4o-mini}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-noreply@bloggr.com}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Bloggr}
+      BREVO_WAITLIST_LIST_ID: ${BREVO_WAITLIST_LIST_ID:-}
+      NOTIFICATION_RETENTION_DAYS_READ: ${NOTIFICATION_RETENTION_DAYS_READ:-90}
+      EMAIL_METADATA_RETENTION_DAYS: ${EMAIL_METADATA_RETENTION_DAYS:-365}
+      EMAIL_QUEUE_NAME: ${EMAIL_QUEUE_NAME:-notification:email}
+      WORKSPACE_DEFAULT_NAME: ${WORKSPACE_DEFAULT_NAME:-My Workspace}
+      INVITATION_EXPIRY_DAYS: ${INVITATION_EXPIRY_DAYS:-7}
+      WORKSPACE_API_KEY_ENCRYPTION_KEY: ${WORKSPACE_API_KEY_ENCRYPTION_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-}
+      SENTRY_ENABLED: ${SENTRY_ENABLED:-}
+      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+      POSTHOG_HOST: ${POSTHOG_HOST:-https://us.i.posthog.com}
+      POSTHOG_ENVIRONMENT: ${POSTHOG_ENVIRONMENT:-}
+      POSTHOG_ENABLED: ${POSTHOG_ENABLED:-}
+      ADMIN_SEED_ON_START: ${ADMIN_SEED_ON_START:-false}
+      ADMIN_SEED_EMAIL: ${ADMIN_SEED_EMAIL:-}
+      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-}
+      ADMIN_SEED_FIRST_NAME: ${ADMIN_SEED_FIRST_NAME:-}
+      ADMIN_SEED_LAST_NAME: ${ADMIN_SEED_LAST_NAME:-}
+      ADMIN_SEED_ROLE: ${ADMIN_SEED_ROLE:-}
+      GOOGLE_DRIVE_CLIENT_ID: ${GOOGLE_DRIVE_CLIENT_ID:-}
+      GOOGLE_DRIVE_CLIENT_SECRET: ${GOOGLE_DRIVE_CLIENT_SECRET:-}
+      GOOGLE_DRIVE_REDIRECT_URI: ${GOOGLE_DRIVE_REDIRECT_URI:-}
+    volumes:
       - backend-uploads:/app/uploads
+    networks:
+      - bloggr-network
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  mongodb-data:
+    driver: local
+  valkey-data:
+    driver: local
+  backend-uploads:
+    driver: local
+
+networks:
+  bloggr-network:
+    driver: bridge

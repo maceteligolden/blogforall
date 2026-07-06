@@ -4,25 +4,9 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
-import { SiteService } from "@/lib/api/services/site.service";
 import { ProtectedRoute } from "@/components/protected-route";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
-
-async function resolvePostOnboardingPath(): Promise<string> {
-  try {
-    const sites = await SiteService.getSites();
-    const siteList = Array.isArray(sites) ? sites : [];
-    if (siteList.length === 0) {
-      return "/onboarding/create-site";
-    }
-    if (siteList.some((s) => s.status === "onboarding")) {
-      return "/onboarding/create-site?step=chat";
-    }
-    return "/dashboard";
-  } catch {
-    return "/onboarding/create-site";
-  }
-}
+import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 
 function OnboardingRedirect() {
   const router = useRouter();
@@ -35,17 +19,28 @@ function OnboardingRedirect() {
     retry: false,
   });
 
+  const { data: wizardStatus } = useQuery({
+    queryKey: ["onboarding", "signup-wizard"],
+    queryFn: () => OnboardingService.getSignupWizardStatus(),
+    retry: false,
+    enabled: onboardingStatus !== undefined && !onboardingStatus?.requiresOnboarding,
+  });
+
   const skipMutation = useMutation({
     mutationFn: () => OnboardingService.skip(),
     onSuccess: async () => {
       onboardingTracker.userOnboardingCompleted();
-      queryClient.invalidateQueries();
-      const path = await resolvePostOnboardingPath();
-      router.replace(path);
+      await queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
+      const status = await OnboardingService.getSignupWizardStatus();
+      router.replace(signupWizardPath(status));
     },
     onError: async () => {
-      const path = await resolvePostOnboardingPath();
-      router.replace(path);
+      try {
+        const status = await OnboardingService.getSignupWizardStatus();
+        router.replace(signupWizardPath(status));
+      } catch {
+        router.replace("/onboarding/create-site");
+      }
     },
   });
 
@@ -58,16 +53,18 @@ function OnboardingRedirect() {
       return;
     }
 
-    if (!onboardingStatus.requiresOnboarding) {
-      void resolvePostOnboardingPath().then((path) => router.replace(path));
+    if (onboardingStatus.requiresOnboarding) {
+      if (!skipStarted.current) {
+        skipStarted.current = true;
+        skipMutation.mutate();
+      }
       return;
     }
 
-    if (!skipStarted.current) {
-      skipStarted.current = true;
-      skipMutation.mutate();
+    if (wizardStatus) {
+      router.replace(signupWizardPath(wizardStatus));
     }
-  }, [onboardingStatus, router, skipMutation]);
+  }, [onboardingStatus, wizardStatus, router, skipMutation]);
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center">

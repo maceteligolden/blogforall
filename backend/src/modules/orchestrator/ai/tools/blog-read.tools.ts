@@ -9,7 +9,7 @@ import type {
   OrchestratorToolInvocation,
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
-import { parseToolInput, truncateSummary } from "./_helpers";
+import { parseToolInput, normalizeBlogToolInput, truncateSummary } from "./_helpers";
 
 function buildBlogPreviewUrl(blogId: string): string {
   const base = env.frontend.baseUrl.replace(/\/$/, "");
@@ -134,7 +134,7 @@ export class BlogGetTool implements OrchestratorTool {
   constructor(private readonly blogService: BlogService) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
-    const input = parseToolInput(getInputSchema, invocation.input, this.name);
+    const input = parseToolInput(getInputSchema, normalizeBlogToolInput(invocation.input), this.name);
     if (!input.id && !input.slug) {
       throw new Error("Provide one of id or slug.");
     }

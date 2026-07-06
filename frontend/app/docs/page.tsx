@@ -157,8 +157,10 @@ export default function DocsPage() {
                       2
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Navigate to API Keys</h4>
-                      <p className="text-gray-400">Go to your Dashboard → API Keys section.</p>
+                      <h4 className="font-semibold mb-2">Open Developer settings</h4>
+                      <p className="text-gray-400">
+                        Go to Settings → Developer tab in your dashboard to create and manage API keys.
+                      </p>
                     </div>
                   </div>
 

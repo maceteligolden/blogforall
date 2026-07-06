@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,10 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const { signupAsync, isLoading, signupError } = useAuth();
   const inviteToken = searchParams.get("invite");
+  const invitedEmail = searchParams.get("email")?.trim() || "";
   const referralCode = searchParams.get("ref")?.trim().toUpperCase() || undefined;
   const [formData, setFormData] = useState({
-    email: "",
+    email: invitedEmail,
     password: "",
     first_name: "",
     last_name: "",
@@ -28,6 +29,12 @@ function SignupForm() {
   });
   const [error, setError] = useState<string>("");
   const [isPasswordValid, setIsPasswordValid] = useState(false);
+
+  useEffect(() => {
+    if (invitedEmail) {
+      setFormData((prev) => ({ ...prev, email: invitedEmail }));
+    }
+  }, [invitedEmail]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +64,7 @@ function SignupForm() {
         accept_terms: true,
         terms_version: "2025-01",
         ...(referralCode ? { referral_code: referralCode } : {}),
+        ...(inviteToken ? { invite_token: inviteToken } : {}),
       });
     } catch (err: unknown) {
       const errorMessage =
@@ -76,29 +84,23 @@ function SignupForm() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
-      {/* Gradient Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-black to-black pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(30,64,175,0.1),transparent_50%)] pointer-events-none" />
-
-      <div className="relative flex min-h-screen items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md space-y-8 rounded-lg bg-gray-900/80 backdrop-blur-sm border border-gray-800 p-8 shadow-xl">
-          <AuthPageHeader
-            title="Create your account"
-            subtitle={
-              inviteToken
-                ? "You're signing up to accept a workspace invitation."
-                : referralCode
-                  ? "You were invited to join Bloggr."
-                  : "Start managing your blogs today"
-            }
-          />
-          {referralCode && !inviteToken && (
-            <div className="rounded-md bg-primary/10 border border-primary/30 px-3 py-2 text-sm text-primary">
-              Referral code <span className="font-mono font-semibold">{referralCode}</span> will be applied.
-            </div>
-          )}
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+    <>
+      <AuthPageHeader
+        title="Create your account"
+        subtitle={
+          inviteToken
+            ? "You're signing up to accept a workspace invitation."
+            : referralCode
+              ? "You were invited to join Bloggr."
+              : "Start managing your blogs today"
+        }
+      />
+      {referralCode && !inviteToken && (
+        <div className="mb-6 rounded-md bg-primary/10 border border-primary/30 px-3 py-2 text-sm text-primary">
+          Referral code <span className="font-mono font-semibold">{referralCode}</span> will be applied.
+        </div>
+      )}
+      <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
             )}
@@ -145,6 +147,7 @@ function SignupForm() {
                   required
                   value={formData.email}
                   onChange={handleChange}
+                  readOnly={!!inviteToken && !!invitedEmail}
                   className="mt-1 bg-gray-800 border-gray-700 text-white"
                 />
               </div>
@@ -219,19 +222,15 @@ function SignupForm() {
                 Sign in
               </button>
             </div>
-          </form>
-        </div>
-      </div>
-    </div>
+      </form>
+    </>
   );
 }
 
 export default function SignupPage() {
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center">
-      <Suspense fallback={<div className="text-center text-gray-400">Loading...</div>}>
-        <SignupForm />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="py-20 text-center text-gray-400">Loading...</div>}>
+      <SignupForm />
+    </Suspense>
   );
 }

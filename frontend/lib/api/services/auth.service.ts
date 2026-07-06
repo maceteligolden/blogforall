@@ -15,6 +15,7 @@ export interface SignupRequest {
   accept_terms: boolean;
   terms_version?: string;
   referral_code?: string;
+  invite_token?: string;
 }
 
 export interface UpdateProfileRequest {
@@ -86,5 +87,9 @@ export class AuthService {
 
   static async resetPassword(data: ResetPasswordRequest) {
     return apiClient.post(API_ENDPOINTS.AUTH.RESET_PASSWORD, data);
+  }
+
+  static async abandonSignup() {
+    return apiClient.post(API_ENDPOINTS.AUTH.ABANDON_SIGNUP);
   }
 }
