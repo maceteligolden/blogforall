@@ -101,9 +101,7 @@ export function PlanSelectionCard({ tier, selected, onSelect }: PlanSelectionCar
         ))}
       </ul>
 
-      {selected && !disabled && (
-        <p className="mt-4 text-xs font-medium text-primary">Selected</p>
-      )}
+      {selected && !disabled && <p className="mt-4 text-xs font-medium text-primary">Selected</p>}
     </button>
   );
 }

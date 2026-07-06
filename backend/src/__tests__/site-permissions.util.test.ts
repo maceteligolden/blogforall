@@ -1,10 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { SiteMemberRole } from "../shared/constants";
-import {
-  SiteCapability,
-  canRunOrchestratorTool,
-  hasSiteCapability,
-} from "../shared/utils/site-permissions.util";
+import { SiteCapability, canRunOrchestratorTool, hasSiteCapability } from "../shared/utils/site-permissions.util";
 
 describe("site-permissions.util", () => {
   it("allows editors to write content but not delete", () => {

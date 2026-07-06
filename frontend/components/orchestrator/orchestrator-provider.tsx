@@ -104,25 +104,25 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   }, [currentSiteId]);
 
   useEffect(() => {
-  // #region agent log
-  fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-    body: JSON.stringify({
-      sessionId: "4b087c",
-      runId: "dashboard-toggle",
-      hypothesisId: "H3-context-clear",
-      location: "orchestrator-provider.tsx:threadId-effect",
-      message: "threadId changed — clearing selectionContext",
-      data: {
-        threadId,
-        isWritingPinned,
-        clearsSelection: true,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
+      body: JSON.stringify({
+        sessionId: "4b087c",
+        runId: "dashboard-toggle",
+        hypothesisId: "H3-context-clear",
+        location: "orchestrator-provider.tsx:threadId-effect",
+        message: "threadId changed — clearing selectionContext",
+        data: {
+          threadId,
+          isWritingPinned,
+          clearsSelection: true,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
     if (!isWritingPinned) {
       setResultsPanelOpen(false);
     }

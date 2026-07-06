@@ -78,7 +78,7 @@ export class WorkspaceMemoryRepository {
         },
         timestamp: Date.now(),
       }),
-    }).catch(() => {});
+    }).catch(() => undefined);
     // #endregion
 
     const sanitized = sanitizeMemoryPatch(rawPatch);
@@ -99,7 +99,7 @@ export class WorkspaceMemoryRepository {
         },
         timestamp: Date.now(),
       }),
-    }).catch(() => {});
+    }).catch(() => undefined);
     // #endregion
 
     return WorkspaceMemoryModel.findOneAndUpdate(

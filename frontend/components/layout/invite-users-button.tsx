@@ -80,7 +80,9 @@ export function InviteUsersButton() {
           aria-haspopup="true"
         >
           <Users className="h-4 w-4" />
-          <span className="hidden sm:inline">{memberCount} member{memberCount === 1 ? "" : "s"}</span>
+          <span className="hidden sm:inline">
+            {memberCount} member{memberCount === 1 ? "" : "s"}
+          </span>
         </button>
 
         {showDropdown && (

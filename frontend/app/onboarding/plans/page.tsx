@@ -36,9 +36,7 @@ function PlansOnboardingContent() {
       onboardingTracker.planSelected({ onboarding_type: "workspace_setup", plan_type: "free" });
       await queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
       const siteId = siteIdParam ?? wizardStatus?.site_id;
-      router.push(
-        siteId ? `/onboarding/invite?siteId=${encodeURIComponent(siteId)}` : "/onboarding/invite"
-      );
+      router.push(siteId ? `/onboarding/invite?siteId=${encodeURIComponent(siteId)}` : "/onboarding/invite");
     },
     onError: (err: unknown) => {
       const message =

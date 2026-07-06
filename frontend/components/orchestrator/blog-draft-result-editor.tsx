@@ -154,7 +154,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
         data: {
           updatedAt,
           prevUpdatedAt: lastAppliedUpdatedAtRef.current,
-          hasBlocks: !!((response as { content_blocks?: ContentBlock[] }).content_blocks?.length),
+          hasBlocks: !!(response as { content_blocks?: ContentBlock[] }).content_blocks?.length,
           contentLen: (response.content ?? "").length,
         },
         timestamp: Date.now(),
@@ -569,55 +569,55 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
         <div className="px-4 md:px-5 py-4 md:py-5">
           <div className="max-w-4xl mx-auto space-y-5 min-w-0 relative" ref={editorRef} onMouseUp={handleMouseUp}>
-              <div>
-                <Label htmlFor="orchestrator-draft-title" className="text-gray-300">
-                  Title *
-                </Label>
-                <Input
-                  id="orchestrator-draft-title"
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
+            <div>
+              <Label htmlFor="orchestrator-draft-title" className="text-gray-300">
+                Title *
+              </Label>
+              <Input
+                id="orchestrator-draft-title"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  markDirty();
+                }}
+                placeholder="Blog title"
+                maxLength={200}
+                className="mt-1 bg-black border-gray-700 text-white"
+              />
+            </div>
+
+            <div className="min-w-0">
+              <Label htmlFor="orchestrator-draft-content" className="text-gray-300 mb-2 block">
+                Content *
+              </Label>
+              <div className="min-h-[320px] pb-4">
+                <BlockEditor
+                  key={`${blogId ?? "draft"}-${editorVersion}`}
+                  value={contentBlocks}
+                  onChange={(blocks) => {
+                    setContentBlocks(blocks);
                     markDirty();
                   }}
-                  placeholder="Blog title"
-                  maxLength={200}
-                  className="mt-1 bg-black border-gray-700 text-white"
+                  placeholder="Start writing your blog post..."
+                  onUploadImage={handleEditorImageUpload}
                 />
               </div>
-
-              <div className="min-w-0">
-                <Label htmlFor="orchestrator-draft-content" className="text-gray-300 mb-2 block">
-                  Content *
-                </Label>
-                <div className="min-h-[320px] pb-4">
-                  <BlockEditor
-                    key={`${blogId ?? "draft"}-${editorVersion}`}
-                    value={contentBlocks}
-                    onChange={(blocks) => {
-                      setContentBlocks(blocks);
-                      markDirty();
-                    }}
-                    placeholder="Start writing your blog post..."
-                    onUploadImage={handleEditorImageUpload}
-                  />
-                </div>
-                <p className="text-xs text-gray-500">Use + or type / to add blocks. Every image requires a caption.</p>
-              </div>
-              {selectionToolbar && (
-                <button
-                  type="button"
-                  onClick={handleFocusSelection}
-                  className={cn(
-                    "absolute z-10 flex items-center gap-1 px-2 py-1 text-xs rounded-md",
-                    "bg-primary text-white shadow-lg hover:bg-primary/90"
-                  )}
-                  style={{ top: selectionToolbar.top, left: selectionToolbar.left }}
-                >
-                  <Sparkles className="w-3 h-3" aria-hidden="true" />
-                  Focus AI here
-                </button>
-              )}
+              <p className="text-xs text-gray-500">Use + or type / to add blocks. Every image requires a caption.</p>
+            </div>
+            {selectionToolbar && (
+              <button
+                type="button"
+                onClick={handleFocusSelection}
+                className={cn(
+                  "absolute z-10 flex items-center gap-1 px-2 py-1 text-xs rounded-md",
+                  "bg-primary text-white shadow-lg hover:bg-primary/90"
+                )}
+                style={{ top: selectionToolbar.top, left: selectionToolbar.left }}
+              >
+                <Sparkles className="w-3 h-3" aria-hidden="true" />
+                Focus AI here
+              </button>
+            )}
           </div>
         </div>
       </div>

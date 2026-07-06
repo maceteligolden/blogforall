@@ -177,9 +177,7 @@ Onboarding progress (authoritative — from workspace memory):
  */
 export function renderActiveSystemPrompt(ctx: SystemPromptContext): string {
   const sessionBlock = ctx.session_mode_instructions ? `# Session mode\n\n${ctx.session_mode_instructions}\n` : "";
-  const voiceBlock = ctx.voice_conversation_instructions
-    ? `${ctx.voice_conversation_instructions}\n`
-    : "";
+  const voiceBlock = ctx.voice_conversation_instructions ? `${ctx.voice_conversation_instructions}\n` : "";
   const selectionBlock = ctx.selection_focus_instructions ? `${ctx.selection_focus_instructions}\n` : "";
   return BASE_BLUEPRINT.replace("{{WORKSPACE_NAME}}", ctx.workspace_name)
     .replace("{{WORKSPACE_ID}}", ctx.workspace_id)

@@ -17,14 +17,7 @@ export function AuthSplitLayout({ children, wide = false }: AuthSplitLayoutProps
         </div>
 
         <div className="flex flex-col px-4 py-10 sm:px-8 lg:h-full lg:overflow-y-auto lg:px-12 xl:px-16">
-          <div
-            className={cn(
-              "mx-auto my-auto w-full py-4",
-              wide ? "max-w-6xl" : "max-w-md"
-            )}
-          >
-            {children}
-          </div>
+          <div className={cn("mx-auto my-auto w-full py-4", wide ? "max-w-6xl" : "max-w-md")}>{children}</div>
         </div>
       </div>
     </div>

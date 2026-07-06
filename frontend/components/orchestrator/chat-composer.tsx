@@ -12,13 +12,7 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import type { OrchestratorSelectionContext } from "@/lib/types/orchestrator-session.types";
 import { ChatModeSelector } from "./chat-mode-selector";
 
-function SelectionReferenceChip({
-  context,
-  onClear,
-}: {
-  context: OrchestratorSelectionContext;
-  onClear: () => void;
-}) {
+function SelectionReferenceChip({ context, onClear }: { context: OrchestratorSelectionContext; onClear: () => void }) {
   const excerpt =
     context.referenceType === "highlight" && context.selectedText
       ? context.selectedText.length > 80

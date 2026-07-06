@@ -6,7 +6,12 @@ import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/
 import { BlogStatus } from "../../../shared/constants";
 import { ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
 import { logger } from "../../../shared/utils/logger";
-import { validateContentBlocks, blocksToHtml, htmlToBlocks, htmlToPlainText } from "../../../shared/utils/content-blocks.util";
+import {
+  validateContentBlocks,
+  blocksToHtml,
+  htmlToBlocks,
+  htmlToPlainText,
+} from "../../../shared/utils/content-blocks.util";
 import { clampBlogExcerpt } from "../utils/excerpt.util";
 import { CreateBlogInput, UpdateBlogInput, BlogQueryFilters } from "../interfaces/blog.interface";
 import { Blog } from "../../../shared/schemas/blog.schema";

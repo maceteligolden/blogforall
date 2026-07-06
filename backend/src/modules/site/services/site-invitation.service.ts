@@ -210,10 +210,7 @@ export class SiteInvitationService {
       throw new NotFoundError("Invitation not found");
     }
 
-    if (
-      invitation.status !== InvitationStatus.PENDING &&
-      invitation.status !== InvitationStatus.EXPIRED
-    ) {
+    if (invitation.status !== InvitationStatus.PENDING && invitation.status !== InvitationStatus.EXPIRED) {
       throw new BadRequestError("Only pending or expired invitations can be cancelled");
     }
 
@@ -376,10 +373,7 @@ export class SiteInvitationService {
   /**
    * Validate invite token for signup and return inviter referral code when applicable.
    */
-  async validateInviteForSignup(
-    inviteToken: string,
-    signupEmail: string
-  ): Promise<{ inviterReferralCode?: string }> {
+  async validateInviteForSignup(inviteToken: string, signupEmail: string): Promise<{ inviterReferralCode?: string }> {
     const invitation = await this.invitationRepository.findByToken(inviteToken);
     if (!invitation) {
       throw new BadRequestError("Invalid invitation token");

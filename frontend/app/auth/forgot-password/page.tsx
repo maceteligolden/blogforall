@@ -102,156 +102,154 @@ export default function ForgotPasswordPage() {
   return (
     <>
       <AuthPageHeader
-            title={
-              step === "done"
-                ? "Password updated"
-                : step === "password"
-                  ? "Set a new password"
-                  : step === "code"
-                    ? "Enter the code"
-                    : "Forgot your password?"
-            }
-            subtitle={
-              step === "done"
-                ? "You can now sign in with your new password."
-                : step === "password"
-                  ? "Choose a strong password you don't use elsewhere."
-                  : step === "code"
-                    ? `We sent a 6-digit code to ${email}. It expires in 15 minutes.`
-                    : "Enter your email and we'll send you a 6-digit code to reset your password."
-            }
-          />
+        title={
+          step === "done"
+            ? "Password updated"
+            : step === "password"
+              ? "Set a new password"
+              : step === "code"
+                ? "Enter the code"
+                : "Forgot your password?"
+        }
+        subtitle={
+          step === "done"
+            ? "You can now sign in with your new password."
+            : step === "password"
+              ? "Choose a strong password you don't use elsewhere."
+              : step === "code"
+                ? `We sent a 6-digit code to ${email}. It expires in 15 minutes.`
+                : "Enter your email and we'll send you a 6-digit code to reset your password."
+        }
+      />
 
-          {error && (
-            <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
-          )}
-          {info && !error && (
-            <div className="rounded-md bg-blue-900/40 border border-blue-800 p-3 text-sm text-blue-200">{info}</div>
-          )}
+      {error && <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>}
+      {info && !error && (
+        <div className="rounded-md bg-blue-900/40 border border-blue-800 p-3 text-sm text-blue-200">{info}</div>
+      )}
 
-          {step === "email" && (
-            <form className="space-y-6" onSubmit={handleRequestCode}>
-              <div>
-                <Label htmlFor="email" className="text-gray-300">
-                  Email address
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isRequestingCode}>
-                {isRequestingCode ? "Sending..." : "Send code"}
-              </Button>
-              <div className="text-center text-sm">
-                <button
-                  type="button"
-                  onClick={() => router.push("/auth/login")}
-                  className="font-medium text-primary hover:text-primary/80"
-                >
-                  Back to sign in
-                </button>
-              </div>
-            </form>
-          )}
+      {step === "email" && (
+        <form className="space-y-6" onSubmit={handleRequestCode}>
+          <div>
+            <Label htmlFor="email" className="text-gray-300">
+              Email address
+            </Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={isRequestingCode}>
+            {isRequestingCode ? "Sending..." : "Send code"}
+          </Button>
+          <div className="text-center text-sm">
+            <button
+              type="button"
+              onClick={() => router.push("/auth/login")}
+              className="font-medium text-primary hover:text-primary/80"
+            >
+              Back to sign in
+            </button>
+          </div>
+        </form>
+      )}
 
-          {step === "code" && (
-            <form className="space-y-6" onSubmit={handleVerifyCode}>
-              <div>
-                <Label htmlFor="code" className="text-gray-300">
-                  6-digit code
-                </Label>
-                <Input
-                  id="code"
-                  name="code"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="\d{6}"
-                  maxLength={6}
-                  required
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white tracking-[0.5em] text-center text-lg font-mono"
-                  placeholder="------"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isVerifyingCode}>
-                {isVerifyingCode ? "Verifying..." : "Verify code"}
-              </Button>
-              <div className="flex items-center justify-between text-sm">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStep("email");
-                    setCode("");
-                    setError("");
-                    setInfo("");
-                  }}
-                  className="font-medium text-gray-400 hover:text-white"
-                >
-                  Use a different email
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={isRequestingCode}
-                  className="font-medium text-primary hover:text-primary/80 disabled:opacity-60"
-                >
-                  {isRequestingCode ? "Sending..." : "Resend code"}
-                </button>
-              </div>
-            </form>
-          )}
+      {step === "code" && (
+        <form className="space-y-6" onSubmit={handleVerifyCode}>
+          <div>
+            <Label htmlFor="code" className="text-gray-300">
+              6-digit code
+            </Label>
+            <Input
+              id="code"
+              name="code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="\d{6}"
+              maxLength={6}
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="mt-1 bg-gray-800 border-gray-700 text-white tracking-[0.5em] text-center text-lg font-mono"
+              placeholder="------"
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={isVerifyingCode}>
+            {isVerifyingCode ? "Verifying..." : "Verify code"}
+          </Button>
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setStep("email");
+                setCode("");
+                setError("");
+                setInfo("");
+              }}
+              className="font-medium text-gray-400 hover:text-white"
+            >
+              Use a different email
+            </button>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={isRequestingCode}
+              className="font-medium text-primary hover:text-primary/80 disabled:opacity-60"
+            >
+              {isRequestingCode ? "Sending..." : "Resend code"}
+            </button>
+          </div>
+        </form>
+      )}
 
-          {step === "password" && (
-            <form className="space-y-6" onSubmit={handleResetPassword}>
-              <div>
-                <Label htmlFor="new_password" className="text-gray-300">
-                  New password
-                </Label>
-                <PasswordInput
-                  id="new_password"
-                  name="new_password"
-                  autoComplete="new-password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="confirm_password" className="text-gray-300">
-                  Confirm password
-                </Label>
-                <PasswordInput
-                  id="confirm_password"
-                  name="confirm_password"
-                  autoComplete="new-password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isResettingPassword}>
-                {isResettingPassword ? "Updating..." : "Update password"}
-              </Button>
-            </form>
-          )}
+      {step === "password" && (
+        <form className="space-y-6" onSubmit={handleResetPassword}>
+          <div>
+            <Label htmlFor="new_password" className="text-gray-300">
+              New password
+            </Label>
+            <PasswordInput
+              id="new_password"
+              name="new_password"
+              autoComplete="new-password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="mt-1 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+          <div>
+            <Label htmlFor="confirm_password" className="text-gray-300">
+              Confirm password
+            </Label>
+            <PasswordInput
+              id="confirm_password"
+              name="confirm_password"
+              autoComplete="new-password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="mt-1 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={isResettingPassword}>
+            {isResettingPassword ? "Updating..." : "Update password"}
+          </Button>
+        </form>
+      )}
 
-          {step === "done" && (
-            <div className="space-y-6">
-              <Button className="w-full" onClick={() => router.push("/auth/login")}>
-                Back to sign in
-              </Button>
-            </div>
-          )}
+      {step === "done" && (
+        <div className="space-y-6">
+          <Button className="w-full" onClick={() => router.push("/auth/login")}>
+            Back to sign in
+          </Button>
+        </div>
+      )}
     </>
   );
 }

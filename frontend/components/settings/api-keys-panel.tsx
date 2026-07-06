@@ -160,7 +160,11 @@ export function ApiKeysPanel() {
               />
             </div>
             <div className="flex space-x-4">
-              <Button type="submit" className="bg-primary text-white hover:bg-primary/90" disabled={createApiKey.isPending}>
+              <Button
+                type="submit"
+                className="bg-primary text-white hover:bg-primary/90"
+                disabled={createApiKey.isPending}
+              >
                 {createApiKey.isPending ? "Creating..." : "Create API key"}
               </Button>
               <Button
@@ -294,11 +298,7 @@ function ApiKeyCollapsibleItem({
             value={apiKey.sitePublicId}
             onCopy={() => onCopy(apiKey.sitePublicId)}
           />
-          <CredentialRow
-            label="Access Key ID"
-            value={apiKey.accessKeyId}
-            onCopy={() => onCopy(apiKey.accessKeyId)}
-          />
+          <CredentialRow label="Access Key ID" value={apiKey.accessKeyId} onCopy={() => onCopy(apiKey.accessKeyId)} />
           <CredentialRow label="Secret Key" value={apiKey.secretKey} onCopy={() => onCopy(apiKey.secretKey)} obscure />
           <div className="text-sm text-gray-400">Created: {new Date(apiKey.createdAt).toLocaleString()}</div>
           {apiKey.lastUsed && (

@@ -95,21 +95,12 @@ export function DashboardSidebar({
               </Link>
             );
 
-            return (
-              <li key={href}>
-                {collapsed ? <SidebarTooltip label={label}>{link}</SidebarTooltip> : link}
-              </li>
-            );
+            return <li key={href}>{collapsed ? <SidebarTooltip label={label}>{link}</SidebarTooltip> : link}</li>;
           })}
         </ul>
 
         <div className={cn("mt-6", collapsed ? "px-1" : "px-4")}>
-          <div
-            className={cn(
-              "mb-2 flex items-center",
-              collapsed ? "justify-center" : "justify-between"
-            )}
-          >
+          <div className={cn("mb-2 flex items-center", collapsed ? "justify-center" : "justify-between")}>
             {collapsed ? (
               <SidebarTooltip label="Recent chats">
                 <div className="flex justify-center p-2 text-gray-500">
@@ -147,9 +138,7 @@ export function DashboardSidebar({
           </div>
 
           {!collapsed && threadsQuery.isLoading && <p className="text-xs text-gray-500 py-2">Loading…</p>}
-          {!collapsed && threadsQuery.isError && (
-            <p className="text-xs text-red-300 py-2">Couldn&apos;t load chats.</p>
-          )}
+          {!collapsed && threadsQuery.isError && <p className="text-xs text-red-300 py-2">Couldn&apos;t load chats.</p>}
           {!collapsed && threadsQuery.data?.length === 0 && !threadsQuery.isLoading && (
             <p className="text-xs text-gray-500 py-2">No conversations yet.</p>
           )}

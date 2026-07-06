@@ -14,10 +14,7 @@ export enum SiteCapability {
 const OWNER_ADMIN: SiteMemberRole[] = [SiteMemberRole.OWNER, SiteMemberRole.ADMIN];
 
 /** Tools that mutate workspace settings (not content drafts). */
-const MANAGE_WORKSPACE_TOOLS = new Set([
-  "workspace.renameWorkspace",
-  "workspace.updateMemory",
-]);
+const MANAGE_WORKSPACE_TOOLS = new Set(["workspace.renameWorkspace", "workspace.updateMemory"]);
 
 /** Read-only orchestrator tools viewers may invoke. */
 const VIEWER_READ_TOOL_PREFIXES = [
@@ -86,7 +83,11 @@ export function canManageMembers(role: SiteMemberRole | null): boolean {
   return hasSiteCapability(role, SiteCapability.MANAGE_MEMBERS);
 }
 
-export function canRunDestructiveTool(role: SiteMemberRole | null, toolName: string, requiresConfirmation = false): boolean {
+export function canRunDestructiveTool(
+  role: SiteMemberRole | null,
+  toolName: string,
+  requiresConfirmation = false
+): boolean {
   if (!role) return false;
   if (requiresConfirmation || MANAGE_WORKSPACE_TOOLS.has(toolName)) {
     if (MANAGE_WORKSPACE_TOOLS.has(toolName)) {

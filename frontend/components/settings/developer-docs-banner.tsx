@@ -11,9 +11,7 @@ export function DeveloperDocsBanner() {
         <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-white group-hover:text-primary transition-colors">
-          API documentation
-        </p>
+        <p className="text-sm font-semibold text-white group-hover:text-primary transition-colors">API documentation</p>
         <p className="mt-1 text-sm text-gray-400">
           Authentication, endpoints, and integration examples — everything you need to build on Bloggr.
         </p>

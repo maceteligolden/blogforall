@@ -3,10 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import type {
-  OperationalSessionMode,
-  OrchestratorSessionMode,
-} from "@/lib/types/orchestrator-session.types";
+import type { OperationalSessionMode, OrchestratorSessionMode } from "@/lib/types/orchestrator-session.types";
 
 const AUTO_OPTION = {
   id: "auto" as const,
@@ -55,7 +52,9 @@ export function ChatModeSelector({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const displayLabel =
-    value === "auto" ? `Auto · ${MODE_LABELS[effectiveMode]}` : MODE_LABELS[value as OperationalSessionMode] ?? "Auto";
+    value === "auto"
+      ? `Auto · ${MODE_LABELS[effectiveMode]}`
+      : (MODE_LABELS[value as OperationalSessionMode] ?? "Auto");
 
   useEffect(() => {
     if (!open) return;

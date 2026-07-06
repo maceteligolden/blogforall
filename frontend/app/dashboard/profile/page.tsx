@@ -233,10 +233,18 @@ function ProfileSettingsContent() {
                 </div>
                 <div>
                   <Label className="text-gray-300">Email</Label>
-                  <Input value={user?.email || ""} className="mt-1 border-gray-700 bg-gray-800 text-gray-400" disabled />
+                  <Input
+                    value={user?.email || ""}
+                    className="mt-1 border-gray-700 bg-gray-800 text-gray-400"
+                    disabled
+                  />
                   <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
                 </div>
-                <Button type="submit" className="bg-primary text-white hover:bg-primary/90" disabled={isUpdatingProfile}>
+                <Button
+                  type="submit"
+                  className="bg-primary text-white hover:bg-primary/90"
+                  disabled={isUpdatingProfile}
+                >
                   {isUpdatingProfile ? "Saving..." : "Save changes"}
                 </Button>
               </form>

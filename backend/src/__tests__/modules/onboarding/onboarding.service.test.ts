@@ -26,10 +26,13 @@ describe("OnboardingService.getSignupWizardStatus", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedUser.findById = mockUserFindById;
-    service = new OnboardingService({} as never, {
-      findByOwner: mockFindByOwner,
-      findByUser: mockFindByUser,
-    } as never);
+    service = new OnboardingService(
+      {} as never,
+      {
+        findByOwner: mockFindByOwner,
+        findByUser: mockFindByUser,
+      } as never
+    );
   });
 
   it("returns workspace_name when user owns no sites and has no access", async () => {

@@ -210,11 +210,7 @@ function CreateSitePageContent() {
             <p className="mt-1 text-xs text-gray-400">You can rename this later from settings.</p>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={createSiteMutation.isPending || !name.trim()}
-          >
+          <Button type="submit" className="w-full" disabled={createSiteMutation.isPending || !name.trim()}>
             {createSiteMutation.isPending ? "Creating..." : "Continue"}
           </Button>
         </form>

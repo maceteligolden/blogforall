@@ -63,7 +63,9 @@ export function FullConversationView({
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-widest text-primary/80 font-medium">Voice conversation</p>
           <p className="text-sm font-semibold text-white truncate mt-0.5">{threadTitle}</p>
-          <p className="text-[11px] text-gray-500 mt-0.5">Conversational call — I&apos;ll discuss and research before drafting.</p>
+          <p className="text-[11px] text-gray-500 mt-0.5">
+            Conversational call — I&apos;ll discuss and research before drafting.
+          </p>
         </div>
         <ChatModeSelector
           value={sessionMode}

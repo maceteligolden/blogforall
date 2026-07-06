@@ -29,10 +29,7 @@ import {
 } from "../utils/surgical-edit.helper";
 import type { SelectionContextPayload } from "../utils/selection-focus.helper";
 import { SiteMemberRole } from "../../../shared/constants";
-import {
-  canRunOrchestratorTool,
-  filterToolsForRole,
-} from "../../../shared/utils/site-permissions.util";
+import { canRunOrchestratorTool, filterToolsForRole } from "../../../shared/utils/site-permissions.util";
 import {
   buildVoiceConversationInstructions,
   buildVoiceDeclineReply,
@@ -130,9 +127,7 @@ export class OrchestratorGraphService {
     // bare names like `blogs.generateDraft` with no description, then later
     // claimed in chat that the tool was "unavailable".)
     const roleFiltered =
-      input.mode === "onboarding"
-        ? []
-        : filterToolsForRole(this.toolRegistry.manifest(), input.memberRole);
+      input.mode === "onboarding" ? [] : filterToolsForRole(this.toolRegistry.manifest(), input.memberRole);
 
     let manifestTools = roleFiltered;
     if (input.conversationMode && input.mode === "active") {
@@ -314,7 +309,7 @@ export class OrchestratorGraphService {
             data: { blogId: input.selectionContext?.blog_id, excerptLen: highlightExcerpt?.length ?? 0 },
             timestamp: Date.now(),
           }),
-        }).catch(() => {});
+        }).catch(() => undefined);
         // #endregion
         const assistantReply = await this.discussHighlightInChat({
           chat,
@@ -352,15 +347,11 @@ export class OrchestratorGraphService {
             },
             timestamp: Date.now(),
           }),
-        }).catch(() => {});
+        }).catch(() => undefined);
       }
       // #endregion
 
-      if (
-        toolName === "blogs.update" &&
-        input.selectionContext?.text &&
-        typeof toolInput.content === "string"
-      ) {
+      if (toolName === "blogs.update" && input.selectionContext?.text && typeof toolInput.content === "string") {
         const originalHtml = await this.fetchBlogContentHtml(
           input,
           String(toolInput.id ?? input.selectionContext.blog_id)
@@ -399,11 +390,7 @@ export class OrchestratorGraphService {
         data: result.data,
       };
 
-      if (
-        toolName === "blogs.get" &&
-        input.selectionContext?.blog_id &&
-        isDraftApplyRequest(input.newUserMessage)
-      ) {
+      if (toolName === "blogs.get" && input.selectionContext?.blog_id && isDraftApplyRequest(input.newUserMessage)) {
         const chained = await this.attemptChainedBlogUpdate({
           input,
           messages,
@@ -472,13 +459,11 @@ export class OrchestratorGraphService {
     try {
       const out = await args.chat.invoke(followUp, { signal: args.signal });
       const text = typeof out.content === "string" ? out.content : JSON.stringify(out.content);
-      return text.trim() || "What would you like to do with that passage — discuss it further or apply an edit to the draft?";
-    } catch (e) {
-      logger.warn(
-        "Highlight discussion follow-up failed",
-        { error: (e as Error).message },
-        "OrchestratorGraphService"
+      return (
+        text.trim() || "What would you like to do with that passage — discuss it further or apply an edit to the draft?"
       );
+    } catch (e) {
+      logger.warn("Highlight discussion follow-up failed", { error: (e as Error).message }, "OrchestratorGraphService");
       return "I had trouble responding about that highlight — could you rephrase your question?";
     }
   }
@@ -591,7 +576,7 @@ export class OrchestratorGraphService {
           data: { next: updateDecision.next, tool: updateDecision.tool?.name, blogId },
           timestamp: Date.now(),
         }),
-      }).catch(() => {});
+      }).catch(() => undefined);
       // #endregion
       return null;
     }
@@ -627,7 +612,7 @@ export class OrchestratorGraphService {
             },
             timestamp: Date.now(),
           }),
-        }).catch(() => {});
+        }).catch(() => undefined);
         // #endregion
         return {
           decision: { ...updateDecision, next: "respond", tool: null },
@@ -659,14 +644,15 @@ export class OrchestratorGraphService {
           message: "chained blogs.update succeeded",
           data: {
             blogId,
-            contentLen: typeof (updateResult.data as { content?: string })?.content === "string"
-              ? (updateResult.data as { content: string }).content.length
-              : 0,
+            contentLen:
+              typeof (updateResult.data as { content?: string })?.content === "string"
+                ? (updateResult.data as { content: string }).content.length
+                : 0,
             updatedAt: (updateResult.data as { updated_at?: string })?.updated_at,
           },
           timestamp: Date.now(),
         }),
-      }).catch(() => {});
+      }).catch(() => undefined);
       // #endregion
 
       const reply = await this.summarizeToolResult({
@@ -692,11 +678,7 @@ export class OrchestratorGraphService {
       };
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e);
-      logger.warn(
-        "Chained blogs.update errored",
-        { error: errorMessage, blogId },
-        "OrchestratorGraphService"
-      );
+      logger.warn("Chained blogs.update errored", { error: errorMessage, blogId }, "OrchestratorGraphService");
       return {
         decision: updateDecision,
         prior_tool_invocation: args.getInvocation,

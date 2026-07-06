@@ -70,14 +70,7 @@ export interface ThreadWithMessages {
   messages: OrchestratorMessage[];
 }
 
-export type OrchestratorSessionMode =
-  | "auto"
-  | "planning"
-  | "writing"
-  | "research"
-  | "review"
-  | "casual"
-  | "strategy";
+export type OrchestratorSessionMode = "auto" | "planning" | "writing" | "research" | "review" | "casual" | "strategy";
 
 export interface OrchestratorChatAttachment {
   name: string;

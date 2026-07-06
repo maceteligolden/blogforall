@@ -57,8 +57,7 @@ export class AuthService {
    * 8. LOG success and RETURN LoginResponse (auto-login tokens)
    */
   async signup(input: SignupInput): Promise<LoginResponse> {
-    const { email, password, first_name, last_name, phone_number, terms_version, referral_code, invite_token } =
-      input;
+    const { email, password, first_name, last_name, phone_number, terms_version, referral_code, invite_token } = input;
 
     const formattedEmail = email.toLocaleLowerCase();
 

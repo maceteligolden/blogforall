@@ -81,8 +81,7 @@ function InviteOnboardingContent() {
     },
     onError: (err: unknown) => {
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to send invitation";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to send invitation";
       setError(message);
     },
   });

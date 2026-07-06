@@ -34,8 +34,7 @@ function artifactLabel(tool: string): string {
 
 function extractBlogDraftMeta(artifact: OrchestratorArtifact): { blogId: string | null; blogTitle: string } {
   const data = artifact.outputData;
-  const blogId =
-    typeof data.blog_id === "string" ? data.blog_id : typeof data.id === "string" ? data.id : null;
+  const blogId = typeof data.blog_id === "string" ? data.blog_id : typeof data.id === "string" ? data.id : null;
   const blogTitle = typeof data.title === "string" && data.title.trim() ? data.title : "Untitled draft";
   return { blogId, blogTitle };
 }

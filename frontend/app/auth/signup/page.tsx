@@ -101,127 +101,123 @@ function SignupForm() {
         </div>
       )}
       <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
-            )}
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="first_name" className="text-gray-300">
-                    First name
-                  </Label>
-                  <Input
-                    id="first_name"
-                    name="first_name"
-                    type="text"
-                    required
-                    value={formData.first_name}
-                    onChange={handleChange}
-                    className="mt-1 bg-gray-800 border-gray-700 text-white"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="last_name" className="text-gray-300">
-                    Last name
-                  </Label>
-                  <Input
-                    id="last_name"
-                    name="last_name"
-                    type="text"
-                    required
-                    value={formData.last_name}
-                    onChange={handleChange}
-                    className="mt-1 bg-gray-800 border-gray-700 text-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="email" className="text-gray-300">
-                  Email address
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  readOnly={!!inviteToken && !!invitedEmail}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone_number" className="text-gray-300">
-                  Phone number (optional)
-                </Label>
-                <Input
-                  id="phone_number"
-                  name="phone_number"
-                  type="tel"
-                  value={formData.phone_number}
-                  onChange={handleChange}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="password" className="text-gray-300">
-                  Password
-                </Label>
-                <PasswordInput
-                  id="password"
-                  name="password"
-                  autoComplete="new-password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="mt-1 bg-gray-800 border-gray-700 text-white"
-                  showValidation={true}
-                  onValidationChange={setIsPasswordValid}
-                />
-                <p className="mt-1 text-xs text-gray-400">
-                  Password must contain: 1 lowercase, 1 uppercase, 1 number, 1 symbol, and at least 8 characters
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <input
-                  id="accept_terms"
-                  name="accept_terms"
-                  type="checkbox"
-                  required
-                  checked={formData.accept_terms}
-                  onChange={handleChange}
-                  className="mt-1 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary focus:ring-primary"
-                />
-                <Label htmlFor="accept_terms" className="text-sm text-gray-300 cursor-pointer">
-                  I accept the{" "}
-                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    Terms and Conditions
-                  </a>
-                </Label>
-              </div>
-            </div>
-
+        {error && (
+          <div className="rounded-md bg-red-900/50 border border-red-800 p-3 text-sm text-red-200">{error}</div>
+        )}
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading || !isPasswordValid || !formData.accept_terms}
-              >
-                {isLoading ? "Creating account..." : "Create account"}
-              </Button>
+              <Label htmlFor="first_name" className="text-gray-300">
+                First name
+              </Label>
+              <Input
+                id="first_name"
+                name="first_name"
+                type="text"
+                required
+                value={formData.first_name}
+                onChange={handleChange}
+                className="mt-1 bg-gray-800 border-gray-700 text-white"
+              />
             </div>
+            <div>
+              <Label htmlFor="last_name" className="text-gray-300">
+                Last name
+              </Label>
+              <Input
+                id="last_name"
+                name="last_name"
+                type="text"
+                required
+                value={formData.last_name}
+                onChange={handleChange}
+                className="mt-1 bg-gray-800 border-gray-700 text-white"
+              />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="email" className="text-gray-300">
+              Email address
+            </Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={formData.email}
+              onChange={handleChange}
+              readOnly={!!inviteToken && !!invitedEmail}
+              className="mt-1 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+          <div>
+            <Label htmlFor="phone_number" className="text-gray-300">
+              Phone number (optional)
+            </Label>
+            <Input
+              id="phone_number"
+              name="phone_number"
+              type="tel"
+              value={formData.phone_number}
+              onChange={handleChange}
+              className="mt-1 bg-gray-800 border-gray-700 text-white"
+            />
+          </div>
+          <div>
+            <Label htmlFor="password" className="text-gray-300">
+              Password
+            </Label>
+            <PasswordInput
+              id="password"
+              name="password"
+              autoComplete="new-password"
+              required
+              value={formData.password}
+              onChange={handleChange}
+              className="mt-1 bg-gray-800 border-gray-700 text-white"
+              showValidation={true}
+              onValidationChange={setIsPasswordValid}
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              Password must contain: 1 lowercase, 1 uppercase, 1 number, 1 symbol, and at least 8 characters
+            </p>
+          </div>
+          <div className="flex items-start gap-2">
+            <input
+              id="accept_terms"
+              name="accept_terms"
+              type="checkbox"
+              required
+              checked={formData.accept_terms}
+              onChange={handleChange}
+              className="mt-1 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary focus:ring-primary"
+            />
+            <Label htmlFor="accept_terms" className="text-sm text-gray-300 cursor-pointer">
+              I accept the{" "}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                Terms and Conditions
+              </a>
+            </Label>
+          </div>
+        </div>
 
-            <div className="text-center text-sm">
-              <span className="text-gray-400">Already have an account? </span>
-              <button
-                type="button"
-                onClick={() => router.push("/auth/login")}
-                className="font-medium text-primary hover:text-primary/80"
-              >
-                Sign in
-              </button>
-            </div>
+        <div>
+          <Button type="submit" className="w-full" disabled={isLoading || !isPasswordValid || !formData.accept_terms}>
+            {isLoading ? "Creating account..." : "Create account"}
+          </Button>
+        </div>
+
+        <div className="text-center text-sm">
+          <span className="text-gray-400">Already have an account? </span>
+          <button
+            type="button"
+            onClick={() => router.push("/auth/login")}
+            className="font-medium text-primary hover:text-primary/80"
+          >
+            Sign in
+          </button>
+        </div>
       </form>
     </>
   );

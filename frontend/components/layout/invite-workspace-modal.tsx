@@ -80,8 +80,7 @@ export function InviteWorkspaceModal({ isOpen, onClose, siteId }: InviteWorkspac
     },
     onError: (err: unknown) => {
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to send invitation";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to send invitation";
       setError(message);
     },
   });
@@ -151,9 +150,7 @@ export function InviteWorkspaceModal({ isOpen, onClose, siteId }: InviteWorkspac
         </form>
 
         <div>
-          <h3 className="mb-3 text-sm font-semibold text-gray-300">
-            Pending invitations
-          </h3>
+          <h3 className="mb-3 text-sm font-semibold text-gray-300">Pending invitations</h3>
           <PendingInvitationsList siteId={siteId} invitations={invitations} compact />
         </div>
 

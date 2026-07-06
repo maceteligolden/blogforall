@@ -12,11 +12,7 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { Plus, Trash2, User, Shield, Edit, Eye, X, RefreshCw, Clock } from "lucide-react";
 import { InviteMemberDialog } from "@/components/sites/invite-member-dialog";
-import {
-  formatInvitationExpiry,
-  invitationStatusLabel,
-  isInvitationExpired,
-} from "@/lib/utils/invitation.util";
+import { formatInvitationExpiry, invitationStatusLabel, isInvitationExpired } from "@/lib/utils/invitation.util";
 
 type SiteMemberRole = "owner" | "admin" | "editor" | "viewer";
 
@@ -110,9 +106,7 @@ export default function SiteMembersPage() {
     enabled: !!currentSiteId,
   });
   const siteInvitations = Array.isArray(siteInvitationsData) ? siteInvitationsData : [];
-  const activeInvitations = siteInvitations.filter(
-    (inv) => inv.status === "pending" || inv.status === "expired"
-  );
+  const activeInvitations = siteInvitations.filter((inv) => inv.status === "pending" || inv.status === "expired");
 
   // Cancel invitation mutation
   const cancelInvitationMutation = useMutation({
@@ -258,7 +252,7 @@ export default function SiteMembersPage() {
                                 <RefreshCw className="w-4 h-4" />
                                 Resend
                               </button>
-                              {(inv.status === "pending" && !expired) && (
+                              {inv.status === "pending" && !expired && (
                                 <button
                                   onClick={() => setInvitationToCancel(inv)}
                                   disabled={cancelInvitationMutation.isPending}

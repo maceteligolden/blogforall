@@ -14,8 +14,7 @@ const OUT_OF_SCOPE_RE =
 const RESEARCH_INTENT_RE =
   /\b(?:research|look\s+online|search\s+the\s+web|what(?:'s|\s+is)\s+online|find\s+out|look\s+up)\b/i;
 
-const DISCUSS_INTENT_RE =
-  /\b(?:discuss|talk\s+through|brainstorm|explore|let(?:'s|\s+us)\s+discuss|chat\s+about)\b/i;
+const DISCUSS_INTENT_RE = /\b(?:discuss|talk\s+through|brainstorm|explore|let(?:'s|\s+us)\s+discuss|chat\s+about)\b/i;
 
 /** User explicitly asks to create the draft now (after prior discussion). */
 export function isExplicitDraftNowRequest(message: string): boolean {

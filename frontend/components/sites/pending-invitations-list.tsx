@@ -8,11 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { SiteInvitation, SiteInvitationService } from "@/lib/api/services/site-invitation.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { cn } from "@/lib/utils/cn";
-import {
-  formatInvitationExpiry,
-  invitationStatusLabel,
-  isInvitationExpired,
-} from "@/lib/utils/invitation.util";
+import { formatInvitationExpiry, invitationStatusLabel, isInvitationExpired } from "@/lib/utils/invitation.util";
 
 interface PendingInvitationsListProps {
   siteId: string;
@@ -58,9 +54,7 @@ export function PendingInvitationsList({ siteId, invitations, compact = false }:
 
   if (activeInvites.length === 0) {
     return (
-      <p className={cn("text-sm text-gray-500", compact ? "py-2" : "py-4 text-center")}>
-        No pending invitations yet.
-      </p>
+      <p className={cn("text-sm text-gray-500", compact ? "py-2" : "py-4 text-center")}>No pending invitations yet.</p>
     );
   }
 

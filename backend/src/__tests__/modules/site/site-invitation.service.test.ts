@@ -14,19 +14,19 @@ import User from "../../../shared/schemas/user.schema";
 describe("SiteInvitationService", () => {
   let service: SiteInvitationService;
   let mockInvitationRepository: {
-    findByToken: jest.Mock<any>;
-    findById: jest.Mock<any>;
-    findByEmail: jest.Mock<any>;
-    create: jest.Mock<any>;
-    updateStatus: jest.Mock<any>;
-    rotateToken: jest.Mock<any>;
-    findBySite: jest.Mock<any>;
+    findByToken: jest.Mock;
+    findById: jest.Mock;
+    findByEmail: jest.Mock;
+    create: jest.Mock;
+    updateStatus: jest.Mock;
+    rotateToken: jest.Mock;
+    findBySite: jest.Mock;
   };
-  let mockSiteRepository: { findById: jest.Mock<any>; isOwner: jest.Mock<any> };
-  let mockSiteMemberRepository: { findBySiteAndUser: jest.Mock<any>; create: jest.Mock<any> };
-  let mockUserRepository: { findByEmail: jest.Mock<any>; findById: jest.Mock<any> };
-  let mockNotificationService: { createAndSend: jest.Mock<any> };
-  let mockReferralService: { ensureReferralCode: jest.Mock<any> };
+  let mockSiteRepository: { findById: jest.Mock; isOwner: jest.Mock };
+  let mockSiteMemberRepository: { findBySiteAndUser: jest.Mock; create: jest.Mock };
+  let mockUserRepository: { findByEmail: jest.Mock; findById: jest.Mock };
+  let mockNotificationService: { createAndSend: jest.Mock };
+  let mockReferralService: { ensureReferralCode: jest.Mock };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -102,7 +102,7 @@ describe("SiteInvitationService", () => {
         invited_by: "inviter-id",
       });
       mockSiteRepository.findById.mockResolvedValue({ name: "Acme Workspace" });
-      (User.findById as jest.Mock<any>).mockResolvedValue({
+      (User.findById as jest.Mock).mockResolvedValue({
         first_name: "Jane",
         last_name: "Doe",
       });
