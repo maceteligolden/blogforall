@@ -29,7 +29,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: "5006"
       MONGODB_URI: ${MONGODB_URI:-}
-      REDIS_URL: 
+      REDIS_URL: "redis://valkey:6380"
       ACCESS_SECRET: ${ACCESS_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
