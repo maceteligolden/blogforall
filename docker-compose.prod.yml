@@ -15,7 +15,7 @@ services:
     volumes:
       - valkey-data-prod:/data
     networks:
-      - bloggr-prod-network
+      - bloggr-network
     restart: unless-stopped
     command: ["--save", "60", "1000"]
     healthcheck:
@@ -80,7 +80,7 @@ services:
     volumes:
       - backend-uploads-prod:/app/uploads
     networks:
-      - bloggr-prod-network
+      - bloggr-network
     restart: unless-stopped
     depends_on:
       valkey:
@@ -99,5 +99,5 @@ volumes:
     driver: local
 
 networks:
-  bloggr-prod-network:
+  bloggr-network:
     driver: bridge
