@@ -1,22 +1,22 @@
 services:
 
-  valkey:
-    image: valkey/valkey:8-alpine
-    container_name: bloggr-valkey-prod
-    ports:
-      - "6380:6380"
-    volumes:
-      - valkey-data-prod:/data
-    networks:
-      - bloggr-network
-    restart: unless-stopped
-    command: ["--save", "60", "1000"]
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+  # valkey:
+  #   image: valkey/valkey:8-alpine
+  #   container_name: bloggr-valkey-prod
+  #   ports:
+  #     - "6380:6380"
+  #   volumes:
+  #     - valkey-data-prod:/data
+  #   networks:
+  #     - bloggr-network
+  #   restart: unless-stopped
+  #   command: ["--save", "60", "1000"]
+  #   healthcheck:
+  #     test: ["CMD", "valkey-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 3
+  #     start_period: 10s
 
   backend:
     build:
@@ -29,7 +29,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: "5006"
       MONGODB_URI: ${MONGODB_URI:-}
-      REDIS_URL: "redis://valkey:6380"
+      REDIS_URL: 
       ACCESS_SECRET: ${ACCESS_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
