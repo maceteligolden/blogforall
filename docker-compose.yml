@@ -1,3 +1,11 @@
+# Development stack — run alongside prod without clashing:
+#   docker compose up -d
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Isolated via compose project name `bloggr-dev`, host ports 5005 / 6379 / 27017.
+
+name: bloggr-dev
+
 services:
   mongodb:
     image: mongo:7
@@ -7,7 +15,7 @@ services:
     volumes:
       - mongodb-data:/data/db
     networks:
-      - bloggr-network
+      - bloggr-dev-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
@@ -24,7 +32,7 @@ services:
     volumes:
       - valkey-data:/data
     networks:
-      - bloggr-network
+      - bloggr-dev-network
     restart: unless-stopped
     command: ["--save", "60", "1000"]
     healthcheck:
@@ -45,7 +53,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: "5005"
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/blogforall}
-      REDIS_URL: 
+      REDIS_URL: ${REDIS_URL:-redis://valkey:6379}
       ACCESS_SECRET: ${ACCESS_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
@@ -91,7 +99,7 @@ services:
       - /app/node_modules
       - backend-uploads:/app/uploads
     networks:
-      - bloggr-network
+      - bloggr-dev-network
     restart: unless-stopped
     depends_on:
       mongodb:
@@ -114,5 +122,5 @@ volumes:
     driver: local
 
 networks:
-  bloggr-network:
+  bloggr-dev-network:
     driver: bridge

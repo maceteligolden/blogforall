@@ -1,22 +1,29 @@
-services:
+# Production stack — run alongside dev without clashing:
+#   docker compose up -d
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Isolated via compose project name `bloggr-prod`, host ports 5006 / 6380, and prod-only volumes/network.
 
-  # valkey:
-  #   image: valkey/valkey:8-alpine
-  #   container_name: bloggr-valkey-prod
-  #   ports:
-  #     - "6380:6380"
-  #   volumes:
-  #     - valkey-data-prod:/data
-  #   networks:
-  #     - bloggr-network
-  #   restart: unless-stopped
-  #   command: ["--save", "60", "1000"]
-  #   healthcheck:
-  #     test: ["CMD", "valkey-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 3s
-  #     retries: 3
-  #     start_period: 10s
+name: bloggr-prod
+
+services:
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: bloggr-valkey-prod
+    ports:
+      - "6380:6379"
+    volumes:
+      - valkey-data-prod:/data
+    networks:
+      - bloggr-prod-network
+    restart: unless-stopped
+    command: ["--save", "60", "1000"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   backend:
     build:
@@ -29,11 +36,11 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: "5006"
       MONGODB_URI: ${MONGODB_URI:-}
-      REDIS_URL: 
+      REDIS_URL: ${REDIS_URL:-redis://valkey:6379}
       ACCESS_SECRET: ${ACCESS_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      BACKEND_URL: ${BACKEND_URL:-http://localhost:5005}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:5006}
       UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-5242880}
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
@@ -73,13 +80,13 @@ services:
     volumes:
       - backend-uploads-prod:/app/uploads
     networks:
-      - bloggr-network
+      - bloggr-prod-network
     restart: unless-stopped
     depends_on:
       valkey:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5005/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5006/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -92,5 +99,5 @@ volumes:
     driver: local
 
 networks:
-  bloggr-network:
+  bloggr-prod-network:
     driver: bridge
