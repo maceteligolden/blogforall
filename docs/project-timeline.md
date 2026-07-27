@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M2 T2.5–T2.7 complete)  
+**Last updated:** 2026-07-27 (M2 complete — T2.4 + T2.8)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -44,12 +44,14 @@ After completing work:
 | Writing skill (BlogGraph no Tavily) | **Completed** (T2.5) — `draftFromNotes` / package grounding |
 | Content Optimization thin + gate | **Completed** (T2.6) — UX thin; legacy review adapter |
 | Strategy structured artifact | **Completed** (T2.7) — deterministic builder; LLM later |
+| Artifact persistence (Mongo) | **Completed** (T2.8) — research_packages / optimization_reports / memory_records |
+| Research full (simplified) | **Completed** (T2.4) — multi-query + coverage retry |
 | Production chat today | LLM Supervisor + optional Cognition flag |
 | Dirty worktree | Unrelated WIP may still exist on branch — keep M2 commits narrow |
 
-**Active milestone:** **M2** — core skills landed; remaining **T2.4** Research full, **T2.8** persistence.
+**Active milestone:** **M3** — LangGraph nodes + feature flag (supervisor fallback remains).
 
-**Next approved coding tasks:** T2.8 persist packages/reports/memory_records; or T2.4 Research full (strategist); then M3 graph nodes.
+**Next approved coding tasks:** T3.1 graph nodes (load / plan / invoke / compose / persist); T3.2 flag route in OrchestratorService.
 
 ---
 
@@ -59,8 +61,8 @@ After completing work:
 2026-07-27                                                    →
 M0 Docs freeze        ████ DONE
 M1 Contracts          ████ DONE (feat/m1-contracts)
-M2 Skills + pipelines         ░░░░ NEXT
-M3 Graph behind flag                    ░░░░░░░
+M2 Skills + pipelines         ████ DONE
+M3 Graph behind flag                    ░░░░ NEXT
 M4 Strategist UX                                  ░░░░░░
 M5 Remove dual brain                                        ░░░░
 M6 Learning / agency pack                                         ░░░░░ Post-MVP lean
@@ -93,11 +95,11 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T2.1 | M2 | CI facade `analyze` + `ci.analyze.v1` | Completed | Critical | Eng | T1.7 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Deterministic analyzer; LLM prompt deferred |
 | T2.2 | M2 | Memory Manager facade (retrieve/rememberAsync) | Completed | Critical | Eng | T1.7 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Adapters over ContextPackBuilder + extraction |
 | T2.3 | M2 | Research skill lite pipeline | Completed | Critical | Eng | T1.2 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Tavily→Package; Writing guards |
-| T2.4 | M2 | Research skill full (simplified phases) | Planned | High | Eng | T2.3 | TBD | TBD | — | coverage_min=0.55 |
+| T2.4 | M2 | Research skill full (simplified phases) | Completed | High | Eng | T2.3 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Multi-query + coverage retry |
 | T2.5 | M2 | Writing skill wrap BlogGraph (no Tavily) | Completed | Critical | Eng | T2.3 | 2026-07-27 | 2026-07-27 | 2026-07-27 | draftFromNotes + package→notes |
 | T2.6 | M2 | Content Optimization thin validators + gate | Completed | Critical | Eng | T1.3 | 2026-07-27 | 2026-07-27 | 2026-07-27 | UX thin; review adapter |
 | T2.7 | M2 | Strategy skill thin structured output | Completed | High | Eng | T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | contentStrategyArtifactSchema |
-| T2.8 | M2 | Persist packages / reports / memory_records | Planned | High | Eng | T2.2–T2.6 | TBD | TBD | — | Mongo collections |
+| T2.8 | M2 | Persist packages / reports / memory_records | Completed | High | Eng | T2.2–T2.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | ArtifactStore + Mongo collections |
 | T3.1 | M3 | Graph nodes: load / plan / invoke / compose / persist | Planned | Critical | Eng | T2.* | TBD | TBD | — | No understand node |
 | T3.2 | M3 | Feature flag route in OrchestratorService | Planned | Critical | Eng | T3.1 | TBD | TBD | — | Supervisor fallback remains |
 | T3.3 | M3 | quick_draft path end-to-end | Planned | Critical | Eng | T3.2, T2.3, T2.5, T2.6 | TBD | TBD | — | Parity checklist 14 §7 |
@@ -151,9 +153,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. **T2.8** Persist ResearchPackage / OptimizationReport / memory_records (Mongo).  
-2. **T2.4** Research full (simplified phases, coverage_min=0.55) when strategist path needs it.  
-3. Then **M3** graph nodes + feature flag in OrchestratorService.
+1. Start **M3 / T3.1**: graph nodes `load_context` → `plan` → `invoke_skill` → `compose` → `persist` (no `understand` node).  
+2. **T3.2** Feature-flag route in `OrchestratorService` (supervisor fallback stays).  
+3. **T3.3** `quick_draft` end-to-end behind flag.
 
 ---
 
@@ -165,3 +167,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-27 | M0 signed off (Frozen); M1 contracts implemented + tested; next = M2 |
 | 2026-07-27 | M2 T2.1–T2.3: CI + MM facades, Research lite, Writing guards; 15 tests |
 | 2026-07-27 | M2 T2.5–T2.7: Writing BlogGraph wrap, thin Optimize+gate, Strategy artifact |
+| 2026-07-27 | M2 complete: T2.8 ArtifactStore + T2.4 Research full; next = M3 graph |

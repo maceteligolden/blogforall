@@ -3,10 +3,13 @@ import { injectable } from "tsyringe";
 import type { WorkspaceMemory } from "../../../../../shared/schemas/workspace-memory.schema";
 import { ContextPackBuilderService } from "../../../../memory/services/context-pack-builder.service";
 import { MemoryExtractionService } from "../../../../memory/services/memory-extraction.service";
+import { MemoryRecordRepository } from "../../../repositories/memory-record.repository";
 import { WorkspaceMemoryRepository } from "../../../repositories/workspace-memory.repository";
 import {
   memoryCandidateSchema,
+  memoryRecordSchema,
   type MemoryCandidate,
+  type MemoryRecord,
   type RememberResult,
 } from "../../contracts/memory-record";
 
@@ -32,10 +35,10 @@ export type RetrievalContext = {
 
 export type MemoryRetrievalResult = {
   workspace_slice?: Record<string, unknown>;
-  preferences: never[];
-  knowledge: never[];
-  learning: never[];
-  content_intelligence: never[];
+  preferences: MemoryRecord[];
+  knowledge: MemoryRecord[];
+  learning: MemoryRecord[];
+  content_intelligence: MemoryRecord[];
   session_summary?: string;
   recent_messages_tail?: unknown[];
   artifacts?: Record<string, unknown>;
@@ -54,6 +57,7 @@ export class MemoryManagerService {
     private readonly packs: ContextPackBuilderService,
     private readonly extraction: MemoryExtractionService,
     private readonly workspaceMemory: WorkspaceMemoryRepository,
+    private readonly memoryRecords: MemoryRecordRepository,
   ) {}
 
   async retrieve(ctx: RetrievalContext): Promise<MemoryRetrievalResult> {
@@ -76,6 +80,16 @@ export class MemoryManagerService {
       Math.ceil(prompt_block.length / 4),
     );
 
+    const [preferences, knowledge, learning, content_intelligence] = await Promise.all([
+      this.memoryRecords.listByLayer(ctx.workspace_id, "user_preference", {
+        userId: ctx.user_id,
+        limit: 20,
+      }),
+      this.memoryRecords.listByLayer(ctx.workspace_id, "knowledge", { limit: 10 }),
+      this.memoryRecords.listByLayer(ctx.workspace_id, "learning", { limit: 10 }),
+      this.memoryRecords.listByLayer(ctx.workspace_id, "content_intelligence", { limit: 10 }),
+    ]);
+
     return {
       workspace_slice: {
         brand_voice: memory.strategic?.brand_voice,
@@ -84,10 +98,10 @@ export class MemoryManagerService {
         seo_priorities: memory.strategic?.seo_priorities,
         preferences: memory.preferences,
       },
-      preferences: [],
-      knowledge: [],
-      learning: [],
-      content_intelligence: [],
+      preferences,
+      knowledge,
+      learning,
+      content_intelligence,
       session_summary: pack.episodic || undefined,
       prompt_block,
       token_budget_used,
@@ -112,25 +126,62 @@ export class MemoryManagerService {
     return { job_id };
   }
 
-  /** Sync path for onboarding-required fields. */
+  /** Sync path for onboarding-required fields / preference keys. */
   async remember(candidate: MemoryCandidate): Promise<RememberResult> {
     const parsed = memoryCandidateSchema.parse(candidate);
     const record_id = parsed.id ?? randomUUID();
-    await this.runRememberJob({ ...parsed, id: record_id }, randomUUID());
-    return { status: "stored", record_id };
+    const result = await this.runRememberJob({ ...parsed, id: record_id }, randomUUID());
+    return result;
   }
 
-  private async runRememberJob(candidate: MemoryCandidate, _jobId: string): Promise<void> {
-    if (candidate.proposed_layer === "discard") return;
-    if (!candidate.user_id) return;
-    await this.extraction.processTurn({
-      siteId: candidate.workspace_id,
-      userId: candidate.user_id,
-      threadId: candidate.turn_id,
-      userMessage: candidate.text ?? String(candidate.proposed_value ?? ""),
-      assistantReply: "",
-      sessionMode: "planning",
-    });
+  private async runRememberJob(
+    candidate: MemoryCandidate,
+    _jobId: string,
+  ): Promise<RememberResult> {
+    if (candidate.proposed_layer === "discard") {
+      return { status: "discarded" };
+    }
+
+    let record_id = candidate.id;
+
+    if (
+      candidate.proposed_layer &&
+      candidate.proposed_key
+    ) {
+      const now = new Date().toISOString();
+      const record = memoryRecordSchema.parse({
+        id: candidate.id ?? randomUUID(),
+        workspace_id: candidate.workspace_id,
+        user_id: candidate.user_id ?? null,
+        layer: candidate.proposed_layer,
+        canonical_key: candidate.proposed_key,
+        value: candidate.proposed_value ?? candidate.text ?? null,
+        value_text: candidate.text ?? String(candidate.proposed_value ?? ""),
+        metadata: {
+          created_at: now,
+          updated_at: now,
+          confidence: candidate.confidence ?? 0.7,
+          importance: candidate.confidence ?? 0.7,
+          source_turn_id: candidate.turn_id,
+          version: 1,
+        },
+      });
+      const saved = await this.memoryRecords.upsert(record);
+      record_id = saved.id;
+    }
+
+    if (candidate.user_id) {
+      await this.extraction.processTurn({
+        siteId: candidate.workspace_id,
+        userId: candidate.user_id,
+        threadId: candidate.turn_id,
+        userMessage: candidate.text ?? String(candidate.proposed_value ?? ""),
+        assistantReply: "",
+        sessionMode: "planning",
+      });
+    }
+
+    return { status: "stored", record_id };
   }
 
   private profileToSessionMode(

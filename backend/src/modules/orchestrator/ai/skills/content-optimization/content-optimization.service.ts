@@ -4,6 +4,7 @@ import {
   canOptimizeAgain,
   type ContentOptimizationReport,
 } from "../../contracts/content-optimization";
+import { ArtifactStoreService } from "../../memory/artifact-store.service";
 import { mapBlogReviewToOptimizationReport } from "./review-adapter";
 import { buildThinOptimizationReport, type DraftForOptimize } from "./thin-validators";
 
@@ -17,12 +18,17 @@ export type ContentOptimizationInput = {
   legacy_review?: BlogReviewResult;
   optimize_count?: number;
   factual_confidence?: number;
+  workspace_id?: string;
+  persist?: boolean;
+  created_by?: string;
+  thread_id?: string;
 };
 
 export type ContentOptimizationResult = {
   report: ContentOptimizationReport;
   should_revise: boolean;
   can_loop_again: boolean;
+  persisted: boolean;
 };
 
 /**
@@ -30,7 +36,9 @@ export type ContentOptimizationResult = {
  */
 @injectable()
 export class ContentOptimizationService {
-  run(input: ContentOptimizationInput): ContentOptimizationResult {
+  constructor(private readonly artifacts: ArtifactStoreService) {}
+
+  async run(input: ContentOptimizationInput): Promise<ContentOptimizationResult> {
     const optimize_count = input.optimize_count ?? 0;
     const report = input.legacy_review
       ? mapBlogReviewToOptimizationReport({
@@ -49,6 +57,15 @@ export class ContentOptimizationService {
     const can_loop_again = canOptimizeAgain(optimize_count);
     const should_revise = !report.quality_gate_passed && can_loop_again;
 
-    return { report, should_revise, can_loop_again };
+    let persisted = false;
+    if (input.persist !== false && input.workspace_id) {
+      await this.artifacts.saveOptimizationReport(input.workspace_id, report, {
+        created_by: input.created_by,
+        thread_id: input.thread_id,
+      });
+      persisted = true;
+    }
+
+    return { report, should_revise, can_loop_again, persisted };
   }
 }

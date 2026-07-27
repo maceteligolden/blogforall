@@ -170,13 +170,17 @@ describe("T2.5 WritingSkillService", () => {
 });
 
 describe("T2.6 ContentOptimizationService", () => {
-  const opt = new ContentOptimizationService();
+  const artifacts = {
+    saveOptimizationReport: jest.fn(async () => ({ report_id: "opt_1" })),
+  };
+  const opt = new ContentOptimizationService(artifacts as any);
 
-  it("passes gate on a solid thin-validated draft", () => {
-    const { report, should_revise } = opt.run({
+  it("passes gate on a solid thin-validated draft", async () => {
+    const { report, should_revise } = await opt.run({
       draft: richDraft,
       topic: "AI agents",
       research_package_id: "rp_1",
+      persist: false,
     });
     expect(report.validator_results.map((v) => v.validator_id)).toEqual(
       expect.arrayContaining(["structural", "readability", "seo_thin", "ux_thin"]),
@@ -186,14 +190,15 @@ describe("T2.6 ContentOptimizationService", () => {
     expect(should_revise).toBe(false);
   });
 
-  it("fails gate on thin critical content and allows revise loop", () => {
-    const { report, should_revise, can_loop_again } = opt.run({
+  it("fails gate on thin critical content and allows revise loop", async () => {
+    const { report, should_revise, can_loop_again } = await opt.run({
       draft: {
         title: "Short",
         content: "<p>Too thin.</p>",
         excerpt: "x",
       },
       optimize_count: 0,
+      persist: false,
     });
     expect(report.plan.critical.length).toBeGreaterThan(0);
     expect(report.quality_gate_passed).toBe(false);

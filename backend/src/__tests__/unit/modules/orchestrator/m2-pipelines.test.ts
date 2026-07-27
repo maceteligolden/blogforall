@@ -93,6 +93,7 @@ describe("T2.2 MemoryManagerService", () => {
   let packs: { build: jest.Mock; toPromptBlock: jest.Mock };
   let extraction: { processTurn: jest.Mock };
   let workspaceMemory: { findBySiteId: jest.Mock; ensureForSite: jest.Mock };
+  let memoryRecords: { listByLayer: jest.Mock; upsert: jest.Mock };
   let mm: MemoryManagerService;
 
   beforeEach(() => {
@@ -122,7 +123,16 @@ describe("T2.2 MemoryManagerService", () => {
         preferences: { tone: "friendly" },
       })),
     };
-    mm = new MemoryManagerService(packs as any, extraction as any, workspaceMemory as any);
+    memoryRecords = {
+      listByLayer: jest.fn(async () => []),
+      upsert: jest.fn(async (r: unknown) => r),
+    };
+    mm = new MemoryManagerService(
+      packs as any,
+      extraction as any,
+      workspaceMemory as any,
+      memoryRecords as any,
+    );
   });
 
   it("retrieve builds pack with chat_light → planning and includeVectors false", async () => {
@@ -166,6 +176,24 @@ describe("T2.2 MemoryManagerService", () => {
       proposed_layer: "discard",
     });
     expect(extraction.processTurn).not.toHaveBeenCalled();
+    expect(memoryRecords.upsert).not.toHaveBeenCalled();
+  });
+
+  it("remember with proposed_key upserts memory_records", async () => {
+    const result = await mm.remember({
+      turn_id: "t1",
+      workspace_id: "ws_1",
+      user_id: "u1",
+      text: "prefer short",
+      source: "user_utterance",
+      proposed_layer: "user_preference",
+      proposed_key: "tone.brevity",
+      proposed_value: "short",
+      confidence: 0.9,
+    });
+    expect(result.status).toBe("stored");
+    expect(memoryRecords.upsert).toHaveBeenCalled();
+    expect(extraction.processTurn).toHaveBeenCalled();
   });
 });
 
@@ -177,22 +205,26 @@ describe("T2.3 ResearchLiteService + Writing guards", () => {
       snippet: `Snippet about topic ${i}`,
     }));
     const tavily = { search: jest.fn(async () => notes) };
-    const research = new ResearchLiteService(tavily as any);
+    const artifacts = { saveResearchPackage: jest.fn(async () => ({ package_id: "rp_x" })) };
+    const research = new ResearchLiteService(tavily as any, artifacts as any);
     const result = await research.run({
       workspace_id: "ws_1",
       topic: "AI agents",
+      persist: false,
     });
     expect(result.package.depth).toBe("lite");
     expect(result.package.sources).toHaveLength(MVP_LOCKS.researchSourcesLiteMax);
     expect(result.provenance_errors).toEqual([]);
     expect(result.summary.source_count).toBe(MVP_LOCKS.researchSourcesLiteMax);
     expect(result.package.degraded).toBeFalsy();
+    expect(artifacts.saveResearchPackage).not.toHaveBeenCalled();
   });
 
   it("marks degraded when search returns empty", async () => {
     const tavily = { search: jest.fn(async () => []) };
-    const research = new ResearchLiteService(tavily as any);
-    const result = await research.run({ workspace_id: "ws_1", topic: "obscure" });
+    const artifacts = { saveResearchPackage: jest.fn(async () => ({ package_id: "rp_x" })) };
+    const research = new ResearchLiteService(tavily as any, artifacts as any);
+    const result = await research.run({ workspace_id: "ws_1", topic: "obscure", persist: false });
     expect(result.package.degraded).toBe(true);
     expect(result.package.sources).toHaveLength(0);
   });
