@@ -212,6 +212,24 @@ export interface ChatTurnResponse {
   workspace_status: "onboarding" | "active";
   /** True when the supervisor flipped Site.status during this turn. */
   onboarding_completed: boolean;
+  /** Present when COGNITION_ENABLED routed this turn through the B cognition graph. */
+  cognition?: {
+    enabled: true;
+    goal: string;
+    content_type: string;
+    phase: string;
+    plan_kind: string;
+    choice_chips?: string[];
+    progress_events?: Array<{ stage: string; message: string; current?: number; total?: number }>;
+    persona_display_name?: string;
+  };
+  /** Present when ORCHESTRATOR_V05_GRAPH_ENABLED routed through the v0.5 skill graph. */
+  v05_graph?: {
+    enabled: true;
+    workflow_stage: string;
+    skills_run: number;
+    mode: string;
+  };
 }
 
 export interface SerializedApproval {

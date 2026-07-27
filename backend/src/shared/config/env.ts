@@ -78,7 +78,7 @@ export const env = {
     tavilyApiKey: (process.env.TAVILY_API_KEY || "").trim(),
     /** When false, skip web search even if Tavily key is set. */
     enableWebSearch: (process.env.BLOG_AI_ENABLE_WEB_SEARCH || "true").toLowerCase() !== "false",
-    maxSearchResults: parseIntEnv(process.env.BLOG_AI_MAX_SEARCH_RESULTS, 8),
+    maxSearchResults: parseIntEnv(process.env.BLOG_AI_MAX_SEARCH_RESULTS, 12),
     searchMaxQueryLength: parseIntEnv(process.env.BLOG_AI_SEARCH_MAX_QUERY_LENGTH, 400),
     API_TIMEOUT: parseIntEnv(process.env.BLOG_GENERATION_API_TIMEOUT, 120_000),
     MAX_PROMPT_LENGTH: parseIntEnv(process.env.BLOG_GENERATION_MAX_PROMPT_LENGTH, 2000),
@@ -131,6 +131,34 @@ export const env = {
     maxReworkRounds: parseIntEnv(process.env.ORCHESTRATOR_MAX_REWORK_ROUNDS, 5),
     /** Secret used to sign scheduled-post review tokens (falls back to ACCESS_SECRET). */
     reviewTokenSecret: (process.env.ORCHESTRATOR_REVIEW_TOKEN_SECRET || process.env.ACCESS_SECRET || "").trim(),
+    /**
+     * v0.5 LangGraph orchestrator (CI → skills). When true (active mode),
+     * bypasses supervisor / cognition. Default false — supervisor remains production.
+     */
+    v05GraphEnabled: (process.env.ORCHESTRATOR_V05_GRAPH_ENABLED || "false").toLowerCase() === "true",
+  },
+
+  /**
+   * B Cognition System — layered graph beside the legacy supervisor.
+   * When enabled, orchestrator chat routes through CognitionTurnUseCase.
+   */
+  cognition: {
+    enabled: (process.env.COGNITION_ENABLED || "false").toLowerCase() === "true",
+    utilityModel: (process.env.COGNITION_UTILITY_MODEL || "gpt-4o-mini").trim(),
+    primaryModel: (
+      process.env.COGNITION_PRIMARY_MODEL ||
+      process.env.ORCHESTRATOR_SUPERVISOR_MODEL ||
+      "gpt-4o-mini"
+    ).trim(),
+    memoryPackCacheTtlSec: parseIntEnv(process.env.COGNITION_MEMORY_PACK_CACHE_TTL_SEC, 90),
+    researchMinSources: parseIntEnv(process.env.COGNITION_RESEARCH_MIN_SOURCES, 5),
+    researchMaxSources: parseIntEnv(process.env.COGNITION_RESEARCH_MAX_SOURCES, 15),
+    reasoningRetentionDays: parseIntEnv(process.env.COGNITION_REASONING_RETENTION_DAYS, 90),
+    redisUrl: (
+      process.env.COGNITION_REDIS_URL ||
+      process.env.REDIS_URL ||
+      ""
+    ).trim(),
   },
 
   memory: {

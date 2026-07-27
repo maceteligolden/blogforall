@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M2 complete — T2.4 + T2.8)  
+**Last updated:** 2026-07-27 (M3 T3.1–T3.2 graph + flag)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -37,7 +37,6 @@ After completing work:
 | Formal M0 sign-off (Draft → Frozen) | **Completed** 2026-07-27 |
 | Execution tracker + ADR log | Active |
 | M1 Zod contracts + OrchestratorState | **Completed** on `feat/m1-contracts` |
-| LangGraph orchestrator graph (nodes) | **Not implemented** (state Annotation only) |
 | Conversation Intelligence module | **Facade + deterministic analyzer** (T2.1); LLM `ci.analyze.v1` deferred |
 | Memory Manager facade | **retrieve / rememberAsync** (T2.2); Bull queue later |
 | Research lite + Writing no-search guards | **Completed** (T2.3) |
@@ -46,12 +45,14 @@ After completing work:
 | Strategy structured artifact | **Completed** (T2.7) — deterministic builder; LLM later |
 | Artifact persistence (Mongo) | **Completed** (T2.8) — research_packages / optimization_reports / memory_records |
 | Research full (simplified) | **Completed** (T2.4) — multi-query + coverage retry |
-| Production chat today | LLM Supervisor + optional Cognition flag |
-| Dirty worktree | Unrelated WIP may still exist on branch — keep M2 commits narrow |
+| LangGraph orchestrator graph (nodes) | **Skeleton** (T3.1) — load/plan/invoke/compose/persist |
+| Feature flag `ORCHESTRATOR_V05_GRAPH_ENABLED` | **Completed** (T3.2) — default off; supervisor fallback |
+| Production chat today | LLM Supervisor + optional Cognition / v0.5 flags |
+| Dirty worktree | Unrelated WIP may still exist on branch — keep M3 commits narrow |
 
-**Active milestone:** **M3** — LangGraph nodes + feature flag (supervisor fallback remains).
+**Active milestone:** **M3** — graph behind flag; next = quick_draft e2e + CI golden tests.
 
-**Next approved coding tasks:** T3.1 graph nodes (load / plan / invoke / compose / persist); T3.2 flag route in OrchestratorService.
+**Next approved coding tasks:** T3.3 `quick_draft` end-to-end behind flag; T3.4 CI golden A1–A10; T3.5 observability spans.
 
 ---
 
@@ -62,7 +63,7 @@ After completing work:
 M0 Docs freeze        ████ DONE
 M1 Contracts          ████ DONE (feat/m1-contracts)
 M2 Skills + pipelines         ████ DONE
-M3 Graph behind flag                    ░░░░ NEXT
+M3 Graph behind flag                    ██░░ NEXT (T3.1–T3.2 done)
 M4 Strategist UX                                  ░░░░░░
 M5 Remove dual brain                                        ░░░░
 M6 Learning / agency pack                                         ░░░░░ Post-MVP lean
@@ -100,8 +101,8 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T2.6 | M2 | Content Optimization thin validators + gate | Completed | Critical | Eng | T1.3 | 2026-07-27 | 2026-07-27 | 2026-07-27 | UX thin; review adapter |
 | T2.7 | M2 | Strategy skill thin structured output | Completed | High | Eng | T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | contentStrategyArtifactSchema |
 | T2.8 | M2 | Persist packages / reports / memory_records | Completed | High | Eng | T2.2–T2.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | ArtifactStore + Mongo collections |
-| T3.1 | M3 | Graph nodes: load / plan / invoke / compose / persist | Planned | Critical | Eng | T2.* | TBD | TBD | — | No understand node |
-| T3.2 | M3 | Feature flag route in OrchestratorService | Planned | Critical | Eng | T3.1 | TBD | TBD | — | Supervisor fallback remains |
+| T3.1 | M3 | Graph nodes: load / plan / invoke / compose / persist | Completed | Critical | Eng | T2.* | 2026-07-27 | 2026-07-27 | 2026-07-27 | No understand node; plan_turn naming |
+| T3.2 | M3 | Feature flag route in OrchestratorService | Completed | Critical | Eng | T3.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | ORCHESTRATOR_V05_GRAPH_ENABLED |
 | T3.3 | M3 | quick_draft path end-to-end | Planned | Critical | Eng | T3.2, T2.3, T2.5, T2.6 | TBD | TBD | — | Parity checklist 14 §7 |
 | T3.4 | M3 | CI golden utterance tests A1–A10 | Planned | Critical | Eng | T2.1, T3.2 | TBD | TBD | — | Blocking before flag-on default |
 | T3.5 | M3 | Observability spans (ci / plan / skills) | Planned | High | Eng | T3.1 | TBD | TBD | — | 12 |
@@ -153,9 +154,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. Start **M3 / T3.1**: graph nodes `load_context` → `plan` → `invoke_skill` → `compose` → `persist` (no `understand` node).  
-2. **T3.2** Feature-flag route in `OrchestratorService` (supervisor fallback stays).  
-3. **T3.3** `quick_draft` end-to-end behind flag.
+1. **T3.3** `quick_draft` end-to-end behind `ORCHESTRATOR_V05_GRAPH_ENABLED` (parity checklist 14 §7).  
+2. **T3.4** CI golden utterance tests A1–A10 (blocking before flag-on default).  
+3. **T3.5** Observability spans for ci / plan / skills.
 
 ---
 
@@ -168,3 +169,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-27 | M2 T2.1–T2.3: CI + MM facades, Research lite, Writing guards; 15 tests |
 | 2026-07-27 | M2 T2.5–T2.7: Writing BlogGraph wrap, thin Optimize+gate, Strategy artifact |
 | 2026-07-27 | M2 complete: T2.8 ArtifactStore + T2.4 Research full; next = M3 graph |
+| 2026-07-27 | M3 T3.1–T3.2: LangGraph nodes + ORCHESTRATOR_V05_GRAPH_ENABLED flag |
