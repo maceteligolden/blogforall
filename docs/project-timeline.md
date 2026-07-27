@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M1 complete)  
+**Last updated:** 2026-07-27 (M2 T2.1–T2.3 complete)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -38,14 +38,15 @@ After completing work:
 | Execution tracker + ADR log | Active |
 | M1 Zod contracts + OrchestratorState | **Completed** on `feat/m1-contracts` |
 | LangGraph orchestrator graph (nodes) | **Not implemented** (state Annotation only) |
-| Conversation Intelligence module | **Not implemented** |
-| Memory Manager facade | **Not implemented** |
+| Conversation Intelligence module | **Facade + deterministic analyzer** (T2.1); LLM `ci.analyze.v1` deferred |
+| Memory Manager facade | **retrieve / rememberAsync** (T2.2); Bull queue later |
+| Research lite + Writing no-search guards | **Completed** (T2.3) |
 | Production chat today | LLM Supervisor + optional Cognition flag |
-| Dirty worktree | Unrelated WIP may still exist on branch — keep M1 commits narrow |
+| Dirty worktree | Unrelated WIP may still exist on branch — keep M2 commits narrow |
 
-**Active milestone:** **M2** — Skills + pipelines (CI / MM facades, Research lite, Writing no-search, thin Optimize).
+**Active milestone:** **M2** — Skills + pipelines (CI / MM / Research lite done; Writing wrap + Optimize + Strategy next).
 
-**Next approved coding tasks:** T2.1 Conversation Intelligence facade; T2.2 Memory Manager facade; T2.3 Research lite (parallelizable after M1).
+**Next approved coding tasks:** T2.5 Writing wrap (require package_id); T2.6 thin Optimize; T2.7 Strategy thin; T2.4 Research full after lite path is wired.
 
 ---
 
@@ -86,9 +87,9 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T1.5 | M1 | `OrchestratorState` Annotation + reducers | Completed | Critical | Eng | T1.1–T1.4 | 2026-07-27 | 2026-07-27 | 2026-07-27 | graph/state.ts |
 | T1.6 | M1 | Checkpoint PII / field allowlist | Completed | High | Eng | T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | checkpoint-allowlist.ts |
 | T1.7 | M1 | Unit tests for schemas / invariants | Completed | Critical | Eng | T1.1–T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | 13 tests passing |
-| T2.1 | M2 | CI facade `analyze` + `ci.analyze.v1` | Planned | Critical | Eng | T1.7 | TBD | TBD | — | Wrap cognition ConversationService |
-| T2.2 | M2 | Memory Manager facade (retrieve/rememberAsync) | Planned | Critical | Eng | T1.7 | TBD | TBD | — | Adapters over existing memory services |
-| T2.3 | M2 | Research skill lite pipeline | Planned | Critical | Eng | T1.2 | TBD | TBD | — | Writing never searches |
+| T2.1 | M2 | CI facade `analyze` + `ci.analyze.v1` | Completed | Critical | Eng | T1.7 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Deterministic analyzer; LLM prompt deferred |
+| T2.2 | M2 | Memory Manager facade (retrieve/rememberAsync) | Completed | Critical | Eng | T1.7 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Adapters over ContextPackBuilder + extraction |
+| T2.3 | M2 | Research skill lite pipeline | Completed | Critical | Eng | T1.2 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Tavily→Package; Writing guards |
 | T2.4 | M2 | Research skill full (simplified phases) | Planned | High | Eng | T2.3 | TBD | TBD | — | coverage_min=0.55 |
 | T2.5 | M2 | Writing skill wrap BlogGraph (no Tavily) | Planned | Critical | Eng | T2.3 | TBD | TBD | — | Require package_id |
 | T2.6 | M2 | Content Optimization thin validators + gate | Planned | Critical | Eng | T1.3 | TBD | TBD | — | UX thin; wrap review runner |
@@ -147,9 +148,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. Merge / continue on `feat/m1-contracts` (or open PR).  
-2. Start **T2.1** CI facade + **T2.2** Memory Manager facade (can parallelize).  
-3. Then **T2.3** Research lite (Writing must not search).
+1. Continue on `feat/m1-contracts`: **T2.5** Writing wrap (require `research_package_id`, no Tavily).  
+2. **T2.6** Content Optimization thin validators + gate (overall≥72, max 2 loops).  
+3. **T2.7** Strategy skill thin structured output; then **T2.4** Research full if needed for strategist path.
 
 ---
 
@@ -159,3 +160,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 |------|--------|
 | 2026-07-27 | Created tracker; assessed repo; M0 docs marked Completed; M1 set as next implementation milestone |
 | 2026-07-27 | M0 signed off (Frozen); M1 contracts implemented + tested; next = M2 |
+| 2026-07-27 | M2 T2.1–T2.3: CI + MM facades, Research lite, Writing guards; 15 tests |
