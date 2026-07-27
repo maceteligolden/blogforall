@@ -23,6 +23,10 @@ const SOFT_CREATE =
   /\b(?:we\s+should|probably|maybe\s+we|ought\s+to|might\s+want\s+to)\b.*\b(?:write|draft|post|article|blog|content)\b/i;
 const BRAINSTORM =
   /\b(?:ideas?|brainstorm|topics?\s+could|what\s+should\s+i\s+write|want\s+to\s+write\s+something)\b/i;
+const VAGUE_WRITE =
+  /\bi\s+want\s+to\s+write\s+(?:something|about)\b|\bwrite\s+something\s+about\b/i;
+const QUICK_DRAFT_PHRASE = /\b(?:quick|rough)\s+draft\b/i;
+
 const FEEDBACK =
   /\b(?:boring|robotic|too\s+long|too\s+short|jargon|make\s+(?:it|this)\s+(?:shorter|better|more)|feels?\s+too)\b/i;
 const PREFERENCE =
@@ -50,6 +54,11 @@ function extractTopic(message: string): string | undefined {
   const soft = message.match(/\b(?:write|post|article|blog)\s+(?:something\s+)?(?:about|on)\s+(.+)$/i);
   if (soft?.[1]) {
     return soft[1].replace(/[.?!]+$/, "").trim().slice(0, 500);
+  }
+  const quick = message.match(/\b(?:quick|rough)\s+draft[:\s]+(.+)$/i);
+  if (quick?.[1]) {
+    const t = quick[1].replace(/[.?!]+$/, "").trim().slice(0, 500);
+    if (t) return t;
   }
   return undefined;
 }
@@ -98,6 +107,14 @@ export function analyzeConversationDeterministic(
     action_required = true;
     confidence = 0.86;
     initiative = "lead";
+  } else if (ASK.test(message) && !CREATE.test(message) && !SOFT_CREATE.test(message)) {
+    // Questions (incl. "How does SEO work?") → explain before optimize keyword match.
+    communicative_category = "ask_information";
+    workflow_intent = "explain";
+    suggested_next_action = "explain";
+    conversation_mode = "information";
+    confidence = 0.88;
+    initiative = "passive";
   } else if (OPTIMIZE.test(message)) {
     communicative_category = "request_action";
     workflow_intent = "optimize_content";
@@ -114,7 +131,16 @@ export function analyzeConversationDeterministic(
     action_required = true;
     confidence = 0.84;
     initiative = "lead";
-  } else if (CREATE.test(message) || SOFT_CREATE.test(message)) {
+  } else if (VAGUE_WRITE.test(message) && !CREATE.test(message)) {
+    // A3: "I want to write something about AI" → brainstorm, not create.
+    communicative_category = "brainstorm";
+    workflow_intent = "strategy";
+    suggested_next_action = "start_planning";
+    conversation_mode = "planning";
+    action_required = true;
+    confidence = 0.83;
+    initiative = "suggest";
+  } else if (CREATE.test(message) || SOFT_CREATE.test(message) || QUICK_DRAFT_PHRASE.test(message)) {
     communicative_category = "request_action";
     workflow_intent = "create_content";
     suggested_next_action = "start_content_workflow";
@@ -136,13 +162,6 @@ export function analyzeConversationDeterministic(
     action_required = true;
     confidence = 0.82;
     initiative = "suggest";
-  } else if (ASK.test(message)) {
-    communicative_category = "ask_information";
-    workflow_intent = "explain";
-    suggested_next_action = "explain";
-    conversation_mode = "information";
-    confidence = 0.88;
-    initiative = "passive";
   } else if (humor) {
     communicative_category = "casual";
     workflow_intent = "casual";

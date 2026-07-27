@@ -1,4 +1,5 @@
 import type { MemoryManagerService } from "../../memory/manager/memory-manager";
+import { resolveWorkflowMode } from "../resolve-mode";
 import type { OrchestratorState } from "../state";
 
 export type LoadContextDeps = {
@@ -10,6 +11,21 @@ export async function loadContextNode(
   state: OrchestratorState,
   deps: LoadContextDeps,
 ): Promise<Partial<OrchestratorState>> {
+  // Parity: do not re-fetch identical chat_light if already loaded this turn.
+  const existing = state.memory_views as { profile?: string; prompt_block?: string } | undefined;
+  if (existing?.profile === "chat_light" && existing.prompt_block !== undefined) {
+    return {
+      mode: resolveWorkflowMode(state),
+      progress_events: [
+        {
+          type: "load_context",
+          message: "Skipped duplicate chat_light retrieve",
+          at: new Date().toISOString(),
+        },
+      ],
+    };
+  }
+
   const retrieval = await deps.memory.retrieve({
     workspace_id: state.workspace_id,
     user_id: state.user_id,
@@ -19,15 +35,8 @@ export async function loadContextNode(
     topic: state.slots.topic,
   });
 
-  const mode =
-    state.mode === "chat" &&
-    (state.conversation_context?.workflow_intent === "create_content" ||
-      state.conversation_context?.suggested_next_action === "start_content_workflow")
-      ? "quick_draft"
-      : state.mode;
-
   return {
-    mode,
+    mode: resolveWorkflowMode(state),
     memory_views: {
       workspace_slice: retrieval.workspace_slice,
       preferences: retrieval.preferences,
@@ -36,6 +45,7 @@ export async function loadContextNode(
       content_intelligence: retrieval.content_intelligence,
       session_summary: retrieval.session_summary,
       prompt_block: retrieval.prompt_block,
+      profile: "chat_light",
     },
     progress_events: [
       {
