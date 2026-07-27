@@ -144,6 +144,8 @@ export const contentOptimizationReportSchema = z.object({
 export type ContentOptimizationReport = z.infer<typeof contentOptimizationReportSchema>;
 export type OptimizationPlan = z.infer<typeof optimizationPlanSchema>;
 export type QualityScorecard = z.infer<typeof qualityScorecardSchema>;
+export type OptimizationRecommendation = z.infer<typeof optimizationRecommendationSchema>;
+export type ValidatorResult = z.infer<typeof validatorResultSchema>;
 
 export function computeOverallScore(input: {
   seo: number;

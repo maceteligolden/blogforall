@@ -12,6 +12,7 @@ import type { BlogUserGenerationParams, GeneratedBlogContent, PromptAnalysis, Re
 import { TavilySearchService } from "./tavily-search.service";
 import { runBlogReviewWithChat, type BlogReviewResult } from "./blog-review.runner";
 import { clampBlogExcerpt } from "../utils/excerpt.util";
+import { ensureHtmlContent } from "../../../shared/utils/content-blocks.util";
 
 const OutlineSchema = z.object({
   title: z.string(),
@@ -137,6 +138,65 @@ export class BlogGenerationGraphService {
       );
     }
     return this.runValidateNode(prompt.trim(), userParams, signal);
+  }
+
+  /**
+   * Draft-only path for Writing skill (ADR-004): uses provided research notes
+   * and never calls Tavily / editorial review. Content Optimization owns review.
+   */
+  async draftFromNotes(
+    prompt: string,
+    analysis: PromptAnalysis,
+    researchNotes: ResearchNote[],
+    userParams?: BlogUserGenerationParams,
+    signal?: AbortSignal
+  ): Promise<GeneratedBlogContent> {
+    this.assertConfigured();
+    if (!analysis.is_valid) {
+      throw new BadRequestError(
+        analysis.rejection_reason ||
+          "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
+      );
+    }
+    const update = await this.nodeDraft(
+      {
+        prompt: prompt.trim(),
+        userParams,
+        analysis,
+        researchNotes,
+        draft: null,
+        review: null,
+      },
+      { signal }
+    );
+    if (!update.draft) {
+      throw new BadRequestError("Blog generation did not produce content. Please try again.");
+    }
+    return update.draft;
+  }
+
+  /**
+   * Outline-only path for Writing skill — grounded in research notes, no web search.
+   */
+  async outlineFromNotes(
+    prompt: string,
+    analysis: PromptAnalysis,
+    researchNotes: ResearchNote[],
+    userParams?: BlogUserGenerationParams,
+    signal?: AbortSignal
+  ): Promise<{ title: string; sections: Array<{ heading: string; summary: string }> }> {
+    this.assertConfigured();
+    if (!analysis.is_valid) {
+      throw new BadRequestError(
+        analysis.rejection_reason || "Prompt analysis is invalid for outline generation."
+      );
+    }
+    const chat = this.getMainChat();
+    const structured = chat.withStructuredOutput(OutlineSchema);
+    const outlinePrompt = `Based on the following blog brief, produce ONLY an outline with a title and 3-6 section headings with one-line summaries.
+
+${this.buildDraftPrompt(prompt.trim(), analysis, researchNotes, userParams)}`;
+    return structured.invoke([new HumanMessage(outlinePrompt)], { signal });
   }
 
   /**
@@ -424,8 +484,18 @@ Return structured output matching the schema.`;
 
   private async nodeResearch(state: BlogGenStateType, config?: RunnableConfig): Promise<BlogGenUpdate> {
     const a = state.analysis!;
-    const q = this.tavilySearch.buildQuery(state.prompt, a.topic, a.topics_to_explore);
-    const notes = await this.tavilySearch.search(q, config?.signal);
+    const topic = a.topic || state.prompt.slice(0, 200);
+    const notes = await this.tavilySearch.searchMultiQuery(topic, {
+      minSources: 5,
+      maxSources: 15,
+      signal: config?.signal,
+    });
+    if (!notes.length) {
+      // Fall back to single query for backwards-compatible behavior
+      const q = this.tavilySearch.buildQuery(state.prompt, a.topic, a.topics_to_explore);
+      const fallback = await this.tavilySearch.search(q, config?.signal);
+      return { researchNotes: fallback };
+    }
     return { researchNotes: notes };
   }
 
@@ -444,6 +514,34 @@ Return structured output matching the schema.`;
       meta: this.normalizeDraftMeta(out.meta),
     };
     this.validateDraft(draft, state.analysis!);
+    // #region agent log
+    {
+      const c = draft.content ?? "";
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
+        body: JSON.stringify({
+          sessionId: "99a1d3",
+          runId: "html-format",
+          hypothesisId: "H-A",
+          location: "blog-generation-graph.service.ts:nodeDraft",
+          message: "draft content format probe",
+          data: {
+            path: "structured",
+            contentLen: c.length,
+            looksLikeHtml: /<\/?(p|h[1-6]|ul|ol|li|blockquote|div)\b/i.test(c),
+            looksLikeMarkdown:
+              /(^|\n)#{1,3}\s+/m.test(c) ||
+              /(^|\n)[-*]\s+.+/m.test(c) ||
+              /```/m.test(c),
+            hasCodeFence: /```/.test(c),
+            preview: c.slice(0, 180).replace(/\n/g, "\\n"),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => undefined);
+    }
+    // #endregion
     return { draft };
   }
 
@@ -460,7 +558,7 @@ ${this.buildDraftPrompt(state.prompt, state.analysis!, state.researchNotes, stat
     let priorSummary = "";
 
     for (const section of outline.sections.slice(0, 6)) {
-      const sectionPrompt = `Write ONE section of a blog post in HTML (h2 + paragraphs only, no full article wrapper).
+      const sectionPrompt = `Write ONE section of a blog post as HTML only (h2 + paragraphs/lists). No Markdown (#, -, **, or code fences). No full article wrapper.
 
 Title: ${outline.title}
 Section heading: ${section.heading}
@@ -471,7 +569,7 @@ ${state.userParams?.context_pack?.slice(0, 3000) ?? ""}
 
 Topic: ${state.analysis!.topic}
 Tone: ${state.analysis!.tone ?? "professional"}
-Return only the HTML for this section.`;
+Return only the HTML for this section (e.g. <h2>...</h2><p>...</p>).`;
 
       const sectionOut = await chat.invoke([new HumanMessage(sectionPrompt)], { signal: config?.signal });
       const html = typeof sectionOut.content === "string" ? sectionOut.content : String(sectionOut.content ?? "");
@@ -496,6 +594,35 @@ Return only the HTML for this section.`;
       meta: this.normalizeDraftMeta(excerptOut.meta),
     };
     this.validateDraft(draft, state.analysis!);
+    // #region agent log
+    {
+      const c = draft.content ?? "";
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
+        body: JSON.stringify({
+          sessionId: "99a1d3",
+          runId: "html-format",
+          hypothesisId: "H-A",
+          location: "blog-generation-graph.service.ts:nodeDraftSectional",
+          message: "sectional draft content format probe",
+          data: {
+            path: "sectional",
+            sectionCount: sections.length,
+            contentLen: c.length,
+            looksLikeHtml: /<\/?(p|h[1-6]|ul|ol|li|blockquote|div)\b/i.test(c),
+            looksLikeMarkdown:
+              /(^|\n)#{1,3}\s+/m.test(c) ||
+              /(^|\n)[-*]\s+.+/m.test(c) ||
+              /```/m.test(c),
+            hasCodeFence: /```/.test(c),
+            preview: c.slice(0, 180).replace(/\n/g, "\\n"),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => undefined);
+    }
+    // #endregion
     return { draft };
   }
 
@@ -610,9 +737,9 @@ Structure: ${structure}
 Target length: approximately ${wordCount} words.
 ${contextBlock}${researchBlock}
 
-Write a comprehensive blog post. Use HTML for content: h1 once for title inside content or start with h2 sections, paragraphs, lists as appropriate.
+Write a comprehensive blog post. content MUST be valid HTML only — use <h2>, <p>, <ul>/<ol>/<li>, <blockquote> as needed. NEVER use Markdown (# headings, - lists, **bold**, or \`\`\` fences).
 
-Return structured JSON fields: title (max ~60 chars), content (HTML), excerpt (max 500 characters), meta.description (<=160 chars), meta.keywords (array).`;
+Return structured JSON fields: title (max ~60 chars), content (HTML only), excerpt (max 500 characters), meta.description (<=160 chars), meta.keywords (array).`;
   }
 
   private normalizeDraftMeta(meta: z.infer<typeof DraftSchema>["meta"]): GeneratedBlogContent["meta"] {
@@ -631,6 +758,34 @@ Return structured JSON fields: title (max ~60 chars), content (HTML), excerpt (m
     if (!content.content?.trim()) {
       throw new BadRequestError("No content was generated. Please try again with a more detailed prompt.");
     }
+    const before = content.content;
+    content.content = ensureHtmlContent(content.content);
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
+      body: JSON.stringify({
+        sessionId: "99a1d3",
+        runId: "html-format",
+        hypothesisId: "H-fix",
+        location: "blog-generation-graph.service.ts:validateDraft",
+        message: "normalized draft to HTML",
+        data: {
+          beforeLooksMd:
+            /(^|\n)#{1,3}\s+/m.test(before) || /(^|\n)[-*]\s+.+/m.test(before) || /```/m.test(before),
+          beforeLooksHtml: /<\/?(p|h[1-6]|ul|ol|li)\b/i.test(before),
+          afterLooksHtml: /<\/?(p|h[1-6]|ul|ol|li)\b/i.test(content.content),
+          afterLooksMd:
+            /(^|\n)#{1,3}\s+/m.test(content.content) ||
+            /(^|\n)[-*]\s+.+/m.test(content.content),
+          beforePreview: before.slice(0, 120).replace(/\n/g, "\\n"),
+          afterPreview: content.content.slice(0, 120).replace(/\n/g, "\\n"),
+          changed: before !== content.content,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => undefined);
+    // #endregion
     content.excerpt = clampBlogExcerpt(content.excerpt);
     const len = content.content.trim().length;
     if (len < BlogAiConfig.MIN_CONTENT_LENGTH) {

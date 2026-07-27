@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M2 T2.1–T2.3 complete)  
+**Last updated:** 2026-07-27 (M2 T2.5–T2.7 complete)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -41,12 +41,15 @@ After completing work:
 | Conversation Intelligence module | **Facade + deterministic analyzer** (T2.1); LLM `ci.analyze.v1` deferred |
 | Memory Manager facade | **retrieve / rememberAsync** (T2.2); Bull queue later |
 | Research lite + Writing no-search guards | **Completed** (T2.3) |
+| Writing skill (BlogGraph no Tavily) | **Completed** (T2.5) — `draftFromNotes` / package grounding |
+| Content Optimization thin + gate | **Completed** (T2.6) — UX thin; legacy review adapter |
+| Strategy structured artifact | **Completed** (T2.7) — deterministic builder; LLM later |
 | Production chat today | LLM Supervisor + optional Cognition flag |
 | Dirty worktree | Unrelated WIP may still exist on branch — keep M2 commits narrow |
 
-**Active milestone:** **M2** — Skills + pipelines (CI / MM / Research lite done; Writing wrap + Optimize + Strategy next).
+**Active milestone:** **M2** — core skills landed; remaining **T2.4** Research full, **T2.8** persistence.
 
-**Next approved coding tasks:** T2.5 Writing wrap (require package_id); T2.6 thin Optimize; T2.7 Strategy thin; T2.4 Research full after lite path is wired.
+**Next approved coding tasks:** T2.8 persist packages/reports/memory_records; or T2.4 Research full (strategist); then M3 graph nodes.
 
 ---
 
@@ -91,9 +94,9 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T2.2 | M2 | Memory Manager facade (retrieve/rememberAsync) | Completed | Critical | Eng | T1.7 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Adapters over ContextPackBuilder + extraction |
 | T2.3 | M2 | Research skill lite pipeline | Completed | Critical | Eng | T1.2 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Tavily→Package; Writing guards |
 | T2.4 | M2 | Research skill full (simplified phases) | Planned | High | Eng | T2.3 | TBD | TBD | — | coverage_min=0.55 |
-| T2.5 | M2 | Writing skill wrap BlogGraph (no Tavily) | Planned | Critical | Eng | T2.3 | TBD | TBD | — | Require package_id |
-| T2.6 | M2 | Content Optimization thin validators + gate | Planned | Critical | Eng | T1.3 | TBD | TBD | — | UX thin; wrap review runner |
-| T2.7 | M2 | Strategy skill thin structured output | Planned | High | Eng | T1.5 | TBD | TBD | — | One LLM call |
+| T2.5 | M2 | Writing skill wrap BlogGraph (no Tavily) | Completed | Critical | Eng | T2.3 | 2026-07-27 | 2026-07-27 | 2026-07-27 | draftFromNotes + package→notes |
+| T2.6 | M2 | Content Optimization thin validators + gate | Completed | Critical | Eng | T1.3 | 2026-07-27 | 2026-07-27 | 2026-07-27 | UX thin; review adapter |
+| T2.7 | M2 | Strategy skill thin structured output | Completed | High | Eng | T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | contentStrategyArtifactSchema |
 | T2.8 | M2 | Persist packages / reports / memory_records | Planned | High | Eng | T2.2–T2.6 | TBD | TBD | — | Mongo collections |
 | T3.1 | M3 | Graph nodes: load / plan / invoke / compose / persist | Planned | Critical | Eng | T2.* | TBD | TBD | — | No understand node |
 | T3.2 | M3 | Feature flag route in OrchestratorService | Planned | Critical | Eng | T3.1 | TBD | TBD | — | Supervisor fallback remains |
@@ -148,9 +151,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. Continue on `feat/m1-contracts`: **T2.5** Writing wrap (require `research_package_id`, no Tavily).  
-2. **T2.6** Content Optimization thin validators + gate (overall≥72, max 2 loops).  
-3. **T2.7** Strategy skill thin structured output; then **T2.4** Research full if needed for strategist path.
+1. **T2.8** Persist ResearchPackage / OptimizationReport / memory_records (Mongo).  
+2. **T2.4** Research full (simplified phases, coverage_min=0.55) when strategist path needs it.  
+3. Then **M3** graph nodes + feature flag in OrchestratorService.
 
 ---
 
@@ -161,3 +164,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-27 | Created tracker; assessed repo; M0 docs marked Completed; M1 set as next implementation milestone |
 | 2026-07-27 | M0 signed off (Frozen); M1 contracts implemented + tested; next = M2 |
 | 2026-07-27 | M2 T2.1–T2.3: CI + MM facades, Research lite, Writing guards; 15 tests |
+| 2026-07-27 | M2 T2.5–T2.7: Writing BlogGraph wrap, thin Optimize+gate, Strategy artifact |

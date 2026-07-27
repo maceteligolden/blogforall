@@ -4,5 +4,6 @@ export * from "./dialogue-slots";
 export * from "./conversation-context";
 export * from "./research-package";
 export * from "./content-optimization";
+export * from "./content-strategy";
 export * from "./memory-record";
 export * from "./plan-result";
