@@ -1,4 +1,5 @@
 import { END, START, StateGraph } from "@langchain/langgraph";
+import type { PhaseListener } from "../observability/phase-emitter";
 import type { TurnTracer } from "../observability/turn-tracer";
 import { routeAfterInvoke, routeAfterPlan } from "./edges";
 import { awaitHumanNode } from "./nodes/await-human";
@@ -20,6 +21,7 @@ export type OrchestratorGraphDeps = LoadContextDeps &
   PersistDeps &
   PlanNodeDeps & {
     tracer?: TurnTracer;
+    onPhase?: PhaseListener;
   };
 
 export type InvokeTurnInput = {

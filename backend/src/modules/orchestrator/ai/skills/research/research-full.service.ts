@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import { TavilySearchService } from "../../../../blog/ai/tavily-search.service";
 import { MVP_LOCKS } from "../../contracts/mvp-locks";
 import { needsCoverageRetry, type ResearchPackage, type ResearchPackageSummary } from "../../contracts/research-package";
+import type { PhaseListener } from "../../observability/phase-emitter";
 import { ArtifactStoreService } from "../../memory/artifact-store.service";
 import { buildResearchPackageFromNotes } from "./build-package";
 
@@ -14,6 +15,7 @@ export type ResearchFullInput = {
   persist?: boolean;
   created_by?: string;
   thread_id?: string;
+  onPhase?: PhaseListener;
 };
 
 export type ResearchFullResult = {
@@ -37,13 +39,36 @@ export class ResearchFullService {
 
   async run(input: ResearchFullInput): Promise<ResearchFullResult> {
     const topic = input.topic.trim();
+    const emit = input.onPhase;
     const queries = [
       topic,
       `${topic} best practices`,
       `${topic} limitations OR pitfalls`,
     ];
 
+    emit?.({
+      phase: "research_planning",
+      message: `Planning ${queries.length} research queries`,
+      skill_id: "research",
+      percent: 10,
+      meta: { query_count: queries.length },
+    });
+
+    emit?.({
+      phase: "research_gathering",
+      message: "Gathering sources",
+      skill_id: "research",
+      percent: 35,
+    });
     const notes = await this.searchAll(queries, input.signal);
+
+    emit?.({
+      phase: "research_structuring",
+      message: `Structuring ${notes.length} sources into package`,
+      skill_id: "research",
+      percent: 65,
+      meta: { source_count: notes.length },
+    });
     let coverage_retries = 0;
     let built = buildResearchPackageFromNotes({
       workspace_id: input.workspace_id,
@@ -65,6 +90,13 @@ export class ResearchFullService {
       )
     ) {
       coverage_retries += 1;
+      emit?.({
+        phase: "research_gathering",
+        message: "Coverage below minimum — one retry search",
+        skill_id: "research",
+        percent: 75,
+        meta: { coverage_retries },
+      });
       const gapQuery = `${topic} overview guide sources`;
       const extra = await this.tavily.search(gapQuery, input.signal);
       const seen = new Set(notes.map((n) => n.url));
@@ -84,6 +116,18 @@ export class ResearchFullService {
         max_sources: MVP_LOCKS.researchSourcesFullMax,
       });
     }
+
+    emit?.({
+      phase: "research_packaging",
+      message: `Package ready (coverage ${built.summary.coverage_score.toFixed(2)})`,
+      skill_id: "research",
+      percent: 95,
+      meta: {
+        coverage_score: built.summary.coverage_score,
+        source_count: built.summary.source_count,
+        contradiction_count: built.summary.contradiction_count,
+      },
+    });
 
     let persisted = false;
     if (input.persist !== false) {

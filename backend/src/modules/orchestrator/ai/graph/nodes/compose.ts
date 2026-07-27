@@ -31,7 +31,20 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
   if (state.research_summary) {
     parts.push(
       `Research (${state.research_summary.depth}): coverage ${state.research_summary.coverage_score.toFixed(2)} across ${state.research_summary.source_count} sources` +
-        (state.research_summary.degraded ? " (degraded — Writing must not invent citations)." : "."),
+        (state.research_summary.degraded ? " (degraded — Writing must not invent citations)." : ".") +
+        (state.research_summary.contradiction_count
+          ? ` Contradictions noted: ${state.research_summary.contradiction_count}.`
+          : ""),
+    );
+  }
+
+  if (state.outline) {
+    const outline = state.outline as { title?: string; sections?: Array<{ heading: string }> };
+    const headings = (outline.sections ?? []).map((s) => s.heading).filter(Boolean);
+    parts.push(
+      headings.length
+        ? `Outline “${outline.title ?? "Draft"}”: ${headings.join(" → ")}.`
+        : `Outline ready${outline.title ? `: “${outline.title}”` : ""}.`,
     );
   }
 

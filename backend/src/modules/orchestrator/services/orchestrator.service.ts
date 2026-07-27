@@ -762,6 +762,7 @@ export class OrchestratorService {
         workflow_stage: result.state.workflow_stage,
         skills_run: result.state.skills_run_this_turn,
         mode: result.state.mode,
+        phases: [...result.phases],
       },
     };
   }

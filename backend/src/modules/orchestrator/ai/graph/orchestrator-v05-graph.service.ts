@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { injectable } from "tsyringe";
 import { ConversationIntelligenceService } from "../conversation-intelligence/conversation-intelligence";
 import { MemoryManagerService } from "../memory/manager/memory-manager";
+import { createPhaseCollector, type PhaseListener, type WorkflowPhaseEvent } from "../observability/phase-emitter";
 import { incrementCounter } from "../observability/skill-metrics";
 import { createTurnTracer, type CompletedSpan, type TurnTracer } from "../observability/turn-tracer";
 import { ContentOptimizationService } from "../skills/content-optimization/content-optimization.service";
@@ -25,6 +26,7 @@ export type V05GraphTurnInput = {
   message: string;
   mode?: WorkflowMode;
   recent_messages?: Array<{ role: "user" | "assistant"; content: string }>;
+  onPhase?: PhaseListener;
 };
 
 export type V05GraphTurnResult = {
@@ -32,6 +34,7 @@ export type V05GraphTurnResult = {
   reply: string;
   tool_calls: Array<{ tool: string; summary: string; output_data?: unknown }>;
   spans: readonly CompletedSpan[];
+  phases: readonly WorkflowPhaseEvent[];
 };
 
 /**
@@ -61,6 +64,7 @@ export class OrchestratorV05GraphService {
       user_id: input.user_id,
       ci_analyze_id,
     });
+    const { phases, emit } = createPhaseCollector(input.onPhase);
 
     const turnSpan = tracer.startSpan("turn", { turn_id });
     try {
@@ -91,6 +95,7 @@ export class OrchestratorV05GraphService {
 
       const { compiled, deps } = this.getCompiled();
       deps.tracer = tracer;
+      deps.onPhase = emit;
 
       const state = await invokeTurn(compiled, {
         turn_id,
@@ -103,6 +108,7 @@ export class OrchestratorV05GraphService {
       });
 
       deps.tracer = undefined;
+      deps.onPhase = undefined;
 
       const tool_calls = state.progress_events
         .filter((e) => e.type === "invoke_skill")
@@ -118,6 +124,7 @@ export class OrchestratorV05GraphService {
           workflow_stage: state.workflow_stage,
           skills_run: state.skills_run_this_turn,
           mode: state.mode,
+          phase_count: phases.length,
         },
       });
 
@@ -126,9 +133,13 @@ export class OrchestratorV05GraphService {
         reply: state.reply ?? "Done.",
         tool_calls,
         spans: tracer.spans,
+        phases,
       };
     } catch (e) {
-      if (this.graphDeps) this.graphDeps.tracer = undefined;
+      if (this.graphDeps) {
+        this.graphDeps.tracer = undefined;
+        this.graphDeps.onPhase = undefined;
+      }
       turnSpan.end({
         status: "error",
         error: e instanceof Error ? e.message : String(e),
@@ -145,6 +156,7 @@ export class OrchestratorV05GraphService {
       memory: this.memory,
       registry: this.buildRegistry(),
       tracer: undefined as TurnTracer | undefined,
+      onPhase: undefined as PhaseListener | undefined,
     };
     this.graphDeps = deps;
     this.compiled = buildOrchestratorGraph(deps);
@@ -157,6 +169,7 @@ export class OrchestratorV05GraphService {
     registry.register("research", async (state, args) => {
       const depth = args.depth === "full" ? "full" : "lite";
       const topic = state.slots.topic ?? state.message;
+      const onPhase = this.graphDeps?.onPhase;
       const result = await this.research.run({
         workspace_id: state.workspace_id,
         topic,
@@ -164,6 +177,7 @@ export class OrchestratorV05GraphService {
         persist: true,
         created_by: state.user_id,
         thread_id: state.thread_id,
+        onPhase,
       });
       return {
         summary: `Research ${depth}: ${result.summary.source_count} sources`,
@@ -196,14 +210,16 @@ export class OrchestratorV05GraphService {
       return {
         summary: `Writing ${action}`,
         patch: {
-          outline: result.outline,
-          draft: result.draft,
+          ...(result.outline ? { outline: result.outline as unknown as Record<string, unknown> } : {}),
+          ...(result.draft ? { draft: result.draft } : {}),
           quality_gate_passed: action === "revise" ? undefined : state.quality_gate_passed,
           optimize_count:
             action === "revise" ? state.optimize_count + 1 : state.optimize_count,
           artifacts_for_client: result.draft
             ? [{ kind: "draft", id: state.research_package_id ?? "draft", title: result.draft.title }]
-            : [],
+            : result.outline
+              ? [{ kind: "outline", id: state.research_package_id ?? "outline", title: result.outline.title }]
+              : [],
         },
       };
     });
@@ -229,6 +245,7 @@ export class OrchestratorV05GraphService {
         created_by: state.user_id,
         thread_id: state.thread_id,
         optimize_count: state.optimize_count,
+        onPhase: this.graphDeps?.onPhase,
       });
       return {
         summary: `Optimize gate ${result.report.quality_gate_passed ? "passed" : "failed"} (${result.report.quality.overall})`,

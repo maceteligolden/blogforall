@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M3 complete — T3.5 observability)  
+**Last updated:** 2026-07-27 (M4 T4.1 strategist_pipeline + phase stream)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -48,12 +48,13 @@ After completing work:
 | LangGraph orchestrator graph (nodes) | **Skeleton** (T3.1) — load/plan/invoke/compose/persist |
 | Feature flag `ORCHESTRATOR_V05_GRAPH_ENABLED` | **Completed** (T3.2) — default off; supervisor fallback |
 | Observability (CI / plan / skills spans) | **Completed** (T3.5) — TurnTracer + skill metrics |
+| Strategist pipeline (flagged graph) | **Completed** (T4.1) — strategy→full research→outline→draft→optimize + phase events |
 | Production chat today | LLM Supervisor + optional Cognition / v0.5 flags |
-| Dirty worktree | Unrelated WIP may still exist on branch — keep M3 commits narrow |
+| Dirty worktree | Unrelated WIP may still exist on branch — keep M4 commits narrow |
 
-**Active milestone:** **M4** — strategist staging demo + package/score UX.
+**Active milestone:** **M4** — package/score UX + retire writer search / Review id.
 
-**Next approved coding tasks:** T4.1 strategist_pipeline staging demo; T4.2 UI Package coverage + SEO/GAO scores.
+**Next approved coding tasks:** T4.2 UI Package coverage + SEO/GAO scores; T4.3 retire writer-embedded research on new paths.
 
 ---
 
@@ -65,7 +66,7 @@ M0 Docs freeze        ████ DONE
 M1 Contracts          ████ DONE (feat/m1-contracts)
 M2 Skills + pipelines         ████ DONE
 M3 Graph behind flag                    ████ DONE
-M4 Strategist UX                                  ░░░░ NEXT
+M4 Strategist UX                                  ██░░ (T4.1 done)
 M5 Remove dual brain                                        ░░░░
 M6 Learning / agency pack                                         ░░░░░ Post-MVP lean
 ```
@@ -107,7 +108,7 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T3.3 | M3 | quick_draft path end-to-end | Completed | Critical | Eng | T3.2, T2.3, T2.5, T2.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Parity checklist covered in tests |
 | T3.4 | M3 | CI golden utterance tests A1–A10 | Completed | Critical | Eng | T2.1, T3.2 | 2026-07-27 | 2026-07-27 | 2026-07-27 | PRD acceptance suite |
 | T3.5 | M3 | Observability spans (ci / plan / skills) | Completed | High | Eng | T3.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | TurnTracer + skill-metrics |
-| T4.1 | M4 | strategist_pipeline staging demo | Planned | High | Eng | T3.3, T2.4 | TBD | TBD | — | Stream phases |
+| T4.1 | M4 | strategist_pipeline staging demo | Completed | High | Eng | T3.3, T2.4 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Stream research_* + optimize_* phases |
 | T4.2 | M4 | UI: Package coverage + SEO/GAO scores | Planned | High | Eng | T4.1 | TBD | TBD | — | Doc 20 moat visibility |
 | T4.3 | M4 | Retire writer-embedded research on new paths | Planned | Critical | Eng | T4.1 | TBD | TBD | — | Keep flag fallback |
 | T4.4 | M4 | Retire Review skill id on new paths | Planned | High | Eng | T2.6 | TBD | TBD | — | content_optimization only |
@@ -155,8 +156,8 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. Start **M4 / T4.1**: strategist_pipeline staging demo (stream phases).  
-2. **T4.2** UI: Package coverage + SEO/GAO scores.  
+1. **T4.2** UI: Package coverage + SEO/GAO scores.  
+2. **T4.3** Retire writer-embedded research on new paths (keep flag fallback).  
 3. Keep `ORCHESTRATOR_V05_GRAPH_ENABLED` off in production until staging soak.
 
 ---
@@ -173,3 +174,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-27 | M3 T3.1–T3.2: LangGraph nodes + ORCHESTRATOR_V05_GRAPH_ENABLED flag |
 | 2026-07-27 | M3 T3.3–T3.4: quick_draft parity e2e + CI golden A1–A10 |
 | 2026-07-27 | M3 complete: T3.5 TurnTracer spans; next = M4 strategist |
+| 2026-07-27 | M4 T4.1: strategist_pipeline + streamed research/optimize phases |

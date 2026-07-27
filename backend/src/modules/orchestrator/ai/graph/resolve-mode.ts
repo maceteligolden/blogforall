@@ -3,7 +3,7 @@ import type { OrchestratorState } from "./state";
 
 const QUICK = /\b(?:quick|rough)\s+draft\b/i;
 const STRATEGIST =
-  /\b(?:high[- ]quality|strategist|authority|in[- ]depth|comprehensive)\b/i;
+  /\b(?:high[- ]quality|strategist|authority|in[- ]depth|comprehensive|seo)\b/i;
 
 /**
  * MVP mode selection (doc 14 §2): quick/urgency → quick_draft;

@@ -1,5 +1,6 @@
 import { injectable } from "tsyringe";
 import type { ResearchPackage, ResearchPackageSummary } from "../../contracts/research-package";
+import type { PhaseListener } from "../../observability/phase-emitter";
 import { ResearchFullService } from "./research-full.service";
 import { ResearchLiteService } from "./research-lite.service";
 
@@ -13,6 +14,7 @@ export type ResearchSkillInput = {
   persist?: boolean;
   created_by?: string;
   thread_id?: string;
+  onPhase?: PhaseListener;
 };
 
 export type ResearchSkillResult = {

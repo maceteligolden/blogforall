@@ -5,6 +5,7 @@ import {
   type ContentOptimizationReport,
 } from "../../contracts/content-optimization";
 import { ArtifactStoreService } from "../../memory/artifact-store.service";
+import type { PhaseListener } from "../../observability/phase-emitter";
 import { mapBlogReviewToOptimizationReport } from "./review-adapter";
 import { buildThinOptimizationReport, type DraftForOptimize } from "./thin-validators";
 
@@ -22,6 +23,7 @@ export type ContentOptimizationInput = {
   persist?: boolean;
   created_by?: string;
   thread_id?: string;
+  onPhase?: PhaseListener;
 };
 
 export type ContentOptimizationResult = {
@@ -40,6 +42,15 @@ export class ContentOptimizationService {
 
   async run(input: ContentOptimizationInput): Promise<ContentOptimizationResult> {
     const optimize_count = input.optimize_count ?? 0;
+    const emit = input.onPhase;
+
+    emit?.({
+      phase: "optimize_scoring",
+      message: "Running SEO / GAO / readability validators",
+      skill_id: "content_optimization",
+      percent: 40,
+    });
+
     const report = input.legacy_review
       ? mapBlogReviewToOptimizationReport({
           review: input.legacy_review,
@@ -56,6 +67,22 @@ export class ContentOptimizationService {
 
     const can_loop_again = canOptimizeAgain(optimize_count);
     const should_revise = !report.quality_gate_passed && can_loop_again;
+
+    emit?.({
+      phase: "optimize_gate",
+      message: report.quality_gate_passed
+        ? `Gate passed (overall ${report.quality.overall})`
+        : `Gate failed (overall ${report.quality.overall})`,
+      skill_id: "content_optimization",
+      percent: 90,
+      meta: {
+        overall: report.quality.overall,
+        seo: report.quality.seo,
+        gao: report.quality.gao,
+        quality_gate_passed: report.quality_gate_passed,
+        critical_count: report.plan.critical.length,
+      },
+    });
 
     let persisted = false;
     if (input.persist !== false && input.workspace_id) {

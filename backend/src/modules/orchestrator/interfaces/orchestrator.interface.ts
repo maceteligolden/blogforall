@@ -229,6 +229,14 @@ export interface ChatTurnResponse {
     workflow_stage: string;
     skills_run: number;
     mode: string;
+    /** Coarse streamed phases (strategy / research_* / outline / draft / optimize_*). */
+    phases?: Array<{
+      phase: string;
+      message: string;
+      percent?: number;
+      skill_id?: string;
+      meta?: Record<string, unknown>;
+    }>;
   };
 }
 
