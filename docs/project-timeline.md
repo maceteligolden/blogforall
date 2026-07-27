@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27  
+**Last updated:** 2026-07-27 (M1 complete)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -33,19 +33,19 @@ After completing work:
 
 | Item | State |
 |------|--------|
-| Architecture docs v0.5 (01–20) | Written; engineering review ~8/10 |
-| Formal M0 sign-off (Draft → Frozen) | **Pending** (process) |
-| Execution tracker + ADR log | **Created this session** |
-| LangGraph orchestrator (target) | **Not implemented** |
-| Conversation Intelligence module | **Not implemented** (docs only) |
-| Memory Manager facade | **Not implemented** (services exist; not behind MM API) |
+| Architecture docs v0.5 (01–20) | **Frozen (M0)** — committed |
+| Formal M0 sign-off (Draft → Frozen) | **Completed** 2026-07-27 |
+| Execution tracker + ADR log | Active |
+| M1 Zod contracts + OrchestratorState | **Completed** on `feat/m1-contracts` |
+| LangGraph orchestrator graph (nodes) | **Not implemented** (state Annotation only) |
+| Conversation Intelligence module | **Not implemented** |
+| Memory Manager facade | **Not implemented** |
 | Production chat today | LLM Supervisor + optional Cognition flag |
-| Blog generation LangGraph | Exists (writer path still has research/Tavily historically) |
-| Dirty worktree | Many unrelated WIP changes on `prod` — **do not mix** with v0.5 AI milestone commits |
+| Dirty worktree | Unrelated WIP may still exist on branch — keep M1 commits narrow |
 
-**Active milestone:** **M0 → close**, then **M1 Contracts** (first implementation milestone).
+**Active milestone:** **M2** — Skills + pipelines (CI / MM facades, Research lite, Writing no-search, thin Optimize).
 
-**Next approved coding milestone:** M1 — Zod contracts + `OrchestratorState` Annotation (no full graph yet).
+**Next approved coding tasks:** T2.1 Conversation Intelligence facade; T2.2 Memory Manager facade; T2.3 Research lite (parallelizable after M1).
 
 ---
 
@@ -53,15 +53,13 @@ After completing work:
 
 ```text
 2026-07-27                                                    →
-M0 Docs freeze        ████ DONE (pending formal sign-off)
-M1 Contracts          ░░░░ NEXT (start after M0 sign-off)
-M2 Skills + pipelines         ░░░░░░░░░░
+M0 Docs freeze        ████ DONE
+M1 Contracts          ████ DONE (feat/m1-contracts)
+M2 Skills + pipelines         ░░░░ NEXT
 M3 Graph behind flag                    ░░░░░░░
 M4 Strategist UX                                  ░░░░░░
 M5 Remove dual brain                                        ░░░░
 M6 Learning / agency pack                                         ░░░░░ Post-MVP lean
-
-Legend: █ done/near-done  ░ planned
 ```
 
 Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or parallel thin Analytics read only).
@@ -80,14 +78,14 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T0.6 | M0 | Architecture freeze hygiene + MVP locks (14) | Completed | Critical | Arch | T0.2–T0.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | coverage_min, routing, authz |
 | T0.7 | M0 | ICP / GTM architecture (20) | Completed | High | Arch | T0.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Solo/SMB primary; agency later |
 | T0.8 | M0 | Project timeline + ADR log | Completed | Critical | TPM | T0.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | This file + architecture-decisions.md |
-| T0.9 | M0 | Formal M0 sign-off (README → Frozen) | Planned | Critical | Owner | T0.8 | 2026-07-27 | 2026-07-28 | — | Process gate before M1 code |
-| T1.1 | M1 | Zod: `ConversationContext` | Planned | Critical | Eng | T0.9 | TBD | TBD | — | From 05 + 19 |
-| T1.2 | M1 | Zod: `ResearchPackage` + summary | Planned | Critical | Eng | T0.9 | TBD | TBD | — | From 16; provenance invariants |
-| T1.3 | M1 | Zod: `ContentOptimizationReport` / plan / scores | Planned | Critical | Eng | T0.9 | TBD | TBD | — | Gate fields; overall≥72 |
-| T1.4 | M1 | Zod: `MemoryRecord` / `MemoryCandidate` | Planned | Critical | Eng | T0.9 | TBD | TBD | — | From 18 |
-| T1.5 | M1 | `OrchestratorState` Annotation + reducers | Planned | Critical | Eng | T1.1–T1.4 | TBD | TBD | — | 05; include memory_candidates |
-| T1.6 | M1 | Checkpoint PII / field allowlist | Planned | High | Eng | T1.5 | TBD | TBD | — | Strip secrets from checkpoint |
-| T1.7 | M1 | Unit tests for schemas / invariants | Planned | Critical | Eng | T1.1–T1.5 | TBD | TBD | — | M1 exit |
+| T0.9 | M0 | Formal M0 sign-off (README → Frozen) | Completed | Critical | Owner | T0.8 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Commit c9274bd |
+| T1.1 | M1 | Zod: `ConversationContext` | Completed | Critical | Eng | T0.9 | 2026-07-27 | 2026-07-27 | 2026-07-27 | contracts/conversation-context.ts |
+| T1.2 | M1 | Zod: `ResearchPackage` + summary | Completed | Critical | Eng | T0.9 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Provenance helper + coverage retry |
+| T1.3 | M1 | Zod: `ContentOptimizationReport` / plan / scores | Completed | Critical | Eng | T0.9 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Gate helpers overall≥72 |
+| T1.4 | M1 | Zod: `MemoryRecord` / `MemoryCandidate` | Completed | Critical | Eng | T0.9 | 2026-07-27 | 2026-07-27 | 2026-07-27 | contracts/memory-record.ts |
+| T1.5 | M1 | `OrchestratorState` Annotation + reducers | Completed | Critical | Eng | T1.1–T1.4 | 2026-07-27 | 2026-07-27 | 2026-07-27 | graph/state.ts |
+| T1.6 | M1 | Checkpoint PII / field allowlist | Completed | High | Eng | T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | checkpoint-allowlist.ts |
+| T1.7 | M1 | Unit tests for schemas / invariants | Completed | Critical | Eng | T1.1–T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | 13 tests passing |
 | T2.1 | M2 | CI facade `analyze` + `ci.analyze.v1` | Planned | Critical | Eng | T1.7 | TBD | TBD | — | Wrap cognition ConversationService |
 | T2.2 | M2 | Memory Manager facade (retrieve/rememberAsync) | Planned | Critical | Eng | T1.7 | TBD | TBD | — | Adapters over existing memory services |
 | T2.3 | M2 | Research skill lite pipeline | Planned | Critical | Eng | T1.2 | TBD | TBD | — | Writing never searches |
@@ -149,10 +147,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. **T0.9** — Product/eng owner: formal M0 sign-off (mark README Frozen).  
-2. Create implementation branch (e.g. `feat/m1-contracts`) off a clean base — **do not** commit unrelated WIP.  
-3. Start **T1.1–T1.7** (M1 Contracts).  
-4. After M1: update this table statuses + dates; commit `feat(contracts): …` + doc sync if needed.
+1. Merge / continue on `feat/m1-contracts` (or open PR).  
+2. Start **T2.1** CI facade + **T2.2** Memory Manager facade (can parallelize).  
+3. Then **T2.3** Research lite (Writing must not search).
 
 ---
 
@@ -161,3 +158,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | Date | Change |
 |------|--------|
 | 2026-07-27 | Created tracker; assessed repo; M0 docs marked Completed; M1 set as next implementation milestone |
+| 2026-07-27 | M0 signed off (Frozen); M1 contracts implemented + tested; next = M2 |
