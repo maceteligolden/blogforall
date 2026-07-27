@@ -3,6 +3,7 @@ import { injectable } from "tsyringe";
 import { ConversationIntelligenceService } from "../conversation-intelligence/conversation-intelligence";
 import { MemoryManagerService } from "../memory/manager/memory-manager";
 import { createPhaseCollector, type PhaseListener, type WorkflowPhaseEvent } from "../observability/phase-emitter";
+import { buildV05MoatSnapshot } from "../observability/moat-snapshot";
 import { incrementCounter } from "../observability/skill-metrics";
 import { createTurnTracer, type CompletedSpan, type TurnTracer } from "../observability/turn-tracer";
 import { ContentOptimizationService } from "../skills/content-optimization/content-optimization.service";
@@ -112,11 +113,22 @@ export class OrchestratorV05GraphService {
 
       const tool_calls = state.progress_events
         .filter((e) => e.type === "invoke_skill")
-        .map((e) => ({
-          tool: String(e.meta?.skill_id ?? "skill"),
-          summary: e.message ?? "skill",
-          output_data: e.meta,
-        }));
+        .map((e) => {
+          const skill = String(e.meta?.skill_id ?? "skill");
+          const moat = buildV05MoatSnapshot(state, phases);
+          const output_data: Record<string, unknown> = { ...(e.meta ?? {}) };
+          if (skill === "research" && moat.research_summary) {
+            output_data.research_summary = moat.research_summary;
+          }
+          if (skill === "content_optimization" && moat.optimization) {
+            output_data.optimization = moat.optimization;
+          }
+          return {
+            tool: skill,
+            summary: e.message ?? "skill",
+            output_data,
+          };
+        });
 
       turnSpan.end({
         status: "ok",
@@ -253,6 +265,16 @@ export class OrchestratorV05GraphService {
           optimization_report_id: result.report.id,
           optimization_plan: result.report.plan,
           quality_gate_passed: result.report.quality_gate_passed,
+          metadata: {
+            ...(state.metadata ?? {}),
+            quality_scores: {
+              seo: result.report.quality.seo,
+              gao: result.report.quality.gao,
+              overall: result.report.quality.overall,
+              authority: result.report.quality.authority,
+              readability: result.report.quality.readability,
+            },
+          },
           artifacts_for_client: [
             { kind: "optimization_report", id: result.report.id, title: "Optimization" },
           ],

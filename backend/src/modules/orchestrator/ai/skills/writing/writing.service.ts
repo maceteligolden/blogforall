@@ -37,6 +37,8 @@ export type WritingSkillResult = {
 
 /**
  * Writing skill (doc 06 §3.4) — consumes Research Package; never searches.
+ * New paths (v0.5 graph) must use draftFromNotes / outlineFromNotes / regenerateWithFeedback only.
+ * Do not call BlogGraph.generateFull / generateWithReview / streamGenerate (writer-embedded Tavily).
  */
 @injectable()
 export class WritingSkillService {

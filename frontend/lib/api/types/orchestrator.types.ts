@@ -63,7 +63,56 @@ export interface ChatTurnResponse {
   session_mode_source?: "explicit" | "manual" | "inferred";
   workspace_status: "onboarding" | "active";
   onboarding_completed: boolean;
+  /** Present when ORCHESTRATOR_V05_GRAPH_ENABLED routed this turn. */
+  v05_graph?: {
+    enabled: true;
+    workflow_stage: string;
+    skills_run: number;
+    mode: string;
+    phases?: Array<{
+      phase: string;
+      message: string;
+      percent?: number;
+      skill_id?: string;
+      meta?: Record<string, unknown>;
+    }>;
+    research_summary?: V05ResearchMoatSnapshot;
+    optimization?: V05OptimizationMoatSnapshot;
+  };
+  cognition?: {
+    enabled: true;
+    goal: string;
+    content_type: string;
+    phase: string;
+    plan_kind: string;
+    choice_chips?: string[];
+    progress_events?: Array<{ stage: string; message: string; current?: number; total?: number }>;
+    persona_display_name?: string;
+  };
 }
+
+export type V05ResearchMoatSnapshot = {
+  coverage_score: number;
+  source_count: number;
+  contradiction_count: number;
+  depth?: "lite" | "full";
+  degraded?: boolean;
+  package_id?: string;
+};
+
+export type V05OptimizationMoatSnapshot = {
+  overall?: number;
+  seo?: number;
+  gao?: number;
+  quality_gate_passed: boolean;
+  critical_count: number;
+  report_id?: string;
+};
+
+export type V05MoatSnapshot = {
+  research_summary?: V05ResearchMoatSnapshot;
+  optimization?: V05OptimizationMoatSnapshot;
+};
 
 export interface ThreadWithMessages {
   thread: OrchestratorThread;

@@ -46,6 +46,7 @@ import { canRunOrchestratorTool } from "../../../shared/utils/site-permissions.u
 import { CognitionTurnUseCase } from "../../cognition/application/turn-use-case";
 import type { FocusBias } from "../../cognition/domain/conversation/dialogue-state.model";
 import { OrchestratorV05GraphService } from "../ai/graph/orchestrator-v05-graph.service";
+import { buildV05MoatSnapshot } from "../ai/observability/moat-snapshot";
 
 interface ChatAttachment {
   name: string;
@@ -763,6 +764,7 @@ export class OrchestratorService {
         skills_run: result.state.skills_run_this_turn,
         mode: result.state.mode,
         phases: [...result.phases],
+        ...buildV05MoatSnapshot(result.state, result.phases),
       },
     };
   }

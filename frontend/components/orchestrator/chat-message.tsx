@@ -3,7 +3,8 @@
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils/cn";
 import { Bot, User as UserIcon, Wrench } from "lucide-react";
-import type { OrchestratorMessageRole } from "@/lib/api/types/orchestrator.types";
+import type { OrchestratorMessageRole, V05MoatSnapshot } from "@/lib/api/types/orchestrator.types";
+import { MoatScoreStrip } from "./moat-score-strip";
 
 export interface ChatMessageProps {
   role: OrchestratorMessageRole;
@@ -12,6 +13,8 @@ export interface ChatMessageProps {
   className?: string;
   artifactId?: string;
   onViewArtifact?: (artifactId: string) => void;
+  /** Doc 20 moat strip (package coverage + SEO/GAO). */
+  moat?: V05MoatSnapshot | null;
 }
 
 /**
@@ -34,7 +37,7 @@ function autoLinkBareUrls(input: string): string {
  * Single conversation bubble. Tool messages render compact as a status row so
  * they don't visually compete with assistant prose.
  */
-export function ChatMessage({ role, content, toolName, className, artifactId, onViewArtifact }: ChatMessageProps) {
+export function ChatMessage({ role, content, toolName, className, artifactId, onViewArtifact, moat }: ChatMessageProps) {
   if (role === "tool") {
     const clickable = !!artifactId && !!onViewArtifact;
     return (
@@ -107,6 +110,7 @@ export function ChatMessage({ role, content, toolName, className, artifactId, on
           >
             {autoLinkBareUrls(content)}
           </ReactMarkdown>
+          {moat && <MoatScoreStrip moat={moat} />}
           <span className="mt-2 block text-xs text-primary">View blog draft →</span>
         </button>
       ) : (
@@ -121,28 +125,31 @@ export function ChatMessage({ role, content, toolName, className, artifactId, on
           {isUser ? (
             content
           ) : (
-            <ReactMarkdown
-              urlTransform={(value) => value}
-              components={{
-                a: ({ href, children }) => (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-primary hover:text-primary/80 break-all"
-                  >
-                    {children}
-                  </a>
-                ),
-                p: ({ children }) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
-                ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
-                li: ({ children }) => <li>{children}</li>,
-                code: ({ children }) => <code className="px-1 py-0.5 rounded bg-gray-800 text-xs">{children}</code>,
-              }}
-            >
-              {autoLinkBareUrls(content)}
-            </ReactMarkdown>
+            <>
+              <ReactMarkdown
+                urlTransform={(value) => value}
+                components={{
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-primary hover:text-primary/80 break-all"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  p: ({ children }) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
+                  ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
+                  li: ({ children }) => <li>{children}</li>,
+                  code: ({ children }) => <code className="px-1 py-0.5 rounded bg-gray-800 text-xs">{children}</code>,
+                }}
+              >
+                {autoLinkBareUrls(content)}
+              </ReactMarkdown>
+              {moat && <MoatScoreStrip moat={moat} />}
+            </>
           )}
         </div>
       )}

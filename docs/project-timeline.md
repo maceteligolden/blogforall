@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M4 T4.1 strategist_pipeline + phase stream)  
+**Last updated:** 2026-07-27 (M4 T4.2–T4.4 moat UI + new-path contracts)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -49,12 +49,15 @@ After completing work:
 | Feature flag `ORCHESTRATOR_V05_GRAPH_ENABLED` | **Completed** (T3.2) — default off; supervisor fallback |
 | Observability (CI / plan / skills spans) | **Completed** (T3.5) — TurnTracer + skill metrics |
 | Strategist pipeline (flagged graph) | **Completed** (T4.1) — strategy→full research→outline→draft→optimize + phase events |
+| Package / SEO·GAO moat visibility | **Completed** (T4.2) — v05_graph snapshot + MoatScoreStrip (wire chat when WIP clears) |
+| Writer-embedded research on new paths | **Retired** (T4.3) — Writing notes-only; generateDraft legacy |
+| Review skill id on new paths | **Retired** (T4.4) — content_optimization only |
 | Production chat today | LLM Supervisor + optional Cognition / v0.5 flags |
-| Dirty worktree | Unrelated WIP may still exist on branch — keep M4 commits narrow |
+| Dirty worktree | Unrelated WIP may still exist — keep M5 commits narrow |
 
-**Active milestone:** **M4** — package/score UX + retire writer search / Review id.
+**Active milestone:** **M5** — default v0.5 brain; remove dual path.
 
-**Next approved coding tasks:** T4.2 UI Package coverage + SEO/GAO scores; T4.3 retire writer-embedded research on new paths.
+**Next approved coding tasks:** T5.1 default flag on + remove cognition/supervisor default; T5.2 scrub legacy understand/updateMemory.
 
 ---
 
@@ -66,8 +69,8 @@ M0 Docs freeze        ████ DONE
 M1 Contracts          ████ DONE (feat/m1-contracts)
 M2 Skills + pipelines         ████ DONE
 M3 Graph behind flag                    ████ DONE
-M4 Strategist UX                                  ██░░ (T4.1 done)
-M5 Remove dual brain                                        ░░░░
+M4 Strategist UX                                  ████ DONE
+M5 Remove dual brain                                        ░░░░ NEXT
 M6 Learning / agency pack                                         ░░░░░ Post-MVP lean
 ```
 
@@ -109,9 +112,9 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T3.4 | M3 | CI golden utterance tests A1–A10 | Completed | Critical | Eng | T2.1, T3.2 | 2026-07-27 | 2026-07-27 | 2026-07-27 | PRD acceptance suite |
 | T3.5 | M3 | Observability spans (ci / plan / skills) | Completed | High | Eng | T3.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | TurnTracer + skill-metrics |
 | T4.1 | M4 | strategist_pipeline staging demo | Completed | High | Eng | T3.3, T2.4 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Stream research_* + optimize_* phases |
-| T4.2 | M4 | UI: Package coverage + SEO/GAO scores | Planned | High | Eng | T4.1 | TBD | TBD | — | Doc 20 moat visibility |
-| T4.3 | M4 | Retire writer-embedded research on new paths | Planned | Critical | Eng | T4.1 | TBD | TBD | — | Keep flag fallback |
-| T4.4 | M4 | Retire Review skill id on new paths | Planned | High | Eng | T2.6 | TBD | TBD | — | content_optimization only |
+| T4.2 | M4 | UI: Package coverage + SEO/GAO scores | Completed | High | Eng | T4.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Moat snapshot + score strip |
+| T4.3 | M4 | Retire writer-embedded research on new paths | Completed | Critical | Eng | T4.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Keep supervisor generateDraft |
+| T4.4 | M4 | Retire Review skill id on new paths | Completed | High | Eng | T2.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | content_optimization only |
 | T5.1 | M5 | Default flag on; remove supervisor + cognition | Planned | Critical | Eng | T4.* parity | TBD | TBD | — | Single brain |
 | T5.2 | M5 | Remove legacy understand / raw updateMemory graph path | Planned | High | Eng | T5.1 | TBD | TBD | — | — |
 | T6.1 | M6 | Content Intelligence closed loop | Post-MVP | Medium | Eng | T5.1 | — | — | — | 14 §4 C |
@@ -156,9 +159,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. **T4.2** UI: Package coverage + SEO/GAO scores.  
-2. **T4.3** Retire writer-embedded research on new paths (keep flag fallback).  
-3. Keep `ORCHESTRATOR_V05_GRAPH_ENABLED` off in production until staging soak.
+1. **T5.1** Default `ORCHESTRATOR_V05_GRAPH_ENABLED` on; remove cognition routing; supervisor opt-out only.  
+2. **T5.2** Scrub legacy understand / supervisor `update_memory` decision path.  
+3. Stop before **M6 Post-MVP** unless explicitly approved.
 
 ---
 
@@ -175,3 +178,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-27 | M3 T3.3–T3.4: quick_draft parity e2e + CI golden A1–A10 |
 | 2026-07-27 | M3 complete: T3.5 TurnTracer spans; next = M4 strategist |
 | 2026-07-27 | M4 T4.1: strategist_pipeline + streamed research/optimize phases |
+| 2026-07-27 | M4 complete: T4.2–T4.4 moat UI + Writing/Review new-path contracts; next = M5 |

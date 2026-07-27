@@ -43,6 +43,46 @@ export function planFromState(state: OrchestratorState): PlanResult {
     });
   }
 
+  /** Optimize / review session — ADR-005: content_optimization only (never skill_id review). */
+  if (
+    ctx?.workflow_intent === "optimize_content" ||
+    ctx?.suggested_next_action === "revise_current_artifact"
+  ) {
+    if (!state.draft) {
+      return planResultSchema.parse({
+        next: "compose",
+        workflow_stage: "optimize",
+        rationale: "Need an open draft before Content Optimization",
+      });
+    }
+    if (state.quality_gate_passed === undefined) {
+      return planResultSchema.parse({
+        next: "invoke_skill",
+        skill_id: "content_optimization",
+        skill_args: {},
+        workflow_stage: "optimize",
+        rationale: "Run Content Optimization (replaces Review skill)",
+      });
+    }
+    if (
+      state.quality_gate_passed === false &&
+      state.optimize_count < MVP_LOCKS.optimizeMaxLoops
+    ) {
+      return planResultSchema.parse({
+        next: "invoke_skill",
+        skill_id: "writing",
+        skill_args: { action: "revise" },
+        workflow_stage: "improve",
+        rationale: "Revise from OptimizationPlan",
+      });
+    }
+    return planResultSchema.parse({
+      next: "compose",
+      workflow_stage: "done",
+      rationale: "Optimization path complete",
+    });
+  }
+
   if (
     ctx?.workflow_intent === "strategy" ||
     ctx?.suggested_next_action === "start_planning" ||

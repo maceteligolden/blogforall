@@ -237,6 +237,23 @@ export interface ChatTurnResponse {
       skill_id?: string;
       meta?: Record<string, unknown>;
     }>;
+    /** Doc 20 moat: research package coverage + SEO/GAO scorecard. */
+    research_summary?: {
+      coverage_score: number;
+      source_count: number;
+      contradiction_count: number;
+      depth?: "lite" | "full";
+      degraded?: boolean;
+      package_id?: string;
+    };
+    optimization?: {
+      overall?: number;
+      seo?: number;
+      gao?: number;
+      quality_gate_passed: boolean;
+      critical_count: number;
+      report_id?: string;
+    };
   };
 }
 

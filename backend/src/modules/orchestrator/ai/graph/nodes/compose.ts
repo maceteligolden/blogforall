@@ -55,8 +55,16 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
 
   if (state.optimization_plan) {
     const overall = state.quality_gate_passed ? "passed" : "needs work";
+    const scores = state.metadata?.quality_scores as
+      | { seo?: number; gao?: number; overall?: number }
+      | undefined;
+    const scoreLine =
+      scores &&
+      [scores.seo, scores.gao, scores.overall].every((n) => typeof n === "number")
+        ? ` SEO ${scores.seo} / GAO ${scores.gao} / overall ${scores.overall}.`
+        : "";
     parts.push(
-      `Optimization gate ${overall}. Critical items: ${state.optimization_plan.critical.length}.`,
+      `Optimization gate ${overall}.${scoreLine} Critical items: ${state.optimization_plan.critical.length}.`,
     );
     if (state.optimization_plan.writing_brief) {
       parts.push(state.optimization_plan.writing_brief);
