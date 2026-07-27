@@ -132,18 +132,18 @@ export const env = {
     /** Secret used to sign scheduled-post review tokens (falls back to ACCESS_SECRET). */
     reviewTokenSecret: (process.env.ORCHESTRATOR_REVIEW_TOKEN_SECRET || process.env.ACCESS_SECRET || "").trim(),
     /**
-     * v0.5 LangGraph orchestrator (CI → skills). When true (active mode),
-     * bypasses supervisor / cognition. Default false — supervisor remains production.
+     * v0.5 LangGraph orchestrator (CI → skills). Default **true** (M5).
+     * Set ORCHESTRATOR_V05_GRAPH_ENABLED=false to use supervisor for active chat (emergency opt-out).
+     * Onboarding always uses the supervisor path.
      */
-    v05GraphEnabled: (process.env.ORCHESTRATOR_V05_GRAPH_ENABLED || "false").toLowerCase() === "true",
+    v05GraphEnabled: (process.env.ORCHESTRATOR_V05_GRAPH_ENABLED || "true").toLowerCase() !== "false",
   },
 
   /**
-   * B Cognition System — layered graph beside the legacy supervisor.
-   * When enabled, orchestrator chat routes through CognitionTurnUseCase.
+   * @deprecated M5 — cognition dual-brain removed. Env var ignored; always disabled.
    */
   cognition: {
-    enabled: (process.env.COGNITION_ENABLED || "false").toLowerCase() === "true",
+    enabled: false,
     utilityModel: (process.env.COGNITION_UTILITY_MODEL || "gpt-4o-mini").trim(),
     primaryModel: (
       process.env.COGNITION_PRIMARY_MODEL ||

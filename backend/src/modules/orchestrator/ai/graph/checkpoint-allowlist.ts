@@ -50,7 +50,6 @@ export type CheckpointField = (typeof CHECKPOINT_FIELD_ALLOWLIST)[number];
 /** Never persist these keys on checkpoint (load on demand in skills). */
 export const CHECKPOINT_DENYLIST = [
   "research_package",
-  "understand",
   "raw_llm_prompts",
   "api_keys",
   "secrets",

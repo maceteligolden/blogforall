@@ -88,9 +88,8 @@ Docs freeze incl. ICP. Exit: sign-off on [16](./16-research-pipeline.md)–[20](
 
 | Flag | Meaning |
 |------|---------|
-| `COGNITION_ENABLED=true` | Legacy alternate brain (retire M5) |
-| `LANGGRAPH_ORCHESTRATOR_ENABLED=true` | New graph (M3+) |
-| both true | **Forbidden** — boot check |
+| `ORCHESTRATOR_V05_GRAPH_ENABLED` | **Default true (M5).** Active chat uses CI → LangGraph skills. Set `false` for supervisor emergency opt-out. |
+| `COGNITION_ENABLED` | **Retired (M5)** — ignored; cognition routing removed |
 
 ---
 

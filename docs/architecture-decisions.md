@@ -35,6 +35,7 @@ Lifecycle fields on each ADR: **Date Added**, **Last Updated**, **Closed** (when
 | ADR-011 | Strangler fig + supervisor fallback through M4 | Approved | 2026-07-27 |
 | ADR-012 | Workspace = brand; no cross-workspace Knowledge in MVP | Approved | 2026-07-27 |
 | ADR-013 | Project execution via timeline + ADR docs | Approved | 2026-07-27 |
+| ADR-014 | M5 single default brain; cognition removed | Approved | 2026-07-27 |
 
 ---
 
@@ -356,7 +357,7 @@ Safe production migration; reuse existing tools/blog graph.
 - Completing cognition as a permanent second brain  
 
 ### Status
-Approved
+Approved (superseded for active-chat default by ADR-014)
 
 ### Impact
 MIGRATION.md; OrchestratorService routing; M3–M5 tasks in project-timeline.
@@ -418,6 +419,35 @@ Approved
 
 ### Impact
 All future implementation milestones; commit checklist; eng operating model.
+
+---
+
+## ADR-014 — M5 single default brain (v0.5); cognition removed
+
+### Decision
+Default `ORCHESTRATOR_V05_GRAPH_ENABLED` to **true**. Remove Cognition routing and bootstrap. Supervisor remains only for **onboarding** and as an emergency opt-out (`ORCHESTRATOR_V05_GRAPH_ENABLED=false`) until remaining ops tools are fully skill-wrapped. Preference updates on the v0.5 path use Memory Manager `rememberAsync`, not supervisor `update_memory`.
+
+### Date Added
+2026-07-27
+
+### Last Updated
+2026-07-27
+
+### Closed
+—
+
+### Reason
+ADR-001 / ADR-011 strangler complete for active chat. Dual-brain latency and drift are unacceptable for MVP.
+
+### Alternatives Considered
+- Keep cognition as permanent second brain  
+- Delete supervisor code entirely before ops skills exist  
+
+### Status
+Approved
+
+### Impact
+`env.ts`; `OrchestratorService` routing; `index.ts` bootstrap; timeline M5.
 
 ---
 

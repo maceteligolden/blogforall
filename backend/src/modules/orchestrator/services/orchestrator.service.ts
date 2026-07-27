@@ -43,8 +43,6 @@ import { ensureVoiceConversationReply } from "../utils/voice-conversation.helper
 import { ensureConversationContinuation, type SelectionContextPayload } from "../utils/selection-focus.helper";
 import { buildEnrichedUserMessage, type ClientSessionMode } from "../utils/turn-context.helper";
 import { canRunOrchestratorTool } from "../../../shared/utils/site-permissions.util";
-import { CognitionTurnUseCase } from "../../cognition/application/turn-use-case";
-import type { FocusBias } from "../../cognition/domain/conversation/dialogue-state.model";
 import { OrchestratorV05GraphService } from "../ai/graph/orchestrator-v05-graph.service";
 import { buildV05MoatSnapshot } from "../ai/observability/moat-snapshot";
 
@@ -101,7 +99,6 @@ export class OrchestratorService {
     private readonly contextPackBuilder: ContextPackBuilderService,
     private readonly memoryExtraction: MemoryExtractionService,
     private readonly sessionModeRouter: SessionModeRouterService,
-    private readonly cognitionTurn: CognitionTurnUseCase,
     private readonly v05Graph: OrchestratorV05GraphService,
   ) {}
 
@@ -280,7 +277,7 @@ export class OrchestratorService {
       return this.resolveConfirmationFromText(siteId, userId, thread, pendingApproval, message);
     }
 
-    // v0.5 LangGraph (CI → skills) — feature-flagged; supervisor remains default.
+    // M5: v0.5 LangGraph is the default active chat brain (opt out with ORCHESTRATOR_V05_GRAPH_ENABLED=false).
     if (env.orchestrator.v05GraphEnabled && mode === "active") {
       return this.runV05GraphTurn({
         siteId,
@@ -293,61 +290,8 @@ export class OrchestratorService {
       });
     }
 
-    // B Cognition System — feature-flagged layered graph (active mode only).
-    if (env.cognition.enabled && mode === "active") {
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
-        body: JSON.stringify({
-          sessionId: "99a1d3",
-          runId: "list-blogs-debug",
-          hypothesisId: "H-A",
-          location: "orchestrator.service.ts:runTurn:cognition-branch",
-          message: "routing to cognition turn",
-          data: {
-            cognitionEnabled: env.cognition.enabled,
-            mode,
-            messagePreview: message.slice(0, 80),
-            looksLikeList: /\b(list|show|all\s+(my\s+)?(blogs|posts|drafts)|my\s+drafts)\b/i.test(message),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => undefined);
-      // #endregion
-      return this.runCognitionTurn({
-        siteId,
-        userId,
-        message,
-        thread,
-        memory,
-        effectiveSessionMode,
-        modeResolution,
-        selectionContext: input.selectionContext,
-        pendingApprovalId: pendingApproval?._id?.toString(),
-      });
-    }
-
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
-      body: JSON.stringify({
-        sessionId: "99a1d3",
-        runId: "list-blogs-debug",
-        hypothesisId: "H-A",
-        location: "orchestrator.service.ts:runTurn:legacy-branch",
-        message: "routing to legacy supervisor",
-        data: {
-          cognitionEnabled: env.cognition.enabled,
-          mode,
-          messagePreview: message.slice(0, 80),
-          looksLikeList: /\b(list|show|all\s+(my\s+)?(blogs|posts|drafts)|my\s+drafts)\b/i.test(message),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => undefined);
-    // #endregion
+    // Supervisor path: onboarding always; active only when v0.5 explicitly disabled.
+    // Cognition dual-brain removed in M5 (ADR-014).
 
     const llmMessage = enrichedMessage;
 
@@ -681,7 +625,8 @@ export class OrchestratorService {
 
   /**
    * Feature-flagged v0.5 path — Conversation Intelligence → LangGraph skills.
-   * Supervisor / cognition remain available when ORCHESTRATOR_V05_GRAPH_ENABLED is false.
+   * Active-mode v0.5 turn (M5 default). Supervisor remains for onboarding and
+   * when ORCHESTRATOR_V05_GRAPH_ENABLED=false.
    */
   private async runV05GraphTurn(input: {
     siteId: string;
@@ -765,168 +710,6 @@ export class OrchestratorService {
         mode: result.state.mode,
         phases: [...result.phases],
         ...buildV05MoatSnapshot(result.state, result.phases),
-      },
-    };
-  }
-
-  /**
-   * Feature-flagged B Cognition path — layered persona → conversation →
-   * reasoning → planner → skills → response. Legacy supervisor remains default
-   * when COGNITION_ENABLED is false.
-   */
-  private async runCognitionTurn(input: {
-    siteId: string;
-    userId: string;
-    message: string;
-    thread: OrchestratorThread;
-    memory: WorkspaceMemory;
-    effectiveSessionMode: OperationalSessionMode;
-    modeResolution: SessionModeResolution | null;
-    selectionContext?: SelectionContextPayload;
-    pendingApprovalId?: string;
-  }): Promise<ChatTurnResponse> {
-    const { siteId, userId, message, thread, memory, effectiveSessionMode, modeResolution } = input;
-    const threadId = thread._id!.toString();
-
-    await this.messageRepository.create({
-      thread_id: threadId,
-      site_id: siteId,
-      role: OrchestratorMessageRole.USER,
-      content: message,
-    });
-
-    const result = await this.cognitionTurn.run({
-      siteId,
-      userId,
-      threadId,
-      message,
-      focusBias: effectiveSessionMode as FocusBias,
-      focusSource: modeResolution?.source || "inferred",
-      selection: input.selectionContext
-        ? {
-            blog_id: input.selectionContext.blog_id,
-            reference_type: input.selectionContext.reference_type,
-            text: input.selectionContext.text,
-          }
-        : undefined,
-      pendingApprovalId: input.pendingApprovalId,
-      publishingChannels: memory.strategic.publishing_channels,
-    });
-
-    let pendingApproval: OrchestratorApproval | null = null;
-    if (result.confirmation) {
-      pendingApproval = await this.approvalRepository.create({
-        site_id: siteId,
-        thread_id: threadId,
-        requested_for_user_id: userId,
-        requested_by_user_id: userId,
-        kind: OrchestratorApprovalKind.IN_CHAT_CONFIRMATION,
-        action: result.confirmation.action,
-        payload: result.confirmation.payload,
-        summary: result.confirmation.summary,
-        expires_at: new Date(Date.now() + env.orchestrator.confirmTimeoutMs),
-      });
-    }
-
-    const tool_calls =
-      result.skill_result && result.skill_result.ok
-        ? [
-            {
-              tool: result.skill_result.tool_name || result.skill_result.artifact_kind || "cognition.skill",
-              summary: result.skill_result.summary,
-              output_data: result.skill_result.output_data,
-            },
-          ]
-        : [];
-
-    const assistant = await this.messageRepository.create({
-      thread_id: threadId,
-      site_id: siteId,
-      role: OrchestratorMessageRole.ASSISTANT,
-      content: result.reply,
-      tool_calls: tool_calls.map((t) => ({
-        tool: t.tool,
-        input: {},
-        summary: t.summary,
-        output_data: t.output_data,
-      })),
-    });
-
-    void this.memoryExtraction.processTurn({
-      siteId,
-      userId,
-      threadId,
-      userMessage: message,
-      assistantReply: result.reply,
-      sessionMode: effectiveSessionMode,
-    });
-
-    logger.info(
-      "Cognition turn completed",
-      {
-        component: "cognition",
-        event: "turn_complete",
-        siteId,
-        threadId,
-        plan_kind: result.plan_kind,
-        goal: result.goal,
-      },
-      "OrchestratorService"
-    );
-
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
-      body: JSON.stringify({
-        sessionId: "99a1d3",
-        runId: "list-blogs-debug",
-        hypothesisId: "H-B",
-        location: "orchestrator.service.ts:runCognitionTurn:result",
-        message: "cognition turn result for list debug",
-        data: {
-          goal: result.goal,
-          plan_kind: result.plan_kind,
-          phase: result.dialogue_phase,
-          skillOk: result.skill_result?.ok,
-          skillTool: result.skill_result?.tool_name,
-          artifactKind: result.skill_result?.artifact_kind,
-          outputKeys: result.skill_result?.output_data ? Object.keys(result.skill_result.output_data) : [],
-          itemCount: Array.isArray((result.skill_result?.output_data as { items?: unknown[] })?.items)
-            ? (result.skill_result!.output_data as { items: unknown[] }).items.length
-            : Array.isArray((result.skill_result?.output_data as { blogs?: unknown[] })?.blogs)
-              ? (result.skill_result!.output_data as { blogs: unknown[] }).blogs.length
-              : null,
-          toolCallTools: tool_calls.map((t) => t.tool),
-          replyPreview: result.reply.slice(0, 120),
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => undefined);
-    // #endregion
-
-    return {
-      thread_id: threadId,
-      assistant_message: {
-        id: assistant._id!.toString(),
-        content: assistant.content,
-        created_at: assistant.created_at,
-      },
-      tool_calls,
-      pending_approval: pendingApproval ? serializeApproval(pendingApproval) : null,
-      active_session_mode: effectiveSessionMode,
-      session_mode_source: modeResolution?.source,
-      workspace_status: "active",
-      onboarding_completed: false,
-      cognition: {
-        enabled: true,
-        goal: result.goal,
-        content_type: result.content_type,
-        phase: result.dialogue_phase,
-        plan_kind: result.plan_kind,
-        choice_chips: result.choice_chips,
-        progress_events: result.progress_events,
-        persona_display_name: result.persona_display_name,
       },
     };
   }

@@ -86,6 +86,13 @@ const startServer = async () => {
     // Register Workspace Orchestrator Agent tools before serving traffic so
     // the chat endpoints can dispatch to them on the first request.
     container.resolve(OrchestratorBootstrap).registerAllTools();
+    logger.info(
+      env.orchestrator.v05GraphEnabled
+        ? "Orchestrator v0.5 graph enabled (default active chat brain)"
+        : "Orchestrator v0.5 graph disabled — supervisor handles active chat",
+      { v05GraphEnabled: env.orchestrator.v05GraphEnabled },
+      "Orchestrator",
+    );
 
     // Start the post scheduler
     const scheduler = container.resolve(PostSchedulerService);

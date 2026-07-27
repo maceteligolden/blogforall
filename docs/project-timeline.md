@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M4 T4.2–T4.4 moat UI + new-path contracts)  
+**Last updated:** 2026-07-27 (M5 complete — single default brain; stop before Post-MVP)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -52,12 +52,13 @@ After completing work:
 | Package / SEO·GAO moat visibility | **Completed** (T4.2) — v05_graph snapshot + MoatScoreStrip (wire chat when WIP clears) |
 | Writer-embedded research on new paths | **Retired** (T4.3) — Writing notes-only; generateDraft legacy |
 | Review skill id on new paths | **Retired** (T4.4) — content_optimization only |
-| Production chat today | LLM Supervisor + optional Cognition / v0.5 flags |
-| Dirty worktree | Unrelated WIP may still exist — keep M5 commits narrow |
+| Default chat brain | **v0.5 graph** (M5) — cognition removed; supervisor onboarding / opt-out only |
+| Production chat today | v0.5 default; set `ORCHESTRATOR_V05_GRAPH_ENABLED=false` for supervisor emergency |
+| Dirty worktree | Unrelated WIP may still exist — keep commits narrow |
 
-**Active milestone:** **M5** — default v0.5 brain; remove dual path.
+**Active milestone:** **MVP complete through M5** — do not start **M6 Post-MVP** without explicit approval.
 
-**Next approved coding tasks:** T5.1 default flag on + remove cognition/supervisor default; T5.2 scrub legacy understand/updateMemory.
+**Next approved coding tasks:** None on timeline until Post-MVP is approved (T6.*).
 
 ---
 
@@ -70,8 +71,8 @@ M1 Contracts          ████ DONE (feat/m1-contracts)
 M2 Skills + pipelines         ████ DONE
 M3 Graph behind flag                    ████ DONE
 M4 Strategist UX                                  ████ DONE
-M5 Remove dual brain                                        ░░░░ NEXT
-M6 Learning / agency pack                                         ░░░░░ Post-MVP lean
+M5 Remove dual brain                                        ████ DONE
+M6 Learning / agency pack                                         ░░░░░ Post-MVP (stopped)
 ```
 
 Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or parallel thin Analytics read only).
@@ -115,8 +116,8 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T4.2 | M4 | UI: Package coverage + SEO/GAO scores | Completed | High | Eng | T4.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Moat snapshot + score strip |
 | T4.3 | M4 | Retire writer-embedded research on new paths | Completed | Critical | Eng | T4.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Keep supervisor generateDraft |
 | T4.4 | M4 | Retire Review skill id on new paths | Completed | High | Eng | T2.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | content_optimization only |
-| T5.1 | M5 | Default flag on; remove supervisor + cognition | Planned | Critical | Eng | T4.* parity | TBD | TBD | — | Single brain |
-| T5.2 | M5 | Remove legacy understand / raw updateMemory graph path | Planned | High | Eng | T5.1 | TBD | TBD | — | — |
+| T5.1 | M5 | Default flag on; remove supervisor + cognition | Completed | Critical | Eng | T4.* parity | 2026-07-27 | 2026-07-27 | 2026-07-27 | Cognition removed; supervisor opt-out/onboarding |
+| T5.2 | M5 | Remove legacy understand / raw updateMemory graph path | Completed | High | Eng | T5.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | understand denylist scrub; v05 uses rememberAsync |
 | T6.1 | M6 | Content Intelligence closed loop | Post-MVP | Medium | Eng | T5.1 | — | — | — | 14 §4 C |
 | T6.2 | M6 | Agency multi-workspace pack | Post-MVP | Medium | Eng | T5.1 | — | — | — | Doc 20; tenancy locked |
 | T6.3 | M6 | Full UX validator / rich linking | Post-MVP | Low | Eng | T4.4 | — | — | — | — |
@@ -159,9 +160,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. **T5.1** Default `ORCHESTRATOR_V05_GRAPH_ENABLED` on; remove cognition routing; supervisor opt-out only.  
-2. **T5.2** Scrub legacy understand / supervisor `update_memory` decision path.  
-3. Stop before **M6 Post-MVP** unless explicitly approved.
+1. **Stop** — M6 Post-MVP items require explicit approval.  
+2. Optional soak: staging with default v0.5; use `ORCHESTRATOR_V05_GRAPH_ENABLED=false` only for emergency supervisor.  
+3. Wire `MoatScoreStrip` into chat once unrelated orchestrator-chat WIP is cleaned.
 
 ---
 
@@ -179,3 +180,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-27 | M3 complete: T3.5 TurnTracer spans; next = M4 strategist |
 | 2026-07-27 | M4 T4.1: strategist_pipeline + streamed research/optimize phases |
 | 2026-07-27 | M4 complete: T4.2–T4.4 moat UI + Writing/Review new-path contracts; next = M5 |
+| 2026-07-27 | M5 complete: v0.5 default on; cognition removed; stop before Post-MVP |
