@@ -1,10 +1,11 @@
 import { END, START, StateGraph } from "@langchain/langgraph";
+import type { TurnTracer } from "../observability/turn-tracer";
 import { routeAfterInvoke, routeAfterPlan } from "./edges";
 import { awaitHumanNode } from "./nodes/await-human";
 import { composeNode } from "./nodes/compose";
 import { invokeSkillNode, type InvokeSkillDeps } from "./nodes/invoke-skill";
 import { loadContextNode, type LoadContextDeps } from "./nodes/load-context";
-import { planNode } from "./nodes/plan";
+import { planNode, type PlanNodeDeps } from "./nodes/plan";
 import { persistNode, type PersistDeps } from "./nodes/persist";
 import {
   createInitialOrchestratorState,
@@ -14,7 +15,12 @@ import {
 import type { ConversationContext } from "../contracts/conversation-context";
 import type { WorkflowMode } from "../contracts/enums";
 
-export type OrchestratorGraphDeps = LoadContextDeps & InvokeSkillDeps & PersistDeps;
+export type OrchestratorGraphDeps = LoadContextDeps &
+  InvokeSkillDeps &
+  PersistDeps &
+  PlanNodeDeps & {
+    tracer?: TurnTracer;
+  };
 
 export type InvokeTurnInput = {
   turn_id: string;
@@ -33,7 +39,7 @@ export function buildOrchestratorGraph(deps: OrchestratorGraphDeps) {
   // Node names must differ from state channels (`plan`, `draft`, …).
   const graph = new StateGraph(OrchestratorStateAnnotation)
     .addNode("load_context", (s) => loadContextNode(s, deps))
-    .addNode("plan_turn", (s) => planNode(s))
+    .addNode("plan_turn", (s) => planNode(s, deps))
     .addNode("invoke_skill", (s) => invokeSkillNode(s, deps))
     .addNode("await_human", (s) => awaitHumanNode(s))
     .addNode("compose_reply", (s) => composeNode(s))

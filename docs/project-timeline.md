@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M3 T3.3–T3.4 parity + CI goldens)  
+**Last updated:** 2026-07-27 (M3 complete — T3.5 observability)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -47,12 +47,13 @@ After completing work:
 | Research full (simplified) | **Completed** (T2.4) — multi-query + coverage retry |
 | LangGraph orchestrator graph (nodes) | **Skeleton** (T3.1) — load/plan/invoke/compose/persist |
 | Feature flag `ORCHESTRATOR_V05_GRAPH_ENABLED` | **Completed** (T3.2) — default off; supervisor fallback |
+| Observability (CI / plan / skills spans) | **Completed** (T3.5) — TurnTracer + skill metrics |
 | Production chat today | LLM Supervisor + optional Cognition / v0.5 flags |
 | Dirty worktree | Unrelated WIP may still exist on branch — keep M3 commits narrow |
 
-**Active milestone:** **M3** — graph flag path green for quick_draft + CI goldens; remaining T3.5 spans.
+**Active milestone:** **M4** — strategist staging demo + package/score UX.
 
-**Next approved coding tasks:** T3.5 observability spans; then M4 strategist staging demo.
+**Next approved coding tasks:** T4.1 strategist_pipeline staging demo; T4.2 UI Package coverage + SEO/GAO scores.
 
 ---
 
@@ -63,8 +64,8 @@ After completing work:
 M0 Docs freeze        ████ DONE
 M1 Contracts          ████ DONE (feat/m1-contracts)
 M2 Skills + pipelines         ████ DONE
-M3 Graph behind flag                    ██░░ NEXT (T3.1–T3.2 done)
-M4 Strategist UX                                  ░░░░░░
+M3 Graph behind flag                    ████ DONE
+M4 Strategist UX                                  ░░░░ NEXT
 M5 Remove dual brain                                        ░░░░
 M6 Learning / agency pack                                         ░░░░░ Post-MVP lean
 ```
@@ -105,7 +106,7 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T3.2 | M3 | Feature flag route in OrchestratorService | Completed | Critical | Eng | T3.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | ORCHESTRATOR_V05_GRAPH_ENABLED |
 | T3.3 | M3 | quick_draft path end-to-end | Completed | Critical | Eng | T3.2, T2.3, T2.5, T2.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Parity checklist covered in tests |
 | T3.4 | M3 | CI golden utterance tests A1–A10 | Completed | Critical | Eng | T2.1, T3.2 | 2026-07-27 | 2026-07-27 | 2026-07-27 | PRD acceptance suite |
-| T3.5 | M3 | Observability spans (ci / plan / skills) | Planned | High | Eng | T3.1 | TBD | TBD | — | 12 |
+| T3.5 | M3 | Observability spans (ci / plan / skills) | Completed | High | Eng | T3.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | TurnTracer + skill-metrics |
 | T4.1 | M4 | strategist_pipeline staging demo | Planned | High | Eng | T3.3, T2.4 | TBD | TBD | — | Stream phases |
 | T4.2 | M4 | UI: Package coverage + SEO/GAO scores | Planned | High | Eng | T4.1 | TBD | TBD | — | Doc 20 moat visibility |
 | T4.3 | M4 | Retire writer-embedded research on new paths | Planned | Critical | Eng | T4.1 | TBD | TBD | — | Keep flag fallback |
@@ -154,9 +155,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. **T3.5** Observability spans for ci / plan / skills.  
-2. Then **M4**: strategist_pipeline staging demo + package/score UI.  
-3. Keep `ORCHESTRATOR_V05_GRAPH_ENABLED` off in production until T3.5 + staging soak.
+1. Start **M4 / T4.1**: strategist_pipeline staging demo (stream phases).  
+2. **T4.2** UI: Package coverage + SEO/GAO scores.  
+3. Keep `ORCHESTRATOR_V05_GRAPH_ENABLED` off in production until staging soak.
 
 ---
 
@@ -171,3 +172,4 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-27 | M2 complete: T2.8 ArtifactStore + T2.4 Research full; next = M3 graph |
 | 2026-07-27 | M3 T3.1–T3.2: LangGraph nodes + ORCHESTRATOR_V05_GRAPH_ENABLED flag |
 | 2026-07-27 | M3 T3.3–T3.4: quick_draft parity e2e + CI golden A1–A10 |
+| 2026-07-27 | M3 complete: T3.5 TurnTracer spans; next = M4 strategist |

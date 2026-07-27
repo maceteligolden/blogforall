@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import { injectable } from "tsyringe";
 import { ConversationIntelligenceService } from "../conversation-intelligence/conversation-intelligence";
 import { MemoryManagerService } from "../memory/manager/memory-manager";
+import { incrementCounter } from "../observability/skill-metrics";
+import { createTurnTracer, type CompletedSpan, type TurnTracer } from "../observability/turn-tracer";
 import { ContentOptimizationService } from "../skills/content-optimization/content-optimization.service";
 import { ResearchSkillService } from "../skills/research/research-skill.service";
 import { SkillRegistry } from "../skills/registry";
@@ -11,6 +13,7 @@ import {
   buildOrchestratorGraph,
   invokeTurn,
   type CompiledOrchestratorGraph,
+  type OrchestratorGraphDeps,
 } from "./orchestrator.graph";
 import type { OrchestratorState } from "./state";
 import type { WorkflowMode } from "../contracts/enums";
@@ -28,6 +31,7 @@ export type V05GraphTurnResult = {
   state: OrchestratorState;
   reply: string;
   tool_calls: Array<{ tool: string; summary: string; output_data?: unknown }>;
+  spans: readonly CompletedSpan[];
 };
 
 /**
@@ -36,6 +40,7 @@ export type V05GraphTurnResult = {
 @injectable()
 export class OrchestratorV05GraphService {
   private compiled: CompiledOrchestratorGraph | null = null;
+  private graphDeps: OrchestratorGraphDeps | null = null;
 
   constructor(
     private readonly ci: ConversationIntelligenceService,
@@ -47,48 +52,103 @@ export class OrchestratorV05GraphService {
   ) {}
 
   async runTurn(input: V05GraphTurnInput): Promise<V05GraphTurnResult> {
-    const conversation_context = await this.ci.analyze({
-      message: input.message,
-      workspace_id: input.workspace_id,
-      user_id: input.user_id,
-      thread_id: input.thread_id,
-      recent_messages: input.recent_messages,
-    });
-
-    const compiled = this.getCompiled();
-    const state = await invokeTurn(compiled, {
-      turn_id: randomUUID(),
+    const turn_id = randomUUID();
+    const ci_analyze_id = randomUUID();
+    const tracer = createTurnTracer({
+      turn_id,
       thread_id: input.thread_id,
       workspace_id: input.workspace_id,
       user_id: input.user_id,
-      message: input.message,
-      conversation_context,
-      mode: input.mode ?? "chat",
+      ci_analyze_id,
     });
 
-    const tool_calls = state.progress_events
-      .filter((e) => e.type === "invoke_skill")
-      .map((e) => ({
-        tool: String(e.meta?.skill_id ?? "skill"),
-        summary: e.message ?? "skill",
-        output_data: e.meta,
-      }));
+    const turnSpan = tracer.startSpan("turn", { turn_id });
+    try {
+      const conversation_context = await tracer.timed(
+        "ci.analyze",
+        { ci_analyze_id },
+        async (span) => {
+          const ctx = await this.ci.analyze({
+            message: input.message,
+            workspace_id: input.workspace_id,
+            user_id: input.user_id,
+            thread_id: input.thread_id,
+            recent_messages: input.recent_messages,
+          });
+          span.setAttributes({
+            communicative_category: ctx.communicative_category,
+            workflow_intent: ctx.workflow_intent,
+            suggested_next_action: ctx.suggested_next_action,
+            confidence: ctx.confidence,
+            requires_clarification: ctx.requires_clarification,
+            action_required: ctx.action_required,
+          });
+          incrementCounter(`ci.category_rate.${ctx.communicative_category}`);
+          if (ctx.requires_clarification) incrementCounter("ci.clarify_rate");
+          return ctx;
+        },
+      );
 
-    return {
-      state,
-      reply: state.reply ?? "Done.",
-      tool_calls,
-    };
+      const { compiled, deps } = this.getCompiled();
+      deps.tracer = tracer;
+
+      const state = await invokeTurn(compiled, {
+        turn_id,
+        thread_id: input.thread_id,
+        workspace_id: input.workspace_id,
+        user_id: input.user_id,
+        message: input.message,
+        conversation_context,
+        mode: input.mode ?? "chat",
+      });
+
+      deps.tracer = undefined;
+
+      const tool_calls = state.progress_events
+        .filter((e) => e.type === "invoke_skill")
+        .map((e) => ({
+          tool: String(e.meta?.skill_id ?? "skill"),
+          summary: e.message ?? "skill",
+          output_data: e.meta,
+        }));
+
+      turnSpan.end({
+        status: "ok",
+        attrs: {
+          workflow_stage: state.workflow_stage,
+          skills_run: state.skills_run_this_turn,
+          mode: state.mode,
+        },
+      });
+
+      return {
+        state,
+        reply: state.reply ?? "Done.",
+        tool_calls,
+        spans: tracer.spans,
+      };
+    } catch (e) {
+      if (this.graphDeps) this.graphDeps.tracer = undefined;
+      turnSpan.end({
+        status: "error",
+        error: e instanceof Error ? e.message : String(e),
+      });
+      throw e;
+    }
   }
 
-  private getCompiled(): CompiledOrchestratorGraph {
-    if (this.compiled) return this.compiled;
-    const registry = this.buildRegistry();
-    this.compiled = buildOrchestratorGraph({
+  private getCompiled(): { compiled: CompiledOrchestratorGraph; deps: OrchestratorGraphDeps } {
+    if (this.compiled && this.graphDeps) {
+      return { compiled: this.compiled, deps: this.graphDeps };
+    }
+    const deps: OrchestratorGraphDeps = {
       memory: this.memory,
-      registry,
-    });
-    return this.compiled;
+      registry: this.buildRegistry(),
+      tracer: undefined as TurnTracer | undefined,
+    };
+    this.graphDeps = deps;
+    this.compiled = buildOrchestratorGraph(deps);
+    return { compiled: this.compiled, deps };
   }
 
   private buildRegistry(): SkillRegistry {
