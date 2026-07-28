@@ -258,24 +258,6 @@ export class TokenEnforcementService {
       const staleLock = staleLockByExpiry || staleLockByOrphan;
 
       if (ledger.active_request_id && !staleLock) {
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-          body: JSON.stringify({
-            sessionId: "4b087c",
-            runId: "concurrency-fix",
-            hypothesisId: "H-lock",
-            location: "token-enforcement.service.ts:reserveTokens",
-            message: "AiConcurrencyError — active lock still held",
-            data: {
-              activeRequestId: ledger.active_request_id,
-              expiresAt: ledger.active_request_expires_at?.toISOString(),
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => undefined);
-        // #endregion
         throw new AiConcurrencyError();
       }
 

@@ -35,6 +35,11 @@ export type InvokeTurnInput = {
   campaign_id?: string;
   current_time_iso?: string;
   current_date_human?: string;
+  recent_messages?: Array<{ role: "user" | "assistant"; content: string }>;
+  /** Seeded from results-panel selection (active draft). */
+  draft?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  selection?: { blog_id?: string; highlight?: string };
 };
 
 export function buildOrchestratorGraph(deps: OrchestratorGraphDeps) {
@@ -95,9 +100,21 @@ export async function invokeTurn(
     ...initial,
     conversation_context: input.conversation_context,
     intent: input.conversation_context.workflow_intent,
+    recent_messages: input.recent_messages,
+    draft: input.draft ?? initial.draft,
+    metadata: input.metadata ?? initial.metadata,
     slots: {
       ...initial.slots,
       ...(input.conversation_context.slots_patch ?? {}),
+      ...(input.selection?.blog_id
+        ? {
+            blog_id: input.selection.blog_id,
+            selection: {
+              blog_id: input.selection.blog_id,
+              highlight: input.selection.highlight,
+            },
+          }
+        : {}),
     },
   };
 

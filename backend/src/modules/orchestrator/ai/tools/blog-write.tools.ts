@@ -12,7 +12,7 @@ import type {
   OrchestratorToolInvocation,
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
-import { parseToolInput, normalizeBlogToolInput, truncateSummary } from "./_helpers";
+import { parseToolInput, normalizeBlogToolInput, truncateSummary, resolveSingleBlogForTool } from "./_helpers";
 
 /**
  * Build a stable in-app URL the orchestrator can hand to the user so they can
@@ -176,8 +176,9 @@ const generateDraftInputSchema = z.object({
 @injectable()
 export class BlogGenerateDraftTool implements OrchestratorTool {
   name = "blogs.generateDraft";
+  /** @deprecated Supervisor fallback only — v0.5 Writing skill uses Research Package + draftFromNotes (no embedded Tavily). */
   description =
-    "Generate a new blog post from a prompt. The orchestrator passes workspace brand voice, audience, and tone into the generation pipeline. By default the generated content is saved as a draft (set save_as_draft=false to preview without saving).";
+    "LEGACY (supervisor fallback): Generate a blog from a prompt with embedded research. Prefer the v0.5 Research→Writing skill path when ORCHESTRATOR_V05_GRAPH_ENABLED. By default saves as a draft (save_as_draft=false to preview).";
   requiresConfirmation = false;
   constructor(
     private readonly generationService: BlogGenerationService,
@@ -265,14 +266,16 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
 // -----------------------------------------------------------------------------
 
 const reviewInputSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).optional(),
+  title: z.string().min(1).max(200).optional(),
 });
 
 @injectable()
 export class BlogReviewTool implements OrchestratorTool {
   name = "blogs.review";
+  /** @deprecated Supervisor fallback — v0.5 uses skill content_optimization (ADR-005). */
   description =
-    "Run the AI editorial reviewer on an existing blog post (draft, scheduled, or published) and return an overall score and concrete suggestions. Read-only — does not modify the blog.";
+    "LEGACY (supervisor fallback): Run editorial review scores on a blog. Prefer content_optimization skill when ORCHESTRATOR_V05_GRAPH_ENABLED. Read-only.";
   requiresConfirmation = false;
   constructor(
     private readonly blogService: BlogService,
@@ -281,7 +284,17 @@ export class BlogReviewTool implements OrchestratorTool {
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(reviewInputSchema, normalizeBlogToolInput(invocation.input), this.name);
-    const blog = await this.blogService.getBlogById(input.id, invocation.siteId);
+    if (!input.id && !input.title) {
+      throw new Error("Provide id or title for blogs.review.");
+    }
+
+    const resolved = await resolveSingleBlogForTool(this.blogService, invocation.siteId, {
+      id: input.id,
+      titleHint: input.title,
+    });
+    const blog = resolved.blog;
+    const blogId = blog._id?.toString() || input.id || "";
+
     const result = await this.reviewService.reviewBlog(
       blog.title,
       blog.content,
@@ -291,14 +304,16 @@ export class BlogReviewTool implements OrchestratorTool {
     );
     return {
       summary: truncateSummary(
-        `Reviewed '${blog.title}' — overall score ${result.overall_score}/10. ${result.summary}`
+        `Reviewed '${blog.title}' — overall score ${result.overall_score}/100. ${result.summary}`
       ),
       data: {
-        blog_id: input.id,
+        blog_id: blogId,
+        id: blogId,
         title: blog.title,
         overall_score: result.overall_score,
         summary: result.summary,
         suggestions: result.suggestions,
+        resolution: resolved.resolution,
       },
     };
   }

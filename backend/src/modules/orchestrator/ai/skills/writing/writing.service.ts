@@ -45,9 +45,10 @@ export class WritingSkillService {
   constructor(private readonly blogGraph: BlogGenerationGraphService) {}
 
   async run(input: WritingSkillInput): Promise<WritingSkillResult> {
+    // Revise works from an existing draft + feedback/plan — no Research Package required.
     assertWritingMayProceed({
       research_package_id: input.research_package_id ?? input.research_package?.id,
-      allow_without_package: input.allow_without_package,
+      allow_without_package: input.allow_without_package || input.action === "revise",
     });
 
     if (input.action !== "revise" && !input.research_package && !input.allow_without_package) {

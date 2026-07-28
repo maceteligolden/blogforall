@@ -245,3 +245,142 @@ export function htmlToBlocks(html: string): ContentBlock[] {
   }
   return blocks;
 }
+
+function looksLikeHtml(content: string): boolean {
+  return /<\/?(p|h[1-6]|ul|ol|li|blockquote|pre|code|figure|img|div)\b/i.test(content);
+}
+
+function looksLikeMarkdown(content: string): boolean {
+  return (
+    /(^|\n)#{1,3}\s+/m.test(content) ||
+    /(^|\n)[-*]\s+.+/m.test(content) ||
+    /(^|\n)\d+\.\s+.+/m.test(content) ||
+    /(^|\n)>\s+.+/m.test(content) ||
+    /```/m.test(content)
+  );
+}
+
+/** Strip ```html / ```markdown fences the model sometimes wraps around content. */
+function stripMarkdownFences(content: string): string {
+  let c = content.trim();
+  const fenced = c.match(/^```(?:html|markdown|md)?\s*\n?([\s\S]*?)\n?```$/i);
+  if (fenced) return fenced[1].trim();
+  c = c.replace(/^```(?:html|markdown|md)?\s*\n?/i, "").replace(/\n?```$/i, "");
+  return c.trim();
+}
+
+/**
+ * Minimal Markdown → content_blocks (mirrors frontend content-to-blocks).
+ */
+export function markdownToBlocks(markdown: string): ContentBlock[] {
+  const src = markdown?.trim();
+  if (!src) return [{ id: generateBlockId(), type: "paragraph", data: { text: "" } }];
+
+  const blocks: ContentBlock[] = [];
+  const lines = src.replace(/\r/g, "").split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i] ?? "";
+    if (!line.trim()) {
+      i++;
+      continue;
+    }
+
+    const codeFence = line.match(/^```(\w+)?\s*$/);
+    if (codeFence) {
+      const lang = codeFence[1] ?? "";
+      i++;
+      const codeLines: string[] = [];
+      while (i < lines.length && !(lines[i] ?? "").match(/^```/)) {
+        codeLines.push(lines[i] ?? "");
+        i++;
+      }
+      if (i < lines.length && (lines[i] ?? "").match(/^```/)) i++;
+      blocks.push({
+        id: generateBlockId(),
+        type: "code",
+        data: { text: codeLines.join("\n"), language: lang || undefined },
+      });
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      blocks.push({
+        id: generateBlockId(),
+        type: "heading",
+        data: { level: heading[1].length, text: heading[2].trim() },
+      });
+      i++;
+      continue;
+    }
+
+    if (line.match(/^>\s?.+/)) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && (lines[i] ?? "").match(/^>\s?.+/)) {
+        quoteLines.push((lines[i] ?? "").replace(/^>\s?/, "").trim());
+        i++;
+      }
+      blocks.push({ id: generateBlockId(), type: "blockquote", data: { text: quoteLines.join("\n") } });
+      continue;
+    }
+
+    if (line.match(/^[-*]\s+(.+)$/)) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const m = (lines[i] ?? "").match(/^[-*]\s+(.+)$/);
+        if (!m) break;
+        items.push(m[1].trim());
+        i++;
+      }
+      blocks.push({ id: generateBlockId(), type: "list", data: { listType: "bullet", items } });
+      continue;
+    }
+
+    if (line.match(/^\d+\.\s+(.+)$/)) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const m = (lines[i] ?? "").match(/^\d+\.\s+(.+)$/);
+        if (!m) break;
+        items.push(m[1].trim());
+        i++;
+      }
+      blocks.push({ id: generateBlockId(), type: "list", data: { listType: "ordered", items } });
+      continue;
+    }
+
+    const paraLines: string[] = [];
+    while (i < lines.length && (lines[i] ?? "").trim()) {
+      const cur = lines[i] ?? "";
+      if (cur.match(/^```(\w+)?\s*$/)) break;
+      if (cur.match(/^(#{1,3})\s+.+$/)) break;
+      if (cur.match(/^>\s?.+$/)) break;
+      if (cur.match(/^[-*]\s+.+$/)) break;
+      if (cur.match(/^\d+\.\s+.+$/)) break;
+      paraLines.push(cur.trim());
+      i++;
+    }
+    blocks.push({ id: generateBlockId(), type: "paragraph", data: { text: paraLines.join(" ") } });
+  }
+
+  if (blocks.length === 0) return [{ id: generateBlockId(), type: "paragraph", data: { text: "" } }];
+  return blocks;
+}
+
+/**
+ * Ensure blog body is real HTML (not Markdown). Used after LLM generation when
+ * the model ignores HTML instructions and returns # / - / ``` instead.
+ */
+export function ensureHtmlContent(raw: string): string {
+  if (!raw?.trim()) return raw;
+  let content = stripMarkdownFences(raw);
+  if (looksLikeHtml(content) && !looksLikeMarkdown(content)) {
+    return content;
+  }
+  // Mixed or markdown-only: convert via blocks so the editor/DB always store HTML.
+  if (looksLikeMarkdown(content) || !looksLikeHtml(content)) {
+    return blocksToHtml(markdownToBlocks(content));
+  }
+  return content;
+}

@@ -94,28 +94,6 @@ export function ChatComposer({
     };
   }, [composerFocusRef]);
 
-  useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-      body: JSON.stringify({
-        sessionId: "4b087c",
-        runId: "dashboard-toggle",
-        hypothesisId: "H3-selection-visible",
-        location: "chat-composer.tsx:selectionContext",
-        message: "selectionContext changed",
-        data: {
-          hasContext: !!selectionContext,
-          referenceType: selectionContext?.referenceType ?? null,
-          blogId: selectionContext?.blogId ?? null,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [selectionContext]);
-
   const resolvedPlaceholder = selectionContext
     ? selectionContext.referenceType === "highlight"
       ? "Ask about this selection — explain, rephrase, or ask me to update the draft…"

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils/cn";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import { QUERY_KEYS } from "@/lib/api/config";
-import type { ChatTurnResponse, OrchestratorApproval, OrchestratorMessage } from "@/lib/api/types/orchestrator.types";
+import type { ChatTurnResponse, OrchestratorApproval, OrchestratorMessage, V05MoatSnapshot } from "@/lib/api/types/orchestrator.types";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 import { FullConversationView, type ConversationStatus } from "./full-conversation-view";
@@ -22,9 +22,11 @@ import {
   findArtifactIdForToolMessage,
   extractBlogIdFromArtifactData,
   DRAFT_ARTIFACT_TOOLS,
+  VIEWABLE_ARTIFACT_TOOLS,
   patchBlogCacheFromToolOutput,
   type OrchestratorArtifact,
 } from "@/lib/utils/orchestrator-artifacts";
+import { extractMoatSnapshot } from "@/lib/utils/moat-snapshot";
 import { parseExplicitSessionModeSwitch, isWritingEffectiveMode } from "@/lib/utils/session-mode-parser";
 import { useOrchestratorArtifacts } from "@/lib/hooks/use-orchestrator-artifacts";
 import { useSpeechSynthesis } from "@/lib/hooks/use-speech-synthesis";
@@ -40,6 +42,7 @@ interface OptimisticMessage {
   content: string;
   toolName?: string;
   artifactId?: string;
+  moat?: V05MoatSnapshot | null;
 }
 
 interface OrchestratorChatProps {
@@ -253,7 +256,16 @@ export function OrchestratorChat({
   }, [threadQuery.data]);
 
   const combinedMessages = useMemo<OptimisticMessage[]>(() => {
-    const persisted: OptimisticMessage[] = (threadQuery.data?.messages ?? []).map((m: OrchestratorMessage) => {
+    const msgs = threadQuery.data?.messages ?? [];
+    const threadMoatByAssistant = new Map<string, V05MoatSnapshot>();
+    // Attribute research/optimize tool_calls on an assistant message to that bubble.
+    for (const m of msgs) {
+      if (m.role !== "assistant") continue;
+      const moat = extractMoatSnapshot({ messages: [m] });
+      if (moat) threadMoatByAssistant.set(m._id, moat);
+    }
+    // Also scan preceding tool messages' sibling assistant — tool_calls live on assistant in v05.
+    const persisted: OptimisticMessage[] = msgs.map((m: OrchestratorMessage) => {
       const toolArtifactId =
         m.role === "tool" ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts) : undefined;
       const assistantArtifactId = m.role === "assistant" ? findArtifactIdForAssistantMessage(m, artifacts) : undefined;
@@ -263,6 +275,7 @@ export function OrchestratorChat({
         content: m.content,
         toolName: m.tool_name,
         artifactId: toolArtifactId ?? assistantArtifactId,
+        moat: m.role === "assistant" ? threadMoatByAssistant.get(m._id) ?? null : null,
       };
     });
     return [...persisted, ...optimisticMessages];
@@ -308,11 +321,9 @@ export function OrchestratorChat({
       }
     }
 
-    if (
-      !conversationModeRef.current &&
-      (isWritingEffectiveMode(sessionMode, effectiveSessionMode) || explicitMode === "writing")
-    ) {
+    if (isWritingEffectiveMode(sessionMode, effectiveSessionMode) || explicitMode === "writing") {
       setDraftGenerating(true);
+      // Open results in text and call mode so drafts/reviews are visible while speaking.
       openResultsPanel();
       onShowMobileArtifacts?.();
     }
@@ -328,25 +339,6 @@ export function OrchestratorChat({
           }
         : undefined);
     const sendStartedAt = Date.now();
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-      body: JSON.stringify({
-        sessionId: "4b087c",
-        runId: "highlight-fix",
-        hypothesisId: "H-fe",
-        location: "orchestrator-chat.tsx:handleSend",
-        message: "chat send started",
-        data: {
-          hasHighlight: effectiveSelectionContext?.referenceType === "highlight",
-          hasSelection: !!effectiveSelectionContext,
-          textLen: text.length,
-        },
-        timestamp: sendStartedAt,
-      }),
-    }).catch(() => {});
-    // #endregion
     try {
       const res: ChatTurnResponse = await OrchestratorService.chat(currentSiteId, text, threadId ?? undefined, {
         sessionMode: explicitMode ?? sessionMode,
@@ -378,32 +370,19 @@ export function OrchestratorChat({
           const blogId = extractBlogIdFromArtifactData(outputData);
           if (blogId && DRAFT_ARTIFACT_TOOLS.has(call.tool)) {
             setActiveDraftBlogId(blogId);
-            const patched =
-              call.tool === "blogs.update" && patchBlogCacheFromToolOutput(queryClient, blogId, outputData);
-            // #region agent log
-            fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
-              body: JSON.stringify({
-                sessionId: "3cad4f",
-                runId: "highlight-fix",
-                hypothesisId: "H-cache",
-                location: "orchestrator-chat.tsx:handleSend",
-                message: "draft tool cache update",
-                data: {
-                  tool: call.tool,
-                  blogId,
-                  patched,
-                  hasContent: typeof outputData.content === "string",
-                  hasBlocks: Array.isArray(outputData.content_blocks),
-                  updatedAt: outputData.updated_at,
-                },
-                timestamp: Date.now(),
-              }),
-            }).catch(() => {});
-            // #endregion
+            const patched = patchBlogCacheFromToolOutput(queryClient, blogId, {
+              ...outputData,
+              content:
+                typeof outputData.content === "string"
+                  ? outputData.content
+                  : typeof outputData.content_html === "string"
+                    ? outputData.content_html
+                    : outputData.content,
+            });
             if (!patched) {
               void queryClient.refetchQueries({ queryKey: QUERY_KEYS.BLOG(blogId) });
+            } else {
+              void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOG(blogId) });
             }
           } else if (call.tool === "blogs.get" && blogId) {
             void queryClient.refetchQueries({ queryKey: QUERY_KEYS.BLOG(blogId) });
@@ -419,8 +398,14 @@ export function OrchestratorChat({
       }
       if (newLiveArtifacts.length > 0) {
         mergeLiveArtifacts(newLiveArtifacts);
-        if (!conversationModeRef.current) {
-          openResultsPanel(newLiveArtifacts[newLiveArtifacts.length - 1]?.id);
+        const preferred =
+          [...newLiveArtifacts].reverse().find((a) => DRAFT_ARTIFACT_TOOLS.has(a.tool)) ??
+          [...newLiveArtifacts].reverse().find((a) => a.tool === "blogs.review") ??
+          newLiveArtifacts[newLiveArtifacts.length - 1];
+        const hasViewable = newLiveArtifacts.some((a) => VIEWABLE_ARTIFACT_TOOLS.has(a.tool));
+        // Call mode used to skip this — drafts never appeared beside the voice UI.
+        if (!conversationModeRef.current || hasViewable) {
+          openResultsPanel(preferred?.id);
           onShowMobileArtifacts?.();
         }
       }
@@ -430,6 +415,7 @@ export function OrchestratorChat({
         role: "assistant",
         content: res.assistant_message.content,
         artifactId: newLiveArtifacts.length > 0 ? newLiveArtifacts[newLiveArtifacts.length - 1]?.id : undefined,
+        moat: extractMoatSnapshot({ v05: res.v05_graph, toolCalls: res.tool_calls }),
       });
       if (voiceMode && res.assistant_message.content !== lastSpokenRef.current) {
         lastSpokenRef.current = res.assistant_message.content;
@@ -463,25 +449,6 @@ export function OrchestratorChat({
         });
       }
       invalidateTokenUsage();
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-        body: JSON.stringify({
-          sessionId: "4b087c",
-          runId: "highlight-fix",
-          hypothesisId: "H-fe",
-          location: "orchestrator-chat.tsx:handleSend",
-          message: "chat send succeeded",
-          data: {
-            durationMs: Date.now() - sendStartedAt,
-            tool: res.tool_calls?.[0]?.tool,
-            threadId: res.thread_id,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
     } catch (e: unknown) {
       if (showFromError(e)) {
         invalidateTokenUsage();
@@ -498,25 +465,6 @@ export function OrchestratorChat({
       }
       setOptimisticMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
       if (!overrideText) setInput(text);
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-        body: JSON.stringify({
-          sessionId: "4b087c",
-          runId: "highlight-fix",
-          hypothesisId: "H-fe",
-          location: "orchestrator-chat.tsx:handleSend",
-          message: "chat send failed",
-          data: {
-            durationMs: Date.now() - sendStartedAt,
-            isTimeout: (e as { code?: string })?.code === "ECONNABORTED",
-            apiMessage: (e as { response?: { data?: { message?: string } } })?.response?.data?.message,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
     } finally {
       setPending(null);
       setDraftGenerating(false);
@@ -603,6 +551,11 @@ export function OrchestratorChat({
           sttSupported={sttSupported}
           disabled={!!pending || !currentSiteId || tokensExhausted}
           error={error}
+          hasResults={hasArtifacts}
+          onViewResults={() => {
+            openResultsPanel(artifacts[artifacts.length - 1]?.id);
+            onShowMobileArtifacts?.();
+          }}
           onMicToggle={handleConvMicToggle}
           onEndCall={handleEndConversation}
         />
@@ -736,6 +689,7 @@ export function OrchestratorChat({
             toolName={m.toolName}
             artifactId={m.artifactId}
             onViewArtifact={handleViewArtifact}
+            moat={m.moat}
           />
         ))}
         {pending && <ThinkingIndicator />}

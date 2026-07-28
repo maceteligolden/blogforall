@@ -9,7 +9,7 @@ import type {
   OrchestratorToolInvocation,
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
-import { parseToolInput, normalizeBlogToolInput, truncateSummary } from "./_helpers";
+import { parseToolInput, normalizeBlogToolInput, truncateSummary, resolveBlogForTool } from "./_helpers";
 
 function buildBlogPreviewUrl(blogId: string): string {
   const base = env.frontend.baseUrl.replace(/\/$/, "");
@@ -42,7 +42,10 @@ function projectBlog(b: Blog) {
 // -----------------------------------------------------------------------------
 
 const listInputSchema = z.object({
-  status: z.enum(BLOG_STATUS_VALUES as [BlogStatus, ...BlogStatus[]]).optional(),
+  status: z.preprocess(
+    (v) => (v === "all" || v === "" || v === null ? undefined : v),
+    z.enum(BLOG_STATUS_VALUES as [BlogStatus, ...BlogStatus[]]).optional(),
+  ),
   category: z.string().min(1).optional(),
   search: z.string().min(1).max(200).optional(),
   page: z.number().int().min(1).max(200).optional(),
@@ -54,7 +57,7 @@ const listInputSchema = z.object({
 export class BlogListTool implements OrchestratorTool {
   name = "blogs.list";
   description =
-    "List blog posts in this workspace. Filter by status (draft/scheduled/published/unpublished), category id, free-text search, or pagination. Set mine_only=true to limit to the current user's posts.";
+    "List blog posts in this workspace. Filter by status (draft/scheduled/published/unpublished), category id, free-text search, or pagination. Omit status (or pass nothing) to list all statuses — do not pass status='all'. Set mine_only=true to limit to the current user's posts.";
   requiresConfirmation = false;
   constructor(private readonly blogService: BlogService) {}
 
@@ -69,7 +72,13 @@ export class BlogListTool implements OrchestratorTool {
         summary: truncateSummary(
           `Found ${filtered.length} of your blog posts${this.statusLabel(input.status)}. ${this.previewTitles(filtered)}`
         ),
-        data: { blogs: filtered.map(projectBlog), total: filtered.length, mine_only: true },
+        data: {
+          blogs: filtered.map(projectBlog),
+          items: filtered.map(projectBlog),
+          total: filtered.length,
+          mine_only: true,
+          applied_filters: { status: input.status, category: input.category, search: input.search },
+        },
       };
     }
     const result = await this.blogService.getAllBlogs(invocation.siteId, {
@@ -85,7 +94,10 @@ export class BlogListTool implements OrchestratorTool {
       ),
       data: {
         blogs: result.data.map(projectBlog),
+        items: result.data.map(projectBlog),
+        total: result.pagination.total,
         pagination: result.pagination,
+        applied_filters: { status: input.status, category: input.category, search: input.search },
       },
     };
   }
@@ -124,40 +136,68 @@ export class BlogListTool implements OrchestratorTool {
 const getInputSchema = z.object({
   id: z.string().min(1).optional(),
   slug: z.string().min(1).optional(),
+  title: z.string().min(1).max(200).optional(),
 });
 
 @injectable()
 export class BlogGetTool implements OrchestratorTool {
   name = "blogs.get";
-  description = "Fetch a single blog post by id or slug. Include full content + meta.";
+  description =
+    "Fetch a single blog post by id, slug, title, or topic/idea phrase (e.g. title='jokers' or topic='remote work'). Include full content + meta. When several posts match the phrase, returns a ranked list so the user can pick one in the results panel.";
   requiresConfirmation = false;
   constructor(private readonly blogService: BlogService) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(getInputSchema, normalizeBlogToolInput(invocation.input), this.name);
-    if (!input.id && !input.slug) {
-      throw new Error("Provide one of id or slug.");
+    if (!input.id && !input.slug && !input.title) {
+      throw new Error("Provide one of id, slug, title, query, or topic.");
     }
-    const blog = input.id
-      ? await this.blogService.getBlogById(input.id, invocation.siteId)
-      : await this.blogService.getBlogBySlug(input.slug!, invocation.siteId);
+
+    const resolved = await resolveBlogForTool(this.blogService, invocation.siteId, {
+      id: input.id,
+      slug: input.slug,
+      titleHint: input.title,
+    });
+
+    if (resolved.kind === "ambiguous") {
+      const projected = resolved.candidates.map(projectBlog);
+      return {
+        summary: truncateSummary(
+          `Found ${projected.length} posts matching '${resolved.query}'. Pick one in the results panel.`
+        ),
+        data: {
+          blogs: projected,
+          items: projected,
+          total: projected.length,
+          ambiguous: true,
+          query: resolved.query,
+          resolution: "topic_ambiguous",
+        },
+      };
+    }
+
+    const blog = resolved.blog;
     const blogId = blog._id?.toString();
     const previewUrl = blogId ? buildBlogPreviewUrl(blogId) : undefined;
+
     return {
       summary: `Blog '${blog.title}' is currently ${blog.status}. Excerpt: ${(blog.excerpt || "(none)").slice(0, 200)}.${previewUrl ? ` Preview: ${previewUrl}` : ""}`,
       data: {
         id: blogId,
+        blog_id: blogId,
         title: blog.title,
         slug: blog.slug,
         status: blog.status,
         category: blog.category,
         excerpt: blog.excerpt,
+        content: blog.content,
         content_html: blog.content,
         published_at: blog.published_at,
         created_at: blog.created_at,
         updated_at: blog.updated_at,
         meta: blog.meta,
         preview_url: previewUrl,
+        resolution: resolved.resolution,
       },
     };
   }

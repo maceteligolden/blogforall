@@ -65,9 +65,14 @@ describe("T3.5 TurnTracer + skill metrics", () => {
       })),
       rememberAsync: jest.fn(async () => ({ job_id: "j1" })),
     };
+    const registry = new SkillRegistry();
+    registry.register("conversation", async () => ({
+      summary: "Conversation (casual)",
+      patch: { reply: "Hey — good to hear from you." },
+    }));
     const compiled = buildOrchestratorGraph({
       memory: memory as any,
-      registry: new SkillRegistry(),
+      registry,
       tracer,
     });
     await invokeTurn(compiled, {

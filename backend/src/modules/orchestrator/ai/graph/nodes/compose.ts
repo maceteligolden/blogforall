@@ -1,6 +1,61 @@
+import type { ResearchPackage } from "../../contracts/research-package";
 import type { OrchestratorState } from "../state";
 
-/** compose — format user-visible reply from CI style + artifacts (no understand). */
+function formatResearchReport(pkg: ResearchPackage, summary?: OrchestratorState["research_summary"]): string {
+  const topic = pkg.topic || summary?.topic || "this topic";
+  const notes = [
+    ...pkg.facts,
+    ...pkg.definitions,
+    ...pkg.statistics,
+    ...pkg.examples,
+    ...pkg.recent_developments,
+  ]
+    .map((f) => f.text.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+
+  const sources = (pkg.sources.length
+    ? pkg.sources
+    : pkg.references.map((r) => ({
+        title: r.title,
+        url: r.url,
+      }))
+  )
+    .slice(0, 8)
+    .map((s, i) => `${i + 1}. ${s.title}${s.url ? ` — ${s.url}` : ""}`);
+
+  const lines: string[] = [`Here’s what I found on “${topic}”:`];
+
+  if (notes.length) {
+    lines.push("", "Notes", ...notes.map((n) => `• ${n}`));
+  } else {
+    lines.push(
+      "",
+      `I pulled ${summary?.source_count ?? pkg.sources.length} sources but didn’t extract clear notes — skim the sources below.`,
+    );
+  }
+
+  if (sources.length) {
+    lines.push("", "Sources", ...sources);
+  }
+
+  if (summary?.degraded || pkg.degraded) {
+    lines.push("", "(Research was degraded — treat citations carefully.)");
+  }
+
+  if (summary?.contradiction_count || pkg.contradictions?.length) {
+    const n = summary?.contradiction_count ?? pkg.contradictions.length;
+    lines.push("", `Contradictions noted: ${n}.`);
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * compose — format user-visible reply from artifacts / Conversation skill reply.
+ * Clarification, casual, and explain dialogue are produced by the Conversation skill;
+ * this node only formats artifacts or uses an existing reply.
+ */
 export function composeNode(state: OrchestratorState): Partial<OrchestratorState> {
   if (state.reply?.trim()) {
     return {
@@ -17,24 +72,21 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
   const ctx = state.conversation_context;
   const parts: string[] = [];
 
-  if (ctx?.requires_clarification && ctx.clarification_question) {
-    parts.push(ctx.clarification_question);
-  } else if (ctx?.suggested_next_action === "casual_reply") {
-    parts.push("Hey — happy to help whenever you're ready.");
-  } else if (ctx?.suggested_next_action === "emit_memory_candidate") {
+  if (ctx?.suggested_next_action === "emit_memory_candidate") {
     parts.push("Got it — I'll remember that preference for this workspace.");
-  } else if (state.strategy) {
-    const angle = String((state.strategy as { content_angle?: string }).content_angle ?? "strategy ready");
-    parts.push(`Strategy draft: ${angle}`);
   }
+  // Strategy artifacts are discussed via Conversation skill — never dump raw "Strategy draft:" to chat.
 
-  if (state.research_summary) {
+  if (state.research_package) {
+    parts.push(formatResearchReport(state.research_package, state.research_summary));
+  } else if (state.research_summary) {
     parts.push(
-      `Research (${state.research_summary.depth}): coverage ${state.research_summary.coverage_score.toFixed(2)} across ${state.research_summary.source_count} sources` +
+      `Research (${state.research_summary.depth}) on “${state.research_summary.topic}”: coverage ${state.research_summary.coverage_score.toFixed(2)} across ${state.research_summary.source_count} sources` +
         (state.research_summary.degraded ? " (degraded — Writing must not invent citations)." : ".") +
         (state.research_summary.contradiction_count
           ? ` Contradictions noted: ${state.research_summary.contradiction_count}.`
-          : ""),
+          : "") +
+        " Full notes weren’t available this turn — ask me to expand on any angle.",
     );
   }
 
@@ -75,18 +127,12 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
     parts.push(`Note: ${state.errors.map((e) => e.message).join("; ")}`);
   }
 
+  // Last-resort only — Conversation skill should normally have set reply already.
   if (!parts.length) {
-    if (ctx?.suggested_next_action === "explain" || ctx?.communicative_category === "ask_information") {
-      const voice = (state.memory_views?.workspace_slice as { brand_voice?: string } | undefined)
-        ?.brand_voice;
-      parts.push(
-        voice
-          ? `We're using a “${voice}” brand voice based on workspace memory.`
-          : "I can explain workspace settings, draft content, or research a topic — what do you need?",
-      );
-    } else {
-      parts.push("Done — tell me what you'd like next.");
-    }
+    parts.push(
+      ctx?.clarification_question?.trim() ||
+        "What would you like to do next — draft, research, or look something up here?",
+    );
   }
 
   const brevity = ctx?.response_style?.brevity;

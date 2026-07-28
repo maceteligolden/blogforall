@@ -92,7 +92,18 @@ export class SemanticMemoryService {
       .slice(0, limit);
   }
 
-  async searchKnowledgeChunks(siteId: string, query: string, limit = 6): Promise<SemanticSearchResult[]> {
+  async searchKnowledgeChunks(
+    siteId: string,
+    query: string,
+    limit = 6
+  ): Promise<
+    Array<
+      SemanticSearchResult & {
+        priority?: "pinned" | "brand_guide" | "misc";
+        created_at?: Date;
+      }
+    >
+  > {
     const queryVec = await this.embeddingService.embedOne(query);
     const chunks = await KnowledgeChunkModel.find({ site_id: siteId }).select("+embedding").lean();
     if (!chunks.length) return [];
@@ -107,6 +118,8 @@ export class SemanticMemoryService {
           source_type: "knowledge_doc" as const,
           source_id: c.source_id,
           score,
+          priority: (c as { priority?: "pinned" | "brand_guide" | "misc" }).priority,
+          created_at: c.created_at,
         };
       })
       .sort((a, b) => b.score - a.score);

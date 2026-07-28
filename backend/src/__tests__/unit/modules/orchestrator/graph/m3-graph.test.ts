@@ -27,7 +27,7 @@ function ctx(partial: Partial<ConversationContext>): ConversationContext {
 }
 
 describe("T3.1 plan policy + edges", () => {
-  it("routes casual to compose", () => {
+  it("routes casual to conversation skill", () => {
     const state = createInitialOrchestratorState({
       turn_id: "t1",
       thread_id: "th",
@@ -44,8 +44,34 @@ describe("T3.1 plan policy + edges", () => {
       conversation_mode: "casual",
     });
     const plan = planFromState(state);
-    expect(plan.next).toBe("compose");
-    expect(routeAfterPlan({ ...state, plan })).toBe("compose");
+    expect(plan.next).toBe("invoke_skill");
+    expect(plan.skill_id).toBe("conversation");
+    expect(plan.skill_args?.purpose).toBe("casual");
+    expect(routeAfterPlan({ ...state, plan })).toBe("invoke_skill");
+  });
+
+  it("routes clarify to conversation skill", () => {
+    const state = createInitialOrchestratorState({
+      turn_id: "t1",
+      thread_id: "th",
+      workspace_id: "ws",
+      user_id: "u",
+      message: "Write a blog post.",
+      current_time_iso: "2026-07-27T00:00:00.000Z",
+      current_date_human: "Monday",
+    });
+    state.conversation_context = ctx({
+      communicative_category: "request_action",
+      workflow_intent: "create_content",
+      suggested_next_action: "clarify",
+      requires_clarification: true,
+      clarification_question: "What topic should we write about?",
+      action_required: true,
+    });
+    const plan = planFromState(state);
+    expect(plan.next).toBe("invoke_skill");
+    expect(plan.skill_id).toBe("conversation");
+    expect(plan.skill_args?.purpose).toBe("clarify");
   });
 
   it("quick_draft sequences research → writing → optimize", () => {
@@ -118,7 +144,7 @@ describe("T3.1 plan policy + edges", () => {
 });
 
 describe("T3.1 orchestrator graph invokeTurn", () => {
-  it("casual turn: load → plan → compose → persist", async () => {
+  it("casual turn: load → plan → conversation → compose → persist", async () => {
     const memory = {
       retrieve: jest.fn(async () => ({
         workspace_slice: { brand_voice: "clear" },
@@ -133,6 +159,10 @@ describe("T3.1 orchestrator graph invokeTurn", () => {
       rememberAsync: jest.fn(async () => ({ job_id: "j1" })),
     };
     const registry = new SkillRegistry();
+    registry.register("conversation", async () => ({
+      summary: "Conversation (casual)",
+      patch: { reply: "Hey — good to hear from you. What's on your mind?" },
+    }));
     const compiled = buildOrchestratorGraph({ memory: memory as any, registry });
     const out = await invokeTurn(compiled, {
       turn_id: "t1",
@@ -147,8 +177,8 @@ describe("T3.1 orchestrator graph invokeTurn", () => {
         conversation_mode: "casual",
       }),
     });
-    expect(out.reply).toMatch(/happy to help/i);
-    expect(out.skills_run_this_turn).toBe(0);
+    expect(out.reply).toMatch(/good to hear|on your mind/i);
+    expect(out.skills_run_this_turn).toBe(1);
     expect(memory.retrieve).toHaveBeenCalled();
     expect(out.progress_events.some((e) => e.type === "persist")).toBe(true);
   });

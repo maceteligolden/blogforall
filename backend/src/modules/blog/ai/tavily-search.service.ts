@@ -82,4 +82,48 @@ export class TavilySearchService {
     const base = parts.join(" ").trim() || prompt.slice(0, 200);
     return sanitizeSearchQuery(`${base} ${prompt.slice(0, 150)}`.trim(), BlogAiConfig.searchMaxQueryLength);
   }
+
+  /**
+   * Multi-query research: run several related searches and merge unique URLs.
+   * Targets 5–15 sources when available; returns [] when search is disabled.
+   */
+  async searchMultiQuery(
+    topic: string,
+    options?: { minSources?: number; maxSources?: number; signal?: AbortSignal }
+  ): Promise<ResearchNote[]> {
+    const minSources = options?.minSources ?? 5;
+    const maxSources = options?.maxSources ?? 15;
+    if (!BlogAiConfig.tavilyApiKey || !BlogAiConfig.enableWebSearch) {
+      return [];
+    }
+
+    const queries = [
+      topic,
+      `${topic} best practices`,
+      `${topic} statistics trends`,
+      `${topic} how to guide`,
+      `${topic} common mistakes`,
+    ]
+      .map((q) => sanitizeSearchQuery(q, BlogAiConfig.searchMaxQueryLength))
+      .filter(Boolean);
+
+    const byUrl = new Map<string, ResearchNote>();
+    for (const q of queries) {
+      if (options?.signal?.aborted) break;
+      const notes = await this.search(q, options?.signal);
+      for (const n of notes) {
+        if (!byUrl.has(n.url)) byUrl.set(n.url, n);
+      }
+      if (byUrl.size >= maxSources) break;
+    }
+
+    if (byUrl.size < minSources && !options?.signal?.aborted) {
+      const extra = await this.search(`${topic} overview guide`, options?.signal);
+      for (const n of extra) {
+        if (!byUrl.has(n.url)) byUrl.set(n.url, n);
+      }
+    }
+
+    return [...byUrl.values()].slice(0, maxSources);
+  }
 }

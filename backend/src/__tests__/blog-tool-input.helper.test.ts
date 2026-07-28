@@ -17,4 +17,9 @@ describe("normalizeBlogToolInput", () => {
     const out = normalizeBlogToolInput({ postId: "xyz" });
     expect(out).toEqual({ id: "xyz" });
   });
+
+  it("maps query and topic to title", () => {
+    expect(normalizeBlogToolInput({ query: "jokers" })).toEqual({ title: "jokers" });
+    expect(normalizeBlogToolInput({ topic: "remote work" })).toEqual({ title: "remote work" });
+  });
 });

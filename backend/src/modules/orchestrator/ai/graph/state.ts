@@ -47,6 +47,8 @@ export const OrchestratorStateAnnotation = Annotation.Root({
   campaign_id: Annotation<string | undefined>,
 
   message: Annotation<string>,
+  /** Recent thread turns for Conversation/Writing grounding (not checkpointed heavily). */
+  recent_messages: Annotation<Array<{ role: "user" | "assistant"; content: string }> | undefined>,
   current_time_iso: Annotation<string>,
   current_date_human: Annotation<string>,
 
@@ -128,6 +130,7 @@ export function createInitialOrchestratorState(input: {
     slots: {},
     pending_question: undefined,
     conversation_context: undefined,
+    recent_messages: undefined,
     workflow_stage: "idle",
     active_skill: undefined,
     skill_args: undefined,

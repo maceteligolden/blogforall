@@ -1,6 +1,8 @@
 import { z, type ZodTypeAny } from "zod";
-import { BadRequestError } from "../../../../shared/errors";
+import { BadRequestError, NotFoundError } from "../../../../shared/errors";
 import type { CampaignRepository } from "../../../campaign/repositories/campaign.repository";
+import type { BlogService } from "../../../blog/services/blog.service";
+import type { Blog } from "../../../../shared/schemas/blog.schema";
 import { CampaignLifecycleStatus, CampaignStatus } from "../../../../shared/constants/campaign.constant";
 
 /** Map common LLM key aliases to blog tool schemas (`id` is canonical). */
@@ -11,6 +13,9 @@ export function normalizeBlogToolInput(raw: Record<string, unknown>): Record<str
     ["post_id", "id"],
     ["postId", "id"],
     ["blogId", "id"],
+    // Topic/idea phrases from the user message → title hint for resolveBlogForTool
+    ["query", "title"],
+    ["topic", "title"],
   ];
   for (const [from, to] of keyAliases) {
     if (from in out && !(to in out)) {
@@ -19,6 +24,228 @@ export function normalizeBlogToolInput(raw: Record<string, unknown>): Record<str
     }
   }
   return out;
+}
+
+export type ResolveBlogSuccess = {
+  kind: "blog";
+  blog: Blog;
+  resolution: string;
+  requestedId?: string;
+};
+
+export type ResolveBlogAmbiguous = {
+  kind: "ambiguous";
+  candidates: Blog[];
+  query: string;
+  requestedId?: string;
+};
+
+export type ResolveBlogResult = ResolveBlogSuccess | ResolveBlogAmbiguous;
+
+/** Strip filler so "show the post about jokers" → "jokers". */
+export function extractTopicSearchNeedle(hint: string): string {
+  return hint
+    .replace(
+      /\b(?:show|open|view|get|fetch|preview|find|read|display|pull up|bring up)\b/gi,
+      " "
+    )
+    .replace(/\b(?:the|a|an|my|our|that|this|me)\b/gi, " ")
+    .replace(/\b(?:post|blog|draft|article|piece|content)\b/gi, " ")
+    .replace(/\b(?:about|on|regarding|for|titled|called|named)\b/gi, " ")
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Score how well a blog matches a topic/idea needle.
+ * Title hits rank above excerpt, then content; shorter title overlaps score higher.
+ */
+export function scoreBlogTopicMatch(blog: Blog, needle: string): number {
+  const q = needle.toLowerCase().trim();
+  if (!q) return 0;
+
+  const title = (blog.title || "").toLowerCase();
+  const excerpt = (blog.excerpt || "").toLowerCase();
+  const content = (blog.content || "").toLowerCase();
+  const tokens = q.split(/\s+/).filter((t) => t.length > 2);
+
+  let score = 0;
+
+  if (title === q) return 1000;
+  if (title.includes(q)) {
+    score += 500 + Math.max(0, 120 - title.length);
+  } else if (q.includes(title.slice(0, 24)) && title.length >= 8) {
+    score += 400;
+  }
+
+  if (tokens.length > 0) {
+    const titleHits = tokens.filter((t) => title.includes(t)).length;
+    score += titleHits * 80;
+    const excerptHits = tokens.filter((t) => excerpt.includes(t)).length;
+    score += excerptHits * 40;
+    const contentHits = tokens.filter((t) => content.includes(t)).length;
+    score += Math.min(contentHits, 8) * 10;
+  }
+
+  if (excerpt.includes(q)) score += 200;
+  if (content.includes(q)) score += 100;
+
+  return score;
+}
+
+/** Pick a clear winner or mark the result ambiguous for list UI. */
+export function pickTopicMatch(
+  blogs: Blog[],
+  needle: string
+): { kind: "blog"; blog: Blog; resolution: string } | { kind: "ambiguous"; candidates: Blog[] } | null {
+  if (!needle || blogs.length === 0) return null;
+
+  const ranked = blogs
+    .map((blog) => ({ blog, score: scoreBlogTopicMatch(blog, needle) }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (ranked.length === 0) return null;
+  if (ranked.length === 1) {
+    return { kind: "blog", blog: ranked[0].blog, resolution: "topic_search" };
+  }
+
+  const [top, second] = ranked;
+  const clearlyAhead = top.score >= second.score * 2 || top.score - second.score >= 150;
+  if (clearlyAhead && top.score >= 100) {
+    return { kind: "blog", blog: top.blog, resolution: "topic_search" };
+  }
+
+  return {
+    kind: "ambiguous",
+    candidates: ranked.slice(0, 10).map((r) => r.blog),
+  };
+}
+
+/**
+ * Resolve a blog for get/review/update when the supervisor passes a stale id
+ * (common after delete) or only a title/topic phrase. Prefers exact id, then slug,
+ * title, topic search across title/excerpt/content, then the single remaining post.
+ *
+ * When several posts match a topic equally well, returns `kind: "ambiguous"` so
+ * `blogs.get` can open a ranked list in the results panel.
+ */
+export async function resolveBlogForTool(
+  blogService: BlogService,
+  siteId: string,
+  opts: { id?: string; slug?: string; titleHint?: string }
+): Promise<ResolveBlogResult> {
+  const requestedId = opts.id?.trim() || undefined;
+
+  if (requestedId) {
+    try {
+      const blog = await blogService.getBlogById(requestedId, siteId);
+      return { kind: "blog", blog, resolution: "id", requestedId };
+    } catch (e) {
+      if (!isNotFoundError(e)) throw e;
+    }
+  }
+
+  if (opts.slug?.trim()) {
+    try {
+      const blog = await blogService.getBlogBySlug(opts.slug.trim(), siteId);
+      return { kind: "blog", blog, resolution: "slug", requestedId };
+    } catch (e) {
+      if (!isNotFoundError(e)) throw e;
+    }
+  }
+
+  const titleHint = opts.titleHint?.trim();
+  const searchNeedle = titleHint ? extractTopicSearchNeedle(titleHint) || titleHint : "";
+
+  if (searchNeedle) {
+    const searched = await blogService.getAllBlogs(siteId, {
+      search: searchNeedle.slice(0, 200),
+      limit: 20,
+      page: 1,
+    });
+    const picked = pickTopicMatch(searched.data, searchNeedle);
+    if (picked?.kind === "blog") {
+      return { kind: "blog", blog: picked.blog, resolution: picked.resolution, requestedId };
+    }
+    if (picked?.kind === "ambiguous") {
+      return {
+        kind: "ambiguous",
+        candidates: picked.candidates,
+        query: searchNeedle,
+        requestedId,
+      };
+    }
+
+    // Fall back to title-only scan of a broader page when search returned nothing useful
+    const listed = await blogService.getAllBlogs(siteId, { limit: 50, page: 1 });
+    const needle = searchNeedle.toLowerCase();
+    const exact = listed.data.find((b) => b.title.toLowerCase() === needle);
+    if (exact) return { kind: "blog", blog: exact, resolution: "title_exact", requestedId };
+    const partial = listed.data.find(
+      (b) => b.title.toLowerCase().includes(needle) || needle.includes(b.title.toLowerCase().slice(0, 24))
+    );
+    if (partial) return { kind: "blog", blog: partial, resolution: "title_partial", requestedId };
+
+    if (listed.data.length === 1) {
+      return { kind: "blog", blog: listed.data[0], resolution: "single_remaining", requestedId };
+    }
+
+    const catalog = listed.data
+      .slice(0, 8)
+      .map((b) => `'${b.title}' (id=${b._id?.toString()})`)
+      .join("; ");
+
+    throw new NotFoundError(
+      requestedId
+        ? `Blog not found for id '${requestedId}'. Current posts: ${catalog || "(none)"}. Call blogs.list, then retry with a current id or title.`
+        : `No blog matched '${searchNeedle}'. Current posts: ${catalog || "(none)"}. Call blogs.list, then retry with a current id or title.`
+    );
+  }
+
+  const listed = await blogService.getAllBlogs(siteId, { limit: 50, page: 1 });
+  if (listed.data.length === 1) {
+    return { kind: "blog", blog: listed.data[0], resolution: "single_remaining", requestedId };
+  }
+
+  const catalog = listed.data
+    .slice(0, 8)
+    .map((b) => `'${b.title}' (id=${b._id?.toString()})`)
+    .join("; ");
+
+  throw new NotFoundError(
+    requestedId
+      ? `Blog not found for id '${requestedId}'. Current posts: ${catalog || "(none)"}. Call blogs.list, then retry with a current id or title.`
+      : `Blog not found. Current posts: ${catalog || "(none)"}. Call blogs.list, then retry with a current id or title.`
+  );
+}
+
+/** Require a single blog (for review/update). Ambiguous matches become NotFoundError. */
+export async function resolveSingleBlogForTool(
+  blogService: BlogService,
+  siteId: string,
+  opts: { id?: string; slug?: string; titleHint?: string }
+): Promise<{ blog: Blog; resolution: string; requestedId?: string }> {
+  const resolved = await resolveBlogForTool(blogService, siteId, opts);
+  if (resolved.kind === "blog") {
+    return { blog: resolved.blog, resolution: resolved.resolution, requestedId: resolved.requestedId };
+  }
+  const catalog = resolved.candidates
+    .slice(0, 8)
+    .map((b) => `'${b.title}' (id=${b._id?.toString()})`)
+    .join("; ");
+  throw new NotFoundError(
+    `Multiple posts match '${resolved.query}': ${catalog}. Retry with a specific id or exact title.`
+  );
+}
+
+function isNotFoundError(e: unknown): boolean {
+  if (e instanceof NotFoundError) return true;
+  if (typeof e === "object" && e !== null && "statusCode" in e) {
+    return (e as { statusCode: number }).statusCode === 404;
+  }
+  return e instanceof Error && /not found/i.test(e.message);
 }
 
 /** Map common LLM key aliases to the campaign tool schema. */

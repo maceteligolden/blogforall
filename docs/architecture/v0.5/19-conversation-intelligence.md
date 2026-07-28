@@ -1,7 +1,8 @@
 # 19 — Conversation Intelligence Architecture
 
 **Status:** Canonical design (v0.5 Conversation Intelligence revision)  
-**Product PRD:** [`docs/PRD_CONVERSATION_INTELLIGENCE.md`](../../PRD_CONVERSATION_INTELLIGENCE.md)
+**Product PRD:** [`docs/PRD_CONVERSATION_INTELLIGENCE.md`](../../PRD_CONVERSATION_INTELLIGENCE.md)  
+**Implementation (2026-07-27):** `ci.analyze.v1` is LLM-primary via `ConversationIntelligenceService` (`ai/prompts/ci.analyze.ts` + `pipeline/analyze-llm.ts`); deterministic regex is offline/API-failure fallback. Clarify / casual / explain replies use the Conversation skill (`skill.conversation.v1`); compose formats artifacts when a skill reply is already present.
 
 ---
 
@@ -246,8 +247,8 @@ Compose / Conversation skill must honor `response_style` and `tone_preference`.
 
 | `suggested_next_action` | Plan tendency |
 |-------------------------|---------------|
-| `explain` / `casual_reply` | `compose` (Conversation skill) |
-| `clarify` | `compose` with `clarification_question` |
+| `explain` / `casual_reply` | `invoke_skill` Conversation (`purpose=explain|casual`) then compose |
+| `clarify` | `invoke_skill` Conversation (`purpose=clarify`) then compose |
 | `start_content_workflow` | Pipeline or quick_draft skills |
 | `start_planning` | ContentStrategy |
 | `revise_current_artifact` | Writing revise / Content Optimization |

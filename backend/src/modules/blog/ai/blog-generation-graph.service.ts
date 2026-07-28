@@ -514,34 +514,6 @@ Return structured output matching the schema.`;
       meta: this.normalizeDraftMeta(out.meta),
     };
     this.validateDraft(draft, state.analysis!);
-    // #region agent log
-    {
-      const c = draft.content ?? "";
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
-        body: JSON.stringify({
-          sessionId: "99a1d3",
-          runId: "html-format",
-          hypothesisId: "H-A",
-          location: "blog-generation-graph.service.ts:nodeDraft",
-          message: "draft content format probe",
-          data: {
-            path: "structured",
-            contentLen: c.length,
-            looksLikeHtml: /<\/?(p|h[1-6]|ul|ol|li|blockquote|div)\b/i.test(c),
-            looksLikeMarkdown:
-              /(^|\n)#{1,3}\s+/m.test(c) ||
-              /(^|\n)[-*]\s+.+/m.test(c) ||
-              /```/m.test(c),
-            hasCodeFence: /```/.test(c),
-            preview: c.slice(0, 180).replace(/\n/g, "\\n"),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => undefined);
-    }
-    // #endregion
     return { draft };
   }
 
@@ -594,35 +566,6 @@ Return only the HTML for this section (e.g. <h2>...</h2><p>...</p>).`;
       meta: this.normalizeDraftMeta(excerptOut.meta),
     };
     this.validateDraft(draft, state.analysis!);
-    // #region agent log
-    {
-      const c = draft.content ?? "";
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
-        body: JSON.stringify({
-          sessionId: "99a1d3",
-          runId: "html-format",
-          hypothesisId: "H-A",
-          location: "blog-generation-graph.service.ts:nodeDraftSectional",
-          message: "sectional draft content format probe",
-          data: {
-            path: "sectional",
-            sectionCount: sections.length,
-            contentLen: c.length,
-            looksLikeHtml: /<\/?(p|h[1-6]|ul|ol|li|blockquote|div)\b/i.test(c),
-            looksLikeMarkdown:
-              /(^|\n)#{1,3}\s+/m.test(c) ||
-              /(^|\n)[-*]\s+.+/m.test(c) ||
-              /```/m.test(c),
-            hasCodeFence: /```/.test(c),
-            preview: c.slice(0, 180).replace(/\n/g, "\\n"),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => undefined);
-    }
-    // #endregion
     return { draft };
   }
 
@@ -758,34 +701,7 @@ Return structured JSON fields: title (max ~60 chars), content (HTML only), excer
     if (!content.content?.trim()) {
       throw new BadRequestError("No content was generated. Please try again with a more detailed prompt.");
     }
-    const before = content.content;
     content.content = ensureHtmlContent(content.content);
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "99a1d3" },
-      body: JSON.stringify({
-        sessionId: "99a1d3",
-        runId: "html-format",
-        hypothesisId: "H-fix",
-        location: "blog-generation-graph.service.ts:validateDraft",
-        message: "normalized draft to HTML",
-        data: {
-          beforeLooksMd:
-            /(^|\n)#{1,3}\s+/m.test(before) || /(^|\n)[-*]\s+.+/m.test(before) || /```/m.test(before),
-          beforeLooksHtml: /<\/?(p|h[1-6]|ul|ol|li)\b/i.test(before),
-          afterLooksHtml: /<\/?(p|h[1-6]|ul|ol|li)\b/i.test(content.content),
-          afterLooksMd:
-            /(^|\n)#{1,3}\s+/m.test(content.content) ||
-            /(^|\n)[-*]\s+.+/m.test(content.content),
-          beforePreview: before.slice(0, 120).replace(/\n/g, "\\n"),
-          afterPreview: content.content.slice(0, 120).replace(/\n/g, "\\n"),
-          changed: before !== content.content,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => undefined);
-    // #endregion
     content.excerpt = clampBlogExcerpt(content.excerpt);
     const len = content.content.trim().length;
     if (len < BlogAiConfig.MIN_CONTENT_LENGTH) {

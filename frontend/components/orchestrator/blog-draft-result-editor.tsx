@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar, ChevronDown, ExternalLink, FileText, Loader2, Send, Sparkles, Trash2 } from "lucide-react";
+import { Calendar, Check, ChevronDown, Copy, ExternalLink, FileText, Loader2, Send, Sparkles, Trash2 } from "lucide-react";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,7 @@ import type { OrchestratorArtifact } from "@/lib/utils/orchestrator-artifacts";
 import type { ContentBlock } from "@/lib/types/blog";
 import { blocksToHtml } from "@/lib/utils/content-blocks";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
-import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
+import { contentToBlocks } from "@/lib/utils/content-to-blocks";
 import { cn } from "@/lib/utils/cn";
 
 function readEditorSelection(root?: HTMLElement | null): { text: string; rect: DOMRect | null } {
@@ -65,6 +65,22 @@ function clearEditorSelection(): void {
   window.getSelection()?.removeAllRanges();
 }
 
+function draftToPlainText(title: string, html: string): string {
+  const body = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return [title.trim(), body].filter(Boolean).join("\n\n");
+}
+
 interface BlogDraftResultEditorProps {
   artifact: OrchestratorArtifact;
   className?: string;
@@ -84,6 +100,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const data = artifact.outputData;
   const blogId = typeof data.blog_id === "string" ? data.blog_id : typeof data.id === "string" ? data.id : undefined;
@@ -124,43 +141,8 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
       updatedAt === lastAppliedUpdatedAtRef.current &&
       contentSnapshot === lastAppliedContentRef.current
     ) {
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
-        body: JSON.stringify({
-          sessionId: "3cad4f",
-          runId: "highlight-fix",
-          hypothesisId: "H-skip",
-          location: "blog-draft-result-editor.tsx:applyBlogResponse",
-          message: "skipped duplicate updated_at",
-          data: { updatedAt },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       return;
     }
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
-      body: JSON.stringify({
-        sessionId: "3cad4f",
-        runId: "highlight-fix",
-        hypothesisId: "H-sync",
-        location: "blog-draft-result-editor.tsx:applyBlogResponse",
-        message: "applying server blog to editor",
-        data: {
-          updatedAt,
-          prevUpdatedAt: lastAppliedUpdatedAtRef.current,
-          hasBlocks: !!(response as { content_blocks?: ContentBlock[] }).content_blocks?.length,
-          contentLen: (response.content ?? "").length,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
@@ -171,10 +153,19 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
     lastAppliedContentRef.current = contentSnapshot;
     setTitle(response.title ?? "");
     const existingBlocks = (response as { content_blocks?: ContentBlock[] }).content_blocks;
-    if (existingBlocks && existingBlocks.length > 0) {
+    // Prefer HTML content when blocks are missing/cleared (orchestrator revise path).
+    if (existingBlocks && existingBlocks.length > 0 && contentSnapshot) {
+      const blocksHtml = blocksToHtml(existingBlocks);
+      // If cached blocks disagree with revised content, rebuild from content.
+      if (blocksHtml.replace(/\s+/g, " ").trim() === contentSnapshot.replace(/\s+/g, " ").trim()) {
+        setContentBlocks(existingBlocks);
+      } else {
+        setContentBlocks(contentToBlocks(contentSnapshot));
+      }
+    } else if (existingBlocks && existingBlocks.length > 0) {
       setContentBlocks(existingBlocks);
     } else {
-      setContentBlocks(htmlToBlocks(response.content ?? ""));
+      setContentBlocks(contentToBlocks(contentSnapshot));
     }
     setFeaturedImage(response.featured_image ?? "");
     const rawCategory = (response as { category?: string | { _id?: string } }).category;
@@ -203,11 +194,23 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
 
   useEffect(() => {
     if (!blogResponse) {
-      if (!blogId && !initialized) {
-        setTitle(typeof data.title === "string" ? data.title : "");
-        const content = typeof data.content === "string" ? data.content : "";
-        setContentBlocks(htmlToBlocks(content));
-        setInitialized(true);
+      // Hydrate immediately from tool output (blogs.get / generate) while the
+      // blog query is still loading — avoids an empty panel after get.
+      if (!initialized) {
+        const content =
+          typeof data.content === "string"
+            ? data.content
+            : typeof data.content_html === "string"
+              ? data.content_html
+              : "";
+        if (content || typeof data.title === "string") {
+          setTitle(typeof data.title === "string" ? data.title : "");
+          if (content) setContentBlocks(contentToBlocks(content));
+          if (typeof data.status === "string") setStatus(data.status as BlogStatus);
+          setInitialized(true);
+        } else if (!blogId) {
+          setInitialized(true);
+        }
       }
       return;
     }
@@ -453,6 +456,31 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
     setShowScheduleModal(true);
   };
 
+  const handleCopyDraft = useCallback(async () => {
+    const html = blocksToHtml(contentBlocks);
+    const plain = draftToPlainText(title, html);
+    if (!plain.trim()) {
+      setActionError("Nothing to copy yet");
+      return;
+    }
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
+        const item = new ClipboardItem({
+          "text/plain": new Blob([plain], { type: "text/plain" }),
+          "text/html": new Blob([`<h1>${title}</h1>${html}`], { type: "text/html" }),
+        });
+        await navigator.clipboard.write([item]);
+      } else {
+        await navigator.clipboard.writeText(plain);
+      }
+      setActionError(null);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setActionError("Could not copy to clipboard");
+    }
+  }, [contentBlocks, title]);
+
   const markDirty = () => {
     if (isApplyingFromServerRef.current) return;
     setDirty(true);
@@ -488,6 +516,22 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
               <ExternalLink className="w-3 h-3" aria-hidden="true" />
             </Link>
           )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!title.trim() && contentBlocks.length === 0}
+            onClick={() => void handleCopyDraft()}
+            className="h-7 text-xs border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+            aria-label="Copy draft"
+          >
+            {copied ? (
+              <Check className="w-3 h-3 mr-1 text-green-400" aria-hidden="true" />
+            ) : (
+              <Copy className="w-3 h-3 mr-1" aria-hidden="true" />
+            )}
+            {copied ? "Copied" : "Copy"}
+          </Button>
           {blogId && (
             <div className="relative" ref={actionsMenuRef}>
               <Button

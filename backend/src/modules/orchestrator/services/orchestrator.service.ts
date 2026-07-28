@@ -45,6 +45,19 @@ import { buildEnrichedUserMessage, type ClientSessionMode } from "../utils/turn-
 import { canRunOrchestratorTool } from "../../../shared/utils/site-permissions.util";
 import { OrchestratorV05GraphService } from "../ai/graph/orchestrator-v05-graph.service";
 import { buildV05MoatSnapshot } from "../ai/observability/moat-snapshot";
+import { ConversationIntelligenceService } from "../ai/conversation-intelligence/conversation-intelligence";
+import type { ConversationContext } from "../ai/contracts/conversation-context";
+
+/** Ops tools live on the supervisor path (blogs.list / get / statistics), not v0.5 skills. */
+const SUPERVISOR_OPS_INTENTS = new Set([
+  "list_content",
+  "get_content",
+  "analytics",
+  "publish_content",
+  "schedule_content",
+  "unpublish_content",
+  "delete_content",
+]);
 
 interface ChatAttachment {
   name: string;
@@ -100,6 +113,7 @@ export class OrchestratorService {
     private readonly memoryExtraction: MemoryExtractionService,
     private readonly sessionModeRouter: SessionModeRouterService,
     private readonly v05Graph: OrchestratorV05GraphService,
+    private readonly conversationIntelligence: ConversationIntelligenceService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -278,16 +292,40 @@ export class OrchestratorService {
     }
 
     // M5: v0.5 LangGraph is the default active chat brain (opt out with ORCHESTRATOR_V05_GRAPH_ENABLED=false).
+    // List/get/stats (and publish ops) still need the supervisor tool surface.
     if (env.orchestrator.v05GraphEnabled && mode === "active") {
-      return this.runV05GraphTurn({
-        siteId,
-        userId,
+      const recentForPeek = history.slice(-16).map((m) => ({
+        role: (m.role === OrchestratorMessageRole.ASSISTANT ? "assistant" : "user") as
+          | "user"
+          | "assistant",
+        content: m.content,
+      }));
+      const peekCi = await this.conversationIntelligence.analyze({
         message,
-        thread,
-        history,
-        effectiveSessionMode,
-        modeResolution,
+        recent_messages: recentForPeek,
+        workspace_id: siteId,
+        user_id: userId,
+        thread_id: thread._id!.toString(),
+        conversation_mode: input.conversationMode,
+        open_artifacts: input.selectionContext?.blog_id
+          ? { draft_id: input.selectionContext.blog_id }
+          : undefined,
       });
+      const useSupervisorOps = SUPERVISOR_OPS_INTENTS.has(peekCi.workflow_intent);
+      if (!useSupervisorOps) {
+        return this.runV05GraphTurn({
+          siteId,
+          userId,
+          message,
+          thread,
+          history,
+          effectiveSessionMode,
+          modeResolution,
+          conversationMode: input.conversationMode,
+          conversationContext: peekCi,
+          selectionContext: input.selectionContext,
+        });
+      }
     }
 
     // Supervisor path: onboarding always; active only when v0.5 explicitly disabled.
@@ -304,28 +342,6 @@ export class OrchestratorService {
       memory_summary: memory.memory_summary,
       historyCount: history.length,
     });
-
-    const turnStartedAt = Date.now();
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-      body: JSON.stringify({
-        sessionId: "4b087c",
-        runId: "highlight-fix",
-        hypothesisId: "H-be",
-        location: "orchestrator.service.ts:runTurn",
-        message: "turn planning starting",
-        data: {
-          hasSelection: !!input.selectionContext,
-          refType: input.selectionContext?.reference_type,
-          effectiveMode: effectiveSessionMode,
-          excerptLen: input.selectionContext?.text?.length ?? 0,
-        },
-        timestamp: turnStartedAt,
-      }),
-    }).catch(() => undefined);
-    // #endregion
 
     return this.tokenEnforcement.runWithReservation({
       userId,
@@ -362,26 +378,6 @@ export class OrchestratorService {
           selectionContext: input.selectionContext,
           conversationMode: input.conversationMode,
         });
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-          body: JSON.stringify({
-            sessionId: "4b087c",
-            runId: "highlight-fix",
-            hypothesisId: "H-be",
-            location: "orchestrator.service.ts:runTurn",
-            message: "planTurn completed",
-            data: {
-              durationMs: Date.now() - turnStartedAt,
-              next: plan.decision.next,
-              tool: plan.tool_invocation?.name ?? plan.decision.tool?.name,
-              hadPriorTool: !!plan.prior_tool_invocation,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => undefined);
-        // #endregion
 
         const historyForApply = await this.messageRepository.listByThread(thread._id!.toString(), siteId, {
           limit: env.orchestrator.maxThreadMessages,
@@ -636,9 +632,24 @@ export class OrchestratorService {
     history: OrchestratorMessage[];
     effectiveSessionMode: OperationalSessionMode;
     modeResolution: SessionModeResolution | null;
+    conversationMode?: boolean;
+    conversationContext?: ConversationContext;
+    selectionContext?: SelectionContextPayload;
   }): Promise<ChatTurnResponse> {
-    const { siteId, userId, message, thread, history, effectiveSessionMode, modeResolution } = input;
+    const {
+      siteId,
+      userId,
+      message,
+      thread,
+      history,
+      effectiveSessionMode,
+      modeResolution,
+      conversationMode,
+      conversationContext,
+      selectionContext,
+    } = input;
     const threadId = thread._id!.toString();
+
 
     await this.messageRepository.create({
       thread_id: threadId,
@@ -648,7 +659,7 @@ export class OrchestratorService {
     });
 
     const recent_messages = history
-      .slice(-8)
+      .slice(-16)
       .map((m) => ({
         role: (m.role === OrchestratorMessageRole.ASSISTANT ? "assistant" : "user") as
           | "user"
@@ -656,13 +667,24 @@ export class OrchestratorService {
         content: m.content,
       }));
 
+
     const result = await this.v05Graph.runTurn({
       workspace_id: siteId,
       user_id: userId,
       thread_id: threadId,
       message,
       recent_messages,
+      conversation_mode: conversationMode,
+      conversation_context: conversationContext,
+      selection: selectionContext?.blog_id
+        ? {
+            blog_id: selectionContext.blog_id,
+            reference_type: selectionContext.reference_type,
+            text: selectionContext.text,
+          }
+        : undefined,
     });
+
 
     const assistant = await this.messageRepository.create({
       thread_id: threadId,

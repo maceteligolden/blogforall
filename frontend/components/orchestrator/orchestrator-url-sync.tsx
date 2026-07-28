@@ -28,32 +28,6 @@ export function OrchestratorUrlSync() {
     const urlChanged = prevUrlThreadRef.current !== urlThreadId;
     prevUrlThreadRef.current = urlThreadId;
 
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-      body: JSON.stringify({
-        sessionId: "4b087c",
-        runId: "post-fix",
-        hypothesisId: "H1-unified-sync",
-        location: "orchestrator-url-sync.tsx:sync",
-        message: "unified thread sync",
-        data: {
-          urlThreadId,
-          threadId,
-          urlChanged,
-          branch:
-            urlChanged && urlThreadId !== threadId
-              ? "url-wins"
-              : threadId === urlThreadId || (!threadId && !urlThreadId)
-                ? "noop"
-                : "push-url",
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
-
     if (urlChanged) {
       if (urlThreadId !== threadId) {
         setThreadId(urlThreadId);

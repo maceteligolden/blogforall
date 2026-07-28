@@ -137,7 +137,8 @@ Long-term memory summary:
 ## 4. Prompt: `ci.analyze.v1` (Conversation Intelligence)
 
 **Canonical:** [19-conversation-intelligence.md](./19-conversation-intelligence.md)  
-**Output:** structured JSON matching `ConversationContext`.
+**Output:** structured JSON matching `ConversationContext`.  
+**Implemented:** `backend/src/modules/orchestrator/ai/prompts/ci.analyze.ts` + `pipeline/analyze-llm.ts` (LLM-primary; deterministic fallback).
 
 ```text
 You are Conversation Intelligence for Bloggr. Interpret communication. Do NOT execute workflows.
@@ -250,6 +251,8 @@ Return PlanResult JSON only.
 ---
 
 ## 6. Prompt: `skill.conversation.v1`
+
+**Implemented:** `backend/src/modules/orchestrator/ai/prompts/skill.conversation.ts` + `skills/conversation/conversation.service.ts`. Plan routes `clarify` / `casual_reply` / `explain` to `skill_id=conversation`.
 
 ```text
 You are the Conversation skill for Bloggr. You speak with the user on behalf of the orchestrator.

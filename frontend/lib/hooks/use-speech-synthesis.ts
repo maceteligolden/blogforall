@@ -3,24 +3,29 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const PREFERRED_VOICE_PATTERNS = [
-  /samantha/i,
-  /natural/i,
+  /premium/i,
+  /enhanced/i,
   /neural/i,
+  /natural/i,
+  /samantha/i,
   /google uk english female/i,
   /google us english/i,
+  /microsoft.*(aria|jenny|guy|sonia)/i,
   /karen/i,
-  /daniel/i,
   /moira/i,
   /fiona/i,
+  /daniel/i,
 ];
 
 function scoreVoice(voice: SpeechSynthesisVoice): number {
   let score = 0;
-  if (voice.lang.startsWith("en")) score += 10;
-  if (voice.localService) score += 2;
+  if (voice.lang.toLowerCase().startsWith("en")) score += 10;
+  // Prefer cloud/neural-sounding voices over flat local defaults when available.
+  if (!voice.localService) score += 8;
+  else score += 1;
   for (let i = 0; i < PREFERRED_VOICE_PATTERNS.length; i++) {
     if (PREFERRED_VOICE_PATTERNS[i].test(voice.name)) {
-      score += 20 - i;
+      score += 40 - i;
     }
   }
   return score;
@@ -41,12 +46,13 @@ function stripForSpeech(text: string): string {
     .trim();
 }
 
-function firstSpokenChunk(text: string, maxLen = 400): string {
+/** Prefer full spoken replies; soft-cap only for very long drafts. */
+function firstSpokenChunk(text: string, maxLen = 900): string {
   const clean = stripForSpeech(text);
   if (clean.length <= maxLen) return clean;
   const slice = clean.slice(0, maxLen);
   const lastStop = Math.max(slice.lastIndexOf("."), slice.lastIndexOf("?"), slice.lastIndexOf("!"));
-  if (lastStop > 80) return slice.slice(0, lastStop + 1).trim();
+  if (lastStop > 120) return slice.slice(0, lastStop + 1).trim();
   return `${slice.trim()}…`;
 }
 
@@ -80,8 +86,8 @@ export function useSpeechSynthesis() {
       window.speechSynthesis.cancel();
       const spoken = firstSpokenChunk(text);
       const utterance = new SpeechSynthesisUtterance(spoken);
-      utterance.rate = 0.95;
-      utterance.pitch = 1;
+      utterance.rate = 0.88;
+      utterance.pitch = 1.02;
       if (voiceRef.current) {
         utterance.voice = voiceRef.current;
       } else if (voicesReady) {

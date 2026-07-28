@@ -94,6 +94,7 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const [conversationMode, setConversationMode] = useState(false);
   const [resultsPanelOpen, setResultsPanelOpen] = useState(false);
   const [selectedArtifactId, setSelectedArtifactIdState] = useState<string | null>(null);
+  const prevThreadIdRef = useRef<string | null>(null);
 
   const isWritingPinned = isWritingEffectiveMode(sessionMode, effectiveSessionMode);
 
@@ -104,25 +105,12 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   }, [currentSiteId]);
 
   useEffect(() => {
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-      body: JSON.stringify({
-        sessionId: "4b087c",
-        runId: "dashboard-toggle",
-        hypothesisId: "H3-context-clear",
-        location: "orchestrator-provider.tsx:threadId-effect",
-        message: "threadId changed — clearing selectionContext",
-        data: {
-          threadId,
-          isWritingPinned,
-          clearsSelection: true,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
+    const prev = prevThreadIdRef.current;
+    prevThreadIdRef.current = threadId;
+    // First assignment (null → id) is the same call/conversation starting — keep call mode + results.
+    const isFirstThreadAssign = prev === null && !!threadId;
+    if (isFirstThreadAssign) return;
+
     if (!isWritingPinned) {
       setResultsPanelOpen(false);
     }
@@ -131,7 +119,7 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
     setVoiceMode(false);
     setDraftGenerating(false);
     setSelectionContext(null);
-  }, [threadId, isWritingPinned]);
+  }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: thread switch only
 
   useEffect(() => {
     if (isWritingPinned) {
@@ -183,19 +171,22 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
             : typeof artifact.outputData.id === "string"
               ? artifact.outputData.id
               : null;
-        const idx = blogId
-          ? next.findIndex((a) => {
-              const id =
-                typeof a.outputData.blog_id === "string"
-                  ? a.outputData.blog_id
-                  : typeof a.outputData.id === "string"
-                    ? a.outputData.id
-                    : null;
-              return id === blogId;
-            })
-          : -1;
+        // Match same tool + blog only — never let blogs.review overwrite blogs.get
+        // (or vice versa) just because they share a blog_id.
+        const idx = next.findIndex((a) => {
+          if (a.tool !== artifact.tool) return false;
+          if (!blogId) return a.summary === artifact.summary;
+          const id =
+            typeof a.outputData.blog_id === "string"
+              ? a.outputData.blog_id
+              : typeof a.outputData.id === "string"
+                ? a.outputData.id
+                : null;
+          return id === blogId;
+        });
         if (idx >= 0) {
-          next[idx] = { ...next[idx], ...artifact, id: next[idx].id };
+          // Use the new artifact id so openResultsPanel(preferred.id) can find it.
+          next[idx] = { ...next[idx], ...artifact };
         } else {
           next.push(artifact);
         }

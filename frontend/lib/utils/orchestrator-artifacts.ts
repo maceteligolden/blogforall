@@ -39,10 +39,16 @@ export const VIEWABLE_ARTIFACT_TOOLS = new Set([
   "blogs.generateDraft",
   "blogs.createDraft",
   "blogs.update",
+  "blogs.get",
   "blogs.review",
 ]);
 
-export const DRAFT_ARTIFACT_TOOLS = new Set(["blogs.generateDraft", "blogs.createDraft", "blogs.update"]);
+export const DRAFT_ARTIFACT_TOOLS = new Set([
+  "blogs.generateDraft",
+  "blogs.createDraft",
+  "blogs.update",
+  "blogs.get",
+]);
 
 export function extractBlogIdFromArtifactData(data: Record<string, unknown>): string | undefined {
   if (typeof data.blog_id === "string") return data.blog_id;
@@ -63,18 +69,29 @@ export function patchBlogCacheFromToolOutput(
       ? outputData.updated_at
       : outputData.updated_at instanceof Date
         ? outputData.updated_at.toISOString()
-        : undefined;
+        : content
+          ? new Date().toISOString()
+          : undefined;
   if (!content && !content_blocks && !updated_at) return false;
 
-  queryClient.setQueryData(QUERY_KEYS.BLOG(blogId), (old: Record<string, unknown> | undefined) => ({
-    ...(old ?? { _id: blogId }),
-    ...(content !== undefined ? { content } : {}),
-    ...(content_blocks !== undefined ? { content_blocks } : {}),
-    ...(updated_at ? { updated_at } : {}),
-    ...(typeof outputData.title === "string" ? { title: outputData.title } : {}),
-    ...(typeof outputData.excerpt === "string" ? { excerpt: outputData.excerpt } : {}),
-    ...(typeof outputData.status === "string" ? { status: outputData.status } : {}),
-  }));
+  queryClient.setQueryData(QUERY_KEYS.BLOG(blogId), (old: Record<string, unknown> | undefined) => {
+    const next: Record<string, unknown> = {
+      ...(old ?? { _id: blogId }),
+      ...(updated_at ? { updated_at } : {}),
+      ...(typeof outputData.title === "string" ? { title: outputData.title } : {}),
+      ...(typeof outputData.excerpt === "string" ? { excerpt: outputData.excerpt } : {}),
+      ...(typeof outputData.status === "string" ? { status: outputData.status } : {}),
+    };
+    if (content_blocks !== undefined) {
+      next.content_blocks = content_blocks;
+      if (content !== undefined) next.content = content;
+    } else if (content !== undefined) {
+      // Drop stale blocks so the editor rebuilds from the revised HTML content.
+      next.content = content;
+      next.content_blocks = undefined;
+    }
+    return next;
+  });
   return true;
 }
 

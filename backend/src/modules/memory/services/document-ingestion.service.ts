@@ -24,12 +24,22 @@ export class DocumentIngestionService {
     return chunks;
   }
 
-  async ingestKnowledgeSource(siteId: string, sourceId: string, fullText: string): Promise<number> {
+  async ingestKnowledgeSource(
+    siteId: string,
+    sourceId: string,
+    fullText: string,
+    meta?: {
+      contentHash?: string;
+      title?: string;
+      priority?: "pinned" | "brand_guide" | "misc";
+    }
+  ): Promise<number> {
     const chunks = this.chunkText(fullText);
     if (!chunks.length) return 0;
 
     await KnowledgeChunkModel.deleteMany({ site_id: siteId, source_id: sourceId });
     const embeddings = await this.embeddingService.embed(chunks);
+    const now = new Date();
 
     const docs = chunks.map((text, idx) => ({
       site_id: siteId,
@@ -37,8 +47,12 @@ export class DocumentIngestionService {
       chunk_index: idx,
       text,
       token_count: Math.ceil(text.split(/\s+/).length * 1.3),
+      content_hash: meta?.contentHash,
+      title: meta?.title,
+      priority: meta?.priority || "misc",
       embedding: embeddings[idx]?.length ? embeddings[idx] : undefined,
-      created_at: new Date(),
+      created_at: now,
+      updated_at: now,
     }));
 
     await KnowledgeChunkModel.insertMany(docs);

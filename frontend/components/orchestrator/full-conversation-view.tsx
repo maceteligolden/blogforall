@@ -20,6 +20,8 @@ interface FullConversationViewProps {
   sttSupported: boolean;
   disabled?: boolean;
   error?: string | null;
+  hasResults?: boolean;
+  onViewResults?: () => void;
   onMicToggle: () => void;
   onEndCall: () => void;
 }
@@ -44,6 +46,8 @@ export function FullConversationView({
   sttSupported,
   disabled = false,
   error,
+  hasResults = false,
+  onViewResults,
   onMicToggle,
   onEndCall,
 }: FullConversationViewProps) {
@@ -67,12 +71,23 @@ export function FullConversationView({
             Conversational call — I&apos;ll discuss and research before drafting.
           </p>
         </div>
-        <ChatModeSelector
-          value={sessionMode}
-          effectiveMode={effectiveSessionMode}
-          onChange={onSessionModeChange}
-          disabled={disabled}
-        />
+        <div className="flex items-center gap-2 shrink-0">
+          {hasResults && onViewResults && (
+            <button
+              type="button"
+              onClick={onViewResults}
+              className="text-xs font-medium text-primary hover:text-primary/80 px-2.5 py-1.5 rounded-md border border-primary/30 bg-primary/10"
+            >
+              View results
+            </button>
+          )}
+          <ChatModeSelector
+            value={sessionMode}
+            effectiveMode={effectiveSessionMode}
+            onChange={onSessionModeChange}
+            disabled={disabled}
+          />
+        </div>
       </header>
 
       <div className="relative z-10 flex-1 min-h-0 flex flex-col items-center justify-center px-6 py-8 gap-8">

@@ -296,21 +296,6 @@ export class OrchestratorGraphService {
         toolName === "blogs.get" && !!highlightExcerpt && !isDraftApplyRequest(input.newUserMessage);
 
       if (highlightDiscussionOnly) {
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "4b087c" },
-          body: JSON.stringify({
-            sessionId: "4b087c",
-            runId: "highlight-fix",
-            hypothesisId: "H-bypass",
-            location: "orchestrator-graph.service.ts:planTurn",
-            message: "highlight discussion bypass — skipping blogs.get",
-            data: { blogId: input.selectionContext?.blog_id, excerptLen: highlightExcerpt?.length ?? 0 },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => undefined);
-        // #endregion
         const assistantReply = await this.discussHighlightInChat({
           chat,
           messages,
@@ -327,29 +312,6 @@ export class OrchestratorGraphService {
 
       const rawToolInput = (decision.tool!.input ?? {}) as Record<string, unknown>;
       const toolInput = prepareBlogToolInput(toolName, rawToolInput, input.selectionContext);
-      // #region agent log
-      if (toolName === "blogs.update" || toolName === "blogs.get") {
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
-          body: JSON.stringify({
-            sessionId: "3cad4f",
-            runId: "blog-id-fix",
-            hypothesisId: "H-id",
-            location: "orchestrator-graph.service.ts:planTurn",
-            message: "prepared blog tool input",
-            data: {
-              tool: toolName,
-              rawKeys: Object.keys(rawToolInput),
-              hasId: typeof toolInput.id === "string",
-              injectedFromSelection: !rawToolInput.id && !rawToolInput.blog_id && !!toolInput.id,
-              selectionBlogId: input.selectionContext?.blog_id,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => undefined);
-      }
-      // #endregion
 
       if (toolName === "blogs.update" && input.selectionContext?.text && typeof toolInput.content === "string") {
         const originalHtml = await this.fetchBlogContentHtml(
@@ -563,21 +525,6 @@ export class OrchestratorGraphService {
           assistant_reply: updateDecision.reply.trim(),
         };
       }
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
-        body: JSON.stringify({
-          sessionId: "3cad4f",
-          runId: "chain-fix",
-          hypothesisId: "H-chain",
-          location: "orchestrator-graph.service.ts:attemptChainedBlogUpdate",
-          message: "chain skipped — planner did not call blogs.update",
-          data: { next: updateDecision.next, tool: updateDecision.tool?.name, blogId },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => undefined);
-      // #endregion
       return null;
     }
 
@@ -594,26 +541,6 @@ export class OrchestratorGraphService {
         userMessage: args.input.newUserMessage,
       });
       if (!preservation.ok) {
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
-          body: JSON.stringify({
-            sessionId: "3cad4f",
-            runId: "surgical-fix",
-            hypothesisId: "H-preserve",
-            location: "orchestrator-graph.service.ts:attemptChainedBlogUpdate",
-            message: "blocked excerpt-only update",
-            data: {
-              blogId,
-              originalLen: contentHtml.length,
-              proposedLen: proposedContent.length,
-              concern: preservation.concern,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => undefined);
-        // #endregion
         return {
           decision: { ...updateDecision, next: "respond", tool: null },
           prior_tool_invocation: args.getInvocation,
@@ -632,28 +559,6 @@ export class OrchestratorGraphService {
           input: updateInput,
         })
       );
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "3cad4f" },
-        body: JSON.stringify({
-          sessionId: "3cad4f",
-          runId: "chain-fix",
-          hypothesisId: "H-chain",
-          location: "orchestrator-graph.service.ts:attemptChainedBlogUpdate",
-          message: "chained blogs.update succeeded",
-          data: {
-            blogId,
-            contentLen:
-              typeof (updateResult.data as { content?: string })?.content === "string"
-                ? (updateResult.data as { content: string }).content.length
-                : 0,
-            updatedAt: (updateResult.data as { updated_at?: string })?.updated_at,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => undefined);
-      // #endregion
 
       const reply = await this.summarizeToolResult({
         chat: args.chat,

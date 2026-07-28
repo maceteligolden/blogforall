@@ -7,7 +7,7 @@ import type {
   OrchestratorToolInvocation,
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
-import { parseToolInput } from "./_helpers";
+import { parseToolInput, normalizeBlogToolInput } from "./_helpers";
 
 // -----------------------------------------------------------------------------
 // blogs.delete — destructive; always gated by in-chat confirmation.
@@ -25,12 +25,12 @@ export class BlogDeleteTool implements OrchestratorTool {
   constructor(private readonly blogService: BlogService) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
-    const input = parseToolInput(deleteInputSchema, invocation.input, this.name);
+    const input = parseToolInput(deleteInputSchema, normalizeBlogToolInput(invocation.input), this.name);
     // Resolve the title before delete so the summary is helpful.
     const before = await this.blogService.getBlogById(input.id, invocation.siteId);
     await this.blogService.deleteBlog(input.id, invocation.siteId, invocation.userId);
     return {
-      summary: `Deleted blog '${before.title}'.`,
+      summary: `Deleted blog '${before.title}'. Call blogs.list before get/review/update — prior ids may be stale.`,
       data: { id: input.id, title: before.title },
     };
   }

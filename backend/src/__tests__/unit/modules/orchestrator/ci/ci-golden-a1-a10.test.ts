@@ -111,7 +111,7 @@ describe("T3.4 CI golden utterances A1–A10", () => {
     expect(ctx.suggested_next_action).toBe("casual_reply");
   });
 
-  it("A10 clarification only when topic missing", async () => {
+  it("A10 clarification when topic missing; domain topics still start workflow", async () => {
     const missing = await ci.analyze({ ...base, message: "Write a blog post." });
     expect(missing.requires_clarification).toBe(true);
     expect(missing.suggested_next_action).toBe("clarify");
@@ -122,5 +122,13 @@ describe("T3.4 CI golden utterances A1–A10", () => {
     });
     expect(present.requires_clarification).toBe(false);
     expect(present.suggested_next_action).toBe("start_content_workflow");
+
+    const thin = await ci.analyze({
+      ...base,
+      message: "create a blog post about a man who flew",
+    });
+    expect(thin.requires_clarification).toBe(true);
+    expect(thin.suggested_next_action).toBe("clarify");
+    expect(thin.clarification_question).toMatch(/discuss|research|quick draft/i);
   });
 });

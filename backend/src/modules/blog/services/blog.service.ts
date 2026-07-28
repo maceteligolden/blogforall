@@ -11,6 +11,7 @@ import {
   blocksToHtml,
   htmlToBlocks,
   htmlToPlainText,
+  ensureHtmlContent,
 } from "../../../shared/utils/content-blocks.util";
 import { clampBlogExcerpt } from "../utils/excerpt.util";
 import { CreateBlogInput, UpdateBlogInput, BlogQueryFilters } from "../interfaces/blog.interface";
@@ -97,6 +98,9 @@ export class BlogService {
       content = blocksToHtml(content_blocks);
     } else if (!content || content.trim() === "") {
       throw new BadRequestError("Content is required");
+    } else {
+      // LLM drafts sometimes arrive as Markdown — normalize to HTML for the editor.
+      content = ensureHtmlContent(content);
     }
 
     let excerpt = input.excerpt;
