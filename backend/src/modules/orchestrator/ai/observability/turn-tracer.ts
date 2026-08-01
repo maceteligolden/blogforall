@@ -116,11 +116,7 @@ export class TurnTracer {
   }
 
   /** Convenience: time an async fn as a named span. */
-  async timed<T>(
-    name: SpanName,
-    attrs: Record<string, unknown>,
-    fn: (span: SpanHandle) => Promise<T>,
-  ): Promise<T> {
+  async timed<T>(name: SpanName, attrs: Record<string, unknown>, fn: (span: SpanHandle) => Promise<T>): Promise<T> {
     const span = this.startSpan(name, attrs);
     try {
       const value = await fn(span);

@@ -6,7 +6,10 @@ import { resolveWorkflowMode } from "../../../../../modules/orchestrator/ai/grap
 import { createInitialOrchestratorState } from "../../../../../modules/orchestrator/ai/graph/state";
 import { needsCoverageRetry } from "../../../../../modules/orchestrator/ai/contracts/research-package";
 import { SkillRegistry } from "../../../../../modules/orchestrator/ai/skills/registry";
-import { WRITING_FORBIDDEN_TOOLS, writingToolAllowlist } from "../../../../../modules/orchestrator/ai/skills/writing/writing-guards";
+import {
+  WRITING_FORBIDDEN_TOOLS,
+  writingToolAllowlist,
+} from "../../../../../modules/orchestrator/ai/skills/writing/writing-guards";
 
 /**
  * Doc 14 §7 parity checklist + quick_draft e2e behind graph flag (mocked skills).
@@ -88,9 +91,7 @@ describe("T3.3 quick_draft e2e + M3 parity checklist", () => {
     registry.register("writing", async (state, args) => {
       expect(state.research_package_id).toBe("rp_qd");
       expect(args.action).toBe("draft");
-      writingSawSearch = writingToolAllowlist([...WRITING_FORBIDDEN_TOOLS, "blog.save"]).includes(
-        "search.web",
-      );
+      writingSawSearch = writingToolAllowlist([...WRITING_FORBIDDEN_TOOLS, "blog.save"]).includes("search.web");
       return {
         summary: "drafted without search",
         patch: {
@@ -155,15 +156,9 @@ describe("T3.3 quick_draft e2e + M3 parity checklist", () => {
   });
 
   it("parity: research coverage retry policy + writing forbid search tools", () => {
-    expect(needsCoverageRetry("full", 0.4, 0, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(
-      true,
-    );
-    expect(needsCoverageRetry("full", 0.4, 1, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(
-      false,
-    );
-    expect(needsCoverageRetry("lite", 0.1, 0, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(
-      false,
-    );
+    expect(needsCoverageRetry("full", 0.4, 0, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(true);
+    expect(needsCoverageRetry("full", 0.4, 1, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(false);
+    expect(needsCoverageRetry("lite", 0.1, 0, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(false);
     expect(writingToolAllowlist(["search.web", "tavily.search", "blogs.save"])).toEqual(["blogs.save"]);
   });
 

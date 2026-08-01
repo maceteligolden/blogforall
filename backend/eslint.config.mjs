@@ -37,5 +37,12 @@ export default [
       "@typescript-eslint/no-namespace": ["error", { allowDeclarations: true }],
     },
   },
+  {
+    // Unit/integration tests routinely cast partial mocks with `as any`.
+    files: ["src/__tests__/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
   eslintConfigPrettier,
 ];

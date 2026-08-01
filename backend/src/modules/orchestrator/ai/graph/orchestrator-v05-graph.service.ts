@@ -26,11 +26,7 @@ import {
 } from "./orchestrator.graph";
 import type { OrchestratorState } from "./state";
 import type { WorkflowMode } from "../contracts/enums";
-import {
-  buildGroundedWritingPrompt,
-  isPostFormat,
-  type PostFormat,
-} from "../contracts/post-format";
+import { buildGroundedWritingPrompt, isPostFormat, type PostFormat } from "../contracts/post-format";
 
 function buildBlogPreviewUrl(blogId: string): string {
   const base = env.frontend.baseUrl.replace(/\/$/, "");
@@ -60,8 +56,7 @@ function buildClientFacingBlogToolCalls(state: OrchestratorState): Array<{
 
   const previewUrl = buildBlogPreviewUrl(blogId);
   const scores = (state.metadata?.quality_scores ?? {}) as Record<string, unknown>;
-  const overall =
-    typeof scores.overall === "number" ? scores.overall : undefined;
+  const overall = typeof scores.overall === "number" ? scores.overall : undefined;
   const plan = state.optimization_plan as OptimizationPlan | undefined;
   const suggestions = plan
     ? [...plan.critical, ...plan.high, ...plan.medium, ...plan.low].slice(0, 20).map((r) => ({
@@ -156,7 +151,7 @@ export class OrchestratorV05GraphService {
     private readonly strategy: ContentStrategyService,
     private readonly conversation: ConversationSkillService,
     private readonly blogService: BlogService,
-    private readonly strategicContext: StrategicContextService,
+    private readonly strategicContext: StrategicContextService
   ) {}
 
   async runTurn(input: V05GraphTurnInput): Promise<V05GraphTurnResult> {
@@ -173,43 +168,37 @@ export class OrchestratorV05GraphService {
 
     const turnSpan = tracer.startSpan("turn", { turn_id });
     try {
-      const openArtifacts = input.selection?.blog_id
-        ? { draft_id: input.selection.blog_id }
-        : undefined;
+      const openArtifacts = input.selection?.blog_id ? { draft_id: input.selection.blog_id } : undefined;
 
-      let conversation_context = await tracer.timed(
-        "ci.analyze",
-        { ci_analyze_id },
-        async (span) => {
-          const ctx =
-            input.conversation_context ??
-            (await this.ci.analyze({
-              message: input.message,
-              workspace_id: input.workspace_id,
-              user_id: input.user_id,
-              thread_id: input.thread_id,
-              recent_messages: input.recent_messages,
-              conversation_mode: input.conversation_mode,
-              open_artifacts: openArtifacts,
-            }));
-          span.setAttributes({
-            communicative_category: ctx.communicative_category,
-            workflow_intent: ctx.workflow_intent,
-            suggested_next_action: ctx.suggested_next_action,
-            confidence: ctx.confidence,
-            requires_clarification: ctx.requires_clarification,
-            action_required: ctx.action_required,
-          });
-          incrementCounter(`ci.category_rate.${ctx.communicative_category}`);
-          if (ctx.requires_clarification) incrementCounter("ci.clarify_rate");
-          return ctx;
-        },
-      );
+      let conversation_context = await tracer.timed("ci.analyze", { ci_analyze_id }, async (span) => {
+        const ctx =
+          input.conversation_context ??
+          (await this.ci.analyze({
+            message: input.message,
+            workspace_id: input.workspace_id,
+            user_id: input.user_id,
+            thread_id: input.thread_id,
+            recent_messages: input.recent_messages,
+            conversation_mode: input.conversation_mode,
+            open_artifacts: openArtifacts,
+          }));
+        span.setAttributes({
+          communicative_category: ctx.communicative_category,
+          workflow_intent: ctx.workflow_intent,
+          suggested_next_action: ctx.suggested_next_action,
+          confidence: ctx.confidence,
+          requires_clarification: ctx.requires_clarification,
+          action_required: ctx.action_required,
+        });
+        incrementCounter(`ci.category_rate.${ctx.communicative_category}`);
+        if (ctx.requires_clarification) incrementCounter("ci.clarify_rate");
+        return ctx;
+      });
 
       // Selection + section-edit language: force revise even if peek CI missed it.
       const sectionEdit =
         /\b(?:rewrite|update|revise|change|improve|spice\s+up|try\s+another\s+approach)\b[\s\S]{0,80}\b(?:intro|introduction|conclusion|section|ending|opening)\b|\b(?:add|remove|delete)\s+(?:a\s+)?section\b|\bonly\s+the\s+(?:conclusion|introduction|intro)\b|\bnew\s+conclusion\b/i.test(
-          input.message,
+          input.message
         );
       const didSectionOverride =
         !!input.selection?.blog_id &&
@@ -232,11 +221,7 @@ export class OrchestratorV05GraphService {
       let seededBlogId: string | undefined = input.selection?.blog_id;
       if (seededBlogId) {
         try {
-          const blog = await this.blogService.getBlogById(
-            seededBlogId,
-            input.workspace_id,
-            input.user_id,
-          );
+          const blog = await this.blogService.getBlogById(seededBlogId, input.workspace_id, input.user_id);
           seededDraft = {
             title: blog.title,
             content: blog.content,
@@ -368,9 +353,7 @@ export class OrchestratorV05GraphService {
           research_package_id: result.package.id,
           research_summary: result.summary,
           research_package: result.package,
-          artifacts_for_client: [
-            { kind: "research_package", id: result.package.id, title: result.package.topic },
-          ],
+          artifacts_for_client: [{ kind: "research_package", id: result.package.id, title: result.package.topic }],
         },
       };
     });
@@ -404,16 +387,12 @@ export class OrchestratorV05GraphService {
         | undefined;
       const userParams = {
         tone: state.slots.tone ?? prefs?.tone ?? state.conversation_context?.tone_preference,
-        target_audience:
-          state.slots.target_audience ??
-          prefs?.target_audience ??
-          slice?.target_audience?.[0],
+        target_audience: state.slots.target_audience ?? prefs?.target_audience ?? slice?.target_audience?.[0],
         word_count: state.slots.word_count ?? prefs?.word_count,
         context_pack:
           (typeof state.memory_views?.prompt_block === "string" && state.memory_views.prompt_block.trim()
             ? state.memory_views.prompt_block
-            : undefined) ??
-          (slice?.brand_voice ? `brand_voice: ${slice.brand_voice}` : undefined),
+            : undefined) ?? (slice?.brand_voice ? `brand_voice: ${slice.brand_voice}` : undefined),
         post_format,
       };
       const result = await this.writing.run({
@@ -423,9 +402,7 @@ export class OrchestratorV05GraphService {
         prompt: groundedPrompt,
         research_package_id: state.research_package_id,
         research_package: state.research_package,
-        draft: state.draft as
-          | { title: string; content: string; excerpt: string }
-          | undefined,
+        draft: state.draft as { title: string; content: string; excerpt: string } | undefined,
         optimization_plan: state.optimization_plan,
         feedback: typeof args.feedback === "string" ? args.feedback : undefined,
         allow_without_package: action === "revise",
@@ -532,9 +509,7 @@ export class OrchestratorV05GraphService {
               readability: result.report.quality.readability,
             },
           },
-          artifacts_for_client: [
-            { kind: "optimization_report", id: result.report.id, title: "Optimization" },
-          ],
+          artifacts_for_client: [{ kind: "optimization_report", id: result.report.id, title: "Optimization" }],
         },
       };
     });
@@ -562,9 +537,7 @@ export class OrchestratorV05GraphService {
         summary: `Strategy: ${artifact.content_angle}`,
         patch: {
           strategy: artifact as unknown as Record<string, unknown>,
-          artifacts_for_client: [
-            { kind: "strategy", id: artifact.id, title: artifact.topic },
-          ],
+          artifacts_for_client: [{ kind: "strategy", id: artifact.id, title: artifact.topic }],
         },
       };
     });
@@ -572,10 +545,7 @@ export class OrchestratorV05GraphService {
     registry.register("conversation", async (state, args) => {
       const purposeRaw = typeof args.purpose === "string" ? args.purpose : "";
       const purpose =
-        purposeRaw === "clarify" ||
-        purposeRaw === "explain" ||
-        purposeRaw === "summarize" ||
-        purposeRaw === "warn"
+        purposeRaw === "clarify" || purposeRaw === "explain" || purposeRaw === "summarize" || purposeRaw === "warn"
           ? purposeRaw
           : "casual";
       const slice = state.memory_views?.workspace_slice as
@@ -610,13 +580,11 @@ export class OrchestratorV05GraphService {
             recent
               .slice(-10)
               .map((m) => `${m.role}: ${m.content.slice(0, 400)}`)
-              .join("\n"),
+              .join("\n")
         );
       }
       const sessionSummary =
-        typeof state.memory_views?.session_summary === "string"
-          ? state.memory_views.session_summary
-          : "";
+        typeof state.memory_views?.session_summary === "string" ? state.memory_views.session_summary : "";
       if (sessionSummary.trim()) {
         factBits.push(`session_summary: ${sessionSummary.slice(0, 800)}`);
       }
@@ -624,8 +592,7 @@ export class OrchestratorV05GraphService {
         purpose,
         user_message: state.message,
         clarification_question:
-          (typeof args.question === "string" && args.question) ||
-          state.conversation_context?.clarification_question,
+          (typeof args.question === "string" && args.question) || state.conversation_context?.clarification_question,
         facts: factBits.join("\n") || undefined,
         brand_voice: slice?.brand_voice,
       });

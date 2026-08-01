@@ -374,7 +374,7 @@ export function markdownToBlocks(markdown: string): ContentBlock[] {
  */
 export function ensureHtmlContent(raw: string): string {
   if (!raw?.trim()) return raw;
-  let content = stripMarkdownFences(raw);
+  const content = stripMarkdownFences(raw);
   if (looksLikeHtml(content) && !looksLikeMarkdown(content)) {
     return content;
   }

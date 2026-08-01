@@ -88,9 +88,7 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const [sessionMode, setSessionModeState] = useState<OrchestratorSessionMode>("auto");
   const [effectiveSessionMode, setEffectiveSessionMode] = useState<OperationalSessionMode>("casual");
   const [draftGenerating, setDraftGenerating] = useState(false);
-  const [livePhase, setLivePhase] = useState<{ phase: string; message: string; percent?: number } | null>(
-    null
-  );
+  const [livePhase, setLivePhase] = useState<{ phase: string; message: string; percent?: number } | null>(null);
   const [activeDraftBlogId, setActiveDraftBlogId] = useState<string | null>(null);
   const [selectionContext, setSelectionContext] = useState<OrchestratorSelectionContext | null>(null);
   const composerFocusRef = useRef<(() => void) | null>(null);

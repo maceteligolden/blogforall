@@ -127,12 +127,7 @@ describe("T2.2 MemoryManagerService", () => {
       listByLayer: jest.fn(async () => []),
       upsert: jest.fn(async (r: unknown) => r),
     };
-    mm = new MemoryManagerService(
-      packs as any,
-      extraction as any,
-      workspaceMemory as any,
-      memoryRecords as any,
-    );
+    mm = new MemoryManagerService(packs as any, extraction as any, workspaceMemory as any, memoryRecords as any);
   });
 
   it("retrieve builds pack with chat_light → planning and includeVectors false", async () => {
@@ -146,7 +141,7 @@ describe("T2.2 MemoryManagerService", () => {
         siteId: "ws_1",
         sessionMode: "planning",
         includeVectors: false,
-      }),
+      })
     );
     expect(result.prompt_block).toBe("PROMPT");
     expect(result.workspace_slice?.brand_voice).toBe("clear");

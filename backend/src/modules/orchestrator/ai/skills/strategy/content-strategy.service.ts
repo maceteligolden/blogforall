@@ -1,13 +1,7 @@
 import { randomUUID } from "crypto";
 import { injectable } from "tsyringe";
-import {
-  contentStrategyArtifactSchema,
-  type ContentStrategyArtifact,
-} from "../../contracts/content-strategy";
-import {
-  strategyDefaultsForFormat,
-  type PostFormat,
-} from "../../contracts/post-format";
+import { contentStrategyArtifactSchema, type ContentStrategyArtifact } from "../../contracts/content-strategy";
+import { strategyDefaultsForFormat, type PostFormat } from "../../contracts/post-format";
 
 export type ContentStrategyInput = {
   topic: string;
@@ -71,8 +65,7 @@ export class ContentStrategyService {
       content_structure: input.llm_artifact?.content_structure ?? base.content_structure,
       keyword_clusters: input.llm_artifact?.keyword_clusters ?? base.keyword_clusters,
       topical_authority_opportunities:
-        input.llm_artifact?.topical_authority_opportunities ??
-        base.topical_authority_opportunities,
+        input.llm_artifact?.topical_authority_opportunities ?? base.topical_authority_opportunities,
       cta: input.llm_artifact?.cta ?? base.cta,
     });
   }

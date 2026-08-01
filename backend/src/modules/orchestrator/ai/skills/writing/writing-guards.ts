@@ -9,7 +9,7 @@ export function assertWritingMayProceed(input: {
   if (input.allow_without_package) return;
   if (!input.research_package_id) {
     throw new Error(
-      "Writing requires research_package_id. Schedule Research skill first; Writing must not search the web.",
+      "Writing requires research_package_id. Schedule Research skill first; Writing must not search the web."
     );
   }
 }
@@ -24,17 +24,10 @@ export const WRITING_FORBIDDEN_TOOLS = ["search.web", "tavily.search"] as const;
 export const LEGACY_WRITER_RESEARCH_TOOLS = ["blogs.generateDraft"] as const;
 
 /** BlogGraph methods that perform writer-embedded research — Writing skill must not call these. */
-export const WRITING_FORBIDDEN_BLOG_GRAPH_METHODS = [
-  "generateFull",
-  "generateWithReview",
-  "streamGenerate",
-] as const;
+export const WRITING_FORBIDDEN_BLOG_GRAPH_METHODS = ["generateFull", "generateWithReview", "streamGenerate"] as const;
 
 export function writingToolAllowlist(allToolNames: string[]): string[] {
-  const forbidden = new Set<string>([
-    ...WRITING_FORBIDDEN_TOOLS,
-    ...LEGACY_WRITER_RESEARCH_TOOLS,
-  ]);
+  const forbidden = new Set<string>([...WRITING_FORBIDDEN_TOOLS, ...LEGACY_WRITER_RESEARCH_TOOLS]);
   return allToolNames.filter((n) => !forbidden.has(n));
 }
 

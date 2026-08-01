@@ -117,19 +117,13 @@ export class KnowledgeUpsertTool implements OrchestratorTool {
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(knowledgeUpsertSchema, invocation.input, this.name);
-    if (
-      !BUSINESS_KNOWLEDGE_KEYS.includes(input.key as BusinessKnowledgeKey) &&
-      !input.key.startsWith("business.")
-    ) {
+    if (!BUSINESS_KNOWLEDGE_KEYS.includes(input.key as BusinessKnowledgeKey) && !input.key.startsWith("business.")) {
       throw new Error("Unknown knowledge key");
     }
-    const belief = await this.knowledge.upsertBelief(
-      invocation.siteId,
-      invocation.userId,
-      input.key,
-      input.value,
-      { confidence: input.confidence ?? 0.75, source: "conversation" }
-    );
+    const belief = await this.knowledge.upsertBelief(invocation.siteId, invocation.userId, input.key, input.value, {
+      confidence: input.confidence ?? 0.75,
+      source: "conversation",
+    });
     return {
       summary: truncateSummary(`Saved knowledge ${input.key} (confidence ${belief.metadata.confidence})`),
       data: belief,
@@ -144,8 +138,7 @@ const decisionsSchema = z.object({
 @injectable()
 export class DecisionsProposeTool implements OrchestratorTool {
   name = "decisions.propose";
-  description =
-    "Propose the highest-value next strategic actions (gather knowledge, publish, refine strategy, etc.).";
+  description = "Propose the highest-value next strategic actions (gather knowledge, publish, refine strategy, etc.).";
   requiresConfirmation = false;
 
   constructor(private readonly decisions: StrategicDecisionEngineService) {}

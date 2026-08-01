@@ -152,7 +152,8 @@ describe("T4.1 strategist_pipeline staging path", () => {
           },
         },
       };
-    });    registry.register("writing", async (state, args) => {
+    });
+    registry.register("writing", async (state, args) => {
       skillOrder.push(`writing:${String(args.action)}`);
       if (args.action === "outline") {
         expect(state.research_package_id).toBe("rp_st");
@@ -236,7 +237,7 @@ describe("T4.1 strategist_pipeline staging path", () => {
               skill_id: "research",
               percent: 95,
               meta: { coverage_score: 0.72, contradiction_count: 1 },
-            },
+            }
           );
         }
         if (e.skill_id === "content_optimization" && e.message?.startsWith("Starting")) {
@@ -307,7 +308,7 @@ describe("T4.1 strategist_pipeline staging path", () => {
         "optimize",
         "optimize_scoring",
         "optimize_gate",
-      ]),
+      ])
     );
   });
 });

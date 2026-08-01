@@ -1,7 +1,5 @@
 import { injectable } from "tsyringe";
-import ResearchPackageModel, {
-  type ResearchPackageEntity,
-} from "../../../shared/schemas/research-package.schema";
+import ResearchPackageModel, { type ResearchPackageEntity } from "../../../shared/schemas/research-package.schema";
 import {
   researchPackageSchema,
   type ResearchPackage,
@@ -10,10 +8,7 @@ import {
 
 @injectable()
 export class ResearchPackageRepository {
-  async save(
-    pkg: ResearchPackage,
-    opts?: { created_by?: string; thread_id?: string },
-  ): Promise<ResearchPackageEntity> {
+  async save(pkg: ResearchPackage, opts?: { created_by?: string; thread_id?: string }): Promise<ResearchPackageEntity> {
     const parsed = researchPackageSchema.parse(pkg);
     const summary: ResearchPackageSummary = {
       topic: parsed.topic,
@@ -38,7 +33,7 @@ export class ResearchPackageRepository {
         created_by: opts?.created_by,
         thread_id: opts?.thread_id,
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
 

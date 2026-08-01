@@ -130,10 +130,7 @@ export class NotificationService {
             title: saved.title,
             body: saved.body,
             payload: saved.payload ?? {},
-            createdAt:
-              saved.created_at instanceof Date
-                ? saved.created_at.toISOString()
-                : new Date().toISOString(),
+            createdAt: saved.created_at instanceof Date ? saved.created_at.toISOString() : new Date().toISOString(),
             readAt: null,
           },
           { correlationId }

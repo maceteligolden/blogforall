@@ -58,8 +58,5 @@ function reject(socket: Socket, code: string, message: string): void {
     }),
     REALTIME_LOG_CONTEXT
   );
-  socket.emit(
-    INFRA_EVENTS.ERROR,
-    buildRealtimeEnvelope(INFRA_EVENTS.ERROR, { code, message })
-  );
+  socket.emit(INFRA_EVENTS.ERROR, buildRealtimeEnvelope(INFRA_EVENTS.ERROR, { code, message }));
 }

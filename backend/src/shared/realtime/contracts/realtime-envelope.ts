@@ -14,11 +14,7 @@ export const realtimeEnvelopeSchema = z.object({
 
 export type RealtimeEnvelope = z.infer<typeof realtimeEnvelopeSchema>;
 
-export function buildRealtimeEnvelope(
-  name: string,
-  payload: unknown,
-  options: EmitOptions = {}
-): RealtimeEnvelope {
+export function buildRealtimeEnvelope(name: string, payload: unknown, options: EmitOptions = {}): RealtimeEnvelope {
   const envelope: RealtimeEnvelope = {
     v: 1,
     eventId: options.eventId ?? randomUUID(),

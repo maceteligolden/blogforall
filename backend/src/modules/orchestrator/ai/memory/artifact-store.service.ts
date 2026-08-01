@@ -21,44 +21,32 @@ export class ArtifactStoreService {
   constructor(
     private readonly packages: ResearchPackageRepository,
     private readonly reports: OptimizationReportRepository,
-    private readonly memoryRecords: MemoryRecordRepository,
+    private readonly memoryRecords: MemoryRecordRepository
   ) {}
 
-  async saveResearchPackage(
-    pkg: ResearchPackage,
-    opts?: ArtifactPersistOpts,
-  ): Promise<{ package_id: string }> {
+  async saveResearchPackage(pkg: ResearchPackage, opts?: ArtifactPersistOpts): Promise<{ package_id: string }> {
     const saved = await this.packages.save(pkg, opts);
     return { package_id: saved.package_id };
   }
 
-  async getResearchPackage(
-    workspaceId: string,
-    packageId: string,
-  ): Promise<ResearchPackage | null> {
+  async getResearchPackage(workspaceId: string, packageId: string): Promise<ResearchPackage | null> {
     return this.packages.findById(workspaceId, packageId);
   }
 
-  async listResearchSummaries(
-    workspaceId: string,
-    limit?: number,
-  ): Promise<ResearchPackageSummary[]> {
+  async listResearchSummaries(workspaceId: string, limit?: number): Promise<ResearchPackageSummary[]> {
     return this.packages.listRecent(workspaceId, limit);
   }
 
   async saveOptimizationReport(
     workspaceId: string,
     report: ContentOptimizationReport,
-    opts?: ArtifactPersistOpts,
+    opts?: ArtifactPersistOpts
   ): Promise<{ report_id: string }> {
     const saved = await this.reports.save(workspaceId, report, opts);
     return { report_id: saved.report_id };
   }
 
-  async getOptimizationReport(
-    workspaceId: string,
-    reportId: string,
-  ): Promise<ContentOptimizationReport | null> {
+  async getOptimizationReport(workspaceId: string, reportId: string): Promise<ContentOptimizationReport | null> {
     return this.reports.findById(workspaceId, reportId);
   }
 
@@ -70,7 +58,7 @@ export class ArtifactStoreService {
     workspaceId: string,
     layer: MemoryRecord["layer"],
     key: string,
-    userId?: string | null,
+    userId?: string | null
   ): Promise<MemoryRecord | null> {
     return this.memoryRecords.getByKey(workspaceId, layer, key, userId);
   }
@@ -78,7 +66,7 @@ export class ArtifactStoreService {
   async listMemoryByLayer(
     workspaceId: string,
     layer: MemoryRecord["layer"],
-    opts?: { userId?: string; limit?: number },
+    opts?: { userId?: string; limit?: number }
   ): Promise<MemoryRecord[]> {
     return this.memoryRecords.listByLayer(workspaceId, layer, opts);
   }

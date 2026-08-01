@@ -54,7 +54,9 @@ export class CampaignIntelligenceService {
     const hasMessaging = Boolean(campaign.messaging?.trim() || campaign.goal?.trim());
     const hasAudience = Boolean(campaign.target_audience?.trim());
     const knowledge_completeness = Math.max(0, 1 - topGaps.length / 12);
-    const audience_understanding = hasAudience ? 0.7 : Math.max(0.2, 1 - (gaps.find((g) => g.key === "business.audience")?.strategic_value ?? 0.8));
+    const audience_understanding = hasAudience
+      ? 0.7
+      : Math.max(0.2, 1 - (gaps.find((g) => g.key === "business.audience")?.strategic_value ?? 0.8));
     const messaging_confidence = hasMessaging ? 0.65 : 0.3;
     const funnel_score =
       (funnel_coverage.awareness > 0 ? 0.33 : 0) +
@@ -77,10 +79,12 @@ export class CampaignIntelligenceService {
     const recommended_actions: string[] = [];
     if (topGaps[0]) recommended_actions.push(`Gather knowledge: ${topGaps[0].question}`);
     if (funnel_coverage.awareness < 0.2) recommended_actions.push("Publish an awareness article for this campaign");
-    if (funnel_coverage.conversion < 0.15) recommended_actions.push("Improve conversion messaging or add a CTA-focused post");
+    if (funnel_coverage.conversion < 0.15)
+      recommended_actions.push("Improve conversion messaging or add a CTA-focused post");
     if (!campaign.hypotheses?.length) recommended_actions.push("Document a testable campaign hypothesis");
     if (progress_pct < 30 && planned > 0) recommended_actions.push("Advance the next planned post toward publish");
-    if (!recommended_actions.length) recommended_actions.push("Review campaign health and continue the content cadence");
+    if (!recommended_actions.length)
+      recommended_actions.push("Review campaign health and continue the content cadence");
 
     const snapshot: CampaignIntelligenceSnapshot = {
       knowledge_gaps: topGaps.map((g) => g.key),

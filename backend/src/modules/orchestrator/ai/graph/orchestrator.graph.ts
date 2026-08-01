@@ -8,11 +8,7 @@ import { invokeSkillNode, type InvokeSkillDeps } from "./nodes/invoke-skill";
 import { loadContextNode, type LoadContextDeps } from "./nodes/load-context";
 import { planNode, type PlanNodeDeps } from "./nodes/plan";
 import { persistNode, type PersistDeps } from "./nodes/persist";
-import {
-  createInitialOrchestratorState,
-  OrchestratorStateAnnotation,
-  type OrchestratorState,
-} from "./state";
+import { createInitialOrchestratorState, OrchestratorStateAnnotation, type OrchestratorState } from "./state";
 import type { ConversationContext } from "../contracts/conversation-context";
 import type { WorkflowMode } from "../contracts/enums";
 
@@ -74,7 +70,7 @@ export type CompiledOrchestratorGraph = ReturnType<typeof buildOrchestratorGraph
 
 export async function invokeTurn(
   compiled: CompiledOrchestratorGraph,
-  input: InvokeTurnInput,
+  input: InvokeTurnInput
 ): Promise<OrchestratorState> {
   const now = new Date();
   const initial = createInitialOrchestratorState({

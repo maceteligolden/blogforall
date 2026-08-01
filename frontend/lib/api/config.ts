@@ -153,8 +153,7 @@ export const API_ENDPOINTS = {
     EVENTS: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/events`,
     MEMORY: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/memory`,
     INTELLIGENCE: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/intelligence`,
-    INTELLIGENCE_RECOMPUTE: (siteId: string, id: string) =>
-      `/sites/${siteId}/campaigns/${id}/intelligence/recompute`,
+    INTELLIGENCE_RECOMPUTE: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/intelligence/recompute`,
     REPORTS_INBOX: (siteId: string) => `/sites/${siteId}/campaigns/reports/inbox`,
     DATE_RANGE: (siteId: string) => `/sites/${siteId}/campaigns/date-range`,
     SCHEDULED_POSTS: {

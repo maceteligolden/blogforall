@@ -119,7 +119,7 @@ export class OrchestratorService {
     private readonly v05Graph: OrchestratorV05GraphService,
     private readonly conversationIntelligence: ConversationIntelligenceService,
     private readonly realtimeService: RealtimeService,
-    private readonly notificationService: NotificationService,
+    private readonly notificationService: NotificationService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -314,9 +314,7 @@ export class OrchestratorService {
     // List/get/stats (and publish ops) still need the supervisor tool surface.
     if (env.orchestrator.v05GraphEnabled && mode === "active") {
       const recentForPeek = history.slice(-16).map((m) => ({
-        role: (m.role === OrchestratorMessageRole.ASSISTANT ? "assistant" : "user") as
-          | "user"
-          | "assistant",
+        role: (m.role === OrchestratorMessageRole.ASSISTANT ? "assistant" : "user") as "user" | "assistant",
         content: m.content,
       }));
       const peekCi = await this.conversationIntelligence.analyze({
@@ -326,9 +324,7 @@ export class OrchestratorService {
         user_id: userId,
         thread_id: thread._id!.toString(),
         conversation_mode: input.conversationMode,
-        open_artifacts: input.selectionContext?.blog_id
-          ? { draft_id: input.selectionContext.blog_id }
-          : undefined,
+        open_artifacts: input.selectionContext?.blog_id ? { draft_id: input.selectionContext.blog_id } : undefined,
       });
       const useSupervisorOps = SUPERVISOR_OPS_INTENTS.has(peekCi.workflow_intent);
       if (!useSupervisorOps) {
@@ -670,7 +666,6 @@ export class OrchestratorService {
     } = input;
     const threadId = thread._id!.toString();
 
-
     await this.messageRepository.create({
       thread_id: threadId,
       site_id: siteId,
@@ -678,14 +673,10 @@ export class OrchestratorService {
       content: message,
     });
 
-    const recent_messages = history
-      .slice(-16)
-      .map((m) => ({
-        role: (m.role === OrchestratorMessageRole.ASSISTANT ? "assistant" : "user") as
-          | "user"
-          | "assistant",
-        content: m.content,
-      }));
+    const recent_messages = history.slice(-16).map((m) => ({
+      role: (m.role === OrchestratorMessageRole.ASSISTANT ? "assistant" : "user") as "user" | "assistant",
+      content: m.content,
+    }));
 
     this.realtimeService.emitToUser(
       userId,
@@ -735,7 +726,6 @@ export class OrchestratorService {
       onPhase,
     });
 
-
     const assistant = await this.messageRepository.create({
       thread_id: threadId,
       site_id: siteId,
@@ -759,7 +749,7 @@ export class OrchestratorService {
         skillsRun: result.state.skills_run_this_turn,
         stage: result.state.workflow_stage,
       },
-      "OrchestratorService",
+      "OrchestratorService"
     );
 
     this.realtimeService.emitToUser(

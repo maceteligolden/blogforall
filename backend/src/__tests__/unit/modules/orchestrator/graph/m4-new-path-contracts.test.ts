@@ -13,20 +13,17 @@ import {
 
 describe("T4.3 / T4.4 new-path contracts", () => {
   it("Writing allowlist excludes search and legacy generateDraft", () => {
-    expect(
-      writingToolAllowlist(["blogs.save", "search.web", "tavily.search", "blogs.generateDraft"]),
-    ).toEqual(["blogs.save"]);
+    expect(writingToolAllowlist(["blogs.save", "search.web", "tavily.search", "blogs.generateDraft"])).toEqual([
+      "blogs.save",
+    ]);
     expect(isLegacyWriterResearchTool("blogs.generateDraft")).toBe(true);
     expect([...LEGACY_WRITER_RESEARCH_TOOLS]).toContain("blogs.generateDraft");
   });
 
   it("Writing skill source never calls BlogGraph generateFull / streamGenerate", () => {
     const src = readFileSync(
-      join(
-        __dirname,
-        "../../../../../modules/orchestrator/ai/skills/writing/writing.service.ts",
-      ),
-      "utf8",
+      join(__dirname, "../../../../../modules/orchestrator/ai/skills/writing/writing.service.ts"),
+      "utf8"
     );
     for (const method of WRITING_FORBIDDEN_BLOG_GRAPH_METHODS) {
       expect(src).not.toMatch(new RegExp(`blogGraph\\.${method}\\b`));

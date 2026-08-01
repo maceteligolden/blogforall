@@ -34,7 +34,7 @@ describe("OnboardingService.getSignupWizardStatus", () => {
         findByUser: mockFindByUser,
         update: mockUpdate,
       } as never,
-      {} as never,
+      {} as never
     );
   });
 

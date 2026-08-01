@@ -26,9 +26,7 @@ export interface RealtimeErrorPayload {
   correlationId?: string;
 }
 
-export type RoomJoinAck =
-  | { ok: true; room: string }
-  | { ok: false; code: string; message: string };
+export type RoomJoinAck = { ok: true; room: string } | { ok: false; code: string; message: string };
 
 export interface SocketAuthFailure {
   code: "auth_required" | "auth_invalid" | "auth_expired";

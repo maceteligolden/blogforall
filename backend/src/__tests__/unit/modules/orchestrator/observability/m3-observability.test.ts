@@ -86,13 +86,9 @@ describe("T3.5 TurnTracer + skill metrics", () => {
     turn.end({ status: "ok" });
 
     const names = tracer.spans.map((s) => s.name);
-    expect(names).toEqual(
-      expect.arrayContaining(["ci.analyze", "memory.retrieve", "plan", "persist", "turn"]),
-    );
+    expect(names).toEqual(expect.arrayContaining(["ci.analyze", "memory.retrieve", "plan", "persist", "turn"]));
     expect(tracer.spans.every((s) => s.status === "ok")).toBe(true);
-    expect(tracer.spans.find((s) => s.name === "ci.analyze")?.attrs.communicative_category).toBe(
-      "casual",
-    );
+    expect(tracer.spans.find((s) => s.name === "ci.analyze")?.attrs.communicative_category).toBe("casual");
     expect(getLatencySnapshot("plan")?.count).toBeGreaterThanOrEqual(1);
     expect(getCounter("plan.count|ok")).toBeGreaterThanOrEqual(1);
     expect(skillMetricsSnapshot().latencies.plan?.avg_ms).toBeGreaterThanOrEqual(0);
@@ -171,10 +167,6 @@ describe("T3.5 TurnTracer + skill metrics", () => {
 
     const skillSpans = tracer.spans.filter((s) => s.name === "skill");
     expect(skillSpans).toHaveLength(3);
-    expect(skillSpans.map((s) => s.attrs.skill_id)).toEqual([
-      "research",
-      "writing",
-      "content_optimization",
-    ]);
+    expect(skillSpans.map((s) => s.attrs.skill_id)).toEqual(["research", "writing", "content_optimization"]);
   });
 });

@@ -12,14 +12,7 @@ export const communicativeCategorySchema = z.enum([
   "unknown",
 ]);
 
-export const conversationModeSchema = z.enum([
-  "information",
-  "creation",
-  "planning",
-  "editing",
-  "feedback",
-  "casual",
-]);
+export const conversationModeSchema = z.enum(["information", "creation", "planning", "editing", "feedback", "casual"]);
 
 export const suggestedNextActionSchema = z.enum([
   "explain",

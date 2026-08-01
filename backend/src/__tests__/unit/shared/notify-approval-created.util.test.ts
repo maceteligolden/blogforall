@@ -1,7 +1,4 @@
-import {
-  NotificationChannel,
-  NotificationType,
-} from "../../../shared/constants/notification.constant";
+import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 import { OrchestratorApprovalKind } from "../../../shared/schemas/orchestrator-approval.schema";
 import type { OrchestratorApproval } from "../../../shared/schemas/orchestrator-approval.schema";
 import { notifyApprovalCreatedInApp } from "../../../shared/utils/notify-approval-created.util";
@@ -106,10 +103,7 @@ describe("notifyApprovalCreatedInApp", () => {
     const createAndSend = jest.fn();
     const notificationService = { createAndSend } as unknown as NotificationService;
 
-    await notifyApprovalCreatedInApp(
-      notificationService,
-      makeApproval({ requested_for_user_id: "" })
-    );
+    await notifyApprovalCreatedInApp(notificationService, makeApproval({ requested_for_user_id: "" }));
 
     expect(createAndSend).not.toHaveBeenCalled();
   });

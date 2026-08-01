@@ -2,7 +2,11 @@ import { injectable } from "tsyringe";
 import { TavilySearchService } from "../../../../blog/ai/tavily-search.service";
 import { MVP_LOCKS } from "../../contracts/mvp-locks";
 import { skipsHowToResearch, type PostFormat } from "../../contracts/post-format";
-import { needsCoverageRetry, type ResearchPackage, type ResearchPackageSummary } from "../../contracts/research-package";
+import {
+  needsCoverageRetry,
+  type ResearchPackage,
+  type ResearchPackageSummary,
+} from "../../contracts/research-package";
 import type { PhaseListener } from "../../observability/phase-emitter";
 import { ArtifactStoreService } from "../../memory/artifact-store.service";
 import { buildResearchPackageFromNotes } from "./build-package";
@@ -36,7 +40,7 @@ export type ResearchFullResult = {
 export class ResearchFullService {
   constructor(
     private readonly tavily: TavilySearchService,
-    private readonly artifacts: ArtifactStoreService,
+    private readonly artifacts: ArtifactStoreService
   ) {}
 
   async run(input: ResearchFullInput): Promise<ResearchFullResult> {
@@ -44,13 +48,7 @@ export class ResearchFullService {
     const emit = input.onPhase;
     const narrativeOnly = skipsHowToResearch(input.post_format);
 
-    const queries = narrativeOnly
-      ? []
-      : [
-          topic,
-          `${topic} best practices`,
-          `${topic} limitations OR pitfalls`,
-        ];
+    const queries = narrativeOnly ? [] : [topic, `${topic} best practices`, `${topic} limitations OR pitfalls`];
 
     emit?.({
       phase: "research_planning",
@@ -96,7 +94,7 @@ export class ResearchFullService {
         built.package.coverage.coverage_score,
         coverage_retries,
         MVP_LOCKS.coverageMin,
-        MVP_LOCKS.researchCoverageRetryMax,
+        MVP_LOCKS.researchCoverageRetryMax
       )
     ) {
       coverage_retries += 1;
@@ -154,7 +152,7 @@ export class ResearchFullService {
 
   private async searchAll(
     queries: string[],
-    signal?: AbortSignal,
+    signal?: AbortSignal
   ): Promise<Array<{ url: string; title: string; snippet?: string }>> {
     const batches = await Promise.all(queries.map((q) => this.tavily.search(q, signal)));
     const seen = new Set<string>();

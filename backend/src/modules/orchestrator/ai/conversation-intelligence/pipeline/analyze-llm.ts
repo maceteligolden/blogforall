@@ -1,10 +1,7 @@
 import { z } from "zod";
 import { createChatOpenAI } from "../../../../../shared/ai/create-chat-openai";
 import { env } from "../../../../../shared/config/env";
-import {
-  conversationContextSchema,
-  type ConversationContext,
-} from "../../contracts/conversation-context";
+import { conversationContextSchema, type ConversationContext } from "../../contracts/conversation-context";
 import { normalizeIntent } from "../../contracts/enums";
 import { buildCiAnalyzePrompt } from "../../prompts/ci.analyze";
 import type { ConversationIntelligenceInput } from "./analyze-deterministic";
@@ -42,14 +39,7 @@ export const ciAnalyzeLlmSchema = z.object({
   ]),
   confidence: z.number().min(0).max(1),
   action_required: z.boolean(),
-  conversation_mode: z.enum([
-    "information",
-    "creation",
-    "planning",
-    "editing",
-    "feedback",
-    "casual",
-  ]),
+  conversation_mode: z.enum(["information", "creation", "planning", "editing", "feedback", "casual"]),
   emotional_state: z.string().optional(),
   humor_detected: z.boolean(),
   tone_preference: z.enum(["casual", "professional", "technical", "friendly"]),
@@ -60,7 +50,7 @@ export const ciAnalyzeLlmSchema = z.object({
         type: z.enum(["topic", "blog_id", "url", "audience", "channel", "other"]),
         value: z.string().min(1),
         confidence: z.number().min(0).max(1),
-      }),
+      })
     )
     .optional()
     .default([]),
@@ -89,9 +79,7 @@ export const ciAnalyzeLlmSchema = z.object({
       tone: z.string().optional(),
       target_audience: z.string().optional(),
       feedback: z.string().optional(),
-      post_format: z
-        .enum(["personal_story", "engineering_reflection", "productivity", "linkedin_post"])
-        .optional(),
+      post_format: z.enum(["personal_story", "engineering_reflection", "productivity", "linkedin_post"]).optional(),
     })
     .optional()
     .default({}),
@@ -125,7 +113,7 @@ function formatOpenArtifacts(input: ConversationIntelligenceInput): string {
  * Returns null when the API key is missing or the model call fails.
  */
 export async function analyzeConversationWithLlm(
-  input: ConversationIntelligenceInput,
+  input: ConversationIntelligenceInput
 ): Promise<ConversationContext | null> {
   const apiKey = env.orchestrator.openaiApiKey;
   if (!apiKey) return null;
@@ -134,9 +122,7 @@ export async function analyzeConversationWithLlm(
     memoryViewsChatLight: formatMemory(input),
     recentMessages: formatRecent(input),
     openArtifacts: formatOpenArtifacts(input),
-    currentSlots: input.prior_context?.slots_patch
-      ? JSON.stringify(input.prior_context.slots_patch)
-      : "(none)",
+    currentSlots: input.prior_context?.slots_patch ? JSON.stringify(input.prior_context.slots_patch) : "(none)",
     userMessage: input.message.slice(0, 800),
     priorContextHint: input.prior_context
       ? `${input.prior_context.workflow_intent}/${input.prior_context.suggested_next_action} conf=${input.prior_context.confidence}`
@@ -175,9 +161,7 @@ export async function analyzeConversationWithLlm(
     const parsed = soft.data;
 
     const workflow_intent = normalizeIntent(parsed.workflow_intent);
-    const topic =
-      parsed.slots_patch?.topic?.trim() ||
-      parsed.entities.find((e) => e.type === "topic")?.value;
+    const topic = parsed.slots_patch?.topic?.trim() || parsed.entities.find((e) => e.type === "topic")?.value;
 
     const ctx: ConversationContext = {
       communicative_category: parsed.communicative_category,

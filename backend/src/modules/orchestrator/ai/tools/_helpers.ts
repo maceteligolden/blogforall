@@ -45,10 +45,7 @@ export type ResolveBlogResult = ResolveBlogSuccess | ResolveBlogAmbiguous;
 /** Strip filler so "show the post about jokers" → "jokers". */
 export function extractTopicSearchNeedle(hint: string): string {
   return hint
-    .replace(
-      /\b(?:show|open|view|get|fetch|preview|find|read|display|pull up|bring up)\b/gi,
-      " "
-    )
+    .replace(/\b(?:show|open|view|get|fetch|preview|find|read|display|pull up|bring up)\b/gi, " ")
     .replace(/\b(?:the|a|an|my|our|that|this|me)\b/gi, " ")
     .replace(/\b(?:post|blog|draft|article|piece|content)\b/gi, " ")
     .replace(/\b(?:about|on|regarding|for|titled|called|named)\b/gi, " ")

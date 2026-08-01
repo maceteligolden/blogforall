@@ -52,13 +52,11 @@ export class SocketIoRealtimeGateway implements IRealtimeGateway {
       return;
     }
 
-    const allowedOrigins =
-      env.frontend.urls.length > 0 ? env.frontend.urls : [env.frontend.baseUrl];
+    const allowedOrigins = env.frontend.urls.length > 0 ? env.frontend.urls : [env.frontend.baseUrl];
 
     const path = env.realtime?.path || REALTIME_PATH_DEFAULT;
     const namespace = env.realtime?.namespace || REALTIME_NAMESPACE_DEFAULT;
-    const maxConnections =
-      env.realtime?.maxConnectionsPerUser || REALTIME_MAX_CONNECTIONS_PER_USER_DEFAULT;
+    const maxConnections = env.realtime?.maxConnectionsPerUser || REALTIME_MAX_CONNECTIONS_PER_USER_DEFAULT;
 
     this.io = new Server(httpServer, {
       path,
@@ -111,7 +109,10 @@ export class SocketIoRealtimeGateway implements IRealtimeGateway {
       this.redisClients.map(
         (client) =>
           new Promise<void>((resolve) => {
-            client.quit().then(() => resolve()).catch(() => resolve());
+            client
+              .quit()
+              .then(() => resolve())
+              .catch(() => resolve());
           })
       )
     );
@@ -192,11 +193,7 @@ export class SocketIoRealtimeGateway implements IRealtimeGateway {
     if (!env.realtime?.redisAdapterEnabled) return;
     const redisUrl = env.notification.redisUrl;
     if (!redisUrl) {
-      logger.warn(
-        "REALTIME_REDIS_ADAPTER_ENABLED but REDIS_URL missing; skipping adapter",
-        {},
-        REALTIME_LOG_CONTEXT
-      );
+      logger.warn("REALTIME_REDIS_ADAPTER_ENABLED but REDIS_URL missing; skipping adapter", {}, REALTIME_LOG_CONTEXT);
       return;
     }
     try {
@@ -334,11 +331,7 @@ export class SocketIoRealtimeGateway implements IRealtimeGateway {
     realtimeMetrics.adjustActive(-1);
   }
 
-  private async handleRoomJoin(
-    socket: Socket,
-    raw: unknown,
-    ack?: (res: RoomJoinAck) => void
-  ): Promise<void> {
+  private async handleRoomJoin(socket: Socket, raw: unknown, ack?: (res: RoomJoinAck) => void): Promise<void> {
     realtimeMetrics.inc("realtime.events.inbound");
     if (!assertSocketInboundRateLimit(socket) || !assertSocketPayloadSafe(socket, raw)) {
       ack?.({ ok: false, code: "rejected", message: "Request rejected" });
@@ -364,11 +357,7 @@ export class SocketIoRealtimeGateway implements IRealtimeGateway {
     ack?.(result);
   }
 
-  private async handleRoomLeave(
-    socket: Socket,
-    raw: unknown,
-    ack?: (res: RoomJoinAck) => void
-  ): Promise<void> {
+  private async handleRoomLeave(socket: Socket, raw: unknown, ack?: (res: RoomJoinAck) => void): Promise<void> {
     realtimeMetrics.inc("realtime.events.inbound");
     if (!assertSocketInboundRateLimit(socket) || !assertSocketPayloadSafe(socket, raw)) {
       ack?.({ ok: false, code: "rejected", message: "Request rejected" });

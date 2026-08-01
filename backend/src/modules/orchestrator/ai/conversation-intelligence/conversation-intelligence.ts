@@ -1,8 +1,5 @@
 import { injectable } from "tsyringe";
-import {
-  conversationContextSchema,
-  type ConversationContext,
-} from "../contracts/conversation-context";
+import { conversationContextSchema, type ConversationContext } from "../contracts/conversation-context";
 import {
   FORMAT_CLARIFY_QUESTION,
   SKIP_FORMAT_GATE_RE,
@@ -12,10 +9,7 @@ import {
   parsePostFormat,
   priorAskedFormatClarify,
 } from "../contracts/post-format";
-import {
-  analyzeConversationDeterministic,
-  type ConversationIntelligenceInput,
-} from "./pipeline/analyze-deterministic";
+import { analyzeConversationDeterministic, type ConversationIntelligenceInput } from "./pipeline/analyze-deterministic";
 import { analyzeConversationWithLlm } from "./pipeline/analyze-llm";
 
 export type { ConversationIntelligenceInput };
@@ -24,18 +18,14 @@ const STORYTELLING =
   /\b(?:i want to talk about|talk about an experience|i was at|so i was|and (?:then|he|she|a)\b|personally i|my experience|let me tell you)\b/i;
 const EXPLICIT_WORKFLOW =
   /\b(?:write|draft|generate|create)\b[\s\S]{0,40}\b(?:post|blog|article|draft)\b|\b(?:research|look\s+up)\b/i;
-const QUICK_OR_SKIP =
-  /\b(?:quick|rough)\s+draft\b/i;
+const QUICK_OR_SKIP = /\b(?:quick|rough)\s+draft\b/i;
 
 function isStorytellingWithoutWorkflow(message: string): boolean {
   return STORYTELLING.test(message) && !EXPLICIT_WORKFLOW.test(message);
 }
 
 /** Enforce format editor-gate when LLM create skips it on narrative turns. */
-function applyFormatGateOverride(
-  input: ConversationIntelligenceInput,
-  llm: ConversationContext,
-): ConversationContext {
+function applyFormatGateOverride(input: ConversationIntelligenceInput, llm: ConversationContext): ConversationContext {
   const message = input.message;
   const narrative = narrativeFromRecent(input.recent_messages, message);
   const parsed = parsePostFormat(message);
@@ -99,7 +89,6 @@ function applyFormatGateOverride(
 @injectable()
 export class ConversationIntelligenceService {
   async analyze(input: ConversationIntelligenceInput): Promise<ConversationContext> {
-
     const llm = await analyzeConversationWithLlm(input);
     if (llm) {
       let result = llm;

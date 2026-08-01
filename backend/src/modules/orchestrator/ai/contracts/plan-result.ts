@@ -5,12 +5,7 @@ export const confirmationRequestSchema = z.object({
   action: z.string().min(1),
   payload: z.record(z.unknown()),
   summary: z.string().min(1),
-  kind: z.enum([
-    "destructive",
-    "strategy_warning",
-    "outline_approval",
-    "ambiguous_target",
-  ]),
+  kind: z.enum(["destructive", "strategy_warning", "outline_approval", "ambiguous_target"]),
 });
 
 export const planResultSchema = z.object({

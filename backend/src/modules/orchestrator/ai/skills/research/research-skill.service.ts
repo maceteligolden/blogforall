@@ -33,7 +33,7 @@ export type ResearchSkillResult = {
 export class ResearchSkillService {
   constructor(
     private readonly lite: ResearchLiteService,
-    private readonly full: ResearchFullService,
+    private readonly full: ResearchFullService
   ) {}
 
   async run(input: ResearchSkillInput): Promise<ResearchSkillResult> {

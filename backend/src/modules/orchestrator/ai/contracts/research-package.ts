@@ -1,12 +1,6 @@
 import { z } from "zod";
 
-export const freshnessSchema = z.enum([
-  "evergreen",
-  "recent",
-  "breaking",
-  "historical",
-  "deprecated",
-]);
+export const freshnessSchema = z.enum(["evergreen", "recent", "breaking", "historical", "deprecated"]);
 
 export const sourceCategorySchema = z.enum([
   "official_docs",
@@ -40,16 +34,7 @@ export const researchSourceSchema = z.object({
 
 export const provenancedFactSchema = z.object({
   id: z.string().min(1),
-  kind: z.enum([
-    "definition",
-    "fact",
-    "statistic",
-    "example",
-    "quotation",
-    "implementation",
-    "limitation",
-    "opinion",
-  ]),
+  kind: z.enum(["definition", "fact", "statistic", "example", "quotation", "implementation", "limitation", "opinion"]),
   text: z.string().min(1),
   value: z.string().optional(),
   date: z.string().optional(),
@@ -62,15 +47,7 @@ export const provenancedFactSchema = z.object({
 export const researchEntitySchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
-  type: z.enum([
-    "person",
-    "product",
-    "company",
-    "technology",
-    "concept",
-    "standard",
-    "other",
-  ]),
+  type: z.enum(["person", "product", "company", "technology", "concept", "standard", "other"]),
   aliases: z.array(z.string()).optional(),
   source_ids: z.array(z.string()).optional(),
 });
@@ -103,7 +80,7 @@ export const competitorInsightsSchema = z.object({
       topics: z.array(z.string()),
       strengths: z.array(z.string()).optional(),
       weaknesses: z.array(z.string()).optional(),
-    }),
+    })
   ),
   common_headings: z.array(z.string()),
   common_topics: z.array(z.string()),
@@ -161,14 +138,14 @@ export const researchPackageSchema = z.object({
       id: z.string().min(1),
       question: z.string().min(1),
       priority: z.number(),
-    }),
+    })
   ),
   knowledge_gaps: z.array(
     z.object({
       id: z.string().min(1),
       description: z.string().min(1),
       priority: z.number(),
-    }),
+    })
   ),
   definitions: z.array(provenancedFactSchema),
   facts: z.array(provenancedFactSchema),
@@ -187,7 +164,7 @@ export const researchPackageSchema = z.object({
       source_id: z.string().min(1),
       url: z.string().url(),
       title: z.string().min(1),
-    }),
+    })
   ),
   coverage: coverageReportSchema,
   confidence_summary: z.object({
@@ -238,7 +215,7 @@ export function needsCoverageRetry(
   coverageScore: number,
   coverageRetries: number,
   coverageMin: number,
-  retryMax: number,
+  retryMax: number
 ): boolean {
   if (depth === "lite") return false;
   return coverageScore < coverageMin && coverageRetries < retryMax;

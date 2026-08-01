@@ -8,7 +8,12 @@ import { cn } from "@/lib/utils/cn";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import { QUERY_KEYS } from "@/lib/api/config";
-import type { ChatTurnResponse, OrchestratorApproval, OrchestratorMessage, V05MoatSnapshot } from "@/lib/api/types/orchestrator.types";
+import type {
+  ChatTurnResponse,
+  OrchestratorApproval,
+  OrchestratorMessage,
+  V05MoatSnapshot,
+} from "@/lib/api/types/orchestrator.types";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 import { FullConversationView, type ConversationStatus } from "./full-conversation-view";
@@ -278,7 +283,7 @@ export function OrchestratorChat({
         content: m.content,
         toolName: m.tool_name,
         artifactId: toolArtifactId ?? assistantArtifactId,
-        moat: m.role === "assistant" ? threadMoatByAssistant.get(m._id) ?? null : null,
+        moat: m.role === "assistant" ? (threadMoatByAssistant.get(m._id) ?? null) : null,
       };
     });
     return [...persisted, ...optimisticMessages];

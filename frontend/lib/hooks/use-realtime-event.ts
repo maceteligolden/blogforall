@@ -7,10 +7,7 @@ import type { RealtimeEnvelope, RealtimeEventHandler } from "@/lib/realtime";
 /**
  * Subscribe to a realtime event. Handler identity can change; latest is used.
  */
-export function useRealtimeEvent<T = unknown>(
-  eventName: string,
-  handler: RealtimeEventHandler<T>
-): void {
+export function useRealtimeEvent<T = unknown>(eventName: string, handler: RealtimeEventHandler<T>): void {
   const realtime = useRealtimeOptional();
   const handlerRef = useRef(handler);
   handlerRef.current = handler;

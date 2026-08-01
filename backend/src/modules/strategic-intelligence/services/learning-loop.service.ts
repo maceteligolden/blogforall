@@ -60,12 +60,7 @@ export class LearningLoopService {
     }
   }
 
-  private async writeContentIntelligence(
-    siteId: string,
-    blogId: string,
-    metric: string,
-    value: number
-  ): Promise<void> {
+  private async writeContentIntelligence(siteId: string, blogId: string, metric: string, value: number): Promise<void> {
     const now = new Date().toISOString();
     const key = `content_intel.${blogId}.${metric}`;
     const record: MemoryRecord = {

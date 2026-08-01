@@ -1,10 +1,7 @@
 import { injectable } from "tsyringe";
 import { createChatOpenAI } from "../../../../../shared/ai/create-chat-openai";
 import { env } from "../../../../../shared/config/env";
-import {
-  buildConversationSkillPrompt,
-  type ConversationSkillPurpose,
-} from "../../prompts/skill.conversation";
+import { buildConversationSkillPrompt, type ConversationSkillPurpose } from "../../prompts/skill.conversation";
 
 export type ConversationSkillInput = {
   purpose: ConversationSkillPurpose;
@@ -57,7 +54,10 @@ export class ConversationSkillService {
       });
       const res = await chat.invoke([{ role: "user", content: prompt }]);
       const text = typeof res.content === "string" ? res.content : JSON.stringify(res.content);
-      const reply = text.trim().replace(/^```(?:text|markdown)?\n?|\n?```$/g, "").trim();
+      const reply = text
+        .trim()
+        .replace(/^```(?:text|markdown)?\n?|\n?```$/g, "")
+        .trim();
       if (!reply) return { reply: this.offlineFallback(input), purpose: input.purpose };
       return { reply: this.ensureClarifyQuestion(reply, input), purpose: input.purpose };
     } catch {
@@ -73,19 +73,13 @@ export class ConversationSkillService {
 
   private offlineFallback(input: ConversationSkillInput): string {
     if (input.purpose === "clarify") {
-      return (
-        input.clarification_question?.trim() ||
-        "What topic should we use so I can help with the next step?"
-      );
+      return input.clarification_question?.trim() || "What topic should we use so I can help with the next step?";
     }
     if (input.purpose === "casual") {
       return "Hey — good to hear from you. What's on your mind?";
     }
     if (input.purpose === "explain") {
-      return (
-        input.facts?.trim() ||
-        "I can look that up in workspace settings or research it — which would help more?"
-      );
+      return input.facts?.trim() || "I can look that up in workspace settings or research it — which would help more?";
     }
     return input.clarification_question?.trim() || "How would you like to continue?";
   }

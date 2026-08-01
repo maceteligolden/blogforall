@@ -7,10 +7,7 @@ export type PlanNodeDeps = {
 };
 
 /** plan — deterministic policy → PlanResult on state. */
-export function planNode(
-  state: OrchestratorState,
-  deps: PlanNodeDeps = {},
-): Partial<OrchestratorState> {
+export function planNode(state: OrchestratorState, deps: PlanNodeDeps = {}): Partial<OrchestratorState> {
   const run = (): Partial<OrchestratorState> => {
     const plan = planFromState(state);
     return {

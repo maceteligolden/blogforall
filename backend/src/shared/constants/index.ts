@@ -48,14 +48,7 @@ export enum SignupWizardStage {
 }
 
 /** Company roles collected during signup for AI personalization. */
-export const COMPANY_ROLES = [
-  "founder",
-  "marketer",
-  "content",
-  "engineer",
-  "agency",
-  "other",
-] as const;
+export const COMPANY_ROLES = ["founder", "marketer", "content", "engineer", "agency", "other"] as const;
 
 export type CompanyRole = (typeof COMPANY_ROLES)[number];
 

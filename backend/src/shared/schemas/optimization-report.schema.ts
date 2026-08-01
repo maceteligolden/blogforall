@@ -31,7 +31,7 @@ const optimizationReportEntitySchema = new Schema<OptimizationReportEntity>(
     created_by: { type: String },
     thread_id: { type: String, index: true },
   },
-  { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } },
+  { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );
 
 optimizationReportEntitySchema.index({ workspace_id: 1, created_at: -1 });
@@ -40,5 +40,5 @@ optimizationReportEntitySchema.index({ workspace_id: 1, draft_id: 1 });
 export default model<OptimizationReportEntity>(
   "OptimizationReport",
   optimizationReportEntitySchema,
-  "optimization_reports",
+  "optimization_reports"
 );

@@ -44,7 +44,7 @@ function projectBlog(b: Blog) {
 const listInputSchema = z.object({
   status: z.preprocess(
     (v) => (v === "all" || v === "" || v === null ? undefined : v),
-    z.enum(BLOG_STATUS_VALUES as [BlogStatus, ...BlogStatus[]]).optional(),
+    z.enum(BLOG_STATUS_VALUES as [BlogStatus, ...BlogStatus[]]).optional()
   ),
   category: z.string().min(1).optional(),
   search: z.string().min(1).max(200).optional(),

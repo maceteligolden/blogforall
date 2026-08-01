@@ -15,10 +15,8 @@ const CREATE =
   /\b(?:write|draft|create|generate|compose)\b.*\b(?:blog|post|article|content)\b|\b(?:blog|post|article)\b.*\b(?:write|draft|create|generate)\b/i;
 const SOFT_CREATE =
   /\b(?:we\s+should|probably|maybe\s+we|ought\s+to|might\s+want\s+to)\b.*\b(?:write|draft|post|article|blog|content)\b/i;
-const BRAINSTORM =
-  /\b(?:ideas?|brainstorm|topics?\s+could|what\s+should\s+i\s+write|want\s+to\s+write\s+something)\b/i;
-const VAGUE_WRITE =
-  /\bi\s+want\s+to\s+write\s+(?:something|about)\b|\bwrite\s+something\s+about\b/i;
+const BRAINSTORM = /\b(?:ideas?|brainstorm|topics?\s+could|what\s+should\s+i\s+write|want\s+to\s+write\s+something)\b/i;
+const VAGUE_WRITE = /\bi\s+want\s+to\s+write\s+(?:something|about)\b|\bwrite\s+something\s+about\b/i;
 const QUICK_DRAFT_PHRASE = /\b(?:quick|rough)\s+draft\b/i;
 const EXPLICIT_DRAFT_NOW =
   /\b(?:write\s+it\s+now|create\s+the\s+draft|go\s+ahead(?:\s+and\s+(?:draft|write))?|generate\s+the\s+(?:post|draft|article)|draft\s+it(?:\s+now)?|just\s+draft|just\s+write\s+it|skip\s+(?:the\s+)?(?:discuss(?:ion)?|chat|format|question|picker)|make\s+the\s+draft)\b/i;
@@ -56,8 +54,7 @@ const DOMAIN_TOPIC =
 const SPECULATIVE_STORY =
   /\b(?:a\s+(?:man|woman|person|guy|girl|hero|engineer|kid|child)\b|\bwho\s+(?:flew|saved|fixed|invented|discovered)|saved\s+the\s+world|once\s+upon|fictional|made[\s-]up|magical)\b/i;
 
-const THIN_CREATE_CLARIFY_RE =
-  /discuss the angle|confirm whether|quick draft|add more facts|real story/i;
+const THIN_CREATE_CLARIFY_RE = /discuss the angle|confirm whether|quick draft|add more facts|real story/i;
 
 /** Soft typo / phrasing fixes before regex CI. */
 function normalizeUserMessage(raw: string): string {
@@ -102,7 +99,7 @@ function extractTopic(message: string): string | undefined {
     if (t && !/^(?:a\s+)?(?:blog|post|article|draft)s?$/i.test(t)) return t;
   }
   const write = message.match(
-    /\b(?:write|draft|create|generate)\s+(?:a\s+)?(?:blog|post|article)?\s*(?:about|on)\s+(.+)$/i,
+    /\b(?:write|draft|create|generate)\s+(?:a\s+)?(?:blog|post|article)?\s*(?:about|on)\s+(.+)$/i
   );
   if (write?.[1]) {
     const t = clean(write[1]);
@@ -129,9 +126,7 @@ function isThinOrSpeculativeTopic(topic: string): boolean {
   return false;
 }
 
-function priorAskedThinCreateClarify(
-  recent?: Array<{ role: "user" | "assistant"; content: string }>,
-): boolean {
+function priorAskedThinCreateClarify(recent?: Array<{ role: "user" | "assistant"; content: string }>): boolean {
   const prior = [...(recent ?? [])].reverse().find((m) => m.role === "assistant");
   return Boolean(prior && THIN_CREATE_CLARIFY_RE.test(prior.content));
 }
@@ -146,9 +141,7 @@ function messageNeedsInheritedTopic(message: string): boolean {
   );
 }
 
-function topicFromRecentMessages(
-  recent?: Array<{ role: "user" | "assistant"; content: string }>,
-): string | undefined {
+function topicFromRecentMessages(recent?: Array<{ role: "user" | "assistant"; content: string }>): string | undefined {
   for (const m of [...(recent ?? [])].reverse()) {
     if (m.role !== "user") continue;
     const t = normalizeUserMessage(m.content);
@@ -161,10 +154,7 @@ function topicFromRecentMessages(
     if (extracted) return extracted;
     if (RESEARCH.test(t)) {
       const stripped = t
-        .replace(
-          /^(?:please\s+)?(?:do\s+)?(?:research|look\s+up)\s+(?:and\s+report\s+)?(?:on\s+|about\s+)?/i,
-          "",
-        )
+        .replace(/^(?:please\s+)?(?:do\s+)?(?:research|look\s+up)\s+(?:and\s+report\s+)?(?:on\s+|about\s+)?/i, "")
         .replace(/[.?!]+$/, "")
         .trim()
         .slice(0, 200);
@@ -180,14 +170,11 @@ function topicFromRecentMessages(
  * Deterministic CI analyzer (M2). Implements communicative vs literal rules from doc 19.
  * LLM `ci.analyze.v1` can replace/augment this later without changing the public API.
  */
-export function analyzeConversationDeterministic(
-  input: ConversationIntelligenceInput,
-): ConversationContext {
+export function analyzeConversationDeterministic(input: ConversationIntelligenceInput): ConversationContext {
   const message = normalizeUserMessage(input.message);
   const ownTopic = extractTopic(message);
   let topic =
-    ownTopic ??
-    (messageNeedsInheritedTopic(message) ? topicFromRecentMessages(input.recent_messages) : undefined);
+    ownTopic ?? (messageNeedsInheritedTopic(message) ? topicFromRecentMessages(input.recent_messages) : undefined);
   const hasDraft = Boolean(input.open_artifacts?.draft_id);
   const humor = HUMOR.test(message);
   const urgency = URGENCY.test(message) ? "high" : "normal";
@@ -305,11 +292,7 @@ export function analyzeConversationDeterministic(
     action_required = true;
     confidence = SECTION_EDIT.test(message) ? 0.92 : 0.86;
     initiative = "lead";
-  } else if (
-    RESEARCH.test(message) &&
-    TONE_OR_BRAND.test(message) &&
-    !CREATE.test(message)
-  ) {
+  } else if (RESEARCH.test(message) && TONE_OR_BRAND.test(message) && !CREATE.test(message)) {
     // "research whether our tone is right" → workspace explain, not web research on the question text
     communicative_category = "ask_information";
     workflow_intent = "explain";
@@ -360,9 +343,7 @@ export function analyzeConversationDeterministic(
     confidence = SOFT_CREATE.test(message) ? 0.8 : 0.93;
     initiative = "lead";
     const skipFormatGate =
-      QUICK_DRAFT_PHRASE.test(message) ||
-      EXPLICIT_DRAFT_NOW.test(message) ||
-      SKIP_FORMAT_GATE_RE.test(message);
+      QUICK_DRAFT_PHRASE.test(message) || EXPLICIT_DRAFT_NOW.test(message) || SKIP_FORMAT_GATE_RE.test(message);
     if (skipFormatGate && !post_format) {
       post_format = defaultPostFormatOnSkip(narrative);
     }
@@ -371,11 +352,7 @@ export function analyzeConversationDeterministic(
       clarification_question = "What topic should the post cover?";
       suggested_next_action = "clarify";
       action_required = false;
-    } else if (
-      !skipFormatGate &&
-      !post_format &&
-      narrative
-    ) {
+    } else if (!skipFormatGate && !post_format && narrative) {
       // Narrative create: editor-gate format picker before drafting.
       requires_clarification = true;
       clarification_question = FORMAT_CLARIFY_QUESTION;
@@ -383,14 +360,10 @@ export function analyzeConversationDeterministic(
       action_required = false;
       confidence = 0.9;
       initiative = "suggest";
-    } else if (
-      !skipFormatGate &&
-      (voiceCall || isThinOrSpeculativeTopic(topic))
-    ) {
+    } else if (!skipFormatGate && (voiceCall || isThinOrSpeculativeTopic(topic))) {
       // Thin / speculative / voice-call creates: discuss or confirm facts before drafting.
       requires_clarification = true;
-      clarification_question =
-        `I can write about “${topic.slice(0, 120)}”, but the brief is light. Want to discuss the angle and add facts first, research whether this is a real story, or go ahead with a quick draft?`;
+      clarification_question = `I can write about “${topic.slice(0, 120)}”, but the brief is light. Want to discuss the angle and add facts first, research whether this is a real story, or go ahead with a quick draft?`;
       suggested_next_action = "clarify";
       action_required = false;
       confidence = 0.86;
@@ -414,11 +387,7 @@ export function analyzeConversationDeterministic(
   }
 
   const tone_preference =
-    urgency === "high"
-      ? "professional"
-      : communicative_category === "casual"
-        ? "friendly"
-        : "professional";
+    urgency === "high" ? "professional" : communicative_category === "casual" ? "friendly" : "professional";
 
   const result: ConversationContext = {
     communicative_category,
@@ -429,9 +398,7 @@ export function analyzeConversationDeterministic(
     humor_detected: humor,
     tone_preference,
     urgency,
-    entities: topic
-      ? [{ type: "topic", value: topic, confidence: 0.85 }]
-      : [],
+    entities: topic ? [{ type: "topic", value: topic, confidence: 0.85 }] : [],
     references_previous_context: Boolean(input.prior_context || hasDraft),
     requires_clarification,
     clarification_question,

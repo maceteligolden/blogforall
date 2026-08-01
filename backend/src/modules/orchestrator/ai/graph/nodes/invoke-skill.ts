@@ -21,7 +21,7 @@ const SKILL_PHASE: Record<string, string> = {
 /** invoke_skill — registry dispatch; merge patch; increment skills_run_this_turn. */
 export async function invokeSkillNode(
   state: OrchestratorState,
-  deps: InvokeSkillDeps,
+  deps: InvokeSkillDeps
 ): Promise<Partial<OrchestratorState>> {
   const skillId = (state.plan?.skill_id ?? state.active_skill) as SkillId | undefined;
   if (!skillId) {

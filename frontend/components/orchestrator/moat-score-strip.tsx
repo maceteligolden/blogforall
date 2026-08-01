@@ -20,14 +20,13 @@ export function MoatScoreStrip({ moat, className }: MoatScoreStripProps) {
     <div
       className={cn(
         "mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] leading-snug text-gray-400 border-t border-gray-800/80 pt-2",
-        className,
+        className
       )}
       data-testid="moat-score-strip"
     >
       {research && (
         <span>
-          Package coverage{" "}
-          <span className="text-gray-200 font-medium">{research.coverage_score.toFixed(2)}</span>
+          Package coverage <span className="text-gray-200 font-medium">{research.coverage_score.toFixed(2)}</span>
           <span className="text-gray-500"> · {research.source_count} sources</span>
           {research.contradiction_count > 0 && (
             <span className="text-amber-400/90"> · {research.contradiction_count} contradictions</span>

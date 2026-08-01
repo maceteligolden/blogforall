@@ -40,7 +40,7 @@ describe("T4.2 moat snapshot", () => {
         quality_gate_passed: true,
         metadata: {},
       },
-      phases,
+      phases
     );
     expect(snap.research_summary).toMatchObject({
       coverage_score: 0.71,

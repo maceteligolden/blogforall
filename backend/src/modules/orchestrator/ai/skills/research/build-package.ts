@@ -32,14 +32,11 @@ export type BuiltResearchPackage = {
 };
 
 /** Shared Research Package assembly for lite/full depths. */
-export function buildResearchPackageFromNotes(
-  input: BuildResearchPackageInput,
-): BuiltResearchPackage {
+export function buildResearchPackageFromNotes(input: BuildResearchPackageInput): BuiltResearchPackage {
   const topic = input.topic.trim();
   const capped = input.notes.slice(0, input.max_sources);
   const now = new Date().toISOString();
-  const narrativeMode =
-    input.post_format === "personal_story" || input.post_format === "linkedin_post";
+  const narrativeMode = input.post_format === "personal_story" || input.post_format === "linkedin_post";
   const questions = narrativeMode
     ? [
         {
@@ -139,12 +136,8 @@ export function buildResearchPackageFromNotes(
       missing_areas: degraded ? ["overview"] : [],
     },
     confidence_summary: {
-      mean_source_quality: sources.length
-        ? sources.reduce((a, s) => a + s.quality_score, 0) / sources.length
-        : 0,
-      mean_fact_confidence: facts.length
-        ? facts.reduce((a, f) => a + f.confidence, 0) / facts.length
-        : 0,
+      mean_source_quality: sources.length ? sources.reduce((a, s) => a + s.quality_score, 0) / sources.length : 0,
+      mean_fact_confidence: facts.length ? facts.reduce((a, f) => a + f.confidence, 0) / facts.length : 0,
       contradiction_count: 0,
     },
     degraded: degraded || undefined,

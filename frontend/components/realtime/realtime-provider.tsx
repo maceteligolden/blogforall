@@ -1,23 +1,10 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
-import {
-  getRealtimeClient,
-  REALTIME_EVENTS,
-  type RealtimeClient,
-  type RealtimeEnvelope,
-} from "@/lib/realtime";
+import { getRealtimeClient, REALTIME_EVENTS, type RealtimeClient, type RealtimeEnvelope } from "@/lib/realtime";
 
 interface RealtimeContextValue {
   client: RealtimeClient;

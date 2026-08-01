@@ -73,7 +73,7 @@ describe("conversationContextSchema", () => {
           formality: "casual",
           initiative: "passive",
         },
-      }),
+      })
     ).toThrow();
   });
 });
@@ -169,21 +169,15 @@ describe("researchPackageSchema + provenance", () => {
             freshness: "evergreen",
           },
         ],
-      }),
+      })
     );
     expect(assertResearchProvenance(pkg)[0]).toMatch(/missing source_id/);
   });
 
   it("applies coverage retry policy", () => {
-    expect(needsCoverageRetry("full", 0.4, 0, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(
-      true,
-    );
-    expect(needsCoverageRetry("full", 0.4, 1, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(
-      false,
-    );
-    expect(needsCoverageRetry("lite", 0.1, 0, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(
-      false,
-    );
+    expect(needsCoverageRetry("full", 0.4, 0, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(true);
+    expect(needsCoverageRetry("full", 0.4, 1, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(false);
+    expect(needsCoverageRetry("lite", 0.1, 0, MVP_LOCKS.coverageMin, MVP_LOCKS.researchCoverageRetryMax)).toBe(false);
   });
 });
 
@@ -257,9 +251,7 @@ describe("contentOptimizationReportSchema + gate", () => {
   });
 
   it("fails gate when Critical items exist even if overall high", () => {
-    expect(
-      evaluateQualityGate(90, 1),
-    ).toBe(false);
+    expect(evaluateQualityGate(90, 1)).toBe(false);
   });
 
   it("bounds optimize loops", () => {

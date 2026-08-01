@@ -53,8 +53,8 @@ export function WelcomeTourModal() {
           Welcome{profile?.first_name ? `, ${profile.first_name}` : ""}
         </h2>
         <p className="text-sm text-gray-400 mb-6">
-          Your workspace is ready. Take a quick tour of the dashboard, or jump straight in —
-          you can finish brand setup anytime from the progress ring in the navbar.
+          Your workspace is ready. Take a quick tour of the dashboard, or jump straight in — you can finish brand setup
+          anytime from the progress ring in the navbar.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <Button className="flex-1" onClick={dismiss} disabled={dismissing}>

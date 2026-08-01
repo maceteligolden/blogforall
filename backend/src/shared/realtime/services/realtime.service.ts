@@ -42,12 +42,7 @@ export class RealtimeService implements IRealtimeService {
     }
   }
 
-  emitToConnection(
-    socketId: string,
-    eventName: string,
-    payload: unknown,
-    options: EmitOptions = {}
-  ): void {
+  emitToConnection(socketId: string, eventName: string, payload: unknown, options: EmitOptions = {}): void {
     try {
       const envelope = buildRealtimeEnvelope(eventName, payload, options);
       this.gateway.emitToConnection(socketId, eventName, envelope);

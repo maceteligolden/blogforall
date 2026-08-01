@@ -76,12 +76,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     const gateway = container.resolve(SocketIoRealtimeGateway);
     await gateway.close();
   } catch (err) {
-    logger.error(
-      "Error closing realtime gateway",
-      err instanceof Error ? err : new Error(String(err)),
-      {},
-      "Server"
-    );
+    logger.error("Error closing realtime gateway", err instanceof Error ? err : new Error(String(err)), {}, "Server");
   }
 
   await new Promise<void>((resolve) => {

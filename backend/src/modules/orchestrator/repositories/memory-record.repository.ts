@@ -3,10 +3,7 @@ import MemoryRecordModel, {
   type MemoryRecordEntity,
   type MemoryRecordLayer,
 } from "../../../shared/schemas/memory-record.schema";
-import {
-  memoryRecordSchema,
-  type MemoryRecord,
-} from "../ai/contracts/memory-record";
+import { memoryRecordSchema, type MemoryRecord } from "../ai/contracts/memory-record";
 
 @injectable()
 export class MemoryRecordRepository {
@@ -59,7 +56,7 @@ export class MemoryRecordRepository {
           version: 1,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     return this.toContract(doc);
   }
@@ -68,7 +65,7 @@ export class MemoryRecordRepository {
     workspaceId: string,
     layer: MemoryRecordLayer,
     canonicalKey: string,
-    userId?: string | null,
+    userId?: string | null
   ): Promise<MemoryRecord | null> {
     const doc = await MemoryRecordModel.findOne({
       workspace_id: workspaceId,
@@ -92,7 +89,7 @@ export class MemoryRecordRepository {
   async listByLayer(
     workspaceId: string,
     layer: MemoryRecordLayer,
-    opts?: { userId?: string; limit?: number },
+    opts?: { userId?: string; limit?: number }
   ): Promise<MemoryRecord[]> {
     const filter: Record<string, unknown> = {
       workspace_id: workspaceId,

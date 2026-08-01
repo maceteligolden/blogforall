@@ -20,13 +20,9 @@ export function signupWizardPath(status: SignupWizardStatus): string {
     case "workspace_name":
       return "/onboarding/create-site";
     case "plan_selection":
-      return status.site_id
-        ? `/onboarding/plans?siteId=${encodeURIComponent(status.site_id)}`
-        : "/onboarding/plans";
+      return status.site_id ? `/onboarding/plans?siteId=${encodeURIComponent(status.site_id)}` : "/onboarding/plans";
     case "invite":
-      return status.site_id
-        ? `/onboarding/invite?siteId=${encodeURIComponent(status.site_id)}`
-        : "/onboarding/invite";
+      return status.site_id ? `/onboarding/invite?siteId=${encodeURIComponent(status.site_id)}` : "/onboarding/invite";
     case "complete":
     default:
       return "/dashboard";

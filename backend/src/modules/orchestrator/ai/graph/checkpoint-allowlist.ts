@@ -48,16 +48,9 @@ export const CHECKPOINT_FIELD_ALLOWLIST = [
 export type CheckpointField = (typeof CHECKPOINT_FIELD_ALLOWLIST)[number];
 
 /** Never persist these keys on checkpoint (load on demand in skills). */
-export const CHECKPOINT_DENYLIST = [
-  "research_package",
-  "raw_llm_prompts",
-  "api_keys",
-  "secrets",
-] as const;
+export const CHECKPOINT_DENYLIST = ["research_package", "raw_llm_prompts", "api_keys", "secrets"] as const;
 
-export function stripDisallowedCheckpointFields<T extends Record<string, unknown>>(
-  state: T,
-): Partial<T> {
+export function stripDisallowedCheckpointFields<T extends Record<string, unknown>>(state: T): Partial<T> {
   const allow = new Set<string>(CHECKPOINT_FIELD_ALLOWLIST);
   const out: Partial<T> = {};
   for (const [key, value] of Object.entries(state)) {

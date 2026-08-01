@@ -59,7 +59,8 @@ export class WritingSkillService {
     }
 
     const notes = input.research_package ? researchPackageToNotes(input.research_package) : [];
-    const analysis = input.analysis ?? this.defaultAnalysis(input.topic, input.post_format ?? input.userParams?.post_format);
+    const analysis =
+      input.analysis ?? this.defaultAnalysis(input.topic, input.post_format ?? input.userParams?.post_format);
     const prompt = (input.prompt ?? input.topic).trim();
     const packageId = input.research_package_id ?? input.research_package?.id;
     const userParams: BlogUserGenerationParams | undefined = {
@@ -68,13 +69,7 @@ export class WritingSkillService {
     };
 
     if (input.action === "outline") {
-      const outline = await this.blogGraph.outlineFromNotes(
-        prompt,
-        analysis,
-        notes,
-        userParams,
-        input.signal,
-      );
+      const outline = await this.blogGraph.outlineFromNotes(prompt, analysis, notes, userParams, input.signal);
       return {
         action: "outline",
         research_package_id: packageId,
@@ -106,13 +101,7 @@ export class WritingSkillService {
       };
     }
 
-    const draft = await this.blogGraph.draftFromNotes(
-      prompt,
-      analysis,
-      notes,
-      userParams,
-      input.signal,
-    );
+    const draft = await this.blogGraph.draftFromNotes(prompt, analysis, notes, userParams, input.signal);
     return {
       action: "draft",
       research_package_id: packageId,

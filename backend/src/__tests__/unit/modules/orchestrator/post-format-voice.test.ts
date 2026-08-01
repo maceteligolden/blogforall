@@ -58,9 +58,7 @@ describe("post_format editor gate (deterministic CI)", () => {
     const ctx = analyzeConversationDeterministic({
       ...base,
       message: "Write a blog post about my bike ride — just write it",
-      recent_messages: [
-        { role: "user", content: "I rode my bike home today. Cars were everywhere." },
-      ],
+      recent_messages: [{ role: "user", content: "I rode my bike home today. Cars were everywhere." }],
     });
     expect(ctx.requires_clarification).toBe(false);
     expect(ctx.slots_patch.post_format).toBe("personal_story");
@@ -185,12 +183,9 @@ describe("soft optimize for personal formats", () => {
       topic: "bike ride",
       post_format: "personal_story",
     });
-    const msgs = [
-      ...report.plan.low,
-      ...report.plan.medium,
-      ...report.plan.high,
-      ...report.plan.critical,
-    ].map((r) => r.message);
+    const msgs = [...report.plan.low, ...report.plan.medium, ...report.plan.high, ...report.plan.critical].map(
+      (r) => r.message
+    );
     expect(msgs.some((m) => /call-to-action/i.test(m))).toBe(false);
     expect(report.plan.writing_brief).toMatch(/Do not add CTAs/i);
   });

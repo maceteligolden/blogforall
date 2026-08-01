@@ -45,8 +45,7 @@ function isBlogListTool(tool: string): boolean {
 function isAmbiguousGetList(artifact: OrchestratorArtifact): boolean {
   if (artifact.tool !== "blogs.get") return false;
   if (artifact.outputData?.ambiguous === true) return true;
-  const hasList =
-    Array.isArray(artifact.outputData?.items) || Array.isArray(artifact.outputData?.blogs);
+  const hasList = Array.isArray(artifact.outputData?.items) || Array.isArray(artifact.outputData?.blogs);
   const hasContent = typeof artifact.outputData?.content === "string" && artifact.outputData.content.length > 0;
   return hasList && !hasContent;
 }
@@ -513,10 +512,7 @@ export function OrchestratorArtifactPanel({
                 Draft timeline · {artifacts.length} steps
               </span>
               <ChevronDown
-                className={cn(
-                  "w-3.5 h-3.5 text-gray-500 transition-transform shrink-0",
-                  timelineOpen && "rotate-180"
-                )}
+                className={cn("w-3.5 h-3.5 text-gray-500 transition-transform shrink-0", timelineOpen && "rotate-180")}
                 aria-hidden="true"
               />
             </button>

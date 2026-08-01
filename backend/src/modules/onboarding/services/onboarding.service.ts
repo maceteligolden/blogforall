@@ -68,7 +68,7 @@ export class OnboardingService {
   constructor(
     private subscriptionService: SubscriptionService,
     private siteRepository: SiteRepository,
-    private authService: AuthService,
+    private authService: AuthService
   ) {}
 
   async getOnboardingStatus(userId: string): Promise<{
@@ -300,7 +300,7 @@ export class OnboardingService {
           "Failed to finalize signup completion after invite dismiss",
           error as Error,
           { userId },
-          "OnboardingService",
+          "OnboardingService"
         );
       }
     }

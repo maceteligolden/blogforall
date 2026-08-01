@@ -22,7 +22,7 @@ export const validatorResultSchema = z.object({
       severity: recommendationPrioritySchema,
       message: z.string().min(1),
       evidence: z.string().optional(),
-    }),
+    })
   ),
   recommendations: z.array(optimizationRecommendationSchema),
   metrics: z.record(z.union([z.number(), z.string()])).optional(),
@@ -170,14 +170,11 @@ export function computeOverallScore(input: {
 export function evaluateQualityGate(
   overall: number,
   criticalCount: number,
-  overallMin: number = MVP_LOCKS.optimizeOverallMin,
+  overallMin: number = MVP_LOCKS.optimizeOverallMin
 ): boolean {
   return overall >= overallMin && criticalCount === 0;
 }
 
-export function canOptimizeAgain(
-  optimizeCount: number,
-  maxLoops: number = MVP_LOCKS.optimizeMaxLoops,
-): boolean {
+export function canOptimizeAgain(optimizeCount: number, maxLoops: number = MVP_LOCKS.optimizeMaxLoops): boolean {
   return optimizeCount < maxLoops;
 }

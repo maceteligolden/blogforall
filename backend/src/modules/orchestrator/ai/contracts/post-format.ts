@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-export const POST_FORMATS = [
-  "personal_story",
-  "engineering_reflection",
-  "productivity",
-  "linkedin_post",
-] as const;
+export const POST_FORMATS = ["personal_story", "engineering_reflection", "productivity", "linkedin_post"] as const;
 
 export const postFormatSchema = z.enum(POST_FORMATS);
 export type PostFormat = z.infer<typeof postFormatSchema>;
@@ -46,7 +41,7 @@ export function isNarrativeShaped(text: string): boolean {
 
 export function narrativeFromRecent(
   recent?: Array<{ role: "user" | "assistant"; content: string }>,
-  currentMessage?: string,
+  currentMessage?: string
 ): boolean {
   if (currentMessage && isNarrativeShaped(currentMessage)) return true;
   for (const m of [...(recent ?? [])].reverse().slice(0, 8)) {
@@ -55,9 +50,7 @@ export function narrativeFromRecent(
   return false;
 }
 
-export function priorAskedFormatClarify(
-  recent?: Array<{ role: "user" | "assistant"; content: string }>,
-): boolean {
+export function priorAskedFormatClarify(recent?: Array<{ role: "user" | "assistant"; content: string }>): boolean {
   const prior = [...(recent ?? [])].reverse().find((m) => m.role === "assistant");
   return Boolean(prior && FORMAT_CLARIFY_RE.test(prior.content));
 }
@@ -82,11 +75,7 @@ export type GenreStrategyDefaults = {
   cta: string;
 };
 
-export function strategyDefaultsForFormat(
-  topic: string,
-  audience: string,
-  format?: PostFormat,
-): GenreStrategyDefaults {
+export function strategyDefaultsForFormat(topic: string, audience: string, format?: PostFormat): GenreStrategyDefaults {
   switch (format) {
     case "personal_story":
       return {

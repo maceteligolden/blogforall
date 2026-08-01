@@ -102,8 +102,7 @@ function VerifyEmailForm() {
       await abandonSignupAsync();
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Couldn't cancel signup.";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Couldn't cancel signup.";
       toast({ variant: "error", description: message });
     }
   };

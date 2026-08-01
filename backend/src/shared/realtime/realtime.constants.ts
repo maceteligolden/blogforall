@@ -7,8 +7,7 @@ export const REALTIME_NAMESPACE_DEFAULT = "/realtime";
 export const REALTIME_PATH_DEFAULT = "/socket.io";
 
 /** Max concurrent sockets per authenticated user (fallback). */
-export const REALTIME_MAX_CONNECTIONS_PER_USER_DEFAULT =
-  MAX_SOCKET_CONNECTIONS_PER_USER || 3;
+export const REALTIME_MAX_CONNECTIONS_PER_USER_DEFAULT = MAX_SOCKET_CONNECTIONS_PER_USER || 3;
 
 /** Client → server event names. */
 export const CLIENT_EVENTS = {

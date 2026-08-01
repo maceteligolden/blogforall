@@ -83,9 +83,6 @@ export type MemoryRecord = z.infer<typeof memoryRecordSchema>;
 export type RememberResult = z.infer<typeof rememberResultSchema>;
 
 /** Importance gate used by evaluation pipeline (threshold configurable per layer later). */
-export function passesImportance(
-  score: number,
-  threshold: number,
-): boolean {
+export function passesImportance(score: number, threshold: number): boolean {
   return score >= threshold;
 }

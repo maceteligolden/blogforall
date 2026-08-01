@@ -39,7 +39,7 @@ export function buildV05MoatSnapshot(
     | "quality_gate_passed"
     | "metadata"
   >,
-  phases: readonly WorkflowPhaseEvent[] = [],
+  phases: readonly WorkflowPhaseEvent[] = []
 ): V05MoatSnapshot {
   const research_summary = state.research_summary
     ? {
@@ -67,13 +67,8 @@ export function buildV05MoatSnapshot(
         overall: num(fromPhase?.overall) ?? num(fromMeta.overall),
         seo: num(fromPhase?.seo) ?? num(fromMeta.seo),
         gao: num(fromPhase?.gao) ?? num(fromMeta.gao),
-        quality_gate_passed: Boolean(
-          fromPhase?.quality_gate_passed ?? state.quality_gate_passed ?? false,
-        ),
-        critical_count:
-          num(fromPhase?.critical_count) ??
-          state.optimization_plan?.critical.length ??
-          0,
+        quality_gate_passed: Boolean(fromPhase?.quality_gate_passed ?? state.quality_gate_passed ?? false),
+        critical_count: num(fromPhase?.critical_count) ?? state.optimization_plan?.critical.length ?? 0,
         report_id: state.optimization_report_id,
       }
     : undefined;

@@ -46,10 +46,7 @@ export function SetupProgressRing() {
     refetchInterval: open ? 15_000 : 60_000,
   });
 
-  const incomplete = useMemo(
-    () => progress?.items.filter((i) => !i.done) ?? [],
-    [progress?.items],
-  );
+  const incomplete = useMemo(() => progress?.items.filter((i) => !i.done) ?? [], [progress?.items]);
 
   useEffect(() => {
     if (!progress) return;

@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-export const workflowModeSchema = z.enum([
-  "chat",
-  "quick_draft",
-  "strategist_pipeline",
-  "onboarding",
-]);
+export const workflowModeSchema = z.enum(["chat", "quick_draft", "strategist_pipeline", "onboarding"]);
 
 export const workflowStageSchema = z.enum([
   "idle",

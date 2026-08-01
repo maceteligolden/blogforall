@@ -3,10 +3,7 @@ import type { OrchestratorState } from "../state";
 /** await_human — park confirmation on state; set reply if missing. */
 export function awaitHumanNode(state: OrchestratorState): Partial<OrchestratorState> {
   const confirmation = state.plan?.confirmation ?? state.awaiting_confirmation;
-  const reply =
-    state.reply ??
-    confirmation?.summary ??
-    "I need your confirmation before continuing.";
+  const reply = state.reply ?? confirmation?.summary ?? "I need your confirmation before continuing.";
   return {
     awaiting_confirmation: confirmation,
     reply,

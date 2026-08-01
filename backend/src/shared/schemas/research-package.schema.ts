@@ -48,7 +48,7 @@ const researchPackageEntitySchema = new Schema<ResearchPackageEntity>(
     created_by: { type: String },
     thread_id: { type: String, index: true },
   },
-  { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } },
+  { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );
 
 researchPackageEntitySchema.index({ workspace_id: 1, created_at: -1 });

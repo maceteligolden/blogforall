@@ -13,9 +13,14 @@ describe("RealtimeService", () => {
     } as unknown as SocketIoRealtimeGateway;
 
     const service = new RealtimeService(gateway);
-    service.emitToUser("user-1", REALTIME_EVENTS.NOTIFICATION_CREATED, { id: "n1" }, {
-      correlationId: "corr-1",
-    });
+    service.emitToUser(
+      "user-1",
+      REALTIME_EVENTS.NOTIFICATION_CREATED,
+      { id: "n1" },
+      {
+        correlationId: "corr-1",
+      }
+    );
 
     expect(emitToUser).toHaveBeenCalledTimes(1);
     const [userId, eventName, envelope] = emitToUser.mock.calls[0];

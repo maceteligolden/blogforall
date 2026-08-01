@@ -34,8 +34,7 @@ export class StrategicContextService implements StrategicContextLoader {
 
     const nonDefault = others.data.filter((c) => !c.is_default);
     const topGap = gaps[0];
-    const strategic_top_gap_question =
-      topGap && topGap.strategic_value >= 0.85 ? topGap.question : undefined;
+    const strategic_top_gap_question = topGap && topGap.strategic_value >= 0.85 ? topGap.question : undefined;
 
     const prompt_suffix = [
       "[WORKSPACE STRATEGY]",

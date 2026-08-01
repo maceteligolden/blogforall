@@ -41,15 +41,7 @@ const memoryRecordEntitySchema = new Schema<MemoryRecordEntity>(
     user_id: { type: String, default: null, index: true },
     layer: {
       type: String,
-      enum: [
-        "session",
-        "workspace",
-        "user_preference",
-        "knowledge",
-        "learning",
-        "content_intelligence",
-        "temporary",
-      ],
+      enum: ["session", "workspace", "user_preference", "knowledge", "learning", "content_intelligence", "temporary"],
       required: true,
       index: true,
     },
@@ -68,13 +60,10 @@ const memoryRecordEntitySchema = new Schema<MemoryRecordEntity>(
       version: { type: Number, required: true, min: 1 },
     },
   },
-  { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } },
+  { timestamps: { createdAt: "created_at", updatedAt: "updated_at" } }
 );
 
-memoryRecordEntitySchema.index(
-  { workspace_id: 1, layer: 1, canonical_key: 1, user_id: 1 },
-  { unique: true },
-);
+memoryRecordEntitySchema.index({ workspace_id: 1, layer: 1, canonical_key: 1, user_id: 1 }, { unique: true });
 memoryRecordEntitySchema.index({ workspace_id: 1, layer: 1, "metadata.soft_deleted": 1 });
 
 export default model<MemoryRecordEntity>("MemoryRecord", memoryRecordEntitySchema, "memory_records");

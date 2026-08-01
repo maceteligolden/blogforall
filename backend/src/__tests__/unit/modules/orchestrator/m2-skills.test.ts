@@ -11,7 +11,10 @@ import { buildThinOptimizationReport } from "../../../../modules/orchestrator/ai
 import { ContentStrategyService } from "../../../../modules/orchestrator/ai/skills/strategy/content-strategy.service";
 import { researchPackageToNotes } from "../../../../modules/orchestrator/ai/skills/writing/package-to-notes";
 import { WritingSkillService } from "../../../../modules/orchestrator/ai/skills/writing/writing.service";
-import { assertWritingMayProceed, writingToolAllowlist } from "../../../../modules/orchestrator/ai/skills/writing/writing-guards";
+import {
+  assertWritingMayProceed,
+  writingToolAllowlist,
+} from "../../../../modules/orchestrator/ai/skills/writing/writing-guards";
 
 function samplePackage() {
   return researchPackageSchema.parse({
@@ -55,9 +58,7 @@ function samplePackage() {
         retrieved_at: "2026-07-27T00:00:00.000Z",
       },
     ],
-    references: [
-      { source_id: "s1", url: "https://example.com/agents", title: "Agents overview" },
-    ],
+    references: [{ source_id: "s1", url: "https://example.com/agents", title: "Agents overview" }],
     coverage: {
       items: [{ research_question_id: "q1", status: "completed" }],
       coverage_score: 0.7,
@@ -81,10 +82,8 @@ const richDraft = {
 <h2>How to apply them</h2>
 <p>${"More practical guidance with examples and clear next steps for implementers who want results. ".repeat(14)}</p>
 <p>Try this approach on your next workflow and get started today.</p>`,
-  excerpt:
-    "Learn how AI agents work and how founders can apply them without inventing unsupported claims.",
-  meta_description:
-    "A practical founder guide to AI agents: definitions, pitfalls, and a clear next step to try.",
+  excerpt: "Learn how AI agents work and how founders can apply them without inventing unsupported claims.",
+  meta_description: "A practical founder guide to AI agents: definitions, pitfalls, and a clear next step to try.",
 };
 
 describe("T2.5 WritingSkillService", () => {
@@ -183,7 +182,7 @@ describe("T2.6 ContentOptimizationService", () => {
       persist: false,
     });
     expect(report.validator_results.map((v) => v.validator_id)).toEqual(
-      expect.arrayContaining(["structural", "readability", "seo_thin", "ux_thin"]),
+      expect.arrayContaining(["structural", "readability", "seo_thin", "ux_thin"])
     );
     expect(report.quality.overall).toBeGreaterThanOrEqual(MVP_LOCKS.optimizeOverallMin);
     expect(report.quality_gate_passed).toBe(true);

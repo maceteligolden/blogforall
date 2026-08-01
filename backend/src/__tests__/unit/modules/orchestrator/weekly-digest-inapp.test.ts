@@ -1,8 +1,5 @@
 import { WeeklyDigestService } from "../../../../modules/orchestrator/services/weekly-digest.service";
-import {
-  NotificationChannel,
-  NotificationType,
-} from "../../../../shared/constants/notification.constant";
+import { NotificationChannel, NotificationType } from "../../../../shared/constants/notification.constant";
 
 describe("WeeklyDigestService IN_APP twin", () => {
   it("creates EMAIL and IN_APP notifications for a digest recipient", async () => {

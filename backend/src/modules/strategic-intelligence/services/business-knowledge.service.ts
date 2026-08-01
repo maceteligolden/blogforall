@@ -56,15 +56,8 @@ export class BusinessKnowledgeService {
   ): Promise<MemoryRecord> {
     const now = new Date().toISOString();
     const valueText =
-      typeof value === "string"
-        ? value
-        : Array.isArray(value)
-          ? value.join(", ")
-          : JSON.stringify(value);
-    const importance =
-      opts?.importance ??
-      BUSINESS_KNOWLEDGE_IMPORTANCE[key as BusinessKnowledgeKey] ??
-      0.7;
+      typeof value === "string" ? value : Array.isArray(value) ? value.join(", ") : JSON.stringify(value);
+    const importance = opts?.importance ?? BUSINESS_KNOWLEDGE_IMPORTANCE[key as BusinessKnowledgeKey] ?? 0.7;
     const record: MemoryRecord = {
       id: `mr_${randomUUID()}`,
       workspace_id: siteId,
@@ -174,9 +167,7 @@ export class BusinessKnowledgeService {
     }
     const seo = byKey.get("business.seo_priorities");
     if (seo) {
-      patch.seo_priorities = Array.isArray(seo.value)
-        ? (seo.value as string[])
-        : [String(seo.value_text ?? seo.value)];
+      patch.seo_priorities = Array.isArray(seo.value) ? (seo.value as string[]) : [String(seo.value_text ?? seo.value)];
     }
     const competitors = byKey.get("business.competitors");
     if (competitors?.value_text) patch.competitive_notes = competitors.value_text;

@@ -3,7 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Check, ChevronDown, Copy, ExternalLink, FileText, Loader2, Send, Sparkles, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  Check,
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  FileText,
+  Loader2,
+  Send,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { BlockEditor } from "@/components/editor/BlockEditor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

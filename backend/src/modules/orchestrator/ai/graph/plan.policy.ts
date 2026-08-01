@@ -86,10 +86,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
     });
   }
 
-  if (
-    ctx?.suggested_next_action === "casual_reply" ||
-    ctx?.workflow_intent === "casual"
-  ) {
+  if (ctx?.suggested_next_action === "casual_reply" || ctx?.workflow_intent === "casual") {
     if (state.reply?.trim()) {
       return planResultSchema.parse({
         next: "compose",
@@ -187,10 +184,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
   }
 
   /** Optimize / review session — ADR-005: content_optimization only (never skill_id review). */
-  if (
-    ctx?.workflow_intent === "optimize_content" ||
-    ctx?.suggested_next_action === "revise_current_artifact"
-  ) {
+  if (ctx?.workflow_intent === "optimize_content" || ctx?.suggested_next_action === "revise_current_artifact") {
     if (!state.draft) {
       return planResultSchema.parse({
         next: "compose",
@@ -207,10 +201,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
         rationale: "Run Content Optimization (replaces Review skill)",
       });
     }
-    if (
-      state.quality_gate_passed === false &&
-      state.optimize_count < MVP_LOCKS.optimizeMaxLoops
-    ) {
+    if (state.quality_gate_passed === false && state.optimize_count < MVP_LOCKS.optimizeMaxLoops) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "writing",
@@ -226,10 +217,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
     });
   }
 
-  if (
-    ctx?.workflow_intent === "strategy" ||
-    ctx?.suggested_next_action === "start_planning"
-  ) {
+  if (ctx?.workflow_intent === "strategy" || ctx?.suggested_next_action === "start_planning") {
     if (!state.strategy) {
       return planResultSchema.parse({
         next: "invoke_skill",
@@ -314,10 +302,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
         rationale: "Strategist pipeline: Content Optimization gate",
       });
     }
-    if (
-      state.quality_gate_passed === false &&
-      state.optimize_count < MVP_LOCKS.optimizeMaxLoops
-    ) {
+    if (state.quality_gate_passed === false && state.optimize_count < MVP_LOCKS.optimizeMaxLoops) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "writing",
@@ -333,8 +318,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
     });
   }
 
-  const createPath =
-    state.mode === "quick_draft" || ctx?.workflow_intent === "create_content";
+  const createPath = state.mode === "quick_draft" || ctx?.workflow_intent === "create_content";
 
   if (createPath) {
     if (!state.research_package_id) {
@@ -364,10 +348,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
         rationale: "Run Content Optimization gate",
       });
     }
-    if (
-      state.quality_gate_passed === false &&
-      state.optimize_count < MVP_LOCKS.optimizeMaxLoops
-    ) {
+    if (state.quality_gate_passed === false && state.optimize_count < MVP_LOCKS.optimizeMaxLoops) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "writing",
@@ -393,9 +374,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
 
   if (!state.reply?.trim()) {
     const purpose =
-      ctx?.suggested_next_action === "explain" || ctx?.workflow_intent === "explain"
-        ? "explain"
-        : "casual";
+      ctx?.suggested_next_action === "explain" || ctx?.workflow_intent === "explain" ? "explain" : "casual";
     return planResultSchema.parse({
       next: "invoke_skill",
       skill_id: "conversation",

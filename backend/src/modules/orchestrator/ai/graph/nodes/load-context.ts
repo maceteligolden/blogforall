@@ -14,7 +14,7 @@ export type LoadContextDeps = {
 /** load_context — enrich memory views; no LLM; no understand node. */
 export async function loadContextNode(
   state: OrchestratorState,
-  deps: LoadContextDeps,
+  deps: LoadContextDeps
 ): Promise<Partial<OrchestratorState>> {
   const run = async (): Promise<Partial<OrchestratorState>> => {
     const existing = state.memory_views as { profile?: string; prompt_block?: string } | undefined;
@@ -33,8 +33,7 @@ export async function loadContextNode(
 
     const profile =
       env.orchestrator.strategicIntelligenceEnabled &&
-      (state.mode === "strategist_pipeline" ||
-        state.conversation_context?.workflow_intent === "create_content")
+      (state.mode === "strategist_pipeline" || state.conversation_context?.workflow_intent === "create_content")
         ? "strategy_full"
         : "chat_light";
 
@@ -52,11 +51,7 @@ export async function loadContextNode(
     let campaign_id = state.campaign_id;
 
     if (env.orchestrator.strategicIntelligenceEnabled && deps.strategicContext) {
-      const ctx = await deps.strategicContext.load(
-        state.workspace_id,
-        state.user_id,
-        state.campaign_id,
-      );
+      const ctx = await deps.strategicContext.load(state.workspace_id, state.user_id, state.campaign_id);
       strategicMeta = {
         ...ctx.metadata,
         campaign_resolved: true,
@@ -106,11 +101,10 @@ export async function loadContextNode(
       const patch = await run();
       const first = patch.progress_events?.[0];
       span.setAttributes({
-        token_budget_used: (first?.meta as { token_budget_used?: number } | undefined)
-          ?.token_budget_used,
+        token_budget_used: (first?.meta as { token_budget_used?: number } | undefined)?.token_budget_used,
         skipped: first?.message?.includes("Skipped") ?? false,
       });
       return patch;
-    },
+    }
   );
 }

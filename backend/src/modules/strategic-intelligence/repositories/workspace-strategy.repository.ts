@@ -25,11 +25,7 @@ export class WorkspaceStrategyRepository {
     return doc.save();
   }
 
-  async updateActive(
-    siteId: string,
-    patch: Partial<WorkspaceStrategy>,
-    userId?: string
-  ): Promise<WorkspaceStrategy> {
+  async updateActive(siteId: string, patch: Partial<WorkspaceStrategy>, userId?: string): Promise<WorkspaceStrategy> {
     const updated = await WorkspaceStrategyModel.findOneAndUpdate(
       { site_id: siteId, status: "active" },
       { $set: { ...patch, updated_by: userId, updated_at: new Date() } },

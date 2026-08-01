@@ -6,9 +6,7 @@ import type { RealtimeConnectionStatus } from "@/lib/realtime";
 
 export function useRealtimeStatus(): RealtimeConnectionStatus {
   const realtime = useRealtimeOptional();
-  const [status, setStatus] = useState<RealtimeConnectionStatus>(
-    realtime?.client.getStatus() ?? "disconnected"
-  );
+  const [status, setStatus] = useState<RealtimeConnectionStatus>(realtime?.client.getStatus() ?? "disconnected");
 
   useEffect(() => {
     if (!realtime) {

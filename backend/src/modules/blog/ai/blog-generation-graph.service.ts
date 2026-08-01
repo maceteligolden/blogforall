@@ -188,9 +188,7 @@ export class BlogGenerationGraphService {
   ): Promise<{ title: string; sections: Array<{ heading: string; summary: string }> }> {
     this.assertConfigured();
     if (!analysis.is_valid) {
-      throw new BadRequestError(
-        analysis.rejection_reason || "Prompt analysis is invalid for outline generation."
-      );
+      throw new BadRequestError(analysis.rejection_reason || "Prompt analysis is invalid for outline generation.");
     }
     const chat = this.getMainChat();
     const structured = chat.withStructuredOutput(OutlineSchema);

@@ -69,7 +69,7 @@ export class MemoryManagerService {
     private readonly packs: ContextPackBuilderService,
     private readonly extraction: MemoryExtractionService,
     private readonly workspaceMemory: WorkspaceMemoryRepository,
-    private readonly memoryRecords: MemoryRecordRepository,
+    private readonly memoryRecords: MemoryRecordRepository
   ) {}
 
   async retrieve(ctx: RetrievalContext): Promise<MemoryRetrievalResult> {
@@ -105,10 +105,7 @@ export class MemoryManagerService {
       prompt_block += `\n\n[SETUP GAPS]\nWorkspace profile still missing: ${setup_gaps.join(", ")}. When the user wants to finish setup, ask only about these — do not invent values.`;
     }
 
-    const token_budget_used = Math.min(
-      ctx.token_budget ?? 2000,
-      Math.ceil(prompt_block.length / 4),
-    );
+    const token_budget_used = Math.min(ctx.token_budget ?? 2000, Math.ceil(prompt_block.length / 4));
 
     const [preferences, knowledge, learning, content_intelligence] = await Promise.all([
       this.memoryRecords.listByLayer(ctx.workspace_id, "user_preference", {
@@ -146,10 +143,7 @@ export class MemoryManagerService {
    * Async remember — M2 uses in-process best-effort (Bull queue later).
    * Never blocks the caller beyond enqueue.
    */
-  async rememberAsync(
-    candidate: MemoryCandidate,
-    opts?: { turn_id?: string },
-  ): Promise<{ job_id: string }> {
+  async rememberAsync(candidate: MemoryCandidate, opts?: { turn_id?: string }): Promise<{ job_id: string }> {
     const parsed = memoryCandidateSchema.parse({
       ...candidate,
       turn_id: opts?.turn_id ?? candidate.turn_id,
@@ -167,20 +161,14 @@ export class MemoryManagerService {
     return result;
   }
 
-  private async runRememberJob(
-    candidate: MemoryCandidate,
-    _jobId: string,
-  ): Promise<RememberResult> {
+  private async runRememberJob(candidate: MemoryCandidate, _jobId: string): Promise<RememberResult> {
     if (candidate.proposed_layer === "discard") {
       return { status: "discarded" };
     }
 
     let record_id = candidate.id;
 
-    if (
-      candidate.proposed_layer &&
-      candidate.proposed_key
-    ) {
+    if (candidate.proposed_layer && candidate.proposed_key) {
       const now = new Date().toISOString();
       const record = memoryRecordSchema.parse({
         id: candidate.id ?? randomUUID(),
@@ -218,7 +206,7 @@ export class MemoryManagerService {
   }
 
   private profileToSessionMode(
-    profile: RetrievalProfile,
+    profile: RetrievalProfile
   ): "planning" | "writing" | "research" | "review" | "casual" | "strategy" {
     switch (profile) {
       case "write_full":

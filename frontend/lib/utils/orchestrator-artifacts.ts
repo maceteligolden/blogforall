@@ -48,12 +48,7 @@ export const VIEWABLE_ARTIFACT_TOOLS = new Set([
   "search.web",
 ]);
 
-export const DRAFT_ARTIFACT_TOOLS = new Set([
-  "blogs.generateDraft",
-  "blogs.createDraft",
-  "blogs.update",
-  "blogs.get",
-]);
+export const DRAFT_ARTIFACT_TOOLS = new Set(["blogs.generateDraft", "blogs.createDraft", "blogs.update", "blogs.get"]);
 
 export function extractBlogIdFromArtifactData(data: Record<string, unknown>): string | undefined {
   if (typeof data.blog_id === "string") return data.blog_id;

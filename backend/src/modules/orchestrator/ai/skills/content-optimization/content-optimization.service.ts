@@ -1,9 +1,6 @@
 import { injectable } from "tsyringe";
 import type { BlogReviewResult } from "../../../../blog/ai/blog-review.runner";
-import {
-  canOptimizeAgain,
-  type ContentOptimizationReport,
-} from "../../contracts/content-optimization";
+import { canOptimizeAgain, type ContentOptimizationReport } from "../../contracts/content-optimization";
 import { ArtifactStoreService } from "../../memory/artifact-store.service";
 import type { PhaseListener } from "../../observability/phase-emitter";
 import { mapBlogReviewToOptimizationReport } from "./review-adapter";

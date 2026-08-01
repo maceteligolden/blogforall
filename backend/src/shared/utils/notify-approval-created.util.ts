@@ -1,11 +1,5 @@
-import {
-  NotificationChannel,
-  NotificationType,
-} from "../constants/notification.constant";
-import {
-  OrchestratorApprovalKind,
-  type OrchestratorApproval,
-} from "../schemas/orchestrator-approval.schema";
+import { NotificationChannel, NotificationType } from "../constants/notification.constant";
+import { OrchestratorApprovalKind, type OrchestratorApproval } from "../schemas/orchestrator-approval.schema";
 import type { NotificationService } from "../../modules/notification/services/notification.service";
 import { logger } from "./logger";
 
@@ -54,9 +48,7 @@ export async function notifyApprovalCreatedInApp(
         thread_id: approval.thread_id,
         action: approval.action,
         kind: approval.kind,
-        ...(typeof approval.payload?.blog_id === "string"
-          ? { blog_id: approval.payload.blog_id }
-          : {}),
+        ...(typeof approval.payload?.blog_id === "string" ? { blog_id: approval.payload.blog_id } : {}),
         ...(typeof approval.payload?.scheduled_post_id === "string"
           ? { scheduled_post_id: approval.payload.scheduled_post_id }
           : {}),

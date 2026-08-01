@@ -3,23 +3,18 @@ import type { OrchestratorState } from "../state";
 
 function formatResearchReport(pkg: ResearchPackage, summary?: OrchestratorState["research_summary"]): string {
   const topic = pkg.topic || summary?.topic || "this topic";
-  const notes = [
-    ...pkg.facts,
-    ...pkg.definitions,
-    ...pkg.statistics,
-    ...pkg.examples,
-    ...pkg.recent_developments,
-  ]
+  const notes = [...pkg.facts, ...pkg.definitions, ...pkg.statistics, ...pkg.examples, ...pkg.recent_developments]
     .map((f) => f.text.trim())
     .filter(Boolean)
     .slice(0, 8);
 
-  const sources = (pkg.sources.length
-    ? pkg.sources
-    : pkg.references.map((r) => ({
-        title: r.title,
-        url: r.url,
-      }))
+  const sources = (
+    pkg.sources.length
+      ? pkg.sources
+      : pkg.references.map((r) => ({
+          title: r.title,
+          url: r.url,
+        }))
   )
     .slice(0, 8)
     .map((s, i) => `${i + 1}. ${s.title}${s.url ? ` — ${s.url}` : ""}`);
@@ -31,7 +26,7 @@ function formatResearchReport(pkg: ResearchPackage, summary?: OrchestratorState[
   } else {
     lines.push(
       "",
-      `I pulled ${summary?.source_count ?? pkg.sources.length} sources but didn’t extract clear notes — skim the sources below.`,
+      `I pulled ${summary?.source_count ?? pkg.sources.length} sources but didn’t extract clear notes — skim the sources below.`
     );
   }
 
@@ -86,7 +81,7 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
         (state.research_summary.contradiction_count
           ? ` Contradictions noted: ${state.research_summary.contradiction_count}.`
           : "") +
-        " Full notes weren’t available this turn — ask me to expand on any angle.",
+        " Full notes weren’t available this turn — ask me to expand on any angle."
     );
   }
 
@@ -96,7 +91,7 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
     parts.push(
       headings.length
         ? `Outline “${outline.title ?? "Draft"}”: ${headings.join(" → ")}.`
-        : `Outline ready${outline.title ? `: “${outline.title}”` : ""}.`,
+        : `Outline ready${outline.title ? `: “${outline.title}”` : ""}.`
     );
   }
 
@@ -107,17 +102,12 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
 
   if (state.optimization_plan) {
     const overall = state.quality_gate_passed ? "passed" : "needs work";
-    const scores = state.metadata?.quality_scores as
-      | { seo?: number; gao?: number; overall?: number }
-      | undefined;
+    const scores = state.metadata?.quality_scores as { seo?: number; gao?: number; overall?: number } | undefined;
     const scoreLine =
-      scores &&
-      [scores.seo, scores.gao, scores.overall].every((n) => typeof n === "number")
+      scores && [scores.seo, scores.gao, scores.overall].every((n) => typeof n === "number")
         ? ` SEO ${scores.seo} / GAO ${scores.gao} / overall ${scores.overall}.`
         : "";
-    parts.push(
-      `Optimization gate ${overall}.${scoreLine} Critical items: ${state.optimization_plan.critical.length}.`,
-    );
+    parts.push(`Optimization gate ${overall}.${scoreLine} Critical items: ${state.optimization_plan.critical.length}.`);
     if (state.optimization_plan.writing_brief) {
       parts.push(state.optimization_plan.writing_brief);
     }
@@ -131,7 +121,7 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
   if (!parts.length) {
     parts.push(
       ctx?.clarification_question?.trim() ||
-        "What would you like to do next — draft, research, or look something up here?",
+        "What would you like to do next — draft, research, or look something up here?"
     );
   }
 

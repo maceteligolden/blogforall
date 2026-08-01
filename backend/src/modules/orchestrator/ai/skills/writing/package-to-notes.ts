@@ -4,12 +4,7 @@ import type { ResearchPackage } from "../../contracts/research-package";
 /** Map Research Package sources (+ fact snippets) into BlogGraph research notes. */
 export function researchPackageToNotes(pkg: ResearchPackage): ResearchNote[] {
   return pkg.sources.map((s) => {
-    const related = [
-      ...pkg.facts,
-      ...pkg.definitions,
-      ...pkg.statistics,
-      ...pkg.examples,
-    ]
+    const related = [...pkg.facts, ...pkg.definitions, ...pkg.statistics, ...pkg.examples]
       .filter((f) => f.source_id === s.id)
       .map((f) => f.text)
       .slice(0, 2);

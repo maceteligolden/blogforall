@@ -26,11 +26,17 @@ function stripTags(html: string): string {
 }
 
 function sentences(text: string): string[] {
-  return text.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
+  return text
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 function paragraphs(html: string): string[] {
-  const parts = html.split(/<\/p>|<br\s*\/?>|\n\n+/i).map((p) => stripTags(p)).filter(Boolean);
+  const parts = html
+    .split(/<\/p>|<br\s*\/?>|\n\n+/i)
+    .map((p) => stripTags(p))
+    .filter(Boolean);
   return parts.length ? parts : [stripTags(html)].filter(Boolean);
 }
 
@@ -39,7 +45,7 @@ function rec(
   priority: OptimizationRecommendation["priority"],
   dimension: string,
   message: string,
-  target?: OptimizationRecommendation["target"],
+  target?: OptimizationRecommendation["target"]
 ): OptimizationRecommendation {
   return { id, priority, dimension, message, target };
 }
@@ -80,7 +86,7 @@ export function runStructuralValidator(draft: DraftForOptimize): ValidatorResult
 
   const score = Math.max(
     0,
-    100 - issues.reduce((a, i) => a + (i.severity === "Critical" ? 30 : i.severity === "High" ? 15 : 8), 0),
+    100 - issues.reduce((a, i) => a + (i.severity === "Critical" ? 30 : i.severity === "High" ? 15 : 8), 0)
   );
   return {
     validator_id: "structural",
@@ -97,12 +103,8 @@ export function runReadabilityValidator(draft: DraftForOptimize): ValidatorResul
   const text = stripTags(draft.content);
   const sents = sentences(text);
   const paras = paragraphs(draft.content);
-  const avgSentence = sents.length
-    ? sents.reduce((a, s) => a + s.split(/\s+/).length, 0) / sents.length
-    : 0;
-  const avgPara = paras.length
-    ? paras.reduce((a, p) => a + p.split(/\s+/).length, 0) / paras.length
-    : 0;
+  const avgSentence = sents.length ? sents.reduce((a, s) => a + s.split(/\s+/).length, 0) / sents.length : 0;
+  const avgPara = paras.length ? paras.reduce((a, p) => a + p.split(/\s+/).length, 0) / paras.length : 0;
   const issues: ValidatorResult["issues"] = [];
   const recommendations: OptimizationRecommendation[] = [];
   if (avgSentence > 28) {
@@ -111,9 +113,7 @@ export function runReadabilityValidator(draft: DraftForOptimize): ValidatorResul
       severity: "Medium",
       message: `Average sentence length ${avgSentence.toFixed(1)} words`,
     });
-    recommendations.push(
-      rec("read_sent", "Medium", "readability", "Shorten long sentences for scanability", "body"),
-    );
+    recommendations.push(rec("read_sent", "Medium", "readability", "Shorten long sentences for scanability", "body"));
   }
   if (avgPara > 120) {
     issues.push({
@@ -150,9 +150,7 @@ export function runSeoThinValidator(draft: DraftForOptimize, topic?: string): Va
       severity: "High",
       message: `Meta/excerpt length ${meta.length} outside 50–160`,
     });
-    recommendations.push(
-      rec("seo_meta", "High", "seo", "Write a 50–160 character meta description", "meta"),
-    );
+    recommendations.push(rec("seo_meta", "High", "seo", "Write a 50–160 character meta description", "meta"));
   }
   if (topic) {
     const needle = topic.toLowerCase().split(/\s+/).slice(0, 3).join(" ");
@@ -176,23 +174,17 @@ export function runSeoThinValidator(draft: DraftForOptimize, topic?: string): Va
 }
 
 /** Thin UX heuristics — must not solely fail the quality gate (ADR-008). */
-export function runUxThinValidator(
-  draft: DraftForOptimize,
-  opts?: { softPersonal?: boolean },
-): ValidatorResult {
+export function runUxThinValidator(draft: DraftForOptimize, opts?: { softPersonal?: boolean }): ValidatorResult {
   const text = stripTags(draft.content);
   const first = text.slice(0, 280).toLowerCase();
   const hasHook = first.length > 40;
-  const hasCta =
-    /\b(try this|try it|learn more|subscribe|contact us|get started|read more|sign up|book a)\b/i.test(
-      text,
-    );
+  const hasCta = /\b(try this|try it|learn more|subscribe|contact us|get started|read more|sign up|book a)\b/i.test(
+    text
+  );
   const recommendations: OptimizationRecommendation[] = [];
   // Personal/linkedin: do not push CTA / takeaway recommendations.
   if (!opts?.softPersonal && !hasCta) {
-    recommendations.push(
-      rec("ux_cta", "Low", "ux", "Consider a clear call-to-action near the end", "body"),
-    );
+    recommendations.push(rec("ux_cta", "Low", "ux", "Consider a clear call-to-action near the end", "body"));
   }
   const hook = hasHook ? 75 : 50;
   const cta = opts?.softPersonal ? 80 : hasCta ? 80 : 55;
@@ -212,7 +204,7 @@ export function runUxThinValidator(
 
 export function assembleOptimizationPlan(
   validators: ValidatorResult[],
-  opts?: { softPersonal?: boolean },
+  opts?: { softPersonal?: boolean }
 ): OptimizationPlan {
   const all = validators.flatMap((v) => v.recommendations);
   const critical = all.filter((r) => r.priority === "Critical");
@@ -246,8 +238,7 @@ export function buildThinOptimizationReport(input: {
   /** Soften CTA/takeaway pressure for personal_story / linkedin_post. */
   post_format?: string;
 }): ContentOptimizationReport {
-  const softPersonal =
-    input.post_format === "personal_story" || input.post_format === "linkedin_post";
+  const softPersonal = input.post_format === "personal_story" || input.post_format === "linkedin_post";
   const structural = runStructuralValidator(input.draft);
   const readability = runReadabilityValidator(input.draft);
   const seo = runSeoThinValidator(input.draft, input.topic);

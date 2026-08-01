@@ -47,7 +47,14 @@ import {
   CampaignScheduleAdditionalPostsTool,
 } from "./tools/campaign.tools";
 import { SearchWebTool } from "./tools/search.tools";
-import { StrategyProposeCalendarTool, StrategyGetTool, StrategyUpdateTool, KnowledgeListGapsTool, KnowledgeUpsertTool, DecisionsProposeTool } from "./tools/strategy.tools";
+import {
+  StrategyProposeCalendarTool,
+  StrategyGetTool,
+  StrategyUpdateTool,
+  KnowledgeListGapsTool,
+  KnowledgeUpsertTool,
+  DecisionsProposeTool,
+} from "./tools/strategy.tools";
 
 /**
  * Boots the orchestrator's tool surface. Called once from server startup

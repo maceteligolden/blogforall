@@ -34,7 +34,7 @@ export type ResearchLiteResult = {
 export class ResearchLiteService {
   constructor(
     private readonly tavily: TavilySearchService,
-    private readonly artifacts: ArtifactStoreService,
+    private readonly artifacts: ArtifactStoreService
   ) {}
 
   async run(input: ResearchLiteInput): Promise<ResearchLiteResult> {

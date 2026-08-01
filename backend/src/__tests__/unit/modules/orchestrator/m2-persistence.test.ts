@@ -76,9 +76,7 @@ describe("T2.4 ResearchFullService", () => {
       snippet: `Fact ${i}`,
     }));
     const tavily = {
-      search: jest.fn(async (q: string) =>
-        notes.map((n, i) => ({ ...n, url: `${n.url}-${q.slice(0, 8)}-${i}` })),
-      ),
+      search: jest.fn(async (q: string) => notes.map((n, i) => ({ ...n, url: `${n.url}-${q.slice(0, 8)}-${i}` }))),
     };
     const artifacts = {
       saveResearchPackage: jest.fn(async (pkg: { id: string }) => ({ package_id: pkg.id })),

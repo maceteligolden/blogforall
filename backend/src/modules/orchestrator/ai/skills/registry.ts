@@ -6,10 +6,7 @@ export type SkillHandlerResult = {
   summary: string;
 };
 
-export type SkillHandler = (
-  state: OrchestratorState,
-  args: Record<string, unknown>,
-) => Promise<SkillHandlerResult>;
+export type SkillHandler = (state: OrchestratorState, args: Record<string, unknown>) => Promise<SkillHandlerResult>;
 
 /**
  * Thin skill registry (doc 06 / 15). Graph invoke_skill dispatches here.
@@ -25,11 +22,7 @@ export class SkillRegistry {
     return this.handlers.has(id);
   }
 
-  async run(
-    id: SkillId,
-    state: OrchestratorState,
-    args: Record<string, unknown> = {},
-  ): Promise<SkillHandlerResult> {
+  async run(id: SkillId, state: OrchestratorState, args: Record<string, unknown> = {}): Promise<SkillHandlerResult> {
     const handler = this.handlers.get(id);
     if (!handler) {
       throw new Error(`Skill not registered: ${id}`);

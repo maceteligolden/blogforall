@@ -141,8 +141,7 @@ export const env = {
      * Strategic Intelligence (doc 21 / ADR-015): Default Campaign binding, WorkspaceStrategy,
      * belief confidence, decision engine, learning loop. Default **true**.
      */
-    strategicIntelligenceEnabled:
-      (process.env.STRATEGIC_INTELLIGENCE_ENABLED || "true").toLowerCase() !== "false",
+    strategicIntelligenceEnabled: (process.env.STRATEGIC_INTELLIGENCE_ENABLED || "true").toLowerCase() !== "false",
   },
 
   /**
@@ -160,11 +159,7 @@ export const env = {
     researchMinSources: parseIntEnv(process.env.COGNITION_RESEARCH_MIN_SOURCES, 5),
     researchMaxSources: parseIntEnv(process.env.COGNITION_RESEARCH_MAX_SOURCES, 15),
     reasoningRetentionDays: parseIntEnv(process.env.COGNITION_REASONING_RETENTION_DAYS, 90),
-    redisUrl: (
-      process.env.COGNITION_REDIS_URL ||
-      process.env.REDIS_URL ||
-      ""
-    ).trim(),
+    redisUrl: (process.env.COGNITION_REDIS_URL || process.env.REDIS_URL || "").trim(),
   },
 
   memory: {

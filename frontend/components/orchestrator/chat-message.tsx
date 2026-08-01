@@ -37,7 +37,15 @@ function autoLinkBareUrls(input: string): string {
  * Single conversation bubble. Tool messages render compact as a status row so
  * they don't visually compete with assistant prose.
  */
-export function ChatMessage({ role, content, toolName, className, artifactId, onViewArtifact, moat }: ChatMessageProps) {
+export function ChatMessage({
+  role,
+  content,
+  toolName,
+  className,
+  artifactId,
+  onViewArtifact,
+  moat,
+}: ChatMessageProps) {
   if (role === "tool") {
     const clickable = !!artifactId && !!onViewArtifact;
     return (

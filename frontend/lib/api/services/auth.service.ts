@@ -101,10 +101,7 @@ export class AuthService {
     return apiClient.post(API_ENDPOINTS.AUTH.RESEND_VERIFICATION);
   }
 
-  static async setCompanyRole(data: {
-    company_role: string;
-    company_role_detail?: string;
-  }) {
+  static async setCompanyRole(data: { company_role: string; company_role_detail?: string }) {
     return apiClient.post(API_ENDPOINTS.AUTH.COMPANY_ROLE, data);
   }
 

@@ -201,7 +201,7 @@ export class AuthService {
 
   async setCompanyRole(
     userId: string,
-    input: { company_role: string; company_role_detail?: string },
+    input: { company_role: string; company_role_detail?: string }
   ): Promise<LoginResponse> {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundError("User not found");

@@ -27,13 +27,7 @@ export function mapBlogReviewToOptimizationReport(input: {
     dimension: s.type,
     message: s.explanation || s.suggestion,
     target:
-      s.target === "title"
-        ? "title"
-        : s.target === "excerpt"
-          ? "excerpt"
-          : s.target === "content"
-            ? "body"
-            : undefined,
+      s.target === "title" ? "title" : s.target === "excerpt" ? "excerpt" : s.target === "content" ? "body" : undefined,
     suggested_action: s.suggestion,
   }));
   const critical = recommendations.filter((r) => r.priority === "Critical");

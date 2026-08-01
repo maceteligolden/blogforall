@@ -92,7 +92,10 @@ export class StrategicIntelligenceController {
       const userId = getJwtUserId(req);
       const { canonicalKey } = req.validatedParams as { siteId: string; canonicalKey: string };
       const body = (req.validatedBody ?? req.body) as { value: unknown; confidence?: number };
-      if (!BUSINESS_KNOWLEDGE_KEYS.includes(canonicalKey as BusinessKnowledgeKey) && !canonicalKey.startsWith("business.")) {
+      if (
+        !BUSINESS_KNOWLEDGE_KEYS.includes(canonicalKey as BusinessKnowledgeKey) &&
+        !canonicalKey.startsWith("business.")
+      ) {
         throw new BadRequestError("Unknown knowledge key");
       }
       if (body.value === undefined) throw new BadRequestError("value is required");

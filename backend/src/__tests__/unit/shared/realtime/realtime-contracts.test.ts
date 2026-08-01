@@ -6,10 +6,14 @@ import { realtimeMetrics } from "../../../../shared/realtime/observability/realt
 
 describe("realtime envelope", () => {
   it("builds a v1 envelope with eventId and timestamp", () => {
-    const envelope = buildRealtimeEnvelope(REALTIME_EVENTS.NOTIFICATION_CREATED, { id: "n1" }, {
-      correlationId: "c1",
-      siteId: "s1",
-    });
+    const envelope = buildRealtimeEnvelope(
+      REALTIME_EVENTS.NOTIFICATION_CREATED,
+      { id: "n1" },
+      {
+        correlationId: "c1",
+        siteId: "s1",
+      }
+    );
     expect(envelope.v).toBe(1);
     expect(envelope.name).toBe("notification.created");
     expect(envelope.payload).toEqual({ id: "n1" });

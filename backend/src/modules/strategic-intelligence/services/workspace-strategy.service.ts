@@ -60,9 +60,7 @@ export class WorkspaceStrategyService {
     const gaps = await this.knowledge.listGaps(siteId);
     const avgConfidence = await this.knowledge.averageConfidence(siteId);
 
-    const audience =
-      memory.strategic.target_audience?.join(", ") ||
-      "target audience still being learned";
+    const audience = memory.strategic.target_audience?.join(", ") || "target audience still being learned";
     const goals = memory.strategic.business_goals?.length
       ? memory.strategic.business_goals
       : ["Grow awareness and trust through consistent, useful content"];
@@ -70,8 +68,7 @@ export class WorkspaceStrategyService {
     const voice = memory.strategic.brand_voice?.trim() || "clear, helpful, and credible";
 
     const thin = !memory.strategic.business_type && !memory.strategic.target_audience?.length;
-    const source: WorkspaceStrategySource =
-      opts?.source ?? (thin ? "stub" : gaps.length > 8 ? "ai" : "onboarding");
+    const source: WorkspaceStrategySource = opts?.source ?? (thin ? "stub" : gaps.length > 8 ? "ai" : "onboarding");
 
     const purpose = thin
       ? `Build topical authority for ${businessType} while learning who we serve.`
@@ -83,15 +80,9 @@ export class WorkspaceStrategyService {
       version: await this.strategies.nextVersion(siteId),
       purpose,
       long_term_outcomes: goals,
-      principles: [
-        `Sound ${voice}`,
-        "Prefer evidence over hype",
-        "Every post should advance a campaign objective",
-      ],
+      principles: [`Sound ${voice}`, "Prefer evidence over hype", "Every post should advance a campaign objective"],
       audience_summary: audience,
-      perception_goals: [
-        `Be seen as a trusted guide for ${audience}`,
-      ],
+      perception_goals: [`Be seen as a trusted guide for ${audience}`],
       constraints: memory.strategic.seo_priorities?.length
         ? [`Respect SEO priorities: ${memory.strategic.seo_priorities.join(", ")}`]
         : ["Do not invent unsupported claims"],

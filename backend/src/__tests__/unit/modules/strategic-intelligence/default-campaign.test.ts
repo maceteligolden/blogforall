@@ -76,8 +76,6 @@ describe("CampaignService Default Campaign (Strategic Intelligence)", () => {
 
   it("refuses to delete the default campaign", async () => {
     campaignRepository.findById.mockResolvedValue(defaultCampaign);
-    await expect(service.deleteCampaign("camp_default", "site1", "user1")).rejects.toThrow(
-      /Default \(Evergreen\)/
-    );
+    await expect(service.deleteCampaign("camp_default", "site1", "user1")).rejects.toThrow(/Default \(Evergreen\)/);
   });
 });
