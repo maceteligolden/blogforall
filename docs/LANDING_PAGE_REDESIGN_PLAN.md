@@ -1,5 +1,9 @@
 # Landing Page Redesign Plan — Slick, Minimal, Conversion-Focused
 
+> **Superseded (2026-08-01).** Do not implement this document.  
+> Canonical homepage requirements: [`LANDING_PAGE_REQUIREMENTS.md`](./LANDING_PAGE_REQUIREMENTS.md).  
+> That LPRD locks open signup with **full Free-plan access** (no waitlist, no trial framing) and a strategist-led information architecture. This file is retained only for historical context.
+
 **Goal:** A non-technical CEO can scan the page and make a business decision in under 30 seconds. Less copy, clearer outcomes, one primary path to signup.
 
 ---

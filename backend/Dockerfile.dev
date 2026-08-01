@@ -14,4 +14,6 @@ RUN mkdir -p uploads
 
 EXPOSE 5005
 
-CMD ["nodemon", "src/index.ts"]
+# Anonymous /app/node_modules volume can go stale when package.json gains deps.
+# Reconcile on start so host lockfile changes are installed into the volume.
+CMD ["sh", "-c", "yarn install --frozen-lockfile && exec nodemon src/index.ts"]

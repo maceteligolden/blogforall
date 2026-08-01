@@ -18,9 +18,12 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Bloggr - AI Blog Workspace",
+  title: {
+    default: "Bloggr — AI content strategist that knows your business",
+    template: "%s | Bloggr",
+  },
   description:
-    "AI-overseen blog workspace with context-aware generation, campaign planning, and scheduling—control your content strategy through conversation.",
+    "Plan, research, write, and publish on-brand blog content through conversation—not endless prompts. Full access free.",
 };
 
 export default function RootLayout({

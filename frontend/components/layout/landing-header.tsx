@@ -5,24 +5,17 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { LANDING_CTAS } from "@/lib/landing/landing-copy";
 import { cn } from "@/lib/utils/cn";
 
 const NAV_LINKS = [
+  { href: "/#product", label: "Product" },
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#difference", label: "The difference" },
-  { href: "/#why-not-generic", label: "Why Bloggr" },
+  { href: "/#why-bloggr", label: "Why Bloggr" },
+  { href: "/#pricing", label: "Pricing" },
   { href: "/docs", label: "Docs", hideOnMobile: true },
   { href: "/contact", label: "Contact" },
 ] as const;
-
-function scrollToWaitlistHero() {
-  const hero = document.getElementById("waitlist-hero");
-  const emailInput = document.getElementById("waitlist-email-hero");
-  if (hero) {
-    hero.scrollIntoView({ behavior: "smooth" });
-  }
-  window.setTimeout(() => emailInput?.focus(), 400);
-}
 
 export function LandingHeader() {
   const { isAuthenticated } = useAuthStore();
@@ -30,24 +23,19 @@ export function LandingHeader() {
 
   const closeMobile = () => setMobileOpen(false);
 
-  const handleEarlyAccess = () => {
-    closeMobile();
-    scrollToWaitlistHero();
-  };
-
   return (
     <header className="bg-black/90 backdrop-blur-md border-b border-gray-800/80 sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-6 lg:px-8">
-        <nav className="flex justify-between items-center h-16">
+        <nav className="flex justify-between items-center h-16" aria-label="Primary">
           <Link
             href="/"
-            className="flex items-center font-semibold text-white hover:text-primary transition-colors"
+            className="flex items-center font-display text-xl tracking-[0.08em] text-white hover:text-primary transition-colors"
             onClick={closeMobile}
           >
             Bloggr
           </Link>
 
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-7">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
@@ -59,26 +47,35 @@ export function LandingHeader() {
             ))}
             {isAuthenticated ? (
               <Link href="/dashboard">
-                <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2">
-                  Dashboard
+                <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2 transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0">
+                  {LANDING_CTAS.dashboard}
                 </Button>
               </Link>
             ) : (
-              <Button
-                type="button"
-                onClick={handleEarlyAccess}
-                className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2"
-              >
-                Get early access
-              </Button>
+              <div className="flex items-center gap-3">
+                <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
+                  {LANDING_CTAS.logIn}
+                </Link>
+                <Link href="/auth/signup">
+                  <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2 transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0">
+                    {LANDING_CTAS.startFree}
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
 
           <div className="flex items-center gap-3 md:hidden">
-            {isAuthenticated && (
+            {isAuthenticated ? (
               <Link href="/dashboard">
                 <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-3 py-2">
                   Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/auth/signup">
+                <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-3 py-2">
+                  {LANDING_CTAS.startFree}
                 </Button>
               </Link>
             )}
@@ -115,13 +112,20 @@ export function LandingHeader() {
             </Link>
           ))}
           {!isAuthenticated && (
-            <Button
-              type="button"
-              onClick={handleEarlyAccess}
-              className="mt-2 min-h-[48px] w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg"
-            >
-              Get early access
-            </Button>
+            <>
+              <Link
+                href="/auth/login"
+                onClick={closeMobile}
+                className="text-sm text-gray-400 hover:text-white transition-colors py-3 min-h-[44px] flex items-center"
+              >
+                {LANDING_CTAS.logIn}
+              </Link>
+              <Link href="/auth/signup" onClick={closeMobile} className="mt-2 block">
+                <Button className="min-h-[48px] w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg">
+                  {LANDING_CTAS.startFree}
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
