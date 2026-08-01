@@ -14,10 +14,7 @@ export function ProductIntroSection() {
           </div>
         </Reveal>
         <Reveal delayMs={60}>
-          <ProductMock
-            variant="workspace"
-            alt="Bloggr workspace showing a conversation and a draft panel"
-          />
+          <ProductMock variant="workspace" alt="Bloggr workspace showing a conversation and a draft panel" />
         </Reveal>
       </div>
     </section>

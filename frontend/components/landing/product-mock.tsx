@@ -1,14 +1,6 @@
 import { cn } from "@/lib/utils/cn";
 
-type MockVariant =
-  | "workspace"
-  | "goal"
-  | "context"
-  | "research"
-  | "draft"
-  | "calendar"
-  | "memory"
-  | "api";
+type MockVariant = "workspace" | "goal" | "context" | "research" | "draft" | "calendar" | "memory" | "api";
 
 interface ProductMockProps {
   variant?: MockVariant;
