@@ -13,6 +13,8 @@ export interface CreateBlogInput {
   images?: string[];
   status?: BlogStatus;
   category?: string;
+  campaign_id?: string;
+  strategy_id?: string;
   dynamic_forms?: Record<string, unknown>;
   meta?: {
     description?: string;
@@ -30,6 +32,8 @@ export interface UpdateBlogInput {
   images?: string[];
   status?: BlogStatus;
   category?: string;
+  campaign_id?: string;
+  strategy_id?: string;
   dynamic_forms?: Record<string, unknown>;
   meta?: {
     description?: string;

@@ -78,7 +78,7 @@ export function useAuth() {
         }
       }
 
-      router.push("/onboarding/create-site");
+      router.push("/auth/verify-email");
     },
     onError: (error: unknown) => {
       const message =

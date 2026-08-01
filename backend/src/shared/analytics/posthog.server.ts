@@ -25,6 +25,13 @@ export const ServerAnalyticsEvents = {
   WORKSPACE_ONBOARDING_COMPLETED: "workspace onboarding completed",
   SUBSCRIPTION_CHANGED: "subscription changed",
   GENERATION_SUCCESS: "generation success",
+  EMAIL_VERIFICATION_SENT: "email verification sent",
+  EMAIL_VERIFICATION_SUCCEEDED: "email verification succeeded",
+  EMAIL_VERIFICATION_FAILED: "email verification failed",
+  ONBOARDING_DROPPED: "onboarding dropped",
+  COMPANY_ROLE_SET: "company role set",
+  SETUP_CHECKLIST_OPENED: "setup checklist opened",
+  SETUP_COMPLETE: "setup complete",
 } as const;
 
 export type ServerAnalyticsEvent = (typeof ServerAnalyticsEvents)[keyof typeof ServerAnalyticsEvents];

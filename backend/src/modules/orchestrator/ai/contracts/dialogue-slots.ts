@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { postFormatSchema } from "./post-format";
 
 export const dialogueSlotsSchema = z.object({
   topic: z.string().optional(),
@@ -12,6 +13,8 @@ export const dialogueSlotsSchema = z.object({
   feedback: z.string().optional(),
   proceed_despite_strategy_warning: z.boolean().optional(),
   outline_approved: z.boolean().optional(),
+  /** Editor-gate format before drafting narrative creates. */
+  post_format: postFormatSchema.optional(),
   selection: z
     .object({
       blog_id: z.string().optional(),

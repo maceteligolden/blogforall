@@ -101,6 +101,12 @@ router.post(
 );
 router.get("/:id/memory", validateParams(V.campaignIdParamSchema), campaignFeatureController.getMemory);
 router.get("/:id/events", validateParams(V.campaignIdParamSchema), campaignFeatureController.listEvents);
+router.get("/:id/intelligence", validateParams(V.campaignIdParamSchema), campaignFeatureController.getIntelligence);
+router.post(
+  "/:id/intelligence/recompute",
+  validateParams(V.campaignIdParamSchema),
+  campaignFeatureController.recomputeIntelligence
+);
 
 router.get("/:id/stats", validateParams(V.campaignIdParamSchema), campaignController.getByIdWithStats);
 router.get("/:id", validateParams(V.campaignIdParamSchema), campaignController.getById);

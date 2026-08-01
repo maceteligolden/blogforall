@@ -1,5 +1,7 @@
 # Campaign Agent: Chat-Based AI Campaign Manager — Implementation Plan
 
+> **Superseded (2026-07-29).** A separate Hugging Face “campaign chat agent” is **not** the target architecture. Campaign planning and execution live in the **orchestrator + campaign tools/module**. Canonical design: [`docs/architecture/v0.5/21-strategic-intelligence.md`](./architecture/v0.5/21-strategic-intelligence.md) and [ADR-015](./architecture-decisions.md#adr-015--strategic-intelligence-hierarchy). Keep this file for historical context only.
+
 ## 1. Vision Summary
 
 Replace (or augment) the current form-based campaign manager with an **internal AI agent** that:

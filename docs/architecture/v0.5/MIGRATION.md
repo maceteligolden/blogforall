@@ -23,7 +23,7 @@
 6. **Replace Review with Content Optimization** — stage `optimize`; retire `ReviewArtifact`.
 7. **Memory Manager** — wrap extraction/digests/Qdrant; deprecate direct `workspace.updateMemory` from graph.
 8. **Conversation Intelligence** — pre-graph NLU; retire graph `understand`; wrap cognition ConversationService.
-9. **Docs update with code** — [16](./16-research-pipeline.md), [17](./17-content-optimization.md), [18](./18-memory-manager.md), [19](./19-conversation-intelligence.md).
+9. **Docs update with code** — [16](./16-research-pipeline.md), [17](./17-content-optimization.md), [18](./18-memory-manager.md), [19](./19-conversation-intelligence.md), [09](./09-execution-flow.md) §5b (user-directed revise).
 
 ---
 

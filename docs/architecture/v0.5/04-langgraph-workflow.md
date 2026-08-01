@@ -34,8 +34,9 @@ stateDiagram-v2
 **Pre-graph (OrchestratorService):**
 
 ```
-retrieve(chat_light) → ConversationIntelligence.analyze → ConversationContext
-  → graph.invoke({ conversation_context, ... })
+retrieve(chat_light) → ConversationIntelligence.analyze(open_artifacts from selection)
+  → seed draft from selection.blog_id (BlogService) when present
+  → graph.invoke({ conversation_context, draft?, recent_messages, selection, ... })
 ```
 
 The former `understand` node is **retired** (absorbed into CI).
@@ -90,8 +91,10 @@ Migration: keep a thin `understand.ts` shim that no-ops if `conversation_context
 | One skill per turn (MVP chat) | Pipeline mode may chain within one user turn up to **`max_skills_per_turn` default 5** |
 | Destructive | Always route publish/delete/unpublish through `await_human` |
 | Optimize loop | Max 2 cycles (`optimize_count < 2`); gate: overall>=72 and no Critical |
+| User-directed revise | `update_content` / feedback + open draft → Writing `revise` with user feedback **before** Content Optimization; one revise per turn |
 | Strategy alert | Off-brand topic → compose warning before Writing |
 | Preference | `emit_memory_candidate` → compose ack + enqueue candidates; no create workflow |
+| Selection seed | Results-panel `blog_id` must hydrate `draft` before plan when revising |
 
 **Prompt:** [11](./11-prompts-and-context.md) § plan  
 **Borrow:** cognition planner’s one-action-per-turn philosophy

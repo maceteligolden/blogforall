@@ -36,6 +36,11 @@ export const AnalyticsEvents = {
   INVITE_PROMPT_VIEWED: "invite prompt viewed",
   INVITE_PROMPT_SKIPPED: "invite prompt skipped",
 
+  // Dashboard setup checklist
+  SETUP_CHECKLIST_OPENED: "setup checklist opened",
+  SETUP_CHECKLIST_ITEM_COMPLETED: "setup checklist item completed",
+  SETUP_COMPLETE: "setup complete",
+
   // Generation (core)
   GENERATION_FLOW_VIEWED: "generation flow viewed",
   GENERATION_TYPE_SELECTED: "generation type selected",

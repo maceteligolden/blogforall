@@ -20,6 +20,9 @@ interface User {
   phone_number?: string;
   plan: string;
   role?: string;
+  email_verified?: boolean;
+  company_role?: string;
+  welcome_tour_dismissed?: boolean;
 }
 
 interface AuthState {

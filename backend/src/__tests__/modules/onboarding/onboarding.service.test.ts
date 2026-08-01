@@ -4,6 +4,7 @@ import { SignupWizardStage, SiteStatus } from "../../../shared/constants";
 const mockUserFindById = jest.fn<() => Promise<Record<string, unknown> | null>>();
 const mockFindByOwner = jest.fn<() => Promise<Array<{ _id: string; status: SiteStatus }>>>();
 const mockFindByUser = jest.fn<() => Promise<Array<{ _id: string; status: SiteStatus }>>>();
+const mockUpdate = jest.fn<() => Promise<unknown>>();
 
 jest.mock("../../../shared/schemas/user.schema", () => ({
   __esModule: true,
@@ -31,12 +32,32 @@ describe("OnboardingService.getSignupWizardStatus", () => {
       {
         findByOwner: mockFindByOwner,
         findByUser: mockFindByUser,
-      } as never
+        update: mockUpdate,
+      } as never,
+      {} as never,
     );
   });
 
-  it("returns workspace_name when user owns no sites and has no access", async () => {
-    mockUserFindById.mockResolvedValue({ _id: "u1" });
+  it("returns email_verification when email_verified is explicitly false", async () => {
+    mockUserFindById.mockResolvedValue({ _id: "u1", email_verified: false });
+
+    const status = await service.getSignupWizardStatus("u1");
+
+    expect(status).toEqual({ stage: SignupWizardStage.EMAIL_VERIFICATION });
+  });
+
+  it("returns company_role when verified user has no role and no sites", async () => {
+    mockUserFindById.mockResolvedValue({ _id: "u1", email_verified: true });
+    mockFindByOwner.mockResolvedValue([]);
+    mockFindByUser.mockResolvedValue([]);
+
+    const status = await service.getSignupWizardStatus("u1");
+
+    expect(status).toEqual({ stage: SignupWizardStage.COMPANY_ROLE });
+  });
+
+  it("returns workspace_name when user has company_role but owns no sites", async () => {
+    mockUserFindById.mockResolvedValue({ _id: "u1", company_role: "founder" });
     mockFindByOwner.mockResolvedValue([]);
     mockFindByUser.mockResolvedValue([]);
 
@@ -45,13 +66,25 @@ describe("OnboardingService.getSignupWizardStatus", () => {
     expect(status).toEqual({ stage: SignupWizardStage.WORKSPACE_NAME });
   });
 
-  it("returns business_chat when an owned site is onboarding", async () => {
+  it("returns complete for invited members with site access but no owned sites", async () => {
     mockUserFindById.mockResolvedValue({ _id: "u1" });
-    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ONBOARDING }]);
+    mockFindByOwner.mockResolvedValue([]);
+    mockFindByUser.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
 
     const status = await service.getSignupWizardStatus("u1");
 
-    expect(status).toEqual({ stage: SignupWizardStage.BUSINESS_CHAT, site_id: "s1" });
+    expect(status).toEqual({ stage: SignupWizardStage.COMPLETE });
+  });
+
+  it("promotes onboarding sites to active and returns plan_selection", async () => {
+    mockUserFindById.mockResolvedValue({ _id: "u1", plan_selection_completed_at: null });
+    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ONBOARDING }]);
+    mockUpdate.mockResolvedValue({});
+
+    const status = await service.getSignupWizardStatus("u1");
+
+    expect(mockUpdate).toHaveBeenCalledWith("s1", { status: SiteStatus.ACTIVE });
+    expect(status).toEqual({ stage: SignupWizardStage.PLAN_SELECTION, site_id: "s1" });
   });
 
   it("returns plan_selection when site is active but plan not confirmed", async () => {

@@ -23,6 +23,7 @@ export type ContentOptimizationInput = {
   persist?: boolean;
   created_by?: string;
   thread_id?: string;
+  post_format?: string;
   onPhase?: PhaseListener;
 };
 
@@ -63,6 +64,7 @@ export class ContentOptimizationService {
           research_package_id: input.research_package_id,
           topic: input.topic,
           factual_confidence: input.factual_confidence,
+          post_format: input.post_format,
         });
 
     const can_loop_again = canOptimizeAgain(optimize_count);

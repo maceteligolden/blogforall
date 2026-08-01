@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import { ScheduledPostRepository } from "../repositories/scheduled-post.repository";
 import { CampaignRepository } from "../repositories/campaign.repository";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
+import { CampaignService } from "./campaign.service";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
 import {
@@ -12,13 +13,15 @@ import {
 import { ScheduledPost } from "../../../shared/schemas/scheduled-post.schema";
 import { ScheduledPostStatus, CampaignStatus } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
+import { env } from "../../../shared/config/env";
 
 @injectable()
 export class ScheduledPostService {
   constructor(
     private scheduledPostRepository: ScheduledPostRepository,
     private campaignRepository: CampaignRepository,
-    private blogRepository: BlogRepository
+    private blogRepository: BlogRepository,
+    private campaignService: CampaignService
   ) {}
 
   async createScheduledPost(userId: string, siteId: string, input: CreateScheduledPostInput): Promise<ScheduledPost> {
@@ -44,13 +47,19 @@ export class ScheduledPostService {
       }
     }
 
-    // Validate campaign if provided
-    if (input.campaign_id) {
-      const campaign = await this.campaignRepository.findById(input.campaign_id, siteId);
+    // Validate campaign if provided; otherwise bind to Default when SI enabled
+    let campaignId = input.campaign_id;
+    if (env.orchestrator.strategicIntelligenceEnabled && !campaignId) {
+      const def = await this.campaignService.ensureDefaultCampaign(siteId, userId);
+      campaignId = def._id!.toString();
+    }
+
+    if (campaignId) {
+      const campaign = await this.campaignRepository.findById(campaignId, siteId);
       if (!campaign) {
         throw new NotFoundError("Campaign not found");
       }
-      if (campaign.user_id !== userId) {
+      if (campaign.user_id !== userId && !campaign.is_default) {
         throw new ForbiddenError("You don't have permission to schedule posts for this campaign");
       }
       if (campaign.status === CampaignStatus.CANCELLED || campaign.status === CampaignStatus.COMPLETED) {
@@ -62,6 +71,7 @@ export class ScheduledPostService {
 
     const scheduledPost = await this.scheduledPostRepository.create({
       ...input,
+      campaign_id: campaignId,
       user_id: userId,
       site_id: siteId,
       timezone,
@@ -76,7 +86,7 @@ export class ScheduledPostService {
         scheduledPostId: scheduledPost._id,
         userId,
         siteId,
-        campaignId: input.campaign_id,
+        campaignId,
         blogId: input.blog_id,
       },
       "ScheduledPostService"
@@ -260,15 +270,31 @@ export class ScheduledPostService {
       throw new BadRequestError("Post is not part of a campaign");
     }
 
+    // Strategic Intelligence: never orphan — reassign to Default (Evergreen).
+    const def = await this.campaignService.ensureDefaultCampaign(siteId, userId);
+    const defaultId = def._id!.toString();
+    if (post.campaign_id === defaultId) {
+      throw new BadRequestError("Post is already on the Default campaign; move it to another campaign instead.");
+    }
+
     const updatedPost = await this.scheduledPostRepository.update(scheduledPostId, siteId, {
-      campaign_id: undefined,
+      campaign_id: defaultId,
+      metadata: {
+        ...post.metadata,
+        campaign_goal: def.goal,
+        target_audience: def.target_audience,
+      },
     });
 
     if (!updatedPost) {
       throw new NotFoundError("Scheduled post not found");
     }
 
-    logger.info("Scheduled post removed from campaign", { scheduledPostId, userId, siteId }, "ScheduledPostService");
+    logger.info(
+      "Scheduled post reassigned to Default campaign",
+      { scheduledPostId, userId, siteId, defaultId },
+      "ScheduledPostService"
+    );
     return updatedPost;
   }
 

@@ -9,6 +9,7 @@ import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant
 import { BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
 import type { BlogUserGenerationParams, GeneratedBlogContent, PromptAnalysis, ResearchNote } from "./types";
+import { draftRoleInstructions, emptyResearchGuidance } from "./post-format-prompt";
 import { TavilySearchService } from "./tavily-search.service";
 import { runBlogReviewWithChat, type BlogReviewResult } from "./blog-review.runner";
 import { clampBlogExcerpt } from "../utils/excerpt.util";
@@ -657,6 +658,7 @@ Return structured JSON: title, content (HTML), excerpt (max 500 characters), met
         ? `Topics to cover: ${analysis.topics_to_explore.join(", ")}`
         : "";
     const toneLine = analysis.tone ? `Tone: ${analysis.tone}` : "";
+    const postFormat = userParams?.post_format ?? analysis.post_format;
     const contextBlock = userParams?.context_pack?.trim()
       ? `\nWORKSPACE CONTEXT (brand voice, rules, strategy — follow closely):\n${userParams.context_pack.slice(0, 4000)}\n`
       : "";
@@ -667,20 +669,22 @@ GROUNDED RESEARCH (only use facts supported here; do not invent sources):
 ${researchNotes.map((n, i) => `[${i + 1}] ${n.title}\nURL: ${n.url}\n${n.snippet}`).join("\n\n")}
 `
         : `
-No web research results were returned. Write from general knowledge and avoid specific recent statistics or news unless widely known.
+${emptyResearchGuidance(postFormat)}
 `;
 
-    return `You are an expert ${analysis.domain} blogger writing for ${analysis.target_audience}.
+    return `${draftRoleInstructions(postFormat)}
 ${toneLine}
 Purpose: ${analysis.purpose}
 Topic: ${analysis.topic}
+${postFormat ? `Post format: ${postFormat}` : ""}
 USER REQUEST: "${prompt}"
 ${topicsLine}
 Structure: ${structure}
 Target length: approximately ${wordCount} words.
 ${contextBlock}${researchBlock}
 
-Write a comprehensive blog post. content MUST be valid HTML only — use <h2>, <p>, <ul>/<ol>/<li>, <blockquote> as needed. NEVER use Markdown (# headings, - lists, **bold**, or \`\`\` fences).
+Write the post. content MUST be valid HTML only — use <h2>, <p>, <ul>/<ol>/<li>, <blockquote> as needed. NEVER use Markdown (# headings, - lists, **bold**, or \`\`\` fences).
+Avoid stock AI filler ("the field is constantly evolving", "engineers must adapt", "in today's world"). Prefer concrete scenes and the user's phrasing when present in USER REQUEST.
 
 Return structured JSON fields: title (max ~60 chars), content (HTML only), excerpt (max 500 characters), meta.description (<=160 chars), meta.keywords (array).`;
   }

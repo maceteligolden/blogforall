@@ -2,6 +2,8 @@ import { injectable } from "tsyringe";
 import { BlogGenerationGraphService } from "../../../../blog/ai/blog-generation-graph.service";
 import type { BlogUserGenerationParams, GeneratedBlogContent, PromptAnalysis } from "../../../../blog/ai/types";
 import type { OptimizationPlan } from "../../contracts/content-optimization";
+import type { PostFormat } from "../../contracts/post-format";
+import { isPostFormat, strategyDefaultsForFormat } from "../../contracts/post-format";
 import type { ResearchPackage } from "../../contracts/research-package";
 import { assertWritingMayProceed } from "./writing-guards";
 import { researchPackageToNotes } from "./package-to-notes";
@@ -23,6 +25,7 @@ export type WritingSkillInput = {
   draft?: GeneratedBlogContent;
   analysis?: PromptAnalysis;
   userParams?: BlogUserGenerationParams;
+  post_format?: PostFormat;
   signal?: AbortSignal;
 };
 
@@ -56,16 +59,20 @@ export class WritingSkillService {
     }
 
     const notes = input.research_package ? researchPackageToNotes(input.research_package) : [];
-    const analysis = input.analysis ?? this.defaultAnalysis(input.topic);
+    const analysis = input.analysis ?? this.defaultAnalysis(input.topic, input.post_format ?? input.userParams?.post_format);
     const prompt = (input.prompt ?? input.topic).trim();
     const packageId = input.research_package_id ?? input.research_package?.id;
+    const userParams: BlogUserGenerationParams | undefined = {
+      ...(input.userParams ?? {}),
+      ...(input.post_format ? { post_format: input.post_format } : {}),
+    };
 
     if (input.action === "outline") {
       const outline = await this.blogGraph.outlineFromNotes(
         prompt,
         analysis,
         notes,
-        input.userParams,
+        userParams,
         input.signal,
       );
       return {
@@ -87,7 +94,7 @@ export class WritingSkillService {
         content: input.draft.content,
         excerpt: input.draft.excerpt,
         feedback,
-        userParams: input.userParams,
+        userParams,
         signal: input.signal,
       });
       return {
@@ -103,7 +110,7 @@ export class WritingSkillService {
       prompt,
       analysis,
       notes,
-      input.userParams,
+      userParams,
       input.signal,
     );
     return {
@@ -132,13 +139,17 @@ export class WritingSkillService {
     return parts.join("\n\n");
   }
 
-  private defaultAnalysis(topic: string): PromptAnalysis {
+  private defaultAnalysis(topic: string, postFormat?: string): PromptAnalysis {
+    const format = isPostFormat(postFormat) ? postFormat : undefined;
+    const genre = strategyDefaultsForFormat(topic, "general readers", format);
     return {
       topic,
-      domain: "general",
+      domain: format === "engineering_reflection" ? "engineering" : "general",
       target_audience: "general readers",
-      purpose: "inform",
+      purpose: format === "personal_story" || format === "linkedin_post" ? "narrate" : "inform",
+      structure: genre.content_structure.join(" · "),
       is_valid: true,
+      post_format: format,
     };
   }
 }

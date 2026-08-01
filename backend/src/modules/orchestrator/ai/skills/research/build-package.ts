@@ -21,6 +21,8 @@ export type BuildResearchPackageInput = {
   search_intent?: string;
   notes: ResearchNoteLike[];
   max_sources: number;
+  /** When personal/linkedin, avoid how-to / best-practices research questions. */
+  post_format?: string;
 };
 
 export type BuiltResearchPackage = {
@@ -36,8 +38,17 @@ export function buildResearchPackageFromNotes(
   const topic = input.topic.trim();
   const capped = input.notes.slice(0, input.max_sources);
   const now = new Date().toISOString();
-  const questions =
-    input.depth === "full"
+  const narrativeMode =
+    input.post_format === "personal_story" || input.post_format === "linkedin_post";
+  const questions = narrativeMode
+    ? [
+        {
+          id: "q1",
+          question: `What concrete details did the user share about ${topic}?`,
+          priority: 1,
+        },
+      ]
+    : input.depth === "full"
       ? [
           { id: "q1", question: `What should a reader know about ${topic}?`, priority: 1 },
           { id: "q2", question: `What are current best practices for ${topic}?`, priority: 2 },
@@ -138,7 +149,9 @@ export function buildResearchPackageFromNotes(
     },
     degraded: degraded || undefined,
     disclosure: degraded
-      ? `Research ${input.depth} returned no web sources; Writing must not invent citations.`
+      ? narrativeMode
+        ? `No web research for ${input.post_format}; Writing must use only the user's lived words — do not invent meaning or citations.`
+        : `Research ${input.depth} returned no web sources; Writing must not invent citations.`
       : undefined,
   });
 

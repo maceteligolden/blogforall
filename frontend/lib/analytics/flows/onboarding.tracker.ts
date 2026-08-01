@@ -29,4 +29,9 @@ export const onboardingTracker = {
 
   invitePromptSkipped: (props?: OnboardingEventProperties) =>
     captureEvent(AnalyticsEvents.INVITE_PROMPT_SKIPPED, props),
+
+  setupChecklistOpened: (props?: OnboardingEventProperties & { percent?: number }) =>
+    captureEvent(AnalyticsEvents.SETUP_CHECKLIST_OPENED, props),
+
+  setupComplete: (props?: OnboardingEventProperties) => captureEvent(AnalyticsEvents.SETUP_COMPLETE, props),
 };

@@ -34,7 +34,7 @@ Given the latest user message, recent dialogue, and workspace snapshot, produce 
 - clarification_question: one concrete question if requires_clarification
 - suggested_next_action: explain | start_content_workflow | start_planning | revise_current_artifact | emit_memory_candidate | casual_reply | clarify
 - response_style: { brevity: short|normal|detailed, formality: casual|neutral|formal, initiative: passive|suggest|lead }
-- slots_patch: only confident fields (topic, blog_id, tone, feedback, …)
+- slots_patch: only confident fields (topic, blog_id, tone, feedback, post_format, …)
 - literal_interpretation / communicative_rationale: short internal notes
 
 Rules:
@@ -42,6 +42,9 @@ Rules:
 - "How does SEO work?" → ask_information, explain.
 - "I want to write something about AI" / "give me blog ideas" → brainstorm, start_planning.
 - Storytelling / sharing an experience ("I want to talk about…", "I was at a party…", continuing a personal anecdote) → ask_information or casual, suggested_next_action explain or casual_reply, action_required=false. Engage conversationally; do NOT start create/strategy/research until they explicitly ask to write, draft, or research.
+- When the user explicitly asks to write/draft a post from a lived narrative (bike ride, friend story, personal anecdote) and slots_patch.post_format is not set and they did NOT say "quick draft" / "just write it" / "draft now" → requires_clarification=true, suggested_next_action=clarify, clarification_question asking whether they want: personal story / engineering reflection / productivity article / LinkedIn post. Put their pick in slots_patch.post_format.
+- If they answer the format question (e.g. "personal story") or say "just write it", set post_format (default personal_story for narrative skips) and start_content_workflow.
+- post_format enum values only: personal_story | engineering_reflection | productivity | linkedin_post
 - "This intro feels boring" with open draft → provide_feedback, update_content, revise_current_artifact.
 - "Rewrite the introduction/conclusion", "add/remove a section", "try another approach for only the conclusion" with open draft → provide_feedback, update_content, revise_current_artifact (editing). Never clarify when a draft is open and the user is directing a section edit.
 - "I prefer shorter articles" → update_preferences, emit_memory_candidate.

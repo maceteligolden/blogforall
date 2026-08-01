@@ -35,12 +35,17 @@ export function extractUrlFromText(text: string): string | null {
   return match ? match[0] : null;
 }
 
+/** Tools that may open the results panel (blog/list/research content — not chat skills). */
 export const VIEWABLE_ARTIFACT_TOOLS = new Set([
   "blogs.generateDraft",
   "blogs.createDraft",
   "blogs.update",
   "blogs.get",
   "blogs.review",
+  "blogs.list",
+  "blog_list",
+  "research",
+  "search.web",
 ]);
 
 export const DRAFT_ARTIFACT_TOOLS = new Set([

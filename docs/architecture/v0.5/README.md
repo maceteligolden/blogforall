@@ -17,6 +17,8 @@
 | **v0.5 Memory Manager** | Memory as KMS; Memory Manager + 6 layers + Content Intelligence; [18](./18-memory-manager.md); [PRD](../../PRD_MEMORY_SYSTEM.md) |
 | **v0.5 Conversation Intelligence** | Pre-orchestrator NLU; ConversationContext; [19](./19-conversation-intelligence.md); [PRD](../../PRD_CONVERSATION_INTELLIGENCE.md) |
 | **v0.5 Architecture Freeze** | Hygiene (no stale understand/Review); locked MVP decisions (coverage_min, model routing, retrieve policy); [20](./20-go-to-market-architecture.md) ICP architecture |
+| **v0.5 Dialogue + section revise (2026-07-28)** | CI LLM-primary + storytelling/section-edit; Conversation skill; seed open draft for user-directed Writing revise (no Research package); results panel `blogs.update` sync; LTM MVP = preferences only — see [19](./19-conversation-intelligence.md), [09](./09-execution-flow.md), [18](./18-memory-manager.md) |
+| **v0.5 Strategic Intelligence (2026-07-29)** | Business Knowledge → WorkspaceStrategy → Campaign (Default) → Content; decision engine + learning loop; [21](./21-strategic-intelligence.md); ADR-015 |
 
 ---
 
@@ -82,6 +84,7 @@ User → Conversation Intelligence → LangGraph Orchestrator → Skills → Too
 | 13 | [13-testing-strategy.md](./13-testing-strategy.md) | Unit / graph / evals |
 | 14 | [14-mvp-and-roadmap.md](./14-mvp-and-roadmap.md) | MVP locks, roadmap, milestones |
 | **14b** | [20-go-to-market-architecture.md](./20-go-to-market-architecture.md) | **ICP / go-to-market architecture** |
+| **14c** | [21-strategic-intelligence.md](./21-strategic-intelligence.md) | **Strategic hierarchy, Default Campaign, decision engine** |
 | 15 | [15-file-inventory.md](./15-file-inventory.md) | Every new/changed file + how it works |
 | — | [MIGRATION.md](./MIGRATION.md) | Phase map from dual stack → target |
 

@@ -137,6 +137,12 @@ export const env = {
      * Onboarding always uses the supervisor path.
      */
     v05GraphEnabled: (process.env.ORCHESTRATOR_V05_GRAPH_ENABLED || "true").toLowerCase() !== "false",
+    /**
+     * Strategic Intelligence (doc 21 / ADR-015): Default Campaign binding, WorkspaceStrategy,
+     * belief confidence, decision engine, learning loop. Default **true**.
+     */
+    strategicIntelligenceEnabled:
+      (process.env.STRATEGIC_INTELLIGENCE_ENABLED || "true").toLowerCase() !== "false",
   },
 
   /**
@@ -240,5 +246,27 @@ export const env = {
       EMAIL_METADATA_RETENTION_DAYS_DEFAULT
     ),
     emailQueueName: process.env.EMAIL_QUEUE_NAME || "notification:email",
+  },
+
+  /**
+   * Socket.io realtime layer (same HTTP process as Express).
+   * See shared/realtime/.
+   */
+  realtime: {
+    enabled: (process.env.REALTIME_ENABLED || "true").toLowerCase() !== "false",
+    path: (process.env.REALTIME_PATH || "/socket.io").trim() || "/socket.io",
+    namespace: (process.env.REALTIME_NAMESPACE || "/realtime").trim() || "/realtime",
+    maxConnectionsPerUser: parseIntEnv(process.env.REALTIME_MAX_CONNECTIONS_PER_USER, 3),
+    pingIntervalMs: parseIntEnv(process.env.REALTIME_PING_INTERVAL_MS, 25_000),
+    pingTimeoutMs: parseIntEnv(process.env.REALTIME_PING_TIMEOUT_MS, 20_000),
+    maxHttpBufferSize: parseIntEnv(process.env.REALTIME_MAX_HTTP_BUFFER_SIZE, 1_048_576),
+    /** Inbound client events per socket per window. */
+    inboundRateLimitMax: parseIntEnv(process.env.REALTIME_INBOUND_RATE_LIMIT_MAX, 60),
+    inboundRateLimitWindowMs: parseIntEnv(process.env.REALTIME_INBOUND_RATE_LIMIT_WINDOW_MS, 60_000),
+    /**
+     * When true and REDIS_URL is set, attach @socket.io/redis-adapter for multi-instance emit.
+     * Uses key prefix `realtime:socket.io:` to avoid colliding with Bull.
+     */
+    redisAdapterEnabled: (process.env.REALTIME_REDIS_ADAPTER_ENABLED || "false").toLowerCase() === "true",
   },
 } as const;

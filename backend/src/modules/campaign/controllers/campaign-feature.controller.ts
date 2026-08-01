@@ -10,6 +10,7 @@ import { CampaignEventRepository } from "../repositories/campaign-event.reposito
 import { CampaignProgressReportRepository } from "../repositories/campaign-progress-report.repository";
 import { CampaignRepository } from "../repositories/campaign.repository";
 import { CampaignMemoryService } from "../services/campaign-memory.service";
+import { CampaignIntelligenceService } from "../../strategic-intelligence/services/campaign-intelligence.service";
 @injectable()
 export class CampaignFeatureController {
   constructor(
@@ -20,7 +21,8 @@ export class CampaignFeatureController {
     private eventRepository: CampaignEventRepository,
     private progressReportRepository: CampaignProgressReportRepository,
     private campaignRepository: CampaignRepository,
-    private memoryService: CampaignMemoryService
+    private memoryService: CampaignMemoryService,
+    private intelligenceService: CampaignIntelligenceService
   ) {}
 
   private ids(req: Request) {
@@ -127,6 +129,26 @@ export class CampaignFeatureController {
       const { campaignId } = this.ids(req);
       const events = await this.eventRepository.listByCampaign(campaignId);
       sendSuccess(res, "Campaign events", events);
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  getIntelligence = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { siteId, campaignId } = this.ids(req);
+      const intel = await this.intelligenceService.get(campaignId, siteId);
+      sendSuccess(res, "Campaign intelligence", intel);
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  recomputeIntelligence = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { siteId, campaignId } = this.ids(req);
+      const intel = await this.intelligenceService.recompute(campaignId, siteId);
+      sendSuccess(res, "Campaign intelligence recomputed", intel);
     } catch (e) {
       next(e);
     }

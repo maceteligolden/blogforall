@@ -20,6 +20,7 @@ import adminRouter from "./modules/admin/routes/admin.router";
 import referralRouter from "./modules/referral/routes/referral.router";
 import waitlistRouter from "./modules/waitlist/routes/waitlist.router";
 import siteMemoryRouter from "./modules/memory/routes/site-memory.router";
+import siteStrategicRouter from "./modules/strategic-intelligence/routes/site-strategic.router";
 
 const router = Router();
 
@@ -80,6 +81,9 @@ router.use("/referrals", referralRouter);
 
 // Workspace memory & strategy (site-scoped, JWT via site router parent)
 router.use("/sites/:siteId/memory", siteMemoryRouter);
+
+// Strategic intelligence (WorkspaceStrategy, knowledge, decisions) — doc 21
+router.use("/sites/:siteId", siteStrategicRouter);
 
 // Waitlist signup (public)
 router.use("/waitlist", waitlistRouter);

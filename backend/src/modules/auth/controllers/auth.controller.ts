@@ -143,4 +143,46 @@ export class AuthController {
       next(error);
     }
   };
+
+  verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const { code } = req.validatedBody as { code: string };
+      const result = await this.authService.verifyEmail(userId, code);
+      sendSuccess(res, "Email verified", result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resendVerification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      await this.authService.sendEmailVerificationCode(userId);
+      sendSuccess(res, "If your email still needs verification, a new code is on the way.");
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  setCompanyRole = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const body = req.validatedBody as { company_role: string; company_role_detail?: string };
+      const result = await this.authService.setCompanyRole(userId, body);
+      sendSuccess(res, "Company role saved", result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  dismissWelcomeTour = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      await this.authService.dismissWelcomeTour(userId);
+      sendNoContent(res, "Welcome tour dismissed");
+    } catch (error) {
+      next(error);
+    }
+  };
 }

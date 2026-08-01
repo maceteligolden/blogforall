@@ -55,6 +55,19 @@ export interface LoginResponse {
     last_name: string;
     plan: string;
     role: string;
+    email_verified?: boolean;
+    company_role?: string;
   };
-  requiresSiteCreation?: boolean; // True if user needs to create a site (for first-time login after migration)
+  requiresSiteCreation?: boolean;
+  requires_email_verification?: boolean;
+  requires_company_role?: boolean;
+}
+
+export interface VerifyEmailInput {
+  code: string;
+}
+
+export interface CompanyRoleInput {
+  company_role: "founder" | "marketer" | "content" | "engineer" | "agency" | "other";
+  company_role_detail?: string;
 }

@@ -29,9 +29,8 @@ export enum SiteMemberRole {
 
 /**
  * Workspace (Site) lifecycle status.
- * - `onboarding`: site exists but the owner has not yet completed the mandatory
- *   orchestrator-guided onboarding chat to populate workspace memory.
- * - `active`: workspace context has been captured; full dashboard is available.
+ * - `onboarding`: legacy sites that started before chatless signup (migrated to active on read).
+ * - `active`: workspace is usable; business memory may still be incomplete (dashboard checklist).
  */
 export enum SiteStatus {
   ONBOARDING = "onboarding",
@@ -40,12 +39,25 @@ export enum SiteStatus {
 
 /** Owner signup wizard stages (derived from sites + user fields). */
 export enum SignupWizardStage {
+  EMAIL_VERIFICATION = "email_verification",
+  COMPANY_ROLE = "company_role",
   WORKSPACE_NAME = "workspace_name",
-  BUSINESS_CHAT = "business_chat",
   PLAN_SELECTION = "plan_selection",
   INVITE = "invite",
   COMPLETE = "complete",
 }
+
+/** Company roles collected during signup for AI personalization. */
+export const COMPANY_ROLES = [
+  "founder",
+  "marketer",
+  "content",
+  "engineer",
+  "agency",
+  "other",
+] as const;
+
+export type CompanyRole = (typeof COMPANY_ROLES)[number];
 
 export enum InvitationStatus {
   PENDING = "pending",

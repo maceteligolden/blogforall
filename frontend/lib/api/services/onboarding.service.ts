@@ -58,4 +58,21 @@ export class OnboardingService {
   static async dismissInvitePrompt(): Promise<void> {
     await apiClient.post(API_ENDPOINTS.ONBOARDING.DISMISS_INVITE_PROMPT);
   }
+
+  static async getSetupProgress(siteId: string): Promise<{
+    items: Array<{ id: string; label: string; done: boolean }>;
+    percent: number;
+    complete: boolean;
+  }> {
+    const response = await apiClient.get<{
+      data: {
+        items: Array<{ id: string; label: string; done: boolean }>;
+        percent: number;
+        complete: boolean;
+      };
+    }>(API_ENDPOINTS.ONBOARDING.SETUP_PROGRESS, {
+      params: { site_id: siteId },
+    });
+    return response.data.data;
+  }
 }

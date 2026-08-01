@@ -7,6 +7,7 @@ import { User, Menu, Settings, HelpCircle, LogOut, BookOpen, CreditCard, Gift } 
 import { useState } from "react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { InviteUsersButton } from "@/components/layout/invite-users-button";
+import { SetupProgressRing } from "@/components/onboarding/setup-progress-ring";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -53,6 +54,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
           </div>
 
           <div className="flex items-center space-x-4 relative z-[9999]">
+            <SetupProgressRing />
             <NotificationBell />
             <InviteUsersButton />
 

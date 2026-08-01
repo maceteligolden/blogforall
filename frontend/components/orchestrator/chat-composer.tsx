@@ -94,6 +94,16 @@ export function ChatComposer({
     };
   }, [composerFocusRef]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const seed = sessionStorage.getItem("bloggr_setup_seed");
+    if (seed) {
+      sessionStorage.removeItem("bloggr_setup_seed");
+      onChange(seed);
+      textareaRef.current?.focus();
+    }
+  }, [onChange]);
+
   const resolvedPlaceholder = selectionContext
     ? selectionContext.referenceType === "highlight"
       ? "Ask about this selection — explain, rephrase, or ask me to update the draft…"

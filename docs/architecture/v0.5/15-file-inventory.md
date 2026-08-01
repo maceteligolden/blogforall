@@ -33,9 +33,10 @@ Legend: **C** = create, **M** = modify, **K** = keep as dependency, **D** = dele
 | `backend/src/modules/orchestrator/ai/graph/orchestrator.graph.ts` | C | Builds `StateGraph`, compiles with checkpointer, exports `invokeTurn` / `streamTurn` |
 | `backend/src/modules/orchestrator/ai/graph/nodes/load-context.ts` | C | Loads memory views + time; no LLM |
 | `backend/src/modules/orchestrator/ai/graph/nodes/understand.ts` | M/D | Deprecated shim; CI runs pre-graph |
-| `backend/src/modules/orchestrator/ai/conversation-intelligence/conversation-intelligence.ts` | C | Public `analyze` → ConversationContext |
-| `backend/src/modules/orchestrator/ai/conversation-intelligence/pipeline/*.ts` | C | intent/action/affect/ambiguity/initiative |
-| `backend/src/modules/orchestrator/ai/conversation-intelligence/models/conversation-context.ts` | C | Types + Zod |
+| `backend/src/modules/orchestrator/ai/conversation-intelligence/conversation-intelligence.ts` | C | Public `analyze` → ConversationContext (LLM-primary) |
+| `backend/src/modules/orchestrator/ai/conversation-intelligence/pipeline/analyze-llm.ts` | C | `ci.analyze.v1` structured LLM |
+| `backend/src/modules/orchestrator/ai/conversation-intelligence/pipeline/analyze-deterministic.ts` | C | Offline / API-failure fallback + section-edit / storytelling rules |
+| `backend/src/modules/orchestrator/ai/contracts/conversation-context.ts` | C | Types + Zod |
 | `backend/src/modules/orchestrator/ai/graph/nodes/plan.ts` | C | Consumes ConversationContext + policy → PlanResult |
 | `backend/src/modules/orchestrator/ai/graph/nodes/invoke-skill.ts` | C | Registry dispatch; merges `SkillResult` |
 | `backend/src/modules/orchestrator/ai/graph/nodes/await-human.ts` | C | Writes pending confirmation; ends turn |
@@ -51,9 +52,8 @@ Legend: **C** = create, **M** = modify, **K** = keep as dependency, **D** = dele
 |------|--------|--------------|
 | `ai/skills/types.ts` | C | `Skill`, `SkillContext`, `SkillResult`, `SkillId` |
 | `ai/skills/registry.ts` | C | Map + validate + run + allowlist tools |
-| `ai/skills/conversation/conversation.skill.ts` | C | LLM reply from purpose/facts |
-| `ai/skills/conversation/schema.ts` | C | Zod input |
-| `ai/skills/conversation/prompts.ts` | C | `skill.conversation.v1` |
+| `ai/skills/conversation/conversation.service.ts` | C | LLM reply from purpose/facts (`skill.conversation.v1`) |
+| `ai/prompts/skill.conversation.ts` | C | Conversation skill prompt |
 | `ai/skills/content-strategy/content-strategy.skill.ts` | C | Structured strategy artifact |
 | `ai/skills/content-strategy/schema.ts` | C | Zod I/O |
 | `ai/skills/content-strategy/prompts.ts` | C | `skill.content_strategy.v1` |
@@ -64,7 +64,7 @@ Legend: **C** = create, **M** = modify, **K** = keep as dependency, **D** = dele
 | `ai/skills/research/pipeline/state.ts` | C | ResearchPipelineState Annotation |
 | `ai/skills/research/pipeline/nodes/*.ts` | C | Phases 1–14 (group files OK) |
 | `ai/skills/research/prompts/*.ts` | C | Phase prompts from doc 11 |
-| `ai/skills/writing/writing.skill.ts` | C | Outline/draft/revise from package; **no search** |
+| `ai/skills/writing/writing.service.ts` | C | Outline/draft from package; revise from draft+feedback (**no package required for revise**); **no search** |
 | `ai/skills/writing/schema.ts` | C | Zod |
 | `ai/skills/writing/prompts.ts` | C | Package-slice prompts |
 | `ai/skills/content-optimization/content-optimization.skill.ts` | C | Nested optimize pipeline; replaces Review |

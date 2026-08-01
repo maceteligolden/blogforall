@@ -68,7 +68,26 @@ export function scoreBlogTopicMatch(blog: Blog, needle: string): number {
   const title = (blog.title || "").toLowerCase();
   const excerpt = (blog.excerpt || "").toLowerCase();
   const content = (blog.content || "").toLowerCase();
-  const tokens = q.split(/\s+/).filter((t) => t.length > 2);
+  const stop = new Set([
+    "and",
+    "the",
+    "for",
+    "with",
+    "from",
+    "that",
+    "this",
+    "into",
+    "about",
+    "being",
+    "have",
+    "has",
+    "was",
+    "were",
+    "are",
+    "you",
+    "your",
+  ]);
+  const tokens = q.split(/\s+/).filter((t) => t.length > 2 && !stop.has(t));
 
   let score = 0;
 
@@ -165,7 +184,7 @@ export async function resolveBlogForTool(
       limit: 20,
       page: 1,
     });
-    const picked = pickTopicMatch(searched.data, searchNeedle);
+    let picked = pickTopicMatch(searched.data, searchNeedle);
     if (picked?.kind === "blog") {
       return { kind: "blog", blog: picked.blog, resolution: picked.resolution, requestedId };
     }
@@ -178,8 +197,21 @@ export async function resolveBlogForTool(
       };
     }
 
-    // Fall back to title-only scan of a broader page when search returned nothing useful
+    // Phrase regex often misses token-level matches — score a broader page.
     const listed = await blogService.getAllBlogs(siteId, { limit: 50, page: 1 });
+    picked = pickTopicMatch(listed.data, searchNeedle);
+    if (picked?.kind === "blog") {
+      return { kind: "blog", blog: picked.blog, resolution: picked.resolution, requestedId };
+    }
+    if (picked?.kind === "ambiguous") {
+      return {
+        kind: "ambiguous",
+        candidates: picked.candidates,
+        query: searchNeedle,
+        requestedId,
+      };
+    }
+
     const needle = searchNeedle.toLowerCase();
     const exact = listed.data.find((b) => b.title.toLowerCase() === needle);
     if (exact) return { kind: "blog", blog: exact, resolution: "title_exact", requestedId };
@@ -192,15 +224,20 @@ export async function resolveBlogForTool(
       return { kind: "blog", blog: listed.data[0], resolution: "single_remaining", requestedId };
     }
 
-    const catalog = listed.data
-      .slice(0, 8)
-      .map((b) => `'${b.title}' (id=${b._id?.toString()})`)
-      .join("; ");
+    // No strong match — still return a pickable list so the results panel can open.
+    if (listed.data.length > 0) {
+      return {
+        kind: "ambiguous",
+        candidates: listed.data.slice(0, 10),
+        query: searchNeedle,
+        requestedId,
+      };
+    }
 
     throw new NotFoundError(
       requestedId
-        ? `Blog not found for id '${requestedId}'. Current posts: ${catalog || "(none)"}. Call blogs.list, then retry with a current id or title.`
-        : `No blog matched '${searchNeedle}'. Current posts: ${catalog || "(none)"}. Call blogs.list, then retry with a current id or title.`
+        ? `Blog not found for id '${requestedId}'. No posts in this workspace.`
+        : `No blog matched '${searchNeedle}'. No posts in this workspace.`
     );
   }
 

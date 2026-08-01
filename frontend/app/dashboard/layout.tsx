@@ -10,6 +10,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import { OrchestratorProvider } from "@/components/orchestrator/orchestrator-provider";
 import { OrchestratorUrlSync } from "@/components/orchestrator/orchestrator-url-sync";
 import { TokenExhaustionProvider } from "@/components/usage/token-exhaustion-provider";
+import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { SiteService } from "@/lib/api/services/site.service";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +18,7 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { WelcomeTourModal } from "@/components/onboarding/welcome-tour-modal";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -138,27 +140,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ProtectedRoute>
-      <NotificationProvider>
-        <ToastProvider>
-          <TokenExhaustionProvider>
-            <OrchestratorProvider>
-              <Suspense fallback={null}>
-                <OrchestratorUrlSync />
-              </Suspense>
-              <Navbar onMenuClick={() => setSidebarOpen(true)} />
-              <div className="flex min-h-[calc(100vh-4rem)] bg-black text-white">
-                <DashboardSidebar
-                  mobileOpen={sidebarOpen}
-                  onMobileClose={() => setSidebarOpen(false)}
-                  collapsed={sidebarCollapsed}
-                  onToggleCollapse={handleToggleSidebarCollapse}
-                />
-                <div className="flex-1 min-w-0">{children}</div>
-              </div>
-            </OrchestratorProvider>
-          </TokenExhaustionProvider>
-        </ToastProvider>
-      </NotificationProvider>
+      <RealtimeProvider>
+        <NotificationProvider>
+          <ToastProvider>
+            <TokenExhaustionProvider>
+              <OrchestratorProvider>
+                <Suspense fallback={null}>
+                  <OrchestratorUrlSync />
+                </Suspense>
+                <WelcomeTourModal />
+                <Navbar onMenuClick={() => setSidebarOpen(true)} />
+                <div className="flex min-h-[calc(100vh-4rem)] bg-black text-white">
+                  <DashboardSidebar
+                    mobileOpen={sidebarOpen}
+                    onMobileClose={() => setSidebarOpen(false)}
+                    collapsed={sidebarCollapsed}
+                    onToggleCollapse={handleToggleSidebarCollapse}
+                  />
+                  <div className="flex-1 min-w-0">{children}</div>
+                </div>
+              </OrchestratorProvider>
+            </TokenExhaustionProvider>
+          </ToastProvider>
+        </NotificationProvider>
+      </RealtimeProvider>
     </ProtectedRoute>
   );
 }

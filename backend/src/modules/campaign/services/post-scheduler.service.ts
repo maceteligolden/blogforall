@@ -16,6 +16,7 @@ import { logger } from "../../../shared/utils/logger";
 import { env } from "../../../shared/config/env";
 import { NotFoundError } from "../../../shared/errors";
 import { ScheduledPostPrepareService } from "../../orchestrator/services/scheduled-post-prepare.service";
+import { RealtimeService, REALTIME_EVENTS } from "../../../shared/realtime";
 
 /**
  * Cron-driven scheduler for blog publication. Split across two phases so the
@@ -44,7 +45,8 @@ export class PostSchedulerService {
     private blogRepository: BlogRepository,
     private blogService: BlogService,
     private prepareService: ScheduledPostPrepareService,
-    private campaignPostItemRepository: CampaignPostItemRepository
+    private campaignPostItemRepository: CampaignPostItemRepository,
+    private realtimeService: RealtimeService
   ) {}
 
   /**
@@ -221,6 +223,18 @@ export class PostSchedulerService {
 
       await this.scheduledPostRepository.markAsPublished(scheduledPostId, new Date());
 
+      this.realtimeService.emitToUser(
+        scheduledPost.user_id,
+        REALTIME_EVENTS.SCHEDULED_POST_PUBLISHED,
+        {
+          scheduledPostId,
+          siteId: scheduledPost.site_id,
+          blogId,
+          campaignId: scheduledPost.campaign_id,
+        },
+        { siteId: scheduledPost.site_id }
+      );
+
       if (scheduledPost.campaign_id) {
         await this.campaignRepository.updatePostsPublished(scheduledPost.campaign_id, 1);
 
@@ -244,6 +258,17 @@ export class PostSchedulerService {
 
       if (scheduledPost.publish_attempts + 1 >= this.MAX_RETRY_ATTEMPTS) {
         await this.scheduledPostRepository.markAsFailed(scheduledPostId, (error as Error).message || "Unknown error");
+        this.realtimeService.emitToUser(
+          scheduledPost.user_id,
+          REALTIME_EVENTS.SCHEDULED_POST_FAILED,
+          {
+            scheduledPostId,
+            siteId: scheduledPost.site_id,
+            blogId: scheduledPost.blog_id,
+            error: (error as Error).message || "Unknown error",
+          },
+          { siteId: scheduledPost.site_id }
+        );
       } else {
         await this.scheduledPostRepository.update(scheduledPostId, scheduledPost.site_id, {
           error_message: (error as Error).message || "Unknown error",

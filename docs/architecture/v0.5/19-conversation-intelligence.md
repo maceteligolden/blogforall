@@ -2,7 +2,7 @@
 
 **Status:** Canonical design (v0.5 Conversation Intelligence revision)  
 **Product PRD:** [`docs/PRD_CONVERSATION_INTELLIGENCE.md`](../../PRD_CONVERSATION_INTELLIGENCE.md)  
-**Implementation (2026-07-27):** `ci.analyze.v1` is LLM-primary via `ConversationIntelligenceService` (`ai/prompts/ci.analyze.ts` + `pipeline/analyze-llm.ts`); deterministic regex is offline/API-failure fallback. Clarify / casual / explain replies use the Conversation skill (`skill.conversation.v1`); compose formats artifacts when a skill reply is already present.
+**Implementation (2026-07-28):** `ci.analyze.v1` is LLM-primary via `ConversationIntelligenceService` (`ai/prompts/ci.analyze.ts` + `pipeline/analyze-llm.ts`); deterministic regex is offline/API-failure fallback. Clarify / casual / explain / strategy-summarize replies use the Conversation skill (`skill.conversation.v1`); compose formats artifacts when a skill reply is already present. Open-draft section edits and storytelling overrides are documented in §5 and §8.
 
 ---
 
@@ -58,19 +58,20 @@ flowchart TB
 **Turn sequence**
 
 ```
-User message
+User message (+ optional selectionContext.blog_id from results panel)
   → MemoryManager.retrieve(chat_light)     // for CI context resolution
-  → ConversationIntelligence.analyze(...)
-  → LangGraph.invoke({ conversation_context, memory_views, ... })
+  → ConversationIntelligence.analyze(..., open_artifacts.draft_id from selection)
+  → OrchestratorV05GraphService seeds draft/metadata/slots.selection from BlogService when selection present
+  → LangGraph.invoke({ conversation_context, draft?, recent_messages, ... })
       load_context (enrich **only if** profile ≠ chat_light)
       → plan (consumes ConversationContext; no re-NLU)
       → invoke_skill | compose | await_human | end
-      → persist (+ rememberAsync when preferences/feedback)
+      → persist (+ rememberAsync only when preference memory_candidates exist)
 ```
 
 **Retrieve policy:** do not double-fetch identical `chat_light`. See [14](./14-mvp-and-roadmap.md) §2.
 
-The graph **`understand` node is retired**. Clarification is a **plan → compose** path when `requires_clarification` is true.
+The graph **`understand` node is retired**. Clarification is **plan → Conversation skill → compose** when `requires_clarification` or `suggested_next_action=clarify`.
 
 ---
 
@@ -111,10 +112,12 @@ MVP: **one** structured LLM call (`ci.analyze.v1`) producing the full `Conversat
 | `ask_information` | "How does SEO work?" | Explain; no content workflow |
 | `request_action` | "Write a blog post about AI agents." | Start correct workflow; **do not** over-confirm |
 | `brainstorm` | "I want to write something about AI." | Start ideation / planning (`strategy`) |
-| `provide_feedback` | "This introduction feels boring." | Revise current artifact / Writing revise |
+| `provide_feedback` | "This introduction feels boring." / "Rewrite the conclusion" | User-directed Writing revise on open draft (skip Content Optimization first) |
 | `update_preferences` | "I prefer shorter articles." | Emit memory candidate; no blog workflow |
 | `casual` | Jokes, greetings | Natural reply; no workflow |
 | `unknown` | Unclear | Clarify only if blocking |
+
+**Storytelling (implemented):** personal anecdotes / “I want to talk about…” without an explicit draft/research ask → `explain` or `casual_reply`, `action_required=false`. Do **not** auto-start create/strategy/research until the user asks to write, draft, or research.
 
 ### Mapping to workflow `Intent`
 
@@ -155,6 +158,8 @@ Users rarely speak in exact commands. CI must resolve **implied** intent.
 5. Preference language → memory candidates only; do not start Research/Writing.
 6. Humor/greeting with no task → casual reply; do not force a workflow.
 7. `requires_clarification=true` **only** when a **blocking** slot is missing for an action. Clear action + topic → proceed.
+8. **Section / structural edits** with open draft (`open_artifacts.draft_id` or results-panel selection): phrases like “rewrite the introduction/conclusion”, “add/remove a section”, “try another approach for only the conclusion”, “draft update …” → `provide_feedback` + `update_content` + `revise_current_artifact` (editing). Never clarify when the draft is open and the user is directing a section edit.
+9. Storytelling / lived experience without an explicit write/draft/research ask → engage conversationally (`explain` / `casual`); do not dump Content Strategy.
 
 ---
 
@@ -250,19 +255,23 @@ Compose / Conversation skill must honor `response_style` and `tone_preference`.
 | `explain` / `casual_reply` | `invoke_skill` Conversation (`purpose=explain|casual`) then compose |
 | `clarify` | `invoke_skill` Conversation (`purpose=clarify`) then compose |
 | `start_content_workflow` | Pipeline or quick_draft skills |
-| `start_planning` | ContentStrategy |
-| `revise_current_artifact` | Writing revise / Content Optimization |
-| `emit_memory_candidate` | Compose ack + enqueue `memory_candidates` |
+| `start_planning` | ContentStrategy; when strategy artifact exists → Conversation `summarize` (do not dump raw strategy) |
+| `revise_current_artifact` + `update_content` / feedback | **User-directed:** Writing `revise` with user message as feedback on seeded draft. Skip Content Optimization first. Emit full draft (`blogs.update` / `blogs.generateDraft`) to results panel. |
+| `revise_current_artifact` + `optimize_content` | **Optimize path:** Content Optimization first, then Writing revise from `OptimizationPlan` (bounded loop). |
+| `emit_memory_candidate` | Compose ack + enqueue `memory_candidates` (**preferences only** in MVP) |
 
 Plan must **not** re-run full communicative classification. It may adjust skill choice for policy (destructive confirm, optimize loop caps) using CI fields as priors.
+
+**Selection seeding (required for revise):** When the client sends `selection_context.blog_id`, turn entry loads that blog into graph `draft` + `metadata.blog_id` + `slots.selection` before plan. Without this, revise cannot run (each turn starts with empty draft state). Peek CI also receives `open_artifacts.draft_id` so section-edit language classifies correctly.
 
 ---
 
 ## 9. Memory interaction
 
 - CI calls `MemoryManager.retrieve(chat_light)` (via turn entry or injected views) for brand/prefs/open refs.
-- `update_preferences` / durable feedback patterns → candidates for Memory Manager (`rememberAsync`).
+- `update_preferences` / durable preference language → candidates for Memory Manager (`rememberAsync`).
 - CI **never** writes Mongo beliefs or calls `workspace.updateMemory` directly.
+- **MVP gap (intentional):** storytelling, strategy discussion, and blog narrative facts are **not** auto-enqueued as long-term memory. Thread short-term history covers in-thread recall; blog bodies persist in the blogs Content Artifact Store; cross-thread “what did we talk about?” requires future episodic/content-intelligence remember paths. See [18](./18-memory-manager.md) §MVP belief writes.
 
 See [18-memory-manager.md](./18-memory-manager.md).
 
@@ -272,19 +281,16 @@ See [18-memory-manager.md](./18-memory-manager.md).
 
 ```
 orchestrator/ai/conversation-intelligence/
-  conversation-intelligence.ts       # public analyze API
+  conversation-intelligence.ts       # public analyze API (LLM-primary)
   pipeline/
-    intent.ts
-    action.ts
-    affect.ts
-    ambiguity.ts
-    initiative.ts
-  models/conversation-context.ts
+    analyze-llm.ts                    # ci.analyze.v1 structured call
+    analyze-deterministic.ts          # offline / API-failure fallback
+  models/conversation-context.ts      # contracts live under ai/contracts/
 ```
 
-Prompts live in catalog / `ai/prompts/` as `ci.analyze.v1` (see [11](./11-prompts-and-context.md)).
+Prompts: `ai/prompts/ci.analyze.ts` (`ci.analyze.v1`); Conversation skill: `ai/prompts/skill.conversation.ts` + `ai/skills/conversation/`. See [11](./11-prompts-and-context.md).
 
-**Migration:** wrap cognition `ConversationService` / dialogue models as adapters behind CI — not a parallel NLU brain.
+**Migration:** cognition ConversationService absorbed into CI — not a parallel NLU brain.
 
 ---
 

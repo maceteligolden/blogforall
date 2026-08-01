@@ -28,15 +28,19 @@ function PlansOnboardingContent() {
     if (wizardStatus.stage !== "plan_selection") {
       router.replace(signupWizardPath(wizardStatus));
     }
-  }, [wizardStatus, isLoading, router]);
+  }, [wizardStatus, isLoading, router, siteIdParam]);
 
   const continueMutation = useMutation({
     mutationFn: () => OnboardingService.completePlanSelection(),
     onSuccess: async () => {
       onboardingTracker.planSelected({ onboarding_type: "workspace_setup", plan_type: "free" });
-      await queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
       const siteId = siteIdParam ?? wizardStatus?.site_id;
+      queryClient.setQueryData(["onboarding", "signup-wizard"], {
+        stage: "invite",
+        site_id: siteId,
+      });
       router.push(siteId ? `/onboarding/invite?siteId=${encodeURIComponent(siteId)}` : "/onboarding/invite");
+      void queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
     },
     onError: (err: unknown) => {
       const message =
@@ -59,7 +63,7 @@ function PlansOnboardingContent() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white sm:text-3xl">Choose your plan</h1>
         <p className="mt-2 text-sm text-gray-400">
-          Step 3 of 4 — paid plans are coming soon. Skip to start on Free today.
+          Almost there — paid plans are coming soon. Continue on Free to finish setup.
         </p>
       </div>
 

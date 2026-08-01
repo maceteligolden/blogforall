@@ -81,6 +81,8 @@ export function OrchestratorChat({
     openResultsPanel,
     conversationMode,
     exitConversationMode,
+    livePhase,
+    clearLivePhase,
   } = useOrchestrator();
   const { artifacts, hasArtifacts, showResultsPanel } = useOrchestratorArtifacts();
   const { currentSiteId } = useAuthStore();
@@ -170,7 +172,8 @@ export function OrchestratorChat({
     setEditTitle("");
     setRenameError(null);
     prevMessageCountRef.current = 0;
-  }, [threadId]);
+    clearLivePhase();
+  }, [threadId, clearLivePhase]);
 
   const renameThreadMutation = useMutation({
     mutationFn: ({ threadId: id, title }: { threadId: string; title: string }) =>
@@ -323,9 +326,6 @@ export function OrchestratorChat({
 
     if (isWritingEffectiveMode(sessionMode, effectiveSessionMode) || explicitMode === "writing") {
       setDraftGenerating(true);
-      // Open results in text and call mode so drafts/reviews are visible while speaking.
-      openResultsPanel();
-      onShowMobileArtifacts?.();
     }
 
     orchestratorTracker.messageSent({ thread_id: threadId ?? undefined });
@@ -401,10 +401,11 @@ export function OrchestratorChat({
         const preferred =
           [...newLiveArtifacts].reverse().find((a) => DRAFT_ARTIFACT_TOOLS.has(a.tool)) ??
           [...newLiveArtifacts].reverse().find((a) => a.tool === "blogs.review") ??
+          [...newLiveArtifacts].reverse().find((a) => VIEWABLE_ARTIFACT_TOOLS.has(a.tool)) ??
           newLiveArtifacts[newLiveArtifacts.length - 1];
         const hasViewable = newLiveArtifacts.some((a) => VIEWABLE_ARTIFACT_TOOLS.has(a.tool));
-        // Call mode used to skip this — drafts never appeared beside the voice UI.
-        if (!conversationModeRef.current || hasViewable) {
+        // Only open for blog/list/research-style artifacts — never for chat skills.
+        if (hasViewable) {
           openResultsPanel(preferred?.id);
           onShowMobileArtifacts?.();
         }
@@ -468,6 +469,7 @@ export function OrchestratorChat({
     } finally {
       setPending(null);
       setDraftGenerating(false);
+      clearLivePhase();
     }
   };
 
@@ -692,7 +694,17 @@ export function OrchestratorChat({
             moat={m.moat}
           />
         ))}
-        {pending && <ThinkingIndicator />}
+        {pending && (
+          <ThinkingIndicator
+            label={
+              livePhase?.message
+                ? livePhase.percent != null
+                  ? `${livePhase.message} (${livePhase.percent}%)`
+                  : livePhase.message
+                : "Thinking"
+            }
+          />
+        )}
         {error && (
           <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">{error}</div>
         )}

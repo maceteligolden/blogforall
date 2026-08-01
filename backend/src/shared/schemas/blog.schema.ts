@@ -24,6 +24,10 @@ export interface ContentBlock {
 export interface Blog extends BaseEntity {
   author: string; // User ID
   site_id: string; // Site ID - blogs belong to a site
+  /** Campaign this post belongs to (Default/Evergreen when unset at create). */
+  campaign_id?: string;
+  /** Optional pin to WorkspaceStrategy version. */
+  strategy_id?: string;
   title: string;
   content: string; // HTML or Markdown content (generated from content_blocks when present)
   content_type: "html" | "markdown";
@@ -64,6 +68,15 @@ const blogSchema = new Schema<Blog>(
     site_id: {
       type: String,
       required: true,
+      index: true,
+    },
+    campaign_id: {
+      type: String,
+      ref: "Campaign",
+      index: true,
+    },
+    strategy_id: {
+      type: String,
       index: true,
     },
     title: {
@@ -202,5 +215,6 @@ blogSchema.index({ site_id: 1, status: 1, published_at: -1 });
 blogSchema.index({ site_id: 1, slug: 1 }, { unique: true }); // Slug unique within a site
 blogSchema.index({ site_id: 1, category: 1, status: 1 });
 blogSchema.index({ site_id: 1 }); // General site filtering
+blogSchema.index({ site_id: 1, campaign_id: 1 });
 
 export default model<Blog>("Blog", blogSchema);

@@ -11,6 +11,8 @@ export interface BlogUserGenerationParams {
   structure?: string;
   /** RAG context pack from workspace memory (brand, rules, episodic). */
   context_pack?: string;
+  /** Editor-gate format: personal_story | engineering_reflection | productivity | linkedin_post */
+  post_format?: string;
 }
 
 export interface PromptAnalysis {
@@ -26,6 +28,7 @@ export interface PromptAnalysis {
   topics_to_explore?: string[];
   is_valid: boolean;
   rejection_reason?: string;
+  post_format?: string;
 }
 
 export interface GeneratedBlogContent {

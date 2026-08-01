@@ -176,7 +176,10 @@ export function runSeoThinValidator(draft: DraftForOptimize, topic?: string): Va
 }
 
 /** Thin UX heuristics — must not solely fail the quality gate (ADR-008). */
-export function runUxThinValidator(draft: DraftForOptimize): ValidatorResult {
+export function runUxThinValidator(
+  draft: DraftForOptimize,
+  opts?: { softPersonal?: boolean },
+): ValidatorResult {
   const text = stripTags(draft.content);
   const first = text.slice(0, 280).toLowerCase();
   const hasHook = first.length > 40;
@@ -185,13 +188,14 @@ export function runUxThinValidator(draft: DraftForOptimize): ValidatorResult {
       text,
     );
   const recommendations: OptimizationRecommendation[] = [];
-  if (!hasCta) {
+  // Personal/linkedin: do not push CTA / takeaway recommendations.
+  if (!opts?.softPersonal && !hasCta) {
     recommendations.push(
       rec("ux_cta", "Low", "ux", "Consider a clear call-to-action near the end", "body"),
     );
   }
   const hook = hasHook ? 75 : 50;
-  const cta = hasCta ? 80 : 55;
+  const cta = opts?.softPersonal ? 80 : hasCta ? 80 : 55;
   const aggregate = Math.round((hook + cta) / 2);
   return {
     validator_id: "ux_thin",
@@ -200,25 +204,36 @@ export function runUxThinValidator(draft: DraftForOptimize): ValidatorResult {
     issues: [],
     recommendations,
     metrics: { hook_quality: hook, cta_effectiveness: cta },
-    rationale: "MVP thin UX — advisory only for gate",
+    rationale: opts?.softPersonal
+      ? "MVP thin UX — personal format; CTA advisory suppressed"
+      : "MVP thin UX — advisory only for gate",
   };
 }
 
 export function assembleOptimizationPlan(
   validators: ValidatorResult[],
+  opts?: { softPersonal?: boolean },
 ): OptimizationPlan {
   const all = validators.flatMap((v) => v.recommendations);
   const critical = all.filter((r) => r.priority === "Critical");
   const high = all.filter((r) => r.priority === "High");
   const medium = all.filter((r) => r.priority === "Medium");
   const low = all.filter((r) => r.priority === "Low");
-  const writing_brief = [
-    critical.length ? `Fix critical: ${critical.map((r) => r.message).join("; ")}` : null,
-    high.length ? `Address high: ${high.map((r) => r.message).join("; ")}` : null,
-    "Preserve grounded claims from the Research Package; do not invent citations.",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const writing_brief = opts?.softPersonal
+    ? [
+        critical.length ? `Fix critical: ${critical.map((r) => r.message).join("; ")}` : null,
+        high.length ? `Address high: ${high.map((r) => r.message).join("; ")}` : null,
+        "Preserve the user's voice and concrete scenes. Do not add CTAs, forced takeaways, or invented lessons.",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : [
+        critical.length ? `Fix critical: ${critical.map((r) => r.message).join("; ")}` : null,
+        high.length ? `Address high: ${high.map((r) => r.message).join("; ")}` : null,
+        "Preserve grounded claims from the Research Package; do not invent citations.",
+      ]
+        .filter(Boolean)
+        .join(" ");
   return { version: 1, critical, high, medium, low, writing_brief };
 }
 
@@ -228,13 +243,17 @@ export function buildThinOptimizationReport(input: {
   research_package_id?: string;
   topic?: string;
   factual_confidence?: number;
+  /** Soften CTA/takeaway pressure for personal_story / linkedin_post. */
+  post_format?: string;
 }): ContentOptimizationReport {
+  const softPersonal =
+    input.post_format === "personal_story" || input.post_format === "linkedin_post";
   const structural = runStructuralValidator(input.draft);
   const readability = runReadabilityValidator(input.draft);
   const seo = runSeoThinValidator(input.draft, input.topic);
-  const ux = runUxThinValidator(input.draft);
+  const ux = runUxThinValidator(input.draft, { softPersonal });
   const validators = [structural, readability, seo, ux];
-  const plan = assembleOptimizationPlan(validators);
+  const plan = assembleOptimizationPlan(validators, { softPersonal });
 
   const seoScore = seo.score ?? 70;
   const readabilityScore = readability.score ?? 70;

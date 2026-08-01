@@ -10,6 +10,8 @@ import {
   CampaignWithStats,
 } from "../interfaces/campaign.interface";
 import { Campaign } from "../../../shared/schemas/campaign.schema";
+import Blog from "../../../shared/schemas/blog.schema";
+import ScheduledPost from "../../../shared/schemas/scheduled-post.schema";
 import {
   CampaignStatus,
   ScheduledPostStatus,
@@ -17,8 +19,11 @@ import {
   CampaignContentAutonomy,
   CampaignPublishingMode,
   CampaignApprovalPolicy,
+  PostFrequency,
+  CampaignType,
 } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
+import { env } from "../../../shared/config/env";
 
 @injectable()
 export class CampaignService {
@@ -27,8 +32,71 @@ export class CampaignService {
     private scheduledPostRepository: ScheduledPostRepository
   ) {}
 
+  /**
+   * Ensure the site has exactly one Default (Evergreen) campaign.
+   * Used when Strategic Intelligence is enabled (doc 21).
+   */
+  async ensureDefaultCampaign(siteId: string, userId: string): Promise<Campaign> {
+    const existing = await this.campaignRepository.findDefault(siteId);
+    if (existing) return existing;
+
+    const now = new Date();
+    const end = new Date(now);
+    end.setFullYear(end.getFullYear() + 10);
+
+    try {
+      const campaign = await this.campaignRepository.create({
+        user_id: userId,
+        site_id: siteId,
+        name: "Evergreen",
+        description: "Default campaign for content that is not part of a time-bounded campaign.",
+        goal: "Evergreen content aligned with the workspace strategy",
+        status: CampaignStatus.ACTIVE,
+        lifecycle_status: CampaignLifecycleStatus.ACTIVE,
+        campaign_type: CampaignType.CUSTOM,
+        is_default: true,
+        content_autonomy: CampaignContentAutonomy.ASSISTED,
+        publishing_mode: CampaignPublishingMode.SCHEDULED_HITL,
+        approval_policy: CampaignApprovalPolicy.REQUIRE_PRE_PUBLISH_APPROVAL,
+        notifications: { daily_progress_email: false },
+        start_date: now,
+        end_date: end,
+        posting_frequency: PostFrequency.WEEKLY,
+        timezone: "UTC",
+        posts_published: 0,
+        funnel_focus: "full_funnel",
+      });
+      logger.info("Default campaign created", { campaignId: campaign._id, siteId }, "CampaignService");
+      return campaign;
+    } catch (err) {
+      // Race: another request may have created the default.
+      const raced = await this.campaignRepository.findDefault(siteId);
+      if (raced) return raced;
+      throw err;
+    }
+  }
+
+  /**
+   * Assign unbound blogs and scheduled posts to the Default campaign.
+   */
+  async backfillContentToDefault(siteId: string, userId: string): Promise<{ blogs: number; scheduled: number }> {
+    const def = await this.ensureDefaultCampaign(siteId, userId);
+    const id = def._id!.toString();
+    const blogRes = await Blog.updateMany(
+      { site_id: siteId, $or: [{ campaign_id: { $exists: false } }, { campaign_id: null }, { campaign_id: "" }] },
+      { $set: { campaign_id: id } }
+    );
+    const schedRes = await ScheduledPost.updateMany(
+      { site_id: siteId, $or: [{ campaign_id: { $exists: false } }, { campaign_id: null }, { campaign_id: "" }] },
+      { $set: { campaign_id: id } }
+    );
+    return {
+      blogs: blogRes.modifiedCount ?? 0,
+      scheduled: schedRes.modifiedCount ?? 0,
+    };
+  }
+
   async createCampaign(userId: string, siteId: string, input: CreateCampaignInput): Promise<Campaign> {
-    // Validate dates
     if (input.start_date >= input.end_date) {
       throw new BadRequestError("End date must be after start date");
     }
@@ -37,8 +105,11 @@ export class CampaignService {
       throw new BadRequestError("Start date cannot be in the past");
     }
 
-    // Validate timezone
     const timezone = input.timezone || "UTC";
+
+    if (env.orchestrator.strategicIntelligenceEnabled) {
+      await this.ensureDefaultCampaign(siteId, userId);
+    }
 
     const campaign = await this.campaignRepository.create({
       ...input,
@@ -52,6 +123,7 @@ export class CampaignService {
       notifications: { daily_progress_email: true },
       timezone,
       posts_published: 0,
+      is_default: false,
     });
 
     logger.info("Campaign created", { campaignId: campaign._id, userId, siteId }, "CampaignService");
@@ -64,7 +136,6 @@ export class CampaignService {
       throw new NotFoundError("Campaign not found");
     }
 
-    // If userId is provided, ensure the campaign belongs to the user
     if (userId && campaign.user_id !== userId) {
       throw new ForbiddenError("You don't have permission to access this campaign");
     }
@@ -116,7 +187,6 @@ export class CampaignService {
   ): Promise<Campaign> {
     const campaign = await this.getCampaignById(campaignId, siteId, userId);
 
-    // Validate dates if updating
     if (input.start_date || input.end_date) {
       const startDate = input.start_date || campaign.start_date;
       const endDate = input.end_date || campaign.end_date;
@@ -126,7 +196,6 @@ export class CampaignService {
       }
     }
 
-    // Prevent updating active/completed campaigns to draft
     if (
       input.status === CampaignStatus.DRAFT &&
       (campaign.status === CampaignStatus.ACTIVE || campaign.status === CampaignStatus.COMPLETED)
@@ -144,9 +213,12 @@ export class CampaignService {
   }
 
   async deleteCampaign(campaignId: string, siteId: string, userId: string): Promise<void> {
-    await this.getCampaignById(campaignId, siteId, userId);
+    const campaign = await this.getCampaignById(campaignId, siteId, userId);
 
-    // Check if campaign has scheduled posts
+    if (campaign.is_default) {
+      throw new BadRequestError("Cannot delete the Default (Evergreen) campaign");
+    }
+
     const scheduledPosts = await this.scheduledPostRepository.findByCampaign(campaignId, siteId);
     const hasActivePosts = scheduledPosts.some(
       (post) => post.status === ScheduledPostStatus.PENDING || post.status === ScheduledPostStatus.SCHEDULED
@@ -158,7 +230,6 @@ export class CampaignService {
       );
     }
 
-    // Cancel all scheduled posts
     for (const post of scheduledPosts) {
       await this.scheduledPostRepository.update(post._id!.toString(), siteId, {
         status: ScheduledPostStatus.CANCELLED,
@@ -184,8 +255,7 @@ export class CampaignService {
       throw new BadRequestError("Cannot activate completed or cancelled campaign");
     }
 
-    // Validate dates
-    if (campaign.end_date < new Date()) {
+    if (campaign.end_date < new Date() && !campaign.is_default) {
       throw new BadRequestError("Cannot activate campaign with end date in the past");
     }
 
@@ -194,6 +264,10 @@ export class CampaignService {
 
   async pauseCampaign(campaignId: string, siteId: string, userId: string): Promise<Campaign> {
     const campaign = await this.getCampaignById(campaignId, siteId, userId);
+
+    if (campaign.is_default) {
+      throw new BadRequestError("Cannot pause the Default (Evergreen) campaign");
+    }
 
     if (campaign.status !== CampaignStatus.ACTIVE) {
       throw new BadRequestError("Only active campaigns can be paused");
@@ -205,11 +279,14 @@ export class CampaignService {
   async cancelCampaign(campaignId: string, siteId: string, userId: string): Promise<Campaign> {
     const campaign = await this.getCampaignById(campaignId, siteId, userId);
 
+    if (campaign.is_default) {
+      throw new BadRequestError("Cannot cancel the Default (Evergreen) campaign");
+    }
+
     if (campaign.status === CampaignStatus.CANCELLED || campaign.status === CampaignStatus.COMPLETED) {
       throw new BadRequestError("Campaign is already cancelled or completed");
     }
 
-    // Cancel all pending/scheduled posts
     const scheduledPosts = await this.scheduledPostRepository.findByCampaign(campaignId, siteId);
     for (const post of scheduledPosts) {
       if (post.status === ScheduledPostStatus.PENDING || post.status === ScheduledPostStatus.SCHEDULED) {

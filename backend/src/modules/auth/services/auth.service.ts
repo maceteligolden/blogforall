@@ -4,7 +4,7 @@ import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
 import { BadRequestError, UnauthorizedError, NotFoundError, ForbiddenError } from "../../../shared/errors";
-import { UserPlan, UserRole, SiteStatus, BlogStatus, isPlatformAdminRole } from "../../../shared/constants";
+import { UserPlan, UserRole, BlogStatus, isPlatformAdminRole } from "../../../shared/constants";
 import { Site } from "../../../shared/schemas/site.schema";
 import Blog from "../../../shared/schemas/blog.schema";
 import { logger } from "../../../shared/utils/logger";
@@ -33,6 +33,13 @@ import {
   ServerAnalyticsEvents,
 } from "../../../shared/analytics/posthog.server";
 
+/** Legacy accounts predate email verification — treat unset as verified. */
+function isEmailVerified(user: User): boolean {
+  if (user.email_verified === true) return true;
+  if (user.email_verified === false) return false;
+  return true;
+}
+
 @injectable()
 export class AuthService {
   constructor(
@@ -46,15 +53,8 @@ export class AuthService {
   ) {}
 
   /**
-   * PSEUDOCODE:
-   * 1. CHECK existing user by email; if exists THROW BadRequestError
-   * 2. HASH password
-   * 3. TRY create Stripe customer; on failure LOG and continue
-   * 4. CREATE user with hashed password, plan FREE, terms_accepted_at (now), terms_version from input
-   * 5. TRY create free subscription; on failure LOG and continue
-   * 6. TRY ensure default workspace; on failure LOG and continue
-   * 7. TRY send welcome email via NotificationService (async queue); on failure LOG and continue
-   * 8. LOG success and RETURN LoginResponse (auto-login tokens)
+   * Create account, send email OTP, auto-login. Does NOT send welcome email
+   * or fire USER_SIGNED_UP until the signup wizard completes.
    */
   async signup(input: SignupInput): Promise<LoginResponse> {
     const { email, password, first_name, last_name, phone_number, terms_version, referral_code, invite_token } = input;
@@ -64,7 +64,7 @@ export class AuthService {
     const existingUser = await this.userRepository.findByEmail(formattedEmail);
     if (existingUser) {
       logger.warn("Signup attempt with existing email", { email: formattedEmail }, "AuthService");
-      throw new BadRequestError("User with this email already exists");
+      throw new BadRequestError("That email is already in use. Try logging in instead.");
     }
 
     let effectiveReferralCode = referral_code;
@@ -95,17 +95,16 @@ export class AuthService {
       phone_number,
       plan: UserPlan.FREE,
       stripe_customer_id: stripeCustomerId,
-      onboarding_completed: true,
+      onboarding_completed: false,
+      email_verified: false,
       terms_accepted_at: new Date(),
       terms_version: terms_version ?? undefined,
     });
 
-    // Create free subscription for new user
     try {
       await this.subscriptionService.createFreeSubscription(user._id!.toString());
     } catch (error) {
       logger.error("Failed to create free subscription on signup", error as Error, { userId: user._id }, "AuthService");
-      // Continue even if subscription creation fails - can be created later
     }
 
     try {
@@ -126,10 +125,139 @@ export class AuthService {
       );
     }
 
+    await this.sendEmailVerificationCode(user._id!.toString());
+
+    logger.info("User signup started (awaiting email verification)", { userId: user._id, email }, "AuthService");
+
+    const userId = user._id!.toString();
+    identifyServerUser(userId, { email: user.email, plan: user.plan });
+
+    const userSites = await this.siteService.getSitesByUser(userId);
+    return this.buildLoginResponse(user, userSites);
+  }
+
+  async sendEmailVerificationCode(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundError("User not found");
+    if (user.email_verified) {
+      logger.info("Email already verified; skip OTP", { userId }, "AuthService");
+      return;
+    }
+
+    const code = this.generatePasswordResetCode();
+    const hashedCode = this.hashResetCode(code);
+    const expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+    await this.userRepository.setEmailVerificationCode(userId, hashedCode, expiresAt);
+
+    setImmediate(() => {
+      this.notificationService
+        .createAndSend({
+          channel: NotificationChannel.EMAIL,
+          type: NotificationType.EMAIL_VERIFICATION,
+          recipientEmail: user.email,
+          templateParams: {
+            code,
+            expiresInMinutes: String(EMAIL_VERIFICATION_TTL_MINUTES),
+            firstName: user.first_name,
+          },
+        })
+        .then(() => {
+          logger.info("Email verification OTP enqueued", { userId, email: user.email }, "AuthService");
+          captureServerEvent(ServerAnalyticsEvents.EMAIL_VERIFICATION_SENT, { userId });
+        })
+        .catch((error: unknown) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+          logger.error("Email verification OTP failed to send", err, { userId, email: user.email }, "AuthService");
+        });
+    });
+  }
+
+  async verifyEmail(userId: string, code: string): Promise<LoginResponse> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundError("User not found");
+    if (user.email_verified) {
+      const sites = await this.siteService.getSitesByUser(userId);
+      return this.buildLoginResponse(user, sites);
+    }
+
+    try {
+      await this.assertEmailVerificationCodeValid(user, code);
+    } catch (error) {
+      captureServerEvent(ServerAnalyticsEvents.EMAIL_VERIFICATION_FAILED, {
+        userId,
+        properties: { reason: error instanceof Error ? error.message : "invalid" },
+      });
+      throw error;
+    }
+
+    await this.userRepository.markEmailVerified(userId);
+    captureServerEvent(ServerAnalyticsEvents.EMAIL_VERIFICATION_SUCCEEDED, { userId });
+    logger.info("Email verified", { userId, email: user.email }, "AuthService");
+
+    const refreshed = await this.userRepository.findById(userId);
+    const sites = await this.siteService.getSitesByUser(userId);
+    return this.buildLoginResponse(refreshed ?? user, sites);
+  }
+
+  async setCompanyRole(
+    userId: string,
+    input: { company_role: string; company_role_detail?: string },
+  ): Promise<LoginResponse> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundError("User not found");
+    if (!isEmailVerified(user)) {
+      throw new BadRequestError("Please verify your email before continuing.");
+    }
+
+    await this.userRepository.update(userId, {
+      company_role: input.company_role,
+      company_role_detail: input.company_role_detail?.trim() || undefined,
+    });
+    captureServerEvent(ServerAnalyticsEvents.COMPANY_ROLE_SET, {
+      userId,
+      properties: { company_role: input.company_role },
+    });
+    logger.info("Company role set", { userId, company_role: input.company_role }, "AuthService");
+
+    const refreshed = await this.userRepository.findById(userId);
+    const sites = await this.siteService.getSitesByUser(userId);
+    return this.buildLoginResponse(refreshed ?? user, sites);
+  }
+
+  async dismissWelcomeTour(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundError("User not found");
+    await this.userRepository.update(userId, {
+      welcome_tour_dismissed_at: new Date(),
+      show_welcome_tour: false,
+    });
+    logger.info("Welcome tour dismissed", { userId }, "AuthService");
+  }
+
+  /**
+   * Fire welcome email + USER_SIGNED_UP once the signup wizard is fully complete.
+   */
+  async finalizeSignupCompletion(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) throw new NotFoundError("User not found");
+
+    await this.userRepository.update(userId, {
+      onboarding_completed: true,
+      show_welcome_tour: true,
+    });
+
+    identifyServerUser(userId, { email: user.email, plan: user.plan });
+    captureServerEvent(ServerAnalyticsEvents.USER_SIGNED_UP, {
+      userId,
+      properties: {
+        plan_type: user.plan,
+        company_role: user.company_role,
+      },
+    });
+
     const loginUrl = `${env.frontend.baseUrl}/auth/login`;
     const recipientEmail = user.email;
     const firstName = user.first_name;
-    const userIdForLog = user._id;
     setImmediate(() => {
       this.notificationService
         .createAndSend({
@@ -139,34 +267,18 @@ export class AuthService {
           templateParams: { firstName, loginUrl },
         })
         .then(() => {
-          logger.info(
-            "Welcome email enqueued for new user",
-            { userId: userIdForLog, email: recipientEmail },
-            "AuthService"
-          );
+          logger.info("Welcome email enqueued after wizard complete", { userId, email: recipientEmail }, "AuthService");
         })
         .catch((error: unknown) => {
           const err = error instanceof Error ? error : new Error(String(error));
           logger.error(
-            "Welcome email failed (signup already succeeded)",
+            "Welcome email failed (wizard already complete)",
             err,
-            { userId: userIdForLog, email: recipientEmail, message: err.message, stack: err.stack },
+            { userId, email: recipientEmail, message: err.message },
             "AuthService"
           );
         });
     });
-
-    logger.info("User signed up successfully", { userId: user._id, email, stripeCustomerId }, "AuthService");
-
-    const userId = user._id!.toString();
-    identifyServerUser(userId, { email: user.email, plan: user.plan });
-    captureServerEvent(ServerAnalyticsEvents.USER_SIGNED_UP, {
-      userId,
-      properties: { plan_type: user.plan },
-    });
-
-    const userSites = await this.siteService.getSitesByUser(userId);
-    return this.buildLoginResponse(user, userSites);
   }
 
   /**
@@ -192,6 +304,17 @@ export class AuthService {
     if (!isPasswordValid) {
       logger.warn("Failed login attempt - invalid password", { email }, "AuthService");
       throw new UnauthorizedError("Invalid credentials");
+    }
+
+    if (!isEmailVerified(user)) {
+      try {
+        await this.sendEmailVerificationCode(user._id!.toString());
+      } catch (error) {
+        logger.error("Failed to resend verification on login", error as Error, { userId: user._id }, "AuthService");
+      }
+      const userSites = await this.siteService.getSitesByUser(user._id!.toString());
+      logger.info("Login with unverified email — verification required", { userId: user._id, email }, "AuthService");
+      return this.buildLoginResponse(user, userSites);
     }
 
     const userSites = await this.siteService.getSitesByUser(user._id!.toString());
@@ -264,14 +387,11 @@ export class AuthService {
 
     const ownedSites = await this.siteService.getOwnedSitesByUser(userId);
 
-    if (user.plan_selection_completed_at) {
-      throw new BadRequestError("Signup cannot be abandoned after workspace setup is complete");
+    if (user.workspace_invite_prompt_dismissed_at && user.plan_selection_completed_at) {
+      throw new BadRequestError("Signup cannot be abandoned after setup is complete");
     }
 
-    if (ownedSites.some((s) => s.status !== SiteStatus.ONBOARDING)) {
-      throw new BadRequestError("Signup can only be abandoned during workspace setup");
-    }
-
+    // Allow abandon while unverified or mid-wizard; block if any non-setup content exists.
     for (const site of ownedSites) {
       const siteId = site._id!.toString();
       const publishedCount = await Blog.countDocuments({
@@ -282,6 +402,21 @@ export class AuthService {
         throw new BadRequestError("Signup cannot be abandoned after content has been published");
       }
     }
+
+    const stage = !isEmailVerified(user)
+      ? "email_verification"
+      : !user.company_role
+        ? "company_role"
+        : ownedSites.length === 0
+          ? "workspace_name"
+          : !user.plan_selection_completed_at
+            ? "plan_selection"
+            : "invite";
+
+    captureServerEvent(ServerAnalyticsEvents.ONBOARDING_DROPPED, {
+      userId,
+      properties: { stage, email_verified: isEmailVerified(user) },
+    });
 
     for (const site of ownedSites) {
       await this.siteService.deleteSite(site._id!.toString(), userId);
@@ -307,7 +442,7 @@ export class AuthService {
       throw new NotFoundError("User not found");
     }
 
-    logger.info("Signup abandoned and account deleted", { userId, email: user.email }, "AuthService");
+    logger.info("Signup abandoned and account deleted", { userId, email: user.email, stage }, "AuthService");
   }
 
   /**
@@ -383,6 +518,9 @@ export class AuthService {
     phone_number?: string;
     plan: string;
     role: string;
+    email_verified: boolean;
+    company_role?: string;
+    welcome_tour_dismissed: boolean;
     created_at?: Date;
     updated_at?: Date;
   }> {
@@ -399,6 +537,9 @@ export class AuthService {
       phone_number: user.phone_number,
       plan: user.plan,
       role: user.role ?? UserRole.USER,
+      email_verified: Boolean(isEmailVerified(user)),
+      company_role: user.company_role,
+      welcome_tour_dismissed: !user.show_welcome_tour,
       created_at: user.created_at,
       updated_at: user.updated_at,
     };
@@ -511,6 +652,26 @@ export class AuthService {
     logger.info("Password reset via code", { userId: user._id, email: user.email }, "AuthService");
   }
 
+  private async assertEmailVerificationCodeValid(user: User, code: string): Promise<void> {
+    if (
+      !user.email_verification_token ||
+      !user.email_verification_expires ||
+      user.email_verification_expires.getTime() <= Date.now()
+    ) {
+      throw new BadRequestError("That code is invalid or expired. Request a new one.");
+    }
+    if ((user.email_verification_attempts ?? 0) >= EMAIL_VERIFICATION_MAX_ATTEMPTS) {
+      throw new BadRequestError("Too many attempts. Request a new code.");
+    }
+
+    const hashedCode = this.hashResetCode(code);
+    if (hashedCode !== user.email_verification_token) {
+      const attempts = await this.userRepository.incrementEmailVerificationAttempts(user._id!.toString());
+      logger.warn("Email verification code mismatch", { userId: user._id, attempts }, "AuthService");
+      throw new BadRequestError("That code doesn't look right. Double-check and try again.");
+    }
+  }
+
   private async assertResetCodeValid(rawEmail: string, code: string): Promise<User> {
     const email = rawEmail.toLowerCase();
     const user = await this.userRepository.findByEmail(email);
@@ -542,11 +703,10 @@ export class AuthService {
     return createHash("sha256").update(code).digest("hex");
   }
 
-  /** Prefer an in-progress onboarding workspace for JWT site context, else first site. */
+  /** Prefer first site for JWT context (sites are active without chat). */
   private resolveCurrentSiteId(sites: Site[]): string | undefined {
     if (sites.length === 0) return undefined;
-    const onboardingSite = sites.find((s) => s.status === SiteStatus.ONBOARDING);
-    return (onboardingSite ?? sites[0])._id!.toString();
+    return sites[0]._id!.toString();
   }
 
   private async buildLoginResponse(user: User, sites: Site[]): Promise<LoginResponse> {
@@ -563,6 +723,7 @@ export class AuthService {
     await this.userRepository.updateSessionToken(user._id!.toString(), refreshToken);
 
     const role = user.role ?? UserRole.USER;
+    const emailVerified = isEmailVerified(user);
 
     return {
       tokens: {
@@ -576,8 +737,12 @@ export class AuthService {
         last_name: user.last_name,
         plan: user.plan,
         role,
+        email_verified: emailVerified,
+        company_role: user.company_role,
       },
       requiresSiteCreation: isPlatformAdminRole(role) ? false : !hasSites,
+      requires_email_verification: !emailVerified,
+      requires_company_role: emailVerified && !user.company_role,
     };
   }
 }
@@ -585,3 +750,6 @@ export class AuthService {
 const PASSWORD_RESET_CODE_TTL_MINUTES = 15;
 const PASSWORD_RESET_CODE_TTL_MS = PASSWORD_RESET_CODE_TTL_MINUTES * 60 * 1000;
 const PASSWORD_RESET_MAX_ATTEMPTS = 5;
+const EMAIL_VERIFICATION_TTL_MINUTES = 15;
+const EMAIL_VERIFICATION_TTL_MS = EMAIL_VERIFICATION_TTL_MINUTES * 60 * 1000;
+const EMAIL_VERIFICATION_MAX_ATTEMPTS = 5;

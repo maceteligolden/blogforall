@@ -175,6 +175,29 @@ export class WeeklyDigestService {
         post_ids: entries.map((e) => e.post._id?.toString()).filter(Boolean),
       },
     });
+
+    const siteName = site?.name || "your workspace";
+    try {
+      await this.notificationService.createAndSend({
+        channel: NotificationChannel.IN_APP,
+        type: NotificationType.WEEKLY_REVIEW_DIGEST,
+        recipientUserId: userId,
+        title: "Weekly review digest",
+        body: `${entries.length} scheduled post${entries.length === 1 ? "" : "s"} in ${siteName} still need review`,
+        payload: {
+          site_id: siteId,
+          post_ids: entries.map((e) => e.post._id?.toString()).filter(Boolean),
+          post_count: entries.length,
+        },
+      });
+    } catch (err) {
+      logger.error(
+        "Failed to create in-app weekly digest notification",
+        err instanceof Error ? err : new Error(String(err)),
+        { userId, siteId },
+        "WeeklyDigestService"
+      );
+    }
   }
 
   private async buildEntries(siteId: string, userId: string, posts: ScheduledPost[]): Promise<DigestPostEntry[]> {

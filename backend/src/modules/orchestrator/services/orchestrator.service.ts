@@ -47,6 +47,10 @@ import { OrchestratorV05GraphService } from "../ai/graph/orchestrator-v05-graph.
 import { buildV05MoatSnapshot } from "../ai/observability/moat-snapshot";
 import { ConversationIntelligenceService } from "../ai/conversation-intelligence/conversation-intelligence";
 import type { ConversationContext } from "../ai/contracts/conversation-context";
+import { RealtimeService, REALTIME_EVENTS } from "../../../shared/realtime";
+import type { WorkflowPhaseEvent } from "../ai/observability/phase-emitter";
+import { NotificationService } from "../../notification/services/notification.service";
+import { notifyApprovalCreatedInApp } from "../../../shared/utils/notify-approval-created.util";
 
 /** Ops tools live on the supervisor path (blogs.list / get / statistics), not v0.5 skills. */
 const SUPERVISOR_OPS_INTENTS = new Set([
@@ -114,6 +118,8 @@ export class OrchestratorService {
     private readonly sessionModeRouter: SessionModeRouterService,
     private readonly v05Graph: OrchestratorV05GraphService,
     private readonly conversationIntelligence: ConversationIntelligenceService,
+    private readonly realtimeService: RealtimeService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -211,6 +217,18 @@ export class OrchestratorService {
     if (!decided) {
       throw new NotFoundError("Approval not found or already decided");
     }
+    this.realtimeService.emitToUser(
+      decided.requested_for_user_id,
+      REALTIME_EVENTS.APPROVAL_DECIDED,
+      {
+        id: decided._id!.toString(),
+        siteId,
+        status: decided.status,
+        kind: decided.kind,
+        action: decided.action,
+      },
+      { siteId }
+    );
     if (decision === "approved") {
       await this.executeApprovedAction(decided, userId);
     }
@@ -258,8 +276,9 @@ export class OrchestratorService {
 
     const site = await this.siteService.getSiteById(siteId, userId);
     const memberRole = await this.siteService.getUserRole(siteId, userId);
+    // Chatless signup: promote legacy onboarding sites so normal chat works.
     if (mode === "active" && site.status === SiteStatus.ONBOARDING) {
-      throw new ForbiddenError("Workspace onboarding is not complete. Use the onboarding chat to finish setup.");
+      await this.siteService.markSiteActive(siteId, userId);
     }
 
     const thread = await this.resolveThread(siteId, userId, input.threadId, mode);
@@ -469,6 +488,7 @@ export class OrchestratorService {
         payload: decision.confirmation.payload,
         expires_at: new Date(Date.now() + env.orchestrator.confirmTimeoutMs),
       });
+      this.emitApprovalCreated(pendingApproval);
       if (!assistantReply) {
         assistantReply = decision.confirmation.summary;
       }
@@ -667,6 +687,35 @@ export class OrchestratorService {
         content: m.content,
       }));
 
+    this.realtimeService.emitToUser(
+      userId,
+      REALTIME_EVENTS.ORCHESTRATOR_TURN_STARTED,
+      { threadId, siteId },
+      { siteId }
+    );
+
+    let lastPhaseEmitAt = 0;
+    const onPhase = (event: WorkflowPhaseEvent) => {
+      const now = Date.now();
+      // Coalesce high-frequency percent updates (~150ms).
+      if (typeof event.percent === "number" && now - lastPhaseEmitAt < 150) {
+        return;
+      }
+      lastPhaseEmitAt = now;
+      this.realtimeService.emitToUser(
+        userId,
+        REALTIME_EVENTS.ORCHESTRATOR_PHASE,
+        {
+          threadId,
+          siteId,
+          phase: event.phase,
+          message: event.message,
+          percent: event.percent,
+          skill_id: event.skill_id,
+        },
+        { siteId }
+      );
+    };
 
     const result = await this.v05Graph.runTurn({
       workspace_id: siteId,
@@ -683,6 +732,7 @@ export class OrchestratorService {
             text: selectionContext.text,
           }
         : undefined,
+      onPhase,
     });
 
 
@@ -710,6 +760,18 @@ export class OrchestratorService {
         stage: result.state.workflow_stage,
       },
       "OrchestratorService",
+    );
+
+    this.realtimeService.emitToUser(
+      userId,
+      REALTIME_EVENTS.ORCHESTRATOR_TURN_COMPLETED,
+      {
+        threadId,
+        siteId,
+        workflow_stage: result.state.workflow_stage,
+        skills_run: result.state.skills_run_this_turn,
+      },
+      { siteId }
     );
 
     return {
@@ -1194,6 +1256,24 @@ export class OrchestratorService {
       );
     }
     return n;
+  }
+
+  private emitApprovalCreated(approval: OrchestratorApproval): void {
+    const siteId = approval.site_id;
+    this.realtimeService.emitToUser(
+      approval.requested_for_user_id,
+      REALTIME_EVENTS.APPROVAL_CREATED,
+      {
+        id: approval._id!.toString(),
+        siteId,
+        kind: approval.kind,
+        action: approval.action,
+        summary: approval.summary,
+        threadId: approval.thread_id,
+      },
+      { siteId }
+    );
+    void notifyApprovalCreatedInApp(this.notificationService, approval);
   }
 
   private async assertSiteAccess(siteId: string, userId: string): Promise<void> {

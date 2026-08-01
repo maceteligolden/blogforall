@@ -17,6 +17,7 @@ import { SkillRegistry } from "../skills/registry";
 import { ContentStrategyService } from "../skills/strategy/content-strategy.service";
 import { WritingSkillService } from "../skills/writing/writing.service";
 import { ConversationSkillService } from "../skills/conversation/conversation.service";
+import { StrategicContextService } from "../services/strategic-context.service";
 import {
   buildOrchestratorGraph,
   invokeTurn,
@@ -25,6 +26,11 @@ import {
 } from "./orchestrator.graph";
 import type { OrchestratorState } from "./state";
 import type { WorkflowMode } from "../contracts/enums";
+import {
+  buildGroundedWritingPrompt,
+  isPostFormat,
+  type PostFormat,
+} from "../contracts/post-format";
 
 function buildBlogPreviewUrl(blogId: string): string {
   const base = env.frontend.baseUrl.replace(/\/$/, "");
@@ -150,6 +156,7 @@ export class OrchestratorV05GraphService {
     private readonly strategy: ContentStrategyService,
     private readonly conversation: ConversationSkillService,
     private readonly blogService: BlogService,
+    private readonly strategicContext: StrategicContextService,
   ) {}
 
   async runTurn(input: V05GraphTurnInput): Promise<V05GraphTurnResult> {
@@ -328,6 +335,7 @@ export class OrchestratorV05GraphService {
     const deps: OrchestratorGraphDeps = {
       memory: this.memory,
       registry: this.buildRegistry(),
+      strategicContext: this.strategicContext,
       tracer: undefined as TurnTracer | undefined,
       onPhase: undefined as PhaseListener | undefined,
     };
@@ -342,11 +350,13 @@ export class OrchestratorV05GraphService {
     registry.register("research", async (state, args) => {
       const depth = args.depth === "full" ? "full" : "lite";
       const topic = state.slots.topic ?? state.message;
+      const post_format = isPostFormat(state.slots.post_format) ? state.slots.post_format : undefined;
       const onPhase = this.graphDeps?.onPhase;
       const result = await this.research.run({
         workspace_id: state.workspace_id,
         topic,
         depth,
+        post_format,
         persist: true,
         created_by: state.user_id,
         thread_id: state.thread_id,
@@ -368,20 +378,44 @@ export class OrchestratorV05GraphService {
     registry.register("writing", async (state, args) => {
       const action = args.action === "revise" ? "revise" : args.action === "outline" ? "outline" : "draft";
       const topic = state.slots.topic ?? state.message;
+      const post_format: PostFormat | undefined = isPostFormat(state.slots.post_format)
+        ? state.slots.post_format
+        : undefined;
       const userNarrative = (state.recent_messages ?? [])
         .filter((m) => m.role === "user")
         .map((m) => m.content.trim())
         .filter(Boolean)
         .slice(-8)
         .join("\n");
-      const groundedPrompt = userNarrative
-        ? `${topic}
-
-Write from the user's lived perspective using ONLY what they described below. Do not invent events, quotes, or people they did not mention. If they expressed confusion, conflict, or an unresolved feeling, make that a central beat — do not smooth it away.
-
-User's words:
-${userNarrative}`
-        : topic;
+      const groundedPrompt = buildGroundedWritingPrompt({
+        topic,
+        userNarrative,
+        format: post_format,
+      });
+      const slice = state.memory_views?.workspace_slice as
+        | {
+            brand_voice?: string;
+            target_audience?: string[];
+            business_goals?: string[];
+          }
+        | undefined;
+      const prefs = state.memory_views?.preferences as
+        | { tone?: string; target_audience?: string; word_count?: number }
+        | undefined;
+      const userParams = {
+        tone: state.slots.tone ?? prefs?.tone ?? state.conversation_context?.tone_preference,
+        target_audience:
+          state.slots.target_audience ??
+          prefs?.target_audience ??
+          slice?.target_audience?.[0],
+        word_count: state.slots.word_count ?? prefs?.word_count,
+        context_pack:
+          (typeof state.memory_views?.prompt_block === "string" && state.memory_views.prompt_block.trim()
+            ? state.memory_views.prompt_block
+            : undefined) ??
+          (slice?.brand_voice ? `brand_voice: ${slice.brand_voice}` : undefined),
+        post_format,
+      };
       const result = await this.writing.run({
         action,
         workspace_id: state.workspace_id,
@@ -395,6 +429,8 @@ ${userNarrative}`
         optimization_plan: state.optimization_plan,
         feedback: typeof args.feedback === "string" ? args.feedback : undefined,
         allow_without_package: action === "revise",
+        userParams,
+        post_format,
       });
       const patch: Partial<OrchestratorState> = {
         quality_gate_passed: action === "revise" ? undefined : state.quality_gate_passed,
@@ -462,6 +498,7 @@ ${userNarrative}`
       if (!draft?.title || !draft.content) {
         throw new Error("content_optimization requires draft title+content");
       }
+      const post_format = isPostFormat(state.slots.post_format) ? state.slots.post_format : undefined;
       const result = await this.optimize.run({
         draft: {
           title: draft.title,
@@ -476,6 +513,7 @@ ${userNarrative}`
         created_by: state.user_id,
         thread_id: state.thread_id,
         optimize_count: state.optimize_count,
+        post_format,
         onPhase: this.graphDeps?.onPhase,
       });
       return {
@@ -503,6 +541,7 @@ ${userNarrative}`
 
     registry.register("content_strategy", async (state) => {
       const topic = state.slots.topic ?? state.message;
+      const post_format = isPostFormat(state.slots.post_format) ? state.slots.post_format : undefined;
       const slice = state.memory_views?.workspace_slice as
         | {
             brand_voice?: string;
@@ -512,6 +551,7 @@ ${userNarrative}`
         | undefined;
       const artifact = this.strategy.propose({
         topic,
+        post_format,
         workspace_hints: {
           brand_voice: slice?.brand_voice,
           target_audience: slice?.target_audience,
@@ -577,16 +617,29 @@ ${userNarrative}`
         typeof state.memory_views?.session_summary === "string"
           ? state.memory_views.session_summary
           : "";
+      if (sessionSummary.trim()) {
+        factBits.push(`session_summary: ${sessionSummary.slice(0, 800)}`);
+      }
       const result = await this.conversation.run({
         purpose,
         user_message: state.message,
-        clarification_question: state.conversation_context?.clarification_question,
+        clarification_question:
+          (typeof args.question === "string" && args.question) ||
+          state.conversation_context?.clarification_question,
         facts: factBits.join("\n") || undefined,
         brand_voice: slice?.brand_voice,
       });
+      const metaPatch: Record<string, unknown> = { ...state.metadata };
+      if (typeof args.question === "string" && args.strategic) {
+        if (String(args.question).includes("campaign")) {
+          metaPatch.campaign_clarify_asked = true;
+        } else {
+          metaPatch.strategic_gap_asked = true;
+        }
+      }
       return {
         summary: `Conversation (${purpose})`,
-        patch: { reply: result.reply },
+        patch: { reply: result.reply, metadata: metaPatch },
       };
     });
 

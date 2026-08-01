@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserPlus, Users } from "lucide-react";
 import { ProtectedRoute } from "@/components/protected-route";
+import { AuthSplitLayout } from "@/components/auth/auth-split-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,87 +126,87 @@ function InviteOnboardingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-lg rounded-xl border border-gray-800 bg-gray-900/80 p-8 shadow-xl">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-            <Users className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Invite your team</h1>
-            <p className="text-sm text-gray-400">
-              {site?.name ? `Add collaborators to ${site.name}` : "Optional — you can skip and invite later"}
-            </p>
-          </div>
+    <AuthSplitLayout>
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+          <Users className="h-6 w-6 text-primary" />
         </div>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Invite your team</h1>
+          <p className="text-sm text-gray-400">
+            {site?.name
+              ? `Optional — add collaborators to ${site.name}, or skip and invite later`
+              : "Optional — you can skip and invite later from settings"}
+          </p>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded-md border border-red-800 bg-red-900/50 p-3 text-sm text-red-200">{error}</div>
-          )}
-          {sentCount > 0 && (
-            <div className="rounded-md border border-green-800 bg-green-900/30 p-3 text-sm text-green-200">
-              {sentCount} invitation{sentCount === 1 ? "" : "s"} sent.
-            </div>
-          )}
-
-          <div>
-            <Label htmlFor="invite-email" className="text-gray-300">
-              Email address
-            </Label>
-            <Input
-              id="invite-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="colleague@company.com"
-              className="mt-1 border-gray-700 bg-gray-800 text-white"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="invite-role" className="text-gray-300">
-              Role
-            </Label>
-            <select
-              id="invite-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as "admin" | "editor" | "viewer")}
-              className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
-            >
-              <option value="admin">Admin — manage members and content</option>
-              <option value="editor">Editor — create and edit content</option>
-              <option value="viewer">Viewer — read-only access</option>
-            </select>
-          </div>
-
-          <Button
-            type="submit"
-            disabled={inviteMutation.isPending || !siteId}
-            className="w-full bg-primary text-white hover:bg-primary/90"
-          >
-            <UserPlus className="mr-2 h-4 w-4" />
-            {inviteMutation.isPending ? "Sending..." : "Send invitation"}
-          </Button>
-        </form>
-
-        {siteId && (
-          <div className="mt-6">
-            <h3 className="mb-3 text-sm font-semibold text-gray-300">Pending invitations</h3>
-            <PendingInvitationsList siteId={siteId} invitations={invitations} compact />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="rounded-md border border-red-800 bg-red-900/50 p-3 text-sm text-red-200">{error}</div>
+        )}
+        {sentCount > 0 && (
+          <div className="rounded-md border border-green-800 bg-green-900/30 p-3 text-sm text-green-200">
+            {sentCount} invitation{sentCount === 1 ? "" : "s"} sent.
           </div>
         )}
 
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-          <Button variant="outline" className="flex-1 border-gray-700" onClick={() => finish(true)}>
-            Skip for now
-          </Button>
-          <Button className="flex-1 bg-gray-700 hover:bg-gray-600" onClick={() => finish(false)}>
-            Continue to dashboard
-          </Button>
+        <div>
+          <Label htmlFor="invite-email" className="text-gray-300">
+            Email address
+          </Label>
+          <Input
+            id="invite-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="colleague@company.com"
+            className="mt-1 border-gray-700 bg-gray-800 text-white"
+          />
         </div>
+
+        <div>
+          <Label htmlFor="invite-role" className="text-gray-300">
+            Role
+          </Label>
+          <select
+            id="invite-role"
+            value={role}
+            onChange={(e) => setRole(e.target.value as "admin" | "editor" | "viewer")}
+            className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
+          >
+            <option value="admin">Admin — manage members and content</option>
+            <option value="editor">Editor — create and edit content</option>
+            <option value="viewer">Viewer — read-only access</option>
+          </select>
+        </div>
+
+        <Button
+          type="submit"
+          disabled={inviteMutation.isPending || !siteId}
+          className="w-full bg-primary text-white hover:bg-primary/90"
+        >
+          <UserPlus className="mr-2 h-4 w-4" />
+          {inviteMutation.isPending ? "Sending..." : "Send invitation"}
+        </Button>
+      </form>
+
+      {siteId && (
+        <div className="mt-6">
+          <h3 className="mb-3 text-sm font-semibold text-gray-300">Pending invitations</h3>
+          <PendingInvitationsList siteId={siteId} invitations={invitations} compact />
+        </div>
+      )}
+
+      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+        <Button variant="outline" className="flex-1 border-gray-700" onClick={() => finish(true)}>
+          Skip for now
+        </Button>
+        <Button className="flex-1 bg-gray-700 hover:bg-gray-600" onClick={() => finish(false)}>
+          Continue to dashboard
+        </Button>
       </div>
-    </div>
+    </AuthSplitLayout>
   );
 }
 

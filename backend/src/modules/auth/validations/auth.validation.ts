@@ -52,3 +52,12 @@ export const resetPasswordSchema = z.object({
   code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
   new_password: z.string().min(8, "New password must be at least 8 characters"),
 });
+
+export const verifyEmailSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, "Code must be 6 digits"),
+});
+
+export const companyRoleSchema = z.object({
+  company_role: z.enum(["founder", "marketer", "content", "engineer", "agency", "other"]),
+  company_role_detail: z.string().trim().max(200).optional(),
+});

@@ -57,6 +57,16 @@ Memory Manager
 
 Preference updates detected by Conversation Intelligence become **memory candidates** — MM evaluates/persists; CI never writes beliefs. See [19](./19-conversation-intelligence.md).
 
+### MVP belief writes (current code)
+
+| Source | Into LTM? | Where it lives instead |
+|--------|-----------|-------------------------|
+| Explicit preference (“I prefer shorter…”) | Yes — `emit_memory_candidate` → `rememberAsync` | `memory_records` / preference layer |
+| Onboarding brand / audience / goals | Yes — workspace strategic fields | WorkspaceMemory |
+| Storytelling / anecdote in chat | No (MVP) | Thread messages only |
+| Content Strategy artifact | No as belief (MVP) | In-turn `state.strategy`; Conversation summarizes |
+| Blog draft / revise | Artifact, not belief | Blogs collection (Content Artifact Store) |
+
 ```mermaid
 flowchart TB
   User --> Orch[LangGraphOrchestrator]
@@ -495,8 +505,10 @@ sequenceDiagram
 
 - Memory Manager facade + retrieve profiles
 - Session + Workspace (existing) + User Preference split (start writing new prefs to `memory_records`)
-- Learning writes from accepted/rejected optimization/edit outcomes
-- Knowledge writes from Research Package facts above confidence floor
+- **Belief writes from chat (implemented today):** only when CI `suggested_next_action=emit_memory_candidate` (preference-style turns). Compose enqueues `memory_candidates`; persist calls `rememberAsync`.
+- **Not yet auto-remembered into LTM:** storytelling / lived narrative, Content Strategy discussion, draft revision feedback, or “what we talked about” episodic facts. Those rely on **thread short-term history** (`recent_messages`) and/or the **Content Artifact Store** (blogs, research packages). New threads therefore cannot recall prior story details unless they exist as workspace strategic fields or preference records.
+- Learning writes from accepted/rejected optimization/edit outcomes (design target; wire as available)
+- Knowledge writes from Research Package facts above confidence floor (design target)
 - Content Intelligence **read-thin** from statistics
 - Async remember job skeleton; summarization every N=12
 - Mongo SoR; Qdrant optional wrap
@@ -504,6 +516,7 @@ sequenceDiagram
 **Post-MVP**
 
 - Closed-loop Content Intelligence → Strategy/Writing
+- Episodic / narrative remember so cross-thread “what do you remember about X?” works
 - Richer semantic index; optional KG
 - Automatic decay tuning; cross-workspace Knowledge with tenancy controls
 

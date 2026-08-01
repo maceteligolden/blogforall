@@ -36,6 +36,7 @@ Lifecycle fields on each ADR: **Date Added**, **Last Updated**, **Closed** (when
 | ADR-012 | Workspace = brand; no cross-workspace Knowledge in MVP | Approved | 2026-07-27 |
 | ADR-013 | Project execution via timeline + ADR docs | Approved | 2026-07-27 |
 | ADR-014 | M5 single default brain; cognition removed | Approved | 2026-07-27 |
+| ADR-015 | Strategic intelligence hierarchy | Approved | 2026-07-29 |
 
 ---
 
@@ -77,7 +78,7 @@ NLU lives in a Conversation Intelligence layer that emits `ConversationContext` 
 2026-07-27
 
 ### Last Updated
-2026-07-27
+2026-07-28
 
 ### Closed
 —
@@ -94,7 +95,7 @@ Fixes literal-assistant failure modes (passive acks instead of starting work). S
 Approved
 
 ### Impact
-`OrchestratorService` turn entry, prompts (`ci.analyze.v1`), state (`conversation_context`), docs 04/05/09/19.
+`OrchestratorService` turn entry, prompts (`ci.analyze.v1`), state (`conversation_context`), Conversation skill, docs 04/05/09/11/19. **2026-07-28:** LLM-primary CI; storytelling + section-edit rules; open-draft selection seeding for revise.
 
 ---
 
@@ -107,7 +108,7 @@ All belief memory goes through Memory Manager (`retrieve` / `remember` / `summar
 2026-07-27
 
 ### Last Updated
-2026-07-27
+2026-07-28
 
 ### Closed
 —
@@ -124,7 +125,7 @@ Prevents memory pollution and couples evaluation/merge/index behind one facade.
 Approved
 
 ### Impact
-Docs 08/18; tool deprecation path; async jobs; skill context injects `MemoryManager`.
+Docs 08/18; tool deprecation path; async jobs; skill context injects `MemoryManager`. **MVP note (2026-07-28):** chat only enqueues LTM for preference (`emit_memory_candidate`). Strategy talk and narrative storytelling are not auto-persisted as beliefs; blogs remain Content Artifact Store records.
 
 ---
 
@@ -448,6 +449,40 @@ Approved
 
 ### Impact
 `env.ts`; `OrchestratorService` routing; `index.ts` bootstrap; timeline M5.
+
+---
+
+## ADR-015 — Strategic intelligence hierarchy
+
+### Decision
+Extend (do not replace) Memory Manager, Campaign module, and v0.5 orchestrator with a strategic hierarchy: **Business Knowledge** (confidence-scored MemoryRecords) → **WorkspaceStrategy** → **Campaign** (exactly one Default per site) → **Content** (`Blog.campaign_id` required). Add CampaignIntelligence, Strategic Decision Engine, and a publish/stats learning loop behind `STRATEGIC_INTELLIGENCE_ENABLED`. Canonical design: [`architecture/v0.5/21-strategic-intelligence.md`](./architecture/v0.5/21-strategic-intelligence.md).
+
+Naming lock: **WorkspaceStrategy** (business) ≠ **ContentStrategyArtifact** (per-post) ≠ `strategy_state` (content themes).
+
+Campaign chat planning stays inside the orchestrator + campaign tools; a separate HF “Campaign Agent” app is **not** the target architecture ([`CAMPAIGN_AGENT_IMPLEMENTATION_PLAN.md`](./CAMPAIGN_AGENT_IMPLEMENTATION_PLAN.md) superseded for that scope).
+
+### Date Added
+2026-07-29
+
+### Last Updated
+2026-07-29
+
+### Closed
+—
+
+### Reason
+MVP content pipeline ships posts; ICP differentiation requires a living strategist that binds content to campaigns, tracks knowledge confidence, and chooses highest-value next actions.
+
+### Alternatives Considered
+- Replace campaigns with a new “program” model  
+- Separate multi-agent campaign chat (rejected — ADR-001)  
+- Require Strategy before any draft (rejected — never block content; use Default + stub)
+
+### Status
+Approved
+
+### Impact
+M6 Strategic Intelligence phases 1–7; schemas; APIs; orchestrator plan policies; docs 21.
 
 ---
 

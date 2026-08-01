@@ -89,6 +89,9 @@ export const ciAnalyzeLlmSchema = z.object({
       tone: z.string().optional(),
       target_audience: z.string().optional(),
       feedback: z.string().optional(),
+      post_format: z
+        .enum(["personal_story", "engineering_reflection", "productivity", "linkedin_post"])
+        .optional(),
     })
     .optional()
     .default({}),

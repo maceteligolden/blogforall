@@ -163,7 +163,9 @@ export class BlogGetTool implements OrchestratorTool {
       const projected = resolved.candidates.map(projectBlog);
       return {
         summary: truncateSummary(
-          `Found ${projected.length} posts matching '${resolved.query}'. Pick one in the results panel.`
+          projected.length > 0
+            ? `Couldn't lock onto one post for '${resolved.query}'. Showing ${projected.length} options — pick one in the results panel.`
+            : `No posts matched '${resolved.query}'.`
         ),
         data: {
           blogs: projected,

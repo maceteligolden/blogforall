@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-27 (M5 complete — single default brain; stop before Post-MVP)  
+**Last updated:** 2026-07-29 (M6 Strategic Intelligence approved — ADR-015 / doc 21)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -56,9 +56,9 @@ After completing work:
 | Production chat today | v0.5 default; set `ORCHESTRATOR_V05_GRAPH_ENABLED=false` for supervisor emergency |
 | Dirty worktree | Unrelated WIP may still exist — keep commits narrow |
 
-**Active milestone:** **MVP complete through M5** — do not start **M6 Post-MVP** without explicit approval.
+**Active milestone:** **M6 Strategic Intelligence** (ADR-015, [doc 21](./architecture/v0.5/21-strategic-intelligence.md)).
 
-**Next approved coding tasks:** None on timeline until Post-MVP is approved (T6.*).
+**Next approved coding tasks:** T6.SI.1–T6.SI.7 (Default Campaign → learning loop).
 
 ---
 
@@ -72,10 +72,10 @@ M2 Skills + pipelines         ████ DONE
 M3 Graph behind flag                    ████ DONE
 M4 Strategist UX                                  ████ DONE
 M5 Remove dual brain                                        ████ DONE
-M6 Learning / agency pack                                         ░░░░░ Post-MVP (stopped)
+M6 Strategic Intelligence                                         ░░░░░ In progress (ADR-015)
 ```
 
-Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or parallel thin Analytics read only).
+Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 Strategic Intelligence after M5 (agency pack remains later).
 
 ---
 
@@ -99,7 +99,7 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T1.5 | M1 | `OrchestratorState` Annotation + reducers | Completed | Critical | Eng | T1.1–T1.4 | 2026-07-27 | 2026-07-27 | 2026-07-27 | graph/state.ts |
 | T1.6 | M1 | Checkpoint PII / field allowlist | Completed | High | Eng | T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | checkpoint-allowlist.ts |
 | T1.7 | M1 | Unit tests for schemas / invariants | Completed | Critical | Eng | T1.1–T1.5 | 2026-07-27 | 2026-07-27 | 2026-07-27 | 13 tests passing |
-| T2.1 | M2 | CI facade `analyze` + `ci.analyze.v1` | Completed | Critical | Eng | T1.7 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Deterministic analyzer; LLM prompt deferred |
+| T2.1 | M2 | CI facade `analyze` + `ci.analyze.v1` | Completed | Critical | Eng | T1.7 | 2026-07-27 | 2026-07-28 | 2026-07-28 | LLM-primary + deterministic fallback; Conversation skill |
 | T2.2 | M2 | Memory Manager facade (retrieve/rememberAsync) | Completed | Critical | Eng | T1.7 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Adapters over ContextPackBuilder + extraction |
 | T2.3 | M2 | Research skill lite pipeline | Completed | Critical | Eng | T1.2 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Tavily→Package; Writing guards |
 | T2.4 | M2 | Research skill full (simplified phases) | Completed | High | Eng | T2.3 | 2026-07-27 | 2026-07-27 | 2026-07-27 | Multi-query + coverage retry |
@@ -118,7 +118,15 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | T4.4 | M4 | Retire Review skill id on new paths | Completed | High | Eng | T2.6 | 2026-07-27 | 2026-07-27 | 2026-07-27 | content_optimization only |
 | T5.1 | M5 | Default flag on; remove supervisor + cognition | Completed | Critical | Eng | T4.* parity | 2026-07-27 | 2026-07-27 | 2026-07-27 | Cognition removed; supervisor opt-out/onboarding |
 | T5.2 | M5 | Remove legacy understand / raw updateMemory graph path | Completed | High | Eng | T5.1 | 2026-07-27 | 2026-07-27 | 2026-07-27 | understand denylist scrub; v05 uses rememberAsync |
-| T6.1 | M6 | Content Intelligence closed loop | Post-MVP | Medium | Eng | T5.1 | — | — | — | 14 §4 C |
+| T6.SI.0 | M6 | Doc 21 + ADR-015 + supersede Campaign Agent plan | Completed | Critical | Eng | T5.1 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Strategic Intelligence design |
+| T6.SI.1 | M6 | Default Campaign + Blog.campaign_id | Completed | Critical | Eng | T6.SI.0 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Hierarchy foundations |
+| T6.SI.2 | M6 | WorkspaceStrategy CRUD + generation | Completed | Critical | Eng | T6.SI.1 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Doc 21 §10 |
+| T6.SI.3 | M6 | Belief taxonomy + gaps + projection | Completed | Critical | Eng | T6.SI.1 | 2026-07-29 | 2026-07-29 | 2026-07-29 | MemoryRecord keys |
+| T6.SI.4 | M6 | Campaign enrichment + intelligence | Completed | High | Eng | T6.SI.1 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Strategic health |
+| T6.SI.5 | M6 | Orchestrator strategy→campaign plan policies | Completed | Critical | Eng | T6.SI.2–T6.SI.4 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Flagged |
+| T6.SI.6 | M6 | Strategic Decision Engine + next API | Completed | High | Eng | T6.SI.5 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Ranked actions |
+| T6.SI.7 | M6 | Learning loop (publish/stats → beliefs) | Completed | High | Eng | T6.SI.3, T6.SI.6 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Closes 14 §4 C |
+| T6.1 | M6 | Content Intelligence closed loop | Planned | Medium | Eng | T6.SI.7 | — | — | — | Overlaps T6.SI.7 |
 | T6.2 | M6 | Agency multi-workspace pack | Post-MVP | Medium | Eng | T5.1 | — | — | — | Doc 20; tenancy locked |
 | T6.3 | M6 | Full UX validator / rich linking | Post-MVP | Low | Eng | T4.4 | — | — | — | — |
 | T6.4 | M6 | Required Qdrant / hybrid retrieve | Post-MVP | Low | Eng | T2.2 | — | — | — | Optional only in MVP |
@@ -135,7 +143,7 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 after M5 (or paralle
 | **M3** | Flagged graph passes [14 §7 parity checklist](./architecture/v0.5/14-mvp-and-roadmap.md) |
 | **M4** | Staging strategist demo; Package/scores in UI; writer search retired on new paths |
 | **M5** | Single chat brain; dual path deleted |
-| **M6** | Post-MVP items only when explicitly approved |
+| **M6** | Strategic Intelligence phases 1–7 green; Default Campaign + strategy + decisions behind flag |
 
 ---
 
@@ -160,9 +168,9 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. **Stop** — M6 Post-MVP items require explicit approval.  
-2. Optional soak: staging with default v0.5; use `ORCHESTRATOR_V05_GRAPH_ENABLED=false` only for emergency supervisor.  
-3. Wire `MoatScoreStrip` into chat once unrelated orchestrator-chat WIP is cleaned.
+1. Implement M6 Strategic Intelligence T6.SI.1–T6.SI.7 per [doc 21](./architecture/v0.5/21-strategic-intelligence.md).  
+2. Keep agency pack (T6.2) and full UX validator (T6.3) deferred.  
+3. Optional soak: `ORCHESTRATOR_V05_GRAPH_ENABLED=false` only for emergency supervisor.
 
 ---
 
@@ -181,3 +189,6 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-27 | M4 T4.1: strategist_pipeline + streamed research/optimize phases |
 | 2026-07-27 | M4 complete: T4.2–T4.4 moat UI + Writing/Review new-path contracts; next = M5 |
 | 2026-07-27 | M5 complete: v0.5 default on; cognition removed; stop before Post-MVP |
+| 2026-07-28 | Dialogue + section revise: CI LLM-primary storytelling/section-edit; Conversation skill; seed open draft for user-directed Writing revise; results-panel `blogs.update` sync; docs updated (LTM MVP = preferences only) |
+| 2026-07-29 | M6 Strategic Intelligence approved: doc 21, ADR-015; Campaign Agent plan superseded; T6.SI.* tasks added |
+| 2026-07-29 | M6 Strategic Intelligence T6.SI.1–T6.SI.7 implemented: Default Campaign, WorkspaceStrategy, beliefs, intelligence, plan policies, decision engine, learning loop |

@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import { TavilySearchService } from "../../../../blog/ai/tavily-search.service";
 import { MVP_LOCKS } from "../../contracts/mvp-locks";
+import { skipsHowToResearch, type PostFormat } from "../../contracts/post-format";
 import { needsCoverageRetry, type ResearchPackage, type ResearchPackageSummary } from "../../contracts/research-package";
 import type { PhaseListener } from "../../observability/phase-emitter";
 import { ArtifactStoreService } from "../../memory/artifact-store.service";
@@ -11,6 +12,7 @@ export type ResearchFullInput = {
   topic: string;
   audience?: string;
   search_intent?: string;
+  post_format?: PostFormat;
   signal?: AbortSignal;
   persist?: boolean;
   created_by?: string;
@@ -40,27 +42,33 @@ export class ResearchFullService {
   async run(input: ResearchFullInput): Promise<ResearchFullResult> {
     const topic = input.topic.trim();
     const emit = input.onPhase;
-    const queries = [
-      topic,
-      `${topic} best practices`,
-      `${topic} limitations OR pitfalls`,
-    ];
+    const narrativeOnly = skipsHowToResearch(input.post_format);
+
+    const queries = narrativeOnly
+      ? []
+      : [
+          topic,
+          `${topic} best practices`,
+          `${topic} limitations OR pitfalls`,
+        ];
 
     emit?.({
       phase: "research_planning",
-      message: `Planning ${queries.length} research queries`,
+      message: narrativeOnly
+        ? "Skipping how-to web research for personal/narrative format"
+        : `Planning ${queries.length} research queries`,
       skill_id: "research",
       percent: 10,
-      meta: { query_count: queries.length },
+      meta: { query_count: queries.length, post_format: input.post_format },
     });
 
     emit?.({
       phase: "research_gathering",
-      message: "Gathering sources",
+      message: narrativeOnly ? "No web gather for narrative format" : "Gathering sources",
       skill_id: "research",
       percent: 35,
     });
-    const notes = await this.searchAll(queries, input.signal);
+    const notes = narrativeOnly ? [] : await this.searchAll(queries, input.signal);
 
     emit?.({
       phase: "research_structuring",
@@ -78,9 +86,11 @@ export class ResearchFullService {
       search_intent: input.search_intent,
       notes,
       max_sources: MVP_LOCKS.researchSourcesFullMax,
+      post_format: input.post_format,
     });
 
     if (
+      !narrativeOnly &&
       needsCoverageRetry(
         "full",
         built.package.coverage.coverage_score,
@@ -114,6 +124,7 @@ export class ResearchFullService {
         search_intent: input.search_intent,
         notes,
         max_sources: MVP_LOCKS.researchSourcesFullMax,
+        post_format: input.post_format,
       });
     }
 

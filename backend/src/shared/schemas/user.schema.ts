@@ -22,6 +22,17 @@ export interface User extends BaseEntity {
   referred_by_user_id?: string; // User who referred this account
   workspace_invite_prompt_dismissed_at?: Date; // User skipped the invite-teammates onboarding step
   plan_selection_completed_at?: Date; // User confirmed plan during signup wizard
+  /** Email ownership confirmed via OTP before signup wizard continues. */
+  email_verified: boolean;
+  email_verification_token?: string;
+  email_verification_expires?: Date;
+  email_verification_attempts?: number;
+  /** Job / company role for AI personalization (founder, marketer, …). */
+  company_role?: string;
+  company_role_detail?: string;
+  welcome_tour_dismissed_at?: Date;
+  /** When true, dashboard shows the one-time welcome modal. */
+  show_welcome_tour?: boolean;
 }
 
 const userSchema = new Schema<User>(
@@ -114,6 +125,39 @@ const userSchema = new Schema<User>(
     plan_selection_completed_at: {
       type: Date,
       required: false,
+    },
+    email_verified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    email_verification_token: {
+      type: String,
+    },
+    email_verification_expires: {
+      type: Date,
+    },
+    email_verification_attempts: {
+      type: Number,
+      default: 0,
+    },
+    company_role: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    company_role_detail: {
+      type: String,
+      required: false,
+      trim: true,
+    },
+    welcome_tour_dismissed_at: {
+      type: Date,
+      required: false,
+    },
+    show_welcome_tour: {
+      type: Boolean,
+      default: false,
     },
     created_at: {
       type: Date,

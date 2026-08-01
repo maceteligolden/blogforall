@@ -16,6 +16,7 @@ export enum NotificationType {
   INVITATION_REJECTED = "invitation_rejected",
   NEW_COMMENT_MODERATOR = "new_comment_moderator",
   PASSWORD_RESET = "password_reset",
+  EMAIL_VERIFICATION = "email_verification",
   WELCOME = "welcome",
   /** A scheduled blog post needs human review before its publish date. */
   SCHEDULED_POST_REVIEW = "scheduled_post_review",
@@ -25,6 +26,8 @@ export enum NotificationType {
   WEEKLY_REVIEW_DIGEST = "weekly_review_digest",
   /** Daily campaign progress report for active initiatives. */
   CAMPAIGN_DAILY_PROGRESS_REPORT = "campaign_daily_progress_report",
+  /** In-chat or other non-schedule approval awaiting a decision. */
+  CONFIRMATION_NEEDED = "confirmation_needed",
   /** Waitlist signup confirmation for early access. */
   WAITLIST_CONFIRMATION = "waitlist_confirmation",
 }
@@ -45,6 +48,8 @@ export enum NotificationStatus {
 export const EMAIL_TEMPLATE_KEYS = {
   SITE_INVITATION: "site_invitation",
   PASSWORD_RESET: "password_reset",
+  /** Same Brevo template as password reset (6-digit code). */
+  EMAIL_VERIFICATION: "password_reset",
   COMMENT_ON_POST: "comment_on_post",
   WELCOME: "welcome",
   /** Pre-publish review request sent for an individual scheduled post. */

@@ -130,4 +130,8 @@ export class CampaignRepository {
       $or: [{ start_date: { $lte: endDate }, end_date: { $gte: startDate } }],
     }).sort({ start_date: 1 });
   }
+
+  async findDefault(siteId: string): Promise<CampaignType | null> {
+    return Campaign.findOne({ site_id: siteId, is_default: true });
+  }
 }

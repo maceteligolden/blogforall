@@ -13,6 +13,8 @@ import {
   forgotPasswordSchema,
   verifyResetCodeSchema,
   resetPasswordSchema,
+  verifyEmailSchema,
+  companyRoleSchema,
 } from "../validations/auth.validation";
 
 const router = Router();
@@ -33,5 +35,9 @@ router.put("/profile", authMiddleware, validateBody(updateProfileSchema), authCo
 router.put("/change-password", authMiddleware, validateBody(changePasswordSchema), authController.changePassword);
 router.put("/site-context", authMiddleware, validateBody(updateSiteContextSchema), authController.updateSiteContext);
 router.post("/abandon-signup", authMiddleware, authController.abandonSignup);
+router.post("/verify-email", authMiddleware, validateBody(verifyEmailSchema), authController.verifyEmail);
+router.post("/resend-verification", authMiddleware, authController.resendVerification);
+router.post("/company-role", authMiddleware, validateBody(companyRoleSchema), authController.setCompanyRole);
+router.post("/dismiss-welcome-tour", authMiddleware, authController.dismissWelcomeTour);
 
 export default router;

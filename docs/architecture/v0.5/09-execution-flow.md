@@ -106,6 +106,26 @@ Gate: `overall >= 72` AND zero Critical planner items. See [17](./17-content-opt
 
 ---
 
+## 5b. User-directed section / draft revise (results panel)
+
+User has an open draft in the results panel and says e.g. “Rewrite the introduction…”, “Make the conclusion catchier”, “Add a section about…”, “I also forgot to mention…”.
+
+```
+Client sends selection_context.blog_id
+  → CI.analyze(open_artifacts.draft_id) → update_content + revise_current_artifact
+  → Seed draft + metadata.blog_id from BlogService
+  → plan → Writing revise(feedback=user message)   // no Research package required
+  → BlogService.updateBlog
+  → compose + client tool_calls blogs.update (full title/content)
+  → Frontend patches BLOG query cache (clear stale content_blocks) and selects draft artifact
+```
+
+**Not** the optimize path: do not run Content Optimization first for user-directed feedback. Optimize path remains §5.
+
+**Thread vs long-term:** In-thread `recent_messages` ground Writing/Conversation. Narrative facts are **not** written to Memory Manager unless CI emits `emit_memory_candidate` (preferences). Cross-thread recall of story details is a known MVP gap — see [18](./18-memory-manager.md) §16 / [19](./19-conversation-intelligence.md) §9.
+
+---
+
 ## 6. Strategy conflict
 
 Warn via Conversation / `await_human` (`strategy_warning`) before Research/Writing if topic conflicts with workspace goals.

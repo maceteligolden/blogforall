@@ -13,6 +13,9 @@ import { ApiKeyRepository } from "../../api-key/repositories/api-key.repository"
 import type { SiteMember as SiteMemberType } from "../../../shared/schemas/site-member.schema";
 import { mongooseDocToPlain } from "../../../shared/utils/mongoose-plain.util";
 import SiteInvitation from "../../../shared/schemas/site-invitation.schema";
+import { CampaignService } from "../../campaign/services/campaign.service";
+import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
+import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 
 @injectable()
 export class SiteService {
@@ -20,7 +23,10 @@ export class SiteService {
     private siteRepository: SiteRepository,
     private siteMemberRepository: SiteMemberRepository,
     private subscriptionService: SubscriptionService,
-    private apiKeyRepository: ApiKeyRepository
+    private apiKeyRepository: ApiKeyRepository,
+    private campaignService: CampaignService,
+    private workspaceStrategyService: WorkspaceStrategyService,
+    private businessKnowledgeService: BusinessKnowledgeService
   ) {}
 
   /**
@@ -34,8 +40,8 @@ export class SiteService {
       name: input.name,
       description: input.description,
       owner: ownerId,
-      // New sites start in onboarding until the orchestrator chat populates context.
-      status: SiteStatus.ONBOARDING,
+      // Chatless signup: workspace is usable immediately; checklist fills memory later.
+      status: SiteStatus.ACTIVE,
     });
 
     // Automatically add owner as a member with OWNER role
@@ -46,6 +52,22 @@ export class SiteService {
     });
 
     logger.info("Site created", { siteId: site._id, ownerId, status: site.status }, "SiteService");
+
+    if (env.orchestrator.strategicIntelligenceEnabled) {
+      const siteId = site._id!.toString();
+      try {
+        await this.campaignService.ensureDefaultCampaign(siteId, ownerId);
+        await this.businessKnowledgeService.seedFromWorkspaceMemory(siteId, ownerId);
+        await this.workspaceStrategyService.ensureStrategy(siteId, ownerId);
+      } catch (err) {
+        logger.warn(
+          "Strategic intelligence bootstrap after site create failed",
+          { siteId, error: err instanceof Error ? err.message : String(err) },
+          "SiteService"
+        );
+      }
+    }
+
     return site;
   }
 

@@ -1,14 +1,18 @@
 import { MVP_LOCKS } from "../contracts/mvp-locks";
 import { planResultSchema, type PlanResult } from "../contracts/plan-result";
 import type { OrchestratorState } from "./state";
+import { env } from "../../../../shared/config/env";
 
 /**
  * Deterministic plan policy (M3) — no LLM.
  * Consumes ConversationContext + workflow artifacts; never invents search for Writing.
+ * When Strategic Intelligence is enabled (doc 21), content paths resolve campaign context
+ * and may clarify affiliation before generation (except quick_draft).
  */
 export function planFromState(state: OrchestratorState): PlanResult {
   const ctx = state.conversation_context;
   const skillsLeft = state.max_skills_per_turn - state.skills_run_this_turn;
+  const si = env.orchestrator.strategicIntelligenceEnabled;
 
   if (skillsLeft <= 0) {
     return planResultSchema.parse({
@@ -32,6 +36,53 @@ export function planFromState(state: OrchestratorState): PlanResult {
       skill_args: { purpose: "clarify" },
       workflow_stage: "clarify",
       rationale: "CI requires clarification — Conversation skill asks one question",
+    });
+  }
+
+  // Strategic Intelligence: high-value knowledge gap before heavy content work (not quick_draft).
+  if (
+    si &&
+    state.mode !== "quick_draft" &&
+    (ctx?.workflow_intent === "create_content" || state.mode === "strategist_pipeline") &&
+    state.metadata?.strategic_top_gap_question &&
+    !state.metadata?.strategic_gap_asked &&
+    state.skills_run_this_turn === 0 &&
+    !state.draft
+  ) {
+    return planResultSchema.parse({
+      next: "invoke_skill",
+      skill_id: "conversation",
+      skill_args: {
+        purpose: "clarify",
+        strategic: true,
+        question: String(state.metadata.strategic_top_gap_question),
+      },
+      workflow_stage: "clarify",
+      rationale: "Strategic Intelligence: ask highest-value knowledge question before content",
+    });
+  }
+
+  // Strategic Intelligence: unbound content with multiple campaigns → confirm affiliation.
+  if (
+    si &&
+    state.mode !== "quick_draft" &&
+    (ctx?.workflow_intent === "create_content" || state.mode === "strategist_pipeline") &&
+    !state.campaign_id &&
+    state.metadata?.needs_campaign_clarify === true &&
+    !state.metadata?.campaign_clarify_asked &&
+    state.skills_run_this_turn === 0
+  ) {
+    return planResultSchema.parse({
+      next: "invoke_skill",
+      skill_id: "conversation",
+      skill_args: {
+        purpose: "clarify",
+        strategic: true,
+        question:
+          "Which campaign should this support — your Default (Evergreen) campaign, an existing campaign, or should we create a new one?",
+      },
+      workflow_stage: "clarify",
+      rationale: "Strategic Intelligence: resolve campaign affiliation before content work",
     });
   }
 

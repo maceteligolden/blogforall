@@ -26,6 +26,8 @@ import { UserRepository } from "../../auth/repositories/user.repository";
 import { SiteRepository } from "../../site/repositories/site.repository";
 import { TokenEnforcementService } from "../../token-ledger/services/token-enforcement.service";
 import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
+import { RealtimeService, REALTIME_EVENTS } from "../../../shared/realtime";
+import { notifyApprovalCreatedInApp } from "../../../shared/utils/notify-approval-created.util";
 
 const PREPARE_BATCH_SIZE = 10;
 
@@ -63,7 +65,8 @@ export class ScheduledPostPrepareService {
     private readonly userRepository: UserRepository,
     private readonly siteRepository: SiteRepository,
     private readonly tokenEnforcement: TokenEnforcementService,
-    private readonly campaignRepository: CampaignRepository
+    private readonly campaignRepository: CampaignRepository,
+    private readonly realtimeService: RealtimeService
   ) {}
 
   /**
@@ -142,6 +145,35 @@ export class ScheduledPostPrepareService {
         },
         expires_at: expiresAt,
       });
+
+      this.realtimeService.emitToUser(
+        post.user_id,
+        REALTIME_EVENTS.SCHEDULED_POST_PREPARED,
+        {
+          scheduledPostId,
+          siteId,
+          blogId,
+          approvalId: approval._id?.toString(),
+          reworkRound: prepared.rework_round,
+        },
+        { siteId }
+      );
+
+      this.realtimeService.emitToUser(
+        post.user_id,
+        REALTIME_EVENTS.APPROVAL_CREATED,
+        {
+          id: approval._id!.toString(),
+          siteId,
+          kind: approval.kind,
+          action: approval.action,
+          summary: approval.summary,
+        },
+        { siteId }
+      );
+
+      // Persist-first IN_APP → notification.created (bell). Email path stays separate.
+      void notifyApprovalCreatedInApp(this.notificationService, approval);
 
       logger.info(
         "Scheduled post prepared and awaiting approval",

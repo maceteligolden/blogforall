@@ -47,7 +47,7 @@ export interface Skill {
 
 ### 3.1 Conversation
 
-Reply-only partner skill (clarify / guide / summarize / explain / warn). Honors `conversation_context.response_style` when composing.
+Reply-only partner skill (clarify / casual / summarize / explain / warn). Honors `conversation_context.response_style` when composing. Implemented: `skills/conversation/conversation.service.ts` + `skill.conversation.v1`.
 
 **Must not:** run SEO, research the web, write full articles, publish, or classify communicative intent (that is CI).
 
@@ -55,15 +55,17 @@ Reply-only partner skill (clarify / guide / summarize / explain / warn). Honors 
 
 ```typescript
 {
-  purpose: "clarify" | "guide" | "summarize" | "explain" | "warn";
+  purpose: "clarify" | "casual" | "guide" | "summarize" | "explain" | "warn";
   question?: string;
-  facts?: string[];            // grounded skill summaries (incl. research coverage)
+  facts?: string;              // grounded brand / strategy / recent-turn snippets
 }
 ```
 
-**Output patch:** `reply`, optional `pending_question`, optional session summary.
+**Output patch:** `reply`, optional `pending_question`.
 
 **LLM:** yes — see [11](./11-prompts-and-context.md).
+
+**Plan routes:** `clarify` / `casual_reply` / `explain` / strategy-ready summarize → this skill (not raw compose dumps).
 
 ---
 
@@ -141,13 +143,13 @@ Canonical design: [16-research-pipeline.md](./16-research-pipeline.md) (14-phase
 
 ### 3.4 Writing
 
-Consumes **strategy + Research Package**. Never performs research.
+Consumes **strategy + Research Package** for outline/draft. Never performs research.
 
 Focus exclusively on:
 
 - outlining
 - drafting
-- rewriting / expanding / shortening
+- rewriting / expanding / shortening (including **user-directed section edits**)
 - improving flow
 - tone adaptation
 - readability
@@ -157,7 +159,7 @@ Focus exclusively on:
 
 - call `search.web` or any discovery tool
 - invent strategy or SEO strategy
-- invent unsupported facts (use package claims; disclose gaps)
+- invent unsupported facts on draft/outline paths (use package claims; disclose gaps)
 - run Content Optimization (orchestrator schedules `content_optimization`)
 
 **Input**
@@ -168,13 +170,19 @@ Focus exclusively on:
   feedback?: string;
   /** From Optimization Planner writing_brief / Critical+High items */
   optimization_plan?: OptimizationPlan;
-  research_package_id?: string;  // required for strategist; required after lite research for quick_draft
+  research_package_id?: string;  // required for outline/draft; NOT required for revise
+  allow_without_package?: boolean; // set true for revise-from-open-draft
+  draft?: { title; content; excerpt }; // required for revise
 }
 ```
 
-**Output patch:** `outline` and/or `draft`
+**Revise (user-directed):** Works from an existing draft + user feedback (and optional highlight). Does **not** require a Research Package on that turn — `assertWritingMayProceed` allows `action=revise` without `research_package_id`. Persists via `BlogService.updateBlog` when `metadata.blog_id` is set; client receives `blogs.update` / full draft payload.
 
-**Deps:** blog generation graph **without** embedded web research for new paths; ContextAssembler `write_full` profile (package slices + brand).
+**Revise (optimize loop):** Uses `optimization_plan` as feedback when present.
+
+**Output patch:** `outline` and/or `draft` (+ `blog_id` on draft)
+
+**Deps:** blog generation `draftFromNotes` / `regenerateWithFeedback` **without** embedded web research for new paths.
 
 **Retired:** Writing `oneshot` with embedded Tavily + editorial review. Quick draft = Research `lite` → Writing `draft` → Content Optimization.
 

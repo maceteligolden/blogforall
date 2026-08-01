@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import "./instrument";
+import http from "http";
 import express from "express";
 import path from "path";
 import { connectDatabase } from "./shared/database";
@@ -24,9 +25,13 @@ import { requestContextMiddleware } from "./shared/middlewares/request-context.m
 import { backfillSitePublicIds } from "./shared/utils/backfill-site-public-ids";
 import { setupExpressErrorHandler, isSentryEnabled } from "./shared/observability/sentry";
 import { seedPlatformAdminIfNeeded } from "./shared/utils/seed-platform-admin.util";
+import { SocketIoRealtimeGateway } from "./shared/realtime";
 
 const app = express();
+const server = http.createServer(app);
 const PORT = env.port;
+
+let shuttingDown = false;
 
 // CORS must run before body parsers and routes (especially OPTIONS preflight)
 app.use(corsMiddleware);
@@ -62,6 +67,31 @@ if (isSentryEnabled()) {
 // Custom error handler (must be last)
 app.use(errorHandler);
 
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info(`Received ${signal}; shutting down gracefully`, {}, "Server");
+
+  try {
+    const gateway = container.resolve(SocketIoRealtimeGateway);
+    await gateway.close();
+  } catch (err) {
+    logger.error(
+      "Error closing realtime gateway",
+      err instanceof Error ? err : new Error(String(err)),
+      {},
+      "Server"
+    );
+  }
+
+  await new Promise<void>((resolve) => {
+    server.close(() => resolve());
+    setTimeout(() => resolve(), 10_000).unref();
+  });
+
+  process.exit(0);
+}
+
 // Start server
 const startServer = async () => {
   try {
@@ -91,7 +121,7 @@ const startServer = async () => {
         ? "Orchestrator v0.5 graph enabled (default active chat brain)"
         : "Orchestrator v0.5 graph disabled — supervisor handles active chat",
       { v05GraphEnabled: env.orchestrator.v05GraphEnabled },
-      "Orchestrator",
+      "Orchestrator"
     );
 
     // Start the post scheduler
@@ -142,8 +172,18 @@ const startServer = async () => {
       logger.info("Email queue disabled (no REDIS_URL); notifications will not be sent", {}, "EmailQueue");
     }
 
-    app.listen(PORT, () => {
+    const realtimeGateway = container.resolve(SocketIoRealtimeGateway);
+    await realtimeGateway.attach(server);
+
+    server.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`, {}, "Server");
+    });
+
+    process.on("SIGTERM", () => {
+      void gracefulShutdown("SIGTERM");
+    });
+    process.on("SIGINT", () => {
+      void gracefulShutdown("SIGINT");
     });
   } catch (error) {
     logger.error("Failed to start server", error as Error, {}, "Server");

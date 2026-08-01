@@ -20,6 +20,10 @@ export const API_ENDPOINTS = {
     VERIFY_RESET_CODE: "/auth/verify-reset-code",
     RESET_PASSWORD: "/auth/reset-password",
     ABANDON_SIGNUP: "/auth/abandon-signup",
+    VERIFY_EMAIL: "/auth/verify-email",
+    RESEND_VERIFICATION: "/auth/resend-verification",
+    COMPANY_ROLE: "/auth/company-role",
+    DISMISS_WELCOME_TOUR: "/auth/dismiss-welcome-tour",
   },
   BLOGS: {
     CREATE: (siteId: string) => `/sites/${siteId}/blogs`,
@@ -93,6 +97,7 @@ export const API_ENDPOINTS = {
     DISMISS_INVITE_PROMPT: "/onboarding/invite-prompt/dismiss",
     SIGNUP_WIZARD: "/onboarding/signup-wizard",
     COMPLETE_PLAN_SELECTION: "/onboarding/plan-selection/complete",
+    SETUP_PROGRESS: "/onboarding/setup-progress",
   },
   SITES: {
     CREATE: "/sites",
@@ -147,6 +152,9 @@ export const API_ENDPOINTS = {
     PROGRESS_GENERATE: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/progress-reports/generate`,
     EVENTS: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/events`,
     MEMORY: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/memory`,
+    INTELLIGENCE: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/intelligence`,
+    INTELLIGENCE_RECOMPUTE: (siteId: string, id: string) =>
+      `/sites/${siteId}/campaigns/${id}/intelligence/recompute`,
     REPORTS_INBOX: (siteId: string) => `/sites/${siteId}/campaigns/reports/inbox`,
     DATE_RANGE: (siteId: string) => `/sites/${siteId}/campaigns/date-range`,
     SCHEDULED_POSTS: {
@@ -189,6 +197,16 @@ export const API_ENDPOINTS = {
     GET: (siteId: string) => `/sites/${siteId}/memory`,
     STRATEGY: (siteId: string) => `/sites/${siteId}/memory/strategy`,
     GENERATE_STRATEGY: (siteId: string) => `/sites/${siteId}/memory/strategy/generate`,
+  },
+  STRATEGIC: {
+    STRATEGY: (siteId: string) => `/sites/${siteId}/strategy`,
+    STRATEGY_VERSIONS: (siteId: string) => `/sites/${siteId}/strategy/versions`,
+    STRATEGY_REGENERATE: (siteId: string) => `/sites/${siteId}/strategy/regenerate`,
+    KNOWLEDGE: (siteId: string) => `/sites/${siteId}/knowledge`,
+    KNOWLEDGE_KEY: (siteId: string, key: string) => `/sites/${siteId}/knowledge/${encodeURIComponent(key)}`,
+    KNOWLEDGE_GAPS: (siteId: string) => `/sites/${siteId}/knowledge/gaps`,
+    DECISIONS_NEXT: (siteId: string) => `/sites/${siteId}/decisions/next`,
+    ENSURE_DEFAULT_CAMPAIGN: (siteId: string) => `/sites/${siteId}/default-campaign/ensure`,
   },
   /**
    * Public, token-authenticated scheduled-post review endpoints. Reached

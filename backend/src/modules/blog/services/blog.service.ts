@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import { BlogRepository } from "../repositories/blog.repository";
 import { CategoryRepository } from "../../category/repositories/category.repository";
 import { ScheduledPostRepository } from "../../campaign/repositories/scheduled-post.repository";
+import { CampaignService } from "../../campaign/services/campaign.service";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { BlogStatus } from "../../../shared/constants";
 import { ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
@@ -20,6 +21,8 @@ import { PaginatedResponse } from "../../../shared/interfaces";
 import type { ScheduledPost } from "../../../shared/schemas/scheduled-post.schema";
 import { SiteService } from "../../site/services/site.service";
 import { assertSiteCapability, SiteCapability } from "../../../shared/utils/site-permissions.util";
+import { env } from "../../../shared/config/env";
+import { LearningLoopService } from "../../strategic-intelligence/services/learning-loop.service";
 
 @injectable()
 export class BlogService {
@@ -27,7 +30,9 @@ export class BlogService {
     private blogRepository: BlogRepository,
     private categoryRepository: CategoryRepository,
     private scheduledPostRepository: ScheduledPostRepository,
-    private siteService: SiteService
+    private siteService: SiteService,
+    private campaignService: CampaignService,
+    private learningLoopService: LearningLoopService
   ) {}
 
   private async assertBlogCapability(siteId: string, userId: string, capability: SiteCapability): Promise<void> {
@@ -110,6 +115,14 @@ export class BlogService {
       excerpt = clampBlogExcerpt(excerpt);
     }
 
+    let campaignId = input.campaign_id;
+    if (env.orchestrator.strategicIntelligenceEnabled) {
+      if (!campaignId) {
+        const def = await this.campaignService.ensureDefaultCampaign(siteId, authorId);
+        campaignId = def._id!.toString();
+      }
+    }
+
     const blog = await this.blogRepository.create({
       ...input,
       content,
@@ -119,6 +132,8 @@ export class BlogService {
       site_id: siteId,
       slug,
       status: input.status || BlogStatus.DRAFT,
+      campaign_id: campaignId,
+      strategy_id: input.strategy_id,
     });
 
     logger.info("Blog created", { blogId: blog._id, authorId, siteId }, "BlogService");
@@ -243,9 +258,11 @@ export class BlogService {
   }
 
   async publishBlog(blogId: string, siteId: string, authorId: string): Promise<Blog> {
-    return this.updateBlog(blogId, siteId, authorId, {
+    const blog = await this.updateBlog(blogId, siteId, authorId, {
       status: BlogStatus.PUBLISHED,
     });
+    void this.learningLoopService.onBlogPublished(siteId, blogId, blog.campaign_id);
+    return blog;
   }
 
   async unpublishBlog(blogId: string, siteId: string, authorId: string): Promise<Blog> {
@@ -257,6 +274,7 @@ export class BlogService {
 
   async incrementViews(blogId: string, siteId: string): Promise<void> {
     await this.blogRepository.incrementViews(blogId, siteId);
+    void this.learningLoopService.onBlogStatsUpdated(siteId, blogId);
   }
 
   async toggleLike(blogId: string, siteId: string, userIdOrIp: string): Promise<{ likes: number; isLiked: boolean }> {

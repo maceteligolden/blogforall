@@ -92,7 +92,7 @@ function SignupForm() {
             ? "You're signing up to accept a workspace invitation."
             : referralCode
               ? "You were invited to join Bloggr."
-              : "Start managing your blogs today"
+              : "Create your account — we'll verify your email next."
         }
       />
       {referralCode && !inviteToken && (

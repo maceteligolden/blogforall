@@ -1,4 +1,5 @@
 import { injectable } from "tsyringe";
+import type { PostFormat } from "../../contracts/post-format";
 import type { ResearchPackage, ResearchPackageSummary } from "../../contracts/research-package";
 import type { PhaseListener } from "../../observability/phase-emitter";
 import { ResearchFullService } from "./research-full.service";
@@ -10,6 +11,7 @@ export type ResearchSkillInput = {
   depth: "lite" | "full";
   audience?: string;
   search_intent?: string;
+  post_format?: PostFormat;
   signal?: AbortSignal;
   persist?: boolean;
   created_by?: string;

@@ -6,7 +6,7 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
-import { extractArtifactsFromMessages } from "@/lib/utils/orchestrator-artifacts";
+import { extractArtifactsFromMessages, VIEWABLE_ARTIFACT_TOOLS } from "@/lib/utils/orchestrator-artifacts";
 
 export function useOrchestratorArtifacts() {
   const { threadId, liveArtifacts, resultsPanelOpen, sessionMode, effectiveSessionMode, isWritingPinned } =
@@ -37,7 +37,9 @@ export function useOrchestratorArtifacts() {
   }, [threadQuery.data?.messages, liveArtifacts]);
 
   const hasArtifacts = artifacts.length > 0;
-  const showResultsPanel = isWritingPinned || (hasArtifacts && resultsPanelOpen);
+  const hasViewableArtifacts = artifacts.some((a) => VIEWABLE_ARTIFACT_TOOLS.has(a.tool));
+  // Only show when the panel was opened for viewable content (not chat/strategy skills).
+  const showResultsPanel = hasViewableArtifacts && resultsPanelOpen;
 
   return {
     artifacts,

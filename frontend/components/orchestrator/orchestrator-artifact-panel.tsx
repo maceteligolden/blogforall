@@ -436,7 +436,6 @@ export function OrchestratorArtifactPanel({
   };
 
   const handleClose = () => {
-    if (isWritingPinned) return;
     closeResultsPanel();
     onMobileClose?.();
   };

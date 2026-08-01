@@ -92,4 +92,23 @@ export class AuthService {
   static async abandonSignup() {
     return apiClient.post(API_ENDPOINTS.AUTH.ABANDON_SIGNUP);
   }
+
+  static async verifyEmail(code: string) {
+    return apiClient.post(API_ENDPOINTS.AUTH.VERIFY_EMAIL, { code });
+  }
+
+  static async resendVerification() {
+    return apiClient.post(API_ENDPOINTS.AUTH.RESEND_VERIFICATION);
+  }
+
+  static async setCompanyRole(data: {
+    company_role: string;
+    company_role_detail?: string;
+  }) {
+    return apiClient.post(API_ENDPOINTS.AUTH.COMPANY_ROLE, data);
+  }
+
+  static async dismissWelcomeTour() {
+    return apiClient.post(API_ENDPOINTS.AUTH.DISMISS_WELCOME_TOUR);
+  }
 }

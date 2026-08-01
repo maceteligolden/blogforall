@@ -10,6 +10,8 @@ import type {
 } from "@/lib/types/orchestrator-session.types";
 import { isWritingEffectiveMode } from "@/lib/utils/session-mode-parser";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { useRealtimeEvent } from "@/lib/hooks/use-realtime-event";
+import { REALTIME_EVENTS, type RealtimeEnvelope } from "@/lib/realtime";
 
 interface OrchestratorContextValue {
   threadId: string | null;
@@ -25,6 +27,9 @@ interface OrchestratorContextValue {
   isWritingPinned: boolean;
   draftGenerating: boolean;
   setDraftGenerating: (value: boolean) => void;
+  /** Latest live workflow phase from realtime (cleared when turn completes). */
+  livePhase: { phase: string; message: string; percent?: number } | null;
+  clearLivePhase: () => void;
   activeDraftBlogId: string | null;
   setActiveDraftBlogId: (blogId: string | null) => void;
   selectionContext: OrchestratorSelectionContext | null;
@@ -83,6 +88,9 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const [sessionMode, setSessionModeState] = useState<OrchestratorSessionMode>("auto");
   const [effectiveSessionMode, setEffectiveSessionMode] = useState<OperationalSessionMode>("casual");
   const [draftGenerating, setDraftGenerating] = useState(false);
+  const [livePhase, setLivePhase] = useState<{ phase: string; message: string; percent?: number } | null>(
+    null
+  );
   const [activeDraftBlogId, setActiveDraftBlogId] = useState<string | null>(null);
   const [selectionContext, setSelectionContext] = useState<OrchestratorSelectionContext | null>(null);
   const composerFocusRef = useRef<(() => void) | null>(null);
@@ -118,14 +126,39 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
     setConversationMode(false);
     setVoiceMode(false);
     setDraftGenerating(false);
+    setLivePhase(null);
     setSelectionContext(null);
   }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: thread switch only
 
-  useEffect(() => {
-    if (isWritingPinned) {
-      setResultsPanelOpen(true);
+  useRealtimeEvent(
+    REALTIME_EVENTS.ORCHESTRATOR_PHASE,
+    (
+      envelope: RealtimeEnvelope<{
+        threadId?: string;
+        phase?: string;
+        message?: string;
+        percent?: number;
+      }>
+    ) => {
+      const p = envelope.payload;
+      if (!p?.phase) return;
+      // Ignore phases for other threads when one is active.
+      if (threadId && p.threadId && p.threadId !== threadId) return;
+      setLivePhase({
+        phase: p.phase,
+        message: p.message ?? p.phase,
+        percent: p.percent,
+      });
     }
-  }, [isWritingPinned]);
+  );
+
+  useRealtimeEvent(REALTIME_EVENTS.ORCHESTRATOR_TURN_COMPLETED, (envelope) => {
+    const tid = (envelope.payload as { threadId?: string } | undefined)?.threadId;
+    if (threadId && tid && tid !== threadId) return;
+    setLivePhase(null);
+  });
+
+  const clearLivePhase = useCallback(() => setLivePhase(null), []);
 
   const enterConversationMode = useCallback(() => {
     setConversationMode(true);
@@ -215,9 +248,8 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const closeResultsPanel = useCallback(() => {
-    if (isWritingPinned) return;
     setResultsPanelOpen(false);
-  }, [isWritingPinned]);
+  }, []);
 
   const setSelectedArtifactId = useCallback((artifactId: string | null) => {
     setSelectedArtifactIdState(artifactId);
@@ -247,6 +279,8 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       isWritingPinned,
       draftGenerating,
       setDraftGenerating,
+      livePhase,
+      clearLivePhase,
       activeDraftBlogId,
       setActiveDraftBlogId,
       selectionContext,
@@ -283,6 +317,8 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       effectiveSessionMode,
       isWritingPinned,
       draftGenerating,
+      livePhase,
+      clearLivePhase,
       activeDraftBlogId,
       selectionContext,
       focusComposer,

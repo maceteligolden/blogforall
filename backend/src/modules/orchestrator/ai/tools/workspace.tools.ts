@@ -9,6 +9,10 @@ import type {
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
 import { parseToolInput, truncateSummary } from "./_helpers";
+import { CampaignService } from "../../../campaign/services/campaign.service";
+import { BusinessKnowledgeService } from "../../../strategic-intelligence/services/business-knowledge.service";
+import { WorkspaceStrategyService } from "../../../strategic-intelligence/services/workspace-strategy.service";
+import { env } from "../../../../shared/config/env";
 
 // -----------------------------------------------------------------------------
 // workspace.renameWorkspace
@@ -230,7 +234,10 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
 
   constructor(
     private readonly siteService: SiteService,
-    private readonly memoryRepository: WorkspaceMemoryRepository
+    private readonly memoryRepository: WorkspaceMemoryRepository,
+    private readonly campaignService: CampaignService,
+    private readonly businessKnowledge: BusinessKnowledgeService,
+    private readonly workspaceStrategy: WorkspaceStrategyService
   ) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
@@ -261,6 +268,16 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
     }
     await this.memoryRepository.update(invocation.siteId, patch as never, invocation.userId);
     await this.siteService.markSiteActive(invocation.siteId, invocation.userId);
+
+    if (env.orchestrator.strategicIntelligenceEnabled) {
+      await this.campaignService.ensureDefaultCampaign(invocation.siteId, invocation.userId);
+      await this.businessKnowledge.seedFromWorkspaceMemory(invocation.siteId, invocation.userId);
+      await this.workspaceStrategy.generate(invocation.siteId, invocation.userId, {
+        force: true,
+        source: "onboarding",
+      });
+    }
+
     return {
       summary: `Onboarding complete: '${input.strategic.business_type}' workspace is now active.`,
       data: {

@@ -11,6 +11,7 @@ import { useNotifications } from "@/components/notifications/notification-provid
 import { formatDistanceToNow } from "date-fns";
 import { Bell, Heart, MessageSquare, Mail, Shield, CheckCheck } from "lucide-react";
 import type { NotificationItem } from "@/lib/api/types/notification.types";
+import { getNotificationHref } from "@/lib/utils/notification-href";
 
 function getIconForType(type: string) {
   switch (type) {
@@ -24,6 +25,11 @@ function getIconForType(type: string) {
     case "invitation_accepted":
     case "invitation_rejected":
       return <Mail className="w-5 h-5" />;
+    case "confirmation_needed":
+    case "scheduled_post_review":
+    case "scheduled_post_reworked":
+    case "weekly_review_digest":
+      return <Shield className="w-5 h-5" />;
     default:
       return <Shield className="w-5 h-5" />;
   }
@@ -41,6 +47,11 @@ function getIconBgClass(type: string): string {
     case "invitation_accepted":
     case "invitation_rejected":
       return "bg-amber-900/30 text-amber-400";
+    case "confirmation_needed":
+    case "scheduled_post_review":
+    case "scheduled_post_reworked":
+    case "weekly_review_digest":
+      return "bg-yellow-900/30 text-yellow-400";
     default:
       return "bg-gray-700 text-gray-400";
   }
@@ -84,10 +95,9 @@ export default function NotificationsPage() {
         queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS_UNREAD_COUNT });
       });
     }
-    const payload = notification.payload as { blogId?: string; blog_id?: string } | undefined;
-    const blogId = payload?.blogId ?? payload?.blog_id;
-    if (blogId) {
-      router.push(`/dashboard/blogs/${blogId}/view`);
+    const href = getNotificationHref(notification);
+    if (href) {
+      router.push(href);
     }
   };
 

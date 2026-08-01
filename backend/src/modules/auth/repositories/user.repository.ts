@@ -90,6 +90,38 @@ export class UserRepository {
     });
   }
 
+  async setEmailVerificationCode(id: string, hashedCode: string, expiresAt: Date): Promise<void> {
+    await User.findByIdAndUpdate(id, {
+      email_verification_token: hashedCode,
+      email_verification_expires: expiresAt,
+      email_verification_attempts: 0,
+      updated_at: new Date(),
+    });
+  }
+
+  async incrementEmailVerificationAttempts(id: string): Promise<number> {
+    const updated = await User.findByIdAndUpdate(
+      id,
+      { $inc: { email_verification_attempts: 1 }, updated_at: new Date() },
+      { new: true }
+    );
+    return updated?.email_verification_attempts ?? 0;
+  }
+
+  async clearEmailVerificationCode(id: string): Promise<void> {
+    await User.findByIdAndUpdate(id, {
+      $set: { email_verification_attempts: 0, updated_at: new Date() },
+      $unset: { email_verification_token: "", email_verification_expires: "" },
+    });
+  }
+
+  async markEmailVerified(id: string): Promise<void> {
+    await User.findByIdAndUpdate(id, {
+      $set: { email_verified: true, email_verification_attempts: 0, updated_at: new Date() },
+      $unset: { email_verification_token: "", email_verification_expires: "" },
+    });
+  }
+
   async updatePassword(id: string, hashedPassword: string): Promise<void> {
     await User.findByIdAndUpdate(id, {
       $set: { password: hashedPassword, resetPasswordAttempts: 0, updated_at: new Date() },

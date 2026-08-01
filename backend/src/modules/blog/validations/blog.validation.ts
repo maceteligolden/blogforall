@@ -32,6 +32,8 @@ export const createBlogSchema = z
     images: z.array(z.string()).optional(),
     status: z.nativeEnum(BlogStatus).optional().default(BlogStatus.DRAFT),
     category: z.string().optional(),
+    campaign_id: z.string().optional(),
+    strategy_id: z.string().optional(),
     dynamic_forms: z.record(z.unknown()).optional(),
     meta: z
       .object({
@@ -57,6 +59,8 @@ export const updateBlogSchema = z.object({
   images: z.array(z.string()).optional(),
   status: z.nativeEnum(BlogStatus).optional(),
   category: z.string().optional().nullable(),
+  campaign_id: z.string().optional().nullable(),
+  strategy_id: z.string().optional().nullable(),
   dynamic_forms: z.record(z.unknown()).optional(),
   meta: z
     .object({

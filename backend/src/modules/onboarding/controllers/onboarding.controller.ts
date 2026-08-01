@@ -79,4 +79,23 @@ export class OnboardingController {
       next(error);
     }
   };
+
+  getSetupProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const siteId = typeof req.query.site_id === "string" ? req.query.site_id : undefined;
+      if (!siteId) {
+        sendSuccess(res, "Setup progress", {
+          items: [],
+          percent: 0,
+          complete: true,
+        });
+        return;
+      }
+      const progress = await this.onboardingService.getSetupProgress(userId, siteId);
+      sendSuccess(res, "Setup progress retrieved", progress);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

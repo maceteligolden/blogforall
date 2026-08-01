@@ -1,5 +1,15 @@
 import type { ConversationContext } from "../../contracts/conversation-context";
 import type { Intent } from "../../contracts/enums";
+import type { PostFormat } from "../../contracts/post-format";
+import {
+  FORMAT_CLARIFY_QUESTION,
+  SKIP_FORMAT_GATE_RE,
+  defaultPostFormatOnSkip,
+  isPostFormat,
+  narrativeFromRecent,
+  parsePostFormat,
+  priorAskedFormatClarify,
+} from "../../contracts/post-format";
 
 const CREATE =
   /\b(?:write|draft|create|generate|compose)\b.*\b(?:blog|post|article|content)\b|\b(?:blog|post|article)\b.*\b(?:write|draft|create|generate)\b/i;
@@ -11,7 +21,7 @@ const VAGUE_WRITE =
   /\bi\s+want\s+to\s+write\s+(?:something|about)\b|\bwrite\s+something\s+about\b/i;
 const QUICK_DRAFT_PHRASE = /\b(?:quick|rough)\s+draft\b/i;
 const EXPLICIT_DRAFT_NOW =
-  /\b(?:write\s+it\s+now|create\s+the\s+draft|go\s+ahead(?:\s+and\s+(?:draft|write))?|generate\s+the\s+(?:post|draft|article)|draft\s+it(?:\s+now)?|just\s+draft|skip\s+(?:the\s+)?(?:discuss(?:ion)?|chat)|make\s+the\s+draft)\b/i;
+  /\b(?:write\s+it\s+now|create\s+the\s+draft|go\s+ahead(?:\s+and\s+(?:draft|write))?|generate\s+the\s+(?:post|draft|article)|draft\s+it(?:\s+now)?|just\s+draft|just\s+write\s+it|skip\s+(?:the\s+)?(?:discuss(?:ion)?|chat|format|question|picker)|make\s+the\s+draft)\b/i;
 const DISCUSS_FIRST =
   /\b(?:discuss|talk\s+(?:it\s+)?through|brainstorm|explore|add\s+more\s+(?:facts?|details?)|let'?s\s+(?:chat|talk)|chat\s+about)\b/i;
 const RESEARCH_FIRST =
@@ -30,8 +40,6 @@ const CASUAL = /^(?:hi|hello|hey|thanks|thank\s+you|lol|haha|😂|good\s+(?:morn
 /** Includes contractions like "whats" / "how's" and mid-sentence question words. */
 const ASK =
   /\?$|^(?:what|whats|what'?s|how|hows|how'?s|why|when|where|who|whos|who'?s|can\s+you\s+explain|tell\s+me|describe|explain)\b|\b(?:what|whats|what'?s|how|hows|how'?s|why|when|where|who)\b|\btell\s+me\s+about\b/i;
-const TIME_ASK =
-  /\b(?:what'?s|whats)\s+the\s+time\b|\bwhat\s+time\s+is\s+it\b|\bcurrent\s+time\b|\btime\s+is\s+it\b/i;
 const LIST_POSTS =
   /\b(?:how\s+many\s+posts?|list\s+(?:my\s+|our\s+)?(?:posts?|blogs?)|show\s+(?:me\s+)?(?:my\s+|our\s+)?(?:posts?|blogs?)|posts?\s+(?:do\s+we|we\s+have|have\s+we)|what\s+posts?\s+(?:do\s+we|we\s+have))\b/i;
 const ANALYTICS =
@@ -185,6 +193,12 @@ export function analyzeConversationDeterministic(
   const urgency = URGENCY.test(message) ? "high" : "normal";
   const voiceCall = Boolean(input.conversation_mode);
   const awaitingCreatePath = priorAskedThinCreateClarify(input.recent_messages);
+  const awaitingFormatPick = priorAskedFormatClarify(input.recent_messages);
+  const narrative = narrativeFromRecent(input.recent_messages, message);
+  const parsedFormat = parsePostFormat(message);
+  const priorFormat = input.prior_context?.slots_patch?.post_format;
+  let post_format: PostFormat | undefined =
+    parsedFormat ?? (priorFormat && isPostFormat(priorFormat) ? priorFormat : undefined);
 
   let communicative_category: ConversationContext["communicative_category"] = "unknown";
   let workflow_intent: Intent = "unknown";
@@ -196,7 +210,22 @@ export function analyzeConversationDeterministic(
   let clarification_question: string | undefined;
   let initiative: ConversationContext["response_style"]["initiative"] = "suggest";
 
-  if (CASUAL.test(message) && message.length < 80 && !CREATE.test(message) && !SOFT_CREATE.test(message)) {
+  // Format picker reply after editor-gate clarify.
+  if (awaitingFormatPick && (parsedFormat || SKIP_FORMAT_GATE_RE.test(message) || EXPLICIT_DRAFT_NOW.test(message))) {
+    if (!post_format) {
+      post_format = defaultPostFormatOnSkip(narrative);
+    }
+    if (!topic) {
+      topic = topicFromRecentMessages(input.recent_messages);
+    }
+    communicative_category = "request_action";
+    workflow_intent = "create_content";
+    suggested_next_action = "start_content_workflow";
+    conversation_mode = "creation";
+    action_required = true;
+    confidence = 0.93;
+    initiative = "lead";
+  } else if (CASUAL.test(message) && message.length < 80 && !CREATE.test(message) && !SOFT_CREATE.test(message)) {
     communicative_category = "casual";
     workflow_intent = "casual";
     suggested_next_action = "casual_reply";
@@ -330,14 +359,32 @@ export function analyzeConversationDeterministic(
     action_required = true;
     confidence = SOFT_CREATE.test(message) ? 0.8 : 0.93;
     initiative = "lead";
+    const skipFormatGate =
+      QUICK_DRAFT_PHRASE.test(message) ||
+      EXPLICIT_DRAFT_NOW.test(message) ||
+      SKIP_FORMAT_GATE_RE.test(message);
+    if (skipFormatGate && !post_format) {
+      post_format = defaultPostFormatOnSkip(narrative);
+    }
     if (!topic) {
       requires_clarification = true;
       clarification_question = "What topic should the post cover?";
       suggested_next_action = "clarify";
       action_required = false;
     } else if (
-      !QUICK_DRAFT_PHRASE.test(message) &&
-      !EXPLICIT_DRAFT_NOW.test(message) &&
+      !skipFormatGate &&
+      !post_format &&
+      narrative
+    ) {
+      // Narrative create: editor-gate format picker before drafting.
+      requires_clarification = true;
+      clarification_question = FORMAT_CLARIFY_QUESTION;
+      suggested_next_action = "clarify";
+      action_required = false;
+      confidence = 0.9;
+      initiative = "suggest";
+    } else if (
+      !skipFormatGate &&
       (voiceCall || isThinOrSpeculativeTopic(topic))
     ) {
       // Thin / speculative / voice-call creates: discuss or confirm facts before drafting.
@@ -394,11 +441,13 @@ export function analyzeConversationDeterministic(
       formality: tone_preference === "friendly" ? "casual" : "neutral",
       initiative,
     },
-    slots_patch: topic ? { topic } : {},
+    slots_patch: {
+      ...(topic ? { topic } : {}),
+      ...(post_format ? { post_format } : {}),
+    },
     literal_interpretation: message.slice(0, 200),
     communicative_rationale: `${communicative_category} → ${suggested_next_action}`,
   };
-
 
   return result;
 }

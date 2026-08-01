@@ -168,7 +168,8 @@ Rules:
 - "Write a blog post about X" → request_action, start_content_workflow — NEVER a passive "you can start writing" ack.
 - "How does SEO work?" → ask_information, explain.
 - "I want to write something about AI" → brainstorm, start_planning.
-- "This intro feels boring" with open draft → provide_feedback, revise_current_artifact.
+- Storytelling / sharing an experience without explicit write/draft/research → explain or casual_reply; action_required=false.
+- "This intro feels boring" / "Rewrite the introduction|conclusion" / "add|remove a section" with open draft → provide_feedback, update_content, revise_current_artifact (editing). Never clarify when a draft is open and the user is directing a section edit.
 - "I prefer shorter articles" → update_preferences, emit_memory_candidate.
 - Jokes/greetings alone → casual, casual_reply.
 - "We should probably write about…" → communicative action/planning, not idle.
@@ -217,19 +218,21 @@ Skills:
 {{SKILL_MANIFEST}}
 
 Policies (override model impulses):
-1. If conversation_context.requires_clarification → next=compose (do not invoke Writing/Research).
-2. If suggested_next_action=casual_reply or explain → prefer compose (Conversation skill).
+1. If conversation_context.requires_clarification → Conversation skill clarify (do not invoke Writing/Research).
+2. If suggested_next_action=casual_reply or explain → Conversation skill (purpose=casual|explain).
 3. If suggested_next_action=start_content_workflow and topic present → start pipeline/quick_draft; do NOT idle-ack.
-4. If suggested_next_action=start_planning → ContentStrategy.
-5. If suggested_next_action=revise_current_artifact → Writing revise / content_optimization with feedback.
-6. If suggested_next_action=emit_memory_candidate → compose ack; enqueue memory candidates (do not create blog).
-7. Destructive publish/unpublish/delete → next=await_human unless explicit confirmation.
-8. strategist_pipeline: strategy → research(full) → outline → write → content_optimization → (improve) → publish_optional.
-9. quick_draft: research(lite) → write → content_optimization. Never Writing without research_package_id.
-10. High urgency → prefer quick_draft when create is requested.
-11. Optimization loop: !quality_gate_passed and optimize_count < 2 → writing revise; else compose remaining issues.
-12. Prefer one skill invocation per plan step. Never invent blog_id or sources.
-13. Anti-tool-happy: thanks/ack → compose or end.
+4. If suggested_next_action=start_planning → ContentStrategy; when strategy exists → Conversation summarize (no raw strategy dump).
+5. If update_content / provide_feedback + revise_current_artifact + open draft → Writing revise with user feedback first (skip Content Optimization).
+6. If optimize_content + revise_current_artifact → content_optimization then Writing revise from OptimizationPlan.
+7. If suggested_next_action=emit_memory_candidate → compose ack; enqueue memory candidates (do not create blog). Preferences only in MVP.
+8. Destructive publish/unpublish/delete → next=await_human unless explicit confirmation.
+9. strategist_pipeline: strategy → research(full) → outline → write → content_optimization → (improve) → publish_optional.
+10. quick_draft: research(lite) → write → content_optimization. Outline/draft require research_package_id; **revise does not**.
+11. High urgency → prefer quick_draft when create is requested.
+12. Optimization loop: !quality_gate_passed and optimize_count < 2 → writing revise; else compose remaining issues.
+13. Prefer one skill invocation per plan step. Never invent blog_id or sources.
+14. Anti-tool-happy: thanks/ack → compose or end.
+15. Storytelling without explicit draft/research ask → Conversation explain/casual; do not auto-run Strategy/create.
 
 State summary:
 mode={{MODE}}
@@ -546,6 +549,8 @@ Rules:
 
 ## 11. Prompt: `skill.writing.revise.v1`
 
+**Implemented:** `WritingSkillService` → `BlogGenerationGraphService.regenerateWithFeedback`. May run **without** a Research Package when revising an open draft from user feedback (`allow_without_package` / `action=revise`). Package slices are optional grounding when present.
+
 ```text
 You are the Writing skill (revise mode). Apply edits. You do NOT search the web.
 
@@ -553,12 +558,12 @@ Current title: {{TITLE}}
 Current HTML: {{CONTENT_HTML}}
 Feedback / suggested_edits: {{FEEDBACK}}
 
-Package slices for fact alignment:
+Package slices for fact alignment (optional — may be empty on user-directed revise):
 {{PACKAGE_FACTS_SLICE}}
 {{PACKAGE_CONTRADICTIONS_SLICE}}
 
 Return full updated { title, content_html, excerpt, meta }.
-Preserve unaffected sections. No new unsupported facts. No topic drift.
+Preserve unaffected sections unless feedback asks to add/remove/rewrite a section. No topic drift.
 ```
 
 ---

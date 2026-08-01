@@ -66,6 +66,20 @@ export class CampaignHealthService {
       reasons.push("Ahead of planned publishing pace.");
     }
 
+    const dims = campaign.intelligence?.dimensions;
+    if (dims) {
+      if (dims.overall_confidence < 0.4) {
+        reasons.push("Strategic confidence is low — gather knowledge or refine messaging.");
+        if (health === CampaignHealthStatus.ON_TRACK) health = CampaignHealthStatus.AT_RISK;
+      }
+      if (dims.funnel_coverage < 0.34) {
+        reasons.push("Funnel coverage is incomplete across awareness/consideration/conversion.");
+      }
+      if (dims.knowledge_completeness < 0.4) {
+        reasons.push("Business knowledge gaps are limiting campaign effectiveness.");
+      }
+    }
+
     if (campaign.lifecycle_status === CampaignLifecycleStatus.PAUSED || campaign.status === CampaignStatus.PAUSED) {
       reasons.push("Campaign automation is paused.");
     }

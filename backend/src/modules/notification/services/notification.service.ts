@@ -20,12 +20,14 @@ import type {
   ListNotificationsOptions,
   ListNotificationsResult,
 } from "../interfaces/notification.interface";
+import { RealtimeService, REALTIME_EVENTS } from "../../../shared/realtime";
 
 @injectable()
 export class NotificationService {
   constructor(
     private readonly notificationRepository: NotificationRepository,
-    private readonly brevoFacade: BrevoFacade
+    private readonly brevoFacade: BrevoFacade,
+    private readonly realtimeService: RealtimeService
   ) {}
 
   /**
@@ -117,6 +119,42 @@ export class NotificationService {
         };
         const saved = await this.notificationRepository.save(record as Notification);
         const notificationId = String(saved._id);
+
+        // Persist-first, then at-most-once push. Offline users catch up via REST.
+        this.realtimeService.emitToUser(
+          userId,
+          REALTIME_EVENTS.NOTIFICATION_CREATED,
+          {
+            id: notificationId,
+            type: saved.type,
+            title: saved.title,
+            body: saved.body,
+            payload: saved.payload ?? {},
+            createdAt:
+              saved.created_at instanceof Date
+                ? saved.created_at.toISOString()
+                : new Date().toISOString(),
+            readAt: null,
+          },
+          { correlationId }
+        );
+
+        if (this.realtimeService.isUserConnected(userId)) {
+          await this.notificationRepository.updateStatus(notificationId, NotificationStatus.PUSHED);
+        }
+
+        logger.info(
+          "In-app notification created",
+          {
+            notificationId,
+            correlationId,
+            userId,
+            type: saved.type,
+            pushed: this.realtimeService.isUserConnected(userId),
+          },
+          "NotificationService"
+        );
+
         return { notificationId, correlationId };
       } catch (error: unknown) {
         if (error instanceof AppError) throw error;
@@ -187,6 +225,8 @@ export class NotificationService {
         return EMAIL_TEMPLATE_KEYS.SITE_INVITATION;
       case NotificationType.PASSWORD_RESET:
         return EMAIL_TEMPLATE_KEYS.PASSWORD_RESET;
+      case NotificationType.EMAIL_VERIFICATION:
+        return EMAIL_TEMPLATE_KEYS.EMAIL_VERIFICATION;
       case NotificationType.COMMENT_ON_POST:
         return EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST;
       case NotificationType.WELCOME:

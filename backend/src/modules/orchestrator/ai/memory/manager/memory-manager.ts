@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { injectable } from "tsyringe";
 import type { WorkspaceMemory } from "../../../../../shared/schemas/workspace-memory.schema";
+import User from "../../../../../shared/schemas/user.schema";
 import { ContextPackBuilderService } from "../../../../memory/services/context-pack-builder.service";
 import { MemoryExtractionService } from "../../../../memory/services/memory-extraction.service";
 import { MemoryRecordRepository } from "../../../repositories/memory-record.repository";
@@ -12,6 +13,17 @@ import {
   type MemoryRecord,
   type RememberResult,
 } from "../../contracts/memory-record";
+
+function listSetupGaps(memory: WorkspaceMemory): string[] {
+  const gaps: string[] = [];
+  const s = memory.strategic;
+  if (!s?.business_type?.trim()) gaps.push("business_type");
+  if (!s?.target_audience?.length) gaps.push("target_audience");
+  if (!s?.brand_voice?.trim()) gaps.push("brand_voice");
+  if (!s?.business_goals?.length) gaps.push("business_goals");
+  if (!s?.publishing_channels?.length) gaps.push("publishing_channels");
+  return gaps;
+}
 
 export type RetrievalProfile =
   | "chat_light"
@@ -74,7 +86,25 @@ export class MemoryManagerService {
       sessionMode,
       includeVectors: ctx.profile !== "chat_light",
     });
-    const prompt_block = this.packs.toPromptBlock(pack);
+    let prompt_block = this.packs.toPromptBlock(pack);
+
+    let company_role: string | undefined;
+    let company_role_detail: string | undefined;
+    if (ctx.user_id) {
+      const user = await User.findById(ctx.user_id).select("company_role company_role_detail").lean();
+      company_role = user?.company_role;
+      company_role_detail = user?.company_role_detail;
+      if (company_role) {
+        const detail = company_role_detail ? ` (${company_role_detail})` : "";
+        prompt_block += `\n\n[USER COMPANY ROLE]\nSpeak to this person as a ${company_role}${detail}. Tailor business advice to their role.`;
+      }
+    }
+
+    const setup_gaps = listSetupGaps(memory);
+    if (setup_gaps.length) {
+      prompt_block += `\n\n[SETUP GAPS]\nWorkspace profile still missing: ${setup_gaps.join(", ")}. When the user wants to finish setup, ask only about these — do not invent values.`;
+    }
+
     const token_budget_used = Math.min(
       ctx.token_budget ?? 2000,
       Math.ceil(prompt_block.length / 4),
@@ -97,6 +127,9 @@ export class MemoryManagerService {
         business_goals: memory.strategic?.business_goals,
         seo_priorities: memory.strategic?.seo_priorities,
         preferences: memory.preferences,
+        company_role,
+        company_role_detail,
+        setup_gaps,
       },
       preferences,
       knowledge,

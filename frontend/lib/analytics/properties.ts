@@ -21,6 +21,7 @@ export interface OnboardingEventProperties extends BaseEventProperties {
   last_route?: string;
   plan_id?: string;
   plan_name?: string;
+  percent?: number;
 }
 
 export interface GenerationEventProperties extends BaseEventProperties {

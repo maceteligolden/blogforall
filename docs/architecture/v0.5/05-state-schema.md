@@ -21,6 +21,13 @@ export type WorkflowMode =
   | "strategist_pipeline"
   | "onboarding";
 
+/**
+ * Turn entry also seeds (when present):
+ * - recent_messages: last N thread turns for Conversation/Writing grounding
+ * - draft + metadata.blog_id + slots.selection: from client selection_context.blog_id
+ *   (required for user-directed revise on a fresh turn)
+ */
+
 export type WorkflowStage =
   | "idle"
   | "clarify"
