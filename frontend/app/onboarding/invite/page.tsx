@@ -15,6 +15,7 @@ import { SiteService } from "@/lib/api/services/site.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 import { PendingInvitationsList } from "@/components/sites/pending-invitations-list";
 
 const INVITE_PROMPT_SEEN_KEY = "blogforall_invite_prompt_seen";
@@ -127,6 +128,7 @@ function InviteOnboardingContent() {
 
   return (
     <AuthSplitLayout>
+      <SignupWizardProgress stage="invite" />
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
           <Users className="h-6 w-6 text-primary" />
@@ -140,6 +142,9 @@ function InviteOnboardingContent() {
           </p>
         </div>
       </div>
+      <p className="mb-6 rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2 text-xs text-gray-400">
+        Next: tell Bloggr about your business on the dashboard — about 2 minutes via the setup progress bar.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
@@ -203,7 +208,7 @@ function InviteOnboardingContent() {
           Skip for now
         </Button>
         <Button className="flex-1 bg-gray-700 hover:bg-gray-600" onClick={() => finish(false)}>
-          Continue to dashboard
+          Continue to brand setup
         </Button>
       </div>
     </AuthSplitLayout>

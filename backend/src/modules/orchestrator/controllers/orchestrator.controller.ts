@@ -92,6 +92,21 @@ export class OrchestratorController {
     }
   };
 
+  /**
+   * POST /sites/:siteId/orchestrator/onboarding/start
+   * Appends the next brand-setup question as an assistant message (no LLM).
+   */
+  startOnboardingInterview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const response = await this.orchestratorService.startOnboardingInterview(siteId, userId);
+      sendSuccess(res, "OK", response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   listThreads = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = getJwtUserId(req);

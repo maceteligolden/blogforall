@@ -8,6 +8,7 @@ import type {
   OrchestratorChatRequest,
   OrchestratorSessionMode,
   OrchestratorThread,
+  SetupInterviewStartResponse,
   ThreadWithMessages,
   WorkspaceKnowledgeSource,
 } from "../types/orchestrator.types";
@@ -57,6 +58,11 @@ export class OrchestratorService {
       { message },
       { timeout: ORCHESTRATOR_TURN_TIMEOUT_MS }
     );
+    return response.data?.data ?? response.data;
+  }
+
+  static async startOnboardingInterview(siteId: string): Promise<SetupInterviewStartResponse> {
+    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.ONBOARDING_START(siteId));
     return response.data?.data ?? response.data;
   }
 

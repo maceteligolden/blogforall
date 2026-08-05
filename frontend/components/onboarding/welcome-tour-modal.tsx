@@ -5,12 +5,14 @@ import { useQuery } from "@tanstack/react-query";
 import { AuthService } from "@/lib/api/services/auth.service";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { Button } from "@/components/ui/button";
+import { useStartWorkspaceSetupInterview } from "@/lib/onboarding/use-start-setup-interview";
 
 export function WelcomeTourModal() {
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
   const [open, setOpen] = useState(false);
   const [dismissing, setDismissing] = useState(false);
+  const { startWorkspaceSetupInterview } = useStartWorkspaceSetupInterview();
 
   const { data: profile } = useQuery({
     queryKey: ["auth", "profile", "welcome"],
@@ -44,6 +46,20 @@ export function WelcomeTourModal() {
     }
   };
 
+  const finishBrandSetup = async () => {
+    setDismissing(true);
+    try {
+      await AuthService.dismissWelcomeTour();
+      updateUser({ welcome_tour_dismissed: true });
+      setOpen(false);
+      await startWorkspaceSetupInterview();
+    } catch {
+      setOpen(false);
+    } finally {
+      setDismissing(false);
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -53,15 +69,15 @@ export function WelcomeTourModal() {
           Welcome{profile?.first_name ? `, ${profile.first_name}` : ""}
         </h2>
         <p className="text-sm text-gray-400 mb-6">
-          Your workspace is ready. Take a quick tour of the dashboard, or jump straight in — you can finish brand setup
-          anytime from the progress ring in the navbar.
+          Your workspace is ready. Finish brand setup so the AI can write in your voice — it will ask a few quick
+          questions in chat. You can also continue anytime from the setup progress bar in the navbar.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button className="flex-1" onClick={dismiss} disabled={dismissing}>
-            {dismissing ? "…" : "Start tour"}
+          <Button className="flex-1" onClick={() => void finishBrandSetup()} disabled={dismissing}>
+            {dismissing ? "…" : "Finish brand setup"}
           </Button>
-          <Button variant="outline" className="flex-1 border-gray-700" onClick={dismiss} disabled={dismissing}>
-            Skip
+          <Button variant="outline" className="flex-1 border-gray-700" onClick={() => void dismiss()} disabled={dismissing}>
+            Skip for now
           </Button>
         </div>
       </div>

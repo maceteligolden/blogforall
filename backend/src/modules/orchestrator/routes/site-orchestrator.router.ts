@@ -26,6 +26,7 @@ const controller = container.resolve(OrchestratorController);
 
 router.post("/chat", validateBody(V.orchestratorChatBodySchema), controller.chat);
 router.post("/onboarding/chat", validateBody(V.orchestratorOnboardingChatBodySchema), controller.onboardingChat);
+router.post("/onboarding/start", controller.startOnboardingInterview);
 
 router.get("/threads", validateQuery(V.threadListQuerySchema), controller.listThreads);
 router.get("/threads/:threadId", validateParams(V.threadIdParamSchema), controller.getThread);

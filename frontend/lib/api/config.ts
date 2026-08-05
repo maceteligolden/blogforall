@@ -182,6 +182,7 @@ export const API_ENDPOINTS = {
   ORCHESTRATOR: {
     CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/chat`,
     ONBOARDING_CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/onboarding/chat`,
+    ONBOARDING_START: (siteId: string) => `/sites/${siteId}/orchestrator/onboarding/start`,
     THREADS: (siteId: string) => `/sites/${siteId}/orchestrator/threads`,
     THREAD: (siteId: string, threadId: string) => `/sites/${siteId}/orchestrator/threads/${threadId}`,
     APPROVALS: (siteId: string) => `/sites/${siteId}/orchestrator/approvals`,

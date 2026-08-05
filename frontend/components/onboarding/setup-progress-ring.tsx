@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useToast } from "@/components/ui/toast";
-import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
+import { useStartWorkspaceSetupInterview } from "@/lib/onboarding/use-start-setup-interview";
 
 function CircularProgress({ percent }: { percent: number }) {
   const r = 14;
@@ -35,7 +35,8 @@ export function SetupProgressRing() {
   const { toast } = useToast();
   const currentSiteId = useAuthStore((s) => s.currentSiteId);
   const [open, setOpen] = useState(false);
-  const { focusComposer } = useOrchestrator();
+  const [starting, setStarting] = useState(false);
+  const { startWorkspaceSetupInterview } = useStartWorkspaceSetupInterview();
   const wasComplete = useRef(false);
   const sawIncomplete = useRef(false);
 
@@ -61,7 +62,7 @@ export function SetupProgressRing() {
       toast({
         variant: "success",
         title: "Workspace setup complete",
-        description: "Your brand profile is ready — the progress ring will hide.",
+        description: "Your brand profile is ready — the progress indicator will hide.",
       });
     }
   }, [progress, currentSiteId, toast]);
@@ -83,21 +84,14 @@ export function SetupProgressRing() {
     });
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     setOpen(false);
-    const missing = incomplete.map((i) => i.label).join(", ");
-    const seed = missing
-      ? `Help me finish workspace setup. Still missing: ${missing}. Ask me about these one at a time — don't invent answers.`
-      : "Help me finish workspace setup.";
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("bloggr_setup_seed", seed);
+    setStarting(true);
+    try {
+      await startWorkspaceSetupInterview(currentSiteId);
+    } finally {
+      setStarting(false);
     }
-    focusComposer();
-    toast({
-      variant: "info",
-      title: "Setup with AI",
-      description: "Your message is ready in the chat — hit send when you're ready.",
-    });
   };
 
   return (
@@ -105,12 +99,17 @@ export function SetupProgressRing() {
       <button
         type="button"
         onClick={handleToggle}
-        className="relative flex items-center justify-center text-gray-300 hover:text-white"
-        aria-label={`Setup ${progress.percent}% complete`}
+        className="relative flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-gray-200 hover:bg-primary/20 animate-pulse hover:animate-none"
+        aria-label={`Finish setup ${progress.percent}% complete`}
         title="Finish workspace setup"
       >
-        <CircularProgress percent={progress.percent} />
-        <span className="absolute text-[10px] font-semibold text-white">{progress.percent}</span>
+        <span className="relative flex items-center justify-center">
+          <CircularProgress percent={progress.percent} />
+          <span className="absolute text-[10px] font-semibold text-white">{progress.percent}</span>
+        </span>
+        <span className="hidden sm:inline text-xs font-medium text-white whitespace-nowrap">
+          Finish setup · {progress.percent}%
+        </span>
       </button>
 
       {open && (
@@ -130,12 +129,16 @@ export function SetupProgressRing() {
               </li>
             ))}
           </ul>
+          {incomplete.length > 0 && (
+            <p className="text-[11px] text-gray-500 mb-2">Next up: {incomplete[0].label}</p>
+          )}
           <button
             type="button"
-            onClick={handleContinue}
-            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary/90"
+            onClick={() => void handleContinue()}
+            disabled={starting}
+            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-60"
           >
-            Continue with AI
+            {starting ? "Starting…" : "Continue with AI"}
           </button>
         </div>
       )}

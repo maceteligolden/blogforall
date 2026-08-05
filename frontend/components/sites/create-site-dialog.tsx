@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { SiteService, CreateSiteRequest } from "@/lib/api/services/site.service";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { QUERY_KEYS } from "@/lib/api/config";
+import { useToast } from "@/components/ui/toast";
+import { SETUP_INTERVIEW_PENDING_KEY } from "@/lib/onboarding/brand-setup-items";
 
 interface CreateSiteDialogProps {
   isOpen: boolean;
@@ -17,31 +20,37 @@ interface CreateSiteDialogProps {
 
 export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
   const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const queryClient = useQueryClient();
   const { updateSiteContext } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
 
   const createSiteMutation = useMutation({
     mutationFn: (data: CreateSiteRequest) => SiteService.createSite(data),
     onSuccess: async (newSite) => {
-      // Invalidate sites query to refetch
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
-
-      // Switch to the new site
       updateSiteContext(newSite._id);
-
-      // Reset form and close
       setName("");
-      setDescription("");
       setError("");
       onClose();
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(SETUP_INTERVIEW_PENDING_KEY, newSite._id);
+      }
+      toast({
+        variant: "success",
+        title: "Workspace ready",
+        description: "Finish brand setup next — the AI will ask a few quick questions.",
+      });
+      router.push("/dashboard");
     },
-    onError: (err: any) => {
-      const apiMessage = err?.response?.data?.message;
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } }; code?: string; message?: string })
+        ?.response?.data?.message;
       const message =
         apiMessage ||
-        (err?.code === "ECONNREFUSED" || err?.message?.includes("Network")
+        ((err as { code?: string; message?: string })?.code === "ECONNREFUSED" ||
+        (err as { message?: string })?.message?.includes("Network")
           ? "Cannot reach server. Please check that the backend is running."
           : "Failed to create site");
       setError(message);
@@ -53,13 +62,12 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
     setError("");
 
     if (!name.trim()) {
-      setError("Site name is required");
+      setError("Workspace name is required");
       return;
     }
 
     createSiteMutation.mutate({
       name: name.trim(),
-      description: description.trim() || undefined,
     });
   };
 
@@ -67,7 +75,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Create New Site"
+      title="Create workspace"
       size="md"
       footer={
         <div className="flex justify-end space-x-3">
@@ -84,7 +92,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
             disabled={createSiteMutation.isPending || !name.trim()}
             className="bg-primary hover:bg-primary/90 text-white"
           >
-            {createSiteMutation.isPending ? "Creating..." : "Create Site"}
+            {createSiteMutation.isPending ? "Creating..." : "Create workspace"}
           </Button>
         </div>
       }
@@ -96,32 +104,21 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
 
         <div>
           <Label htmlFor="site-name" className="text-gray-300">
-            Site Name <span className="text-red-400">*</span>
+            Workspace name <span className="text-red-400">*</span>
           </Label>
           <Input
             id="site-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="My Blog Site"
+            placeholder="e.g. Acme Content"
             className="mt-1 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
             required
             autoFocus
           />
-        </div>
-
-        <div>
-          <Label htmlFor="site-description" className="text-gray-300">
-            Description (Optional)
-          </Label>
-          <textarea
-            id="site-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="A brief description of your site"
-            rows={4}
-            className="mt-1 flex w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
-          />
+          <p className="mt-2 text-xs text-gray-500">
+            Brand details come later via setup progress and AI — just pick a name for now.
+          </p>
         </div>
       </form>
     </Modal>

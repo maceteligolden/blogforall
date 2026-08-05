@@ -16,6 +16,8 @@ import { workspaceTracker } from "@/lib/analytics/flows/workspace.tracker";
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
+import { BrandSetupPreview } from "@/components/onboarding/brand-setup-preview";
 import { useToast } from "@/components/ui/toast";
 
 function CreateSitePageContent() {
@@ -109,9 +111,9 @@ function CreateSitePageContent() {
     <AuthSplitLayout>
       <AuthPageHeader
         title="Name your workspace"
-        subtitle="You can fill in brand details later from the dashboard checklist."
+        subtitle="Just a name for now — you'll finish brand setup with AI from the dashboard progress bar."
       />
-      <p className="mb-6 text-sm text-gray-500">Step 3 of 5</p>
+      <SignupWizardProgress stage="workspace_name" />
 
       {error && (
         <div className="mb-4 rounded-md border border-red-800 bg-red-900/50 px-3 py-2 text-sm text-red-200">
@@ -133,6 +135,8 @@ function CreateSitePageContent() {
           />
           {nameError && <p className="text-xs text-red-300">{nameError}</p>}
         </div>
+
+        <BrandSetupPreview />
 
         <Button type="submit" className="w-full" disabled={createSiteMutation.isPending || !name.trim()}>
           {createSiteMutation.isPending ? "Creating…" : "Continue"}

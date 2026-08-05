@@ -9,6 +9,7 @@ import { PlanContinueButton, PlanSelectionGrid } from "@/components/billing/plan
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 
 function PlansOnboardingContent() {
   const router = useRouter();
@@ -60,6 +61,7 @@ function PlansOnboardingContent() {
 
   return (
     <AuthSplitLayout wide>
+      <SignupWizardProgress stage="plan_selection" />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white sm:text-3xl">Choose your plan</h1>
         <p className="mt-2 text-sm text-gray-400">

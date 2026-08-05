@@ -46,6 +46,21 @@ export interface OrchestratorMessage {
   created_at: string;
 }
 
+export interface SetupInterviewStartResponse {
+  complete: boolean;
+  thread_id?: string;
+  assistant_message?: {
+    id: string;
+    content: string;
+    created_at: string;
+  };
+  progress: {
+    items: Array<{ id: string; label: string; done: boolean }>;
+    percent: number;
+    complete: boolean;
+  };
+}
+
 export interface ChatTurnResponse {
   thread_id: string;
   assistant_message: {

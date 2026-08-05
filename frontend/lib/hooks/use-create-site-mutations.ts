@@ -12,9 +12,8 @@ interface UseCreateSiteMutationsOptions {
   onError?: (message: string) => void;
   /**
    * Called after a site is successfully created (either by createSiteMutation
-   * or skipMutation). The create-site page uses this to transition into the
-   * orchestrator-led onboarding chat instead of routing away. When omitted,
-   * the legacy behaviour of pushing straight to /dashboard is used.
+   * or skipMutation). The create-site page uses this to continue the signup
+   * wizard (plans). When omitted, defaults to pushing /dashboard.
    */
   onSiteReady?: (site: Site) => void;
 }

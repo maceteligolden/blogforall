@@ -85,7 +85,10 @@ export function buildNextOnboardingQuestion(memory: WorkspaceMemory, history?: O
   return key ? FIELD_QUESTIONS[key] : null;
 }
 
-/** Human-readable checklist for the system prompt. */
+/**
+ * Human-readable checklist for the system prompt.
+ * Only exposes the single next field to ask — never a list of "ask about these".
+ */
 export function formatOnboardingProgress(memory: WorkspaceMemory): string {
   const missing = listMissingOnboardingFields(memory);
   const captured = FIELD_ORDER.filter((k) => !missing.includes(k));
@@ -94,7 +97,9 @@ export function formatOnboardingProgress(memory: WorkspaceMemory): string {
     lines.push(`Captured: ${captured.join(", ")}`);
   }
   if (missing.length > 0) {
-    lines.push(`Still needed (ask about "${missing[0]}" next): ${missing.join(", ")}`);
+    lines.push(`Ask about this field ONLY next: "${missing[0]}"`);
+    lines.push(`Exact question to use: ${FIELD_QUESTIONS[missing[0]]}`);
+    lines.push(`Remaining fields after this one: ${missing.length - 1} (do not ask them yet).`);
   } else {
     lines.push("All required fields captured — summarize and request confirmation to complete onboarding.");
   }
@@ -103,8 +108,18 @@ export function formatOnboardingProgress(memory: WorkspaceMemory): string {
 
 const DEAD_END_REPLIES = new Set(["got it.", "got it", "ok.", "okay.", "okay", "thanks.", "thank you."]);
 
+export function countQuestionMarks(reply: string): number {
+  return (reply.match(/\?/g) ?? []).length;
+}
+
+/** Count how many distinct canned field questions appear in a reply. */
+export function countMatchedFieldQuestions(reply: string): number {
+  return FIELD_ORDER.filter((key) => reply.includes(FIELD_QUESTIONS[key])).length;
+}
+
 /**
- * True when the assistant reply would leave the user with nothing to answer.
+ * True when the assistant reply would leave the user with nothing to answer,
+ * or asks about more than one field in a single turn.
  */
 export function onboardingReplyNeedsFollowUp(reply: string): boolean {
   const t = reply.trim();
@@ -112,11 +127,31 @@ export function onboardingReplyNeedsFollowUp(reply: string): boolean {
   if (DEAD_END_REPLIES.has(t.toLowerCase())) return true;
   if (t.length < 24 && !t.includes("?")) return true;
   if (!t.includes("?")) return true;
+  if (countQuestionMarks(t) > 1) return true;
+  if (countMatchedFieldQuestions(t) > 1) return true;
   return false;
 }
 
+/** Remove interrogative sentences so we can keep a short acknowledgment only. */
+function stripQuestionSentences(text: string): string {
+  const parts = text
+    .split(/(?<=[.!?])\s+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .filter((p) => !p.includes("?"));
+  return parts.join(" ").trim();
+}
+
+function firstSentence(text: string, maxLen = 180): string {
+  const m = text.match(/^[^.!?]+[.!]?/);
+  const s = (m?.[0] ?? text).trim();
+  if (s.length <= maxLen) return s;
+  return `${s.slice(0, maxLen - 1).trim()}…`;
+}
+
 /**
- * Ensure every onboarding turn ends with the next interview question.
+ * Ensure every onboarding turn ends with exactly one interview question —
+ * the next missing field only.
  */
 export function ensureOnboardingInterviewReply(
   reply: string,
@@ -134,20 +169,25 @@ export function ensureOnboardingInterviewReply(
   }
 
   const trimmed = reply.trim();
-  if (!onboardingReplyNeedsFollowUp(trimmed)) {
+  const qMarks = countQuestionMarks(trimmed);
+  const otherFieldHits = FIELD_ORDER.filter(
+    (key) => key !== nextField && trimmed.includes(FIELD_QUESTIONS[key])
+  ).length;
+  const isCleanSingle =
+    qMarks === 1 && trimmed.includes(nextQ) && otherFieldHits === 0 && !onboardingReplyNeedsFollowUp(trimmed);
+
+  if (isCleanSingle) {
     return { reply: trimmed, repaired: false, nextField };
   }
 
-  if (!trimmed || DEAD_END_REPLIES.has(trimmed.toLowerCase())) {
-    return {
-      reply: `Thanks for sharing. ${nextQ}`,
-      repaired: true,
-      nextField,
-    };
-  }
+  const ackRaw = stripQuestionSentences(trimmed);
+  const ack =
+    ackRaw && !DEAD_END_REPLIES.has(ackRaw.toLowerCase())
+      ? firstSentence(ackRaw)
+      : "Thanks for sharing.";
 
   return {
-    reply: `${trimmed}\n\n${nextQ}`,
+    reply: `${ack}\n\n${nextQ}`,
     repaired: true,
     nextField,
   };

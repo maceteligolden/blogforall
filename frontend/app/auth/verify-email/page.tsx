@@ -14,6 +14,7 @@ import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 
 function VerifyEmailForm() {
@@ -117,7 +118,7 @@ function VerifyEmailForm() {
             : "Enter the 6-digit code we emailed you."
         }
       />
-      <p className="mb-6 text-sm text-gray-500">Step 1 of 5</p>
+      <SignupWizardProgress stage="email_verification" />
 
       {error && (
         <div className="mb-4 rounded-md border border-red-800 bg-red-900/50 px-3 py-2 text-sm text-red-200">

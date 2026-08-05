@@ -27,10 +27,11 @@ import {
   type SerializedApproval,
   type SupervisorDecision,
 } from "../interfaces/orchestrator.interface";
-import { ensureOnboardingInterviewReply } from "../utils/onboarding-interview.helper";
+import { buildNextOnboardingQuestion, ensureOnboardingInterviewReply } from "../utils/onboarding-interview.helper";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
 import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 import { CampaignRoadmapService } from "../../campaign/services/campaign-roadmap.service";
+import { OnboardingService, type SetupProgress } from "../../onboarding/services/onboarding.service";
 import { ContextPackBuilderService } from "../../memory/services/context-pack-builder.service";
 import { MemoryExtractionService } from "../../memory/services/memory-extraction.service";
 import {
@@ -119,7 +120,8 @@ export class OrchestratorService {
     private readonly v05Graph: OrchestratorV05GraphService,
     private readonly conversationIntelligence: ConversationIntelligenceService,
     private readonly realtimeService: RealtimeService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly onboardingService: OnboardingService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -143,6 +145,80 @@ export class OrchestratorService {
    */
   async onboardingChat(input: Omit<BaseTurnInput, "threadId">): Promise<ChatTurnResponse> {
     return this.runTurn({ ...input, mode: "onboarding" });
+  }
+
+  /**
+   * Start (or resume) the brand-setup interview without an LLM call: append the
+   * next missing-field question as an assistant message on the canonical
+   * onboarding thread. Idempotent when that question is already unanswered.
+   */
+  async startOnboardingInterview(
+    siteId: string,
+    userId: string
+  ): Promise<{
+    complete: boolean;
+    thread_id?: string;
+    assistant_message?: { id: string; content: string; created_at: Date };
+    progress: SetupProgress;
+  }> {
+    await this.assertSiteAccess(siteId, userId);
+    const memory = await this.memoryRepository.ensureForSite(siteId, userId);
+    const progress = await this.onboardingService.getSetupProgress(userId, siteId);
+
+    if (progress.complete) {
+      const existing = await this.threadRepository.findOnboardingThread(siteId, userId);
+      if (existing?._id) {
+        await this.threadRepository.markOnboardingComplete(existing._id.toString(), siteId);
+      }
+      return { complete: true, progress };
+    }
+
+    const thread = await this.resolveThread(siteId, userId, undefined, "onboarding");
+    const threadId = thread._id!.toString();
+    const history = await this.messageRepository.listByThread(threadId, siteId);
+    const question = buildNextOnboardingQuestion(memory, history);
+
+    if (!question) {
+      return { complete: true, progress, thread_id: threadId };
+    }
+
+    const last = history[history.length - 1];
+    if (last?.role === OrchestratorMessageRole.ASSISTANT && last.content.includes(question)) {
+      return {
+        complete: false,
+        thread_id: threadId,
+        assistant_message: {
+          id: last._id!.toString(),
+          content: last.content,
+          created_at: last.created_at ?? new Date(),
+        },
+        progress,
+      };
+    }
+
+    const opener =
+      history.length === 0
+        ? "Let's finish your workspace setup. I'll ask one thing at a time."
+        : "Let's pick up where we left off on your workspace setup.";
+    const content = `${opener}\n\n${question}`;
+
+    const assistant = await this.messageRepository.create({
+      thread_id: threadId,
+      site_id: siteId,
+      role: OrchestratorMessageRole.ASSISTANT,
+      content,
+    });
+
+    return {
+      complete: false,
+      thread_id: threadId,
+      assistant_message: {
+        id: assistant._id!.toString(),
+        content: assistant.content,
+        created_at: assistant.created_at ?? new Date(),
+      },
+      progress,
+    };
   }
 
   async listThreads(siteId: string, userId: string, limit = 50): Promise<OrchestratorThread[]> {

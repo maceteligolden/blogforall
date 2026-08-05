@@ -36,6 +36,9 @@ interface OrchestratorContextValue {
   setSelectionContext: (ctx: OrchestratorSelectionContext | null) => void;
   composerFocusRef: React.MutableRefObject<(() => void) | null>;
   focusComposer: () => void;
+  /** When true, chat sends use onboarding-mode interview endpoint. */
+  setupInterviewActive: boolean;
+  setSetupInterviewActive: (active: boolean) => void;
   pendingAttachments: OrchestratorChatAttachment[];
   addPendingAttachment: (attachment: OrchestratorChatAttachment) => void;
   removePendingAttachment: (index: number) => void;
@@ -95,6 +98,7 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const focusComposer = useCallback(() => {
     composerFocusRef.current?.();
   }, []);
+  const [setupInterviewActive, setSetupInterviewActive] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<OrchestratorChatAttachment[]>([]);
   const [voiceMode, setVoiceMode] = useState(false);
   const [conversationMode, setConversationMode] = useState(false);
@@ -285,6 +289,8 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       setSelectionContext,
       composerFocusRef,
       focusComposer,
+      setupInterviewActive,
+      setSetupInterviewActive,
       pendingAttachments,
       addPendingAttachment,
       removePendingAttachment,
@@ -320,6 +326,8 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       activeDraftBlogId,
       selectionContext,
       focusComposer,
+      setupInterviewActive,
+      setSetupInterviewActive,
       pendingAttachments,
       addPendingAttachment,
       removePendingAttachment,

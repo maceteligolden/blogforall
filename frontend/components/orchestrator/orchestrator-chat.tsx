@@ -88,6 +88,8 @@ export function OrchestratorChat({
     exitConversationMode,
     livePhase,
     clearLivePhase,
+    setupInterviewActive,
+    setSetupInterviewActive,
   } = useOrchestrator();
   const { artifacts, hasArtifacts, showResultsPanel } = useOrchestratorArtifacts();
   const { currentSiteId } = useAuthStore();
@@ -167,6 +169,12 @@ export function OrchestratorChat({
   useEffect(() => {
     orchestratorTracker.opened();
   }, []);
+
+  useEffect(() => {
+    if (threadQuery.data?.thread?.is_onboarding) {
+      setSetupInterviewActive(true);
+    }
+  }, [threadQuery.data?.thread?.is_onboarding, setSetupInterviewActive]);
 
   useEffect(() => {
     setOptimisticMessages([]);
@@ -344,13 +352,17 @@ export function OrchestratorChat({
           }
         : undefined);
     const sendStartedAt = Date.now();
+    const useOnboardingInterview =
+      setupInterviewActive || Boolean(threadQuery.data?.thread?.is_onboarding);
     try {
-      const res: ChatTurnResponse = await OrchestratorService.chat(currentSiteId, text, threadId ?? undefined, {
-        sessionMode: explicitMode ?? sessionMode,
-        attachments: pendingAttachments.length ? pendingAttachments : undefined,
-        selectionContext: effectiveSelectionContext,
-        conversationMode: conversationModeRef.current || undefined,
-      });
+      const res: ChatTurnResponse = useOnboardingInterview
+        ? await OrchestratorService.onboardingChat(currentSiteId, text)
+        : await OrchestratorService.chat(currentSiteId, text, threadId ?? undefined, {
+            sessionMode: explicitMode ?? sessionMode,
+            attachments: pendingAttachments.length ? pendingAttachments : undefined,
+            selectionContext: effectiveSelectionContext,
+            conversationMode: conversationModeRef.current || undefined,
+          });
 
       if (res.active_session_mode) {
         setEffectiveSessionMode(res.active_session_mode);
@@ -449,6 +461,14 @@ export function OrchestratorChat({
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, res.thread_id),
       });
+      if (useOnboardingInterview) {
+        void queryClient.invalidateQueries({
+          queryKey: ["onboarding", "setup-progress", currentSiteId],
+        });
+      }
+      if (useOnboardingInterview && res.onboarding_completed) {
+        setSetupInterviewActive(false);
+      }
       if (res.pending_approval) {
         queryClient.invalidateQueries({
           queryKey: QUERY_KEYS.ORCHESTRATOR_APPROVALS(currentSiteId),
@@ -481,6 +501,7 @@ export function OrchestratorChat({
   const handleNewThread = () => {
     clearLiveArtifacts();
     setThreadId(null);
+    setSetupInterviewActive(false);
     setOptimisticMessages([]);
     setPendingApproval(null);
     setError(null);
