@@ -8,7 +8,7 @@ export function BrandSetupPreview() {
     <div className="rounded-lg border border-gray-800 bg-gray-900/60 p-3">
       <p className="text-xs font-medium text-gray-300 mb-1">Coming up on your dashboard</p>
       <p className="text-[11px] text-gray-500 mb-2">
-        Finish brand setup with AI later — about 2 minutes. Nothing to fill in here.
+        Finish brand setup with AI later — share a website or answer a few questions. Nothing to fill in here.
       </p>
       <ul className="space-y-1">
         {BRAND_SETUP_ITEMS.map((item) => (

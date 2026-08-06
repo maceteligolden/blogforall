@@ -3,7 +3,7 @@
 **Status:** Active  
 **Owner:** Lead AI Engineer / Technical Project Manager  
 **Added:** 2026-07-27  
-**Last updated:** 2026-07-29 (M6 Strategic Intelligence approved — ADR-015 / doc 21)  
+**Last updated:** 2026-08-06 (M6.5 gap-closure: single writer, UI, harden, T6.1, decisions→planning)  
 **Source of truth (architecture):** [`docs/architecture/v0.5/`](./architecture/v0.5/)  
 **Decisions log:** [`docs/architecture-decisions.md`](./architecture-decisions.md)
 
@@ -56,9 +56,9 @@ After completing work:
 | Production chat today | v0.5 default; set `ORCHESTRATOR_V05_GRAPH_ENABLED=false` for supervisor emergency |
 | Dirty worktree | Unrelated WIP may still exist — keep commits narrow |
 
-**Active milestone:** **M6 Strategic Intelligence** (ADR-015, [doc 21](./architecture/v0.5/21-strategic-intelligence.md)).
+**Active milestone:** **M6.5 Strategic Intelligence productization** (ADR-015, [doc 21](./architecture/v0.5/21-strategic-intelligence.md) — phases 1–7 backend done).
 
-**Next approved coding tasks:** T6.SI.1–T6.SI.7 (Default Campaign → learning loop).
+**Next approved coding tasks:** T6.SI.8–T6.SI.12 (single writer → UI → harden → T6.1 → decisions→planning).
 
 ---
 
@@ -72,10 +72,11 @@ M2 Skills + pipelines         ████ DONE
 M3 Graph behind flag                    ████ DONE
 M4 Strategist UX                                  ████ DONE
 M5 Remove dual brain                                        ████ DONE
-M6 Strategic Intelligence                                         ░░░░░ In progress (ADR-015)
+M6 Strategic Intelligence                                         ████ Backend done (T6.SI.0–7)
+M6.5 Productization + closed loop                                       ░░░░░ In progress
 ```
 
-Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 Strategic Intelligence after M5 (agency pack remains later).
+Dependencies: **M0 → M1 → M2 → M3 → M4 → M5 → M6**; M6.5 after M6 backend; agency pack remains later.
 
 ---
 
@@ -125,8 +126,13 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 Strategic Intelligen
 | T6.SI.4 | M6 | Campaign enrichment + intelligence | Completed | High | Eng | T6.SI.1 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Strategic health |
 | T6.SI.5 | M6 | Orchestrator strategy→campaign plan policies | Completed | Critical | Eng | T6.SI.2–T6.SI.4 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Flagged |
 | T6.SI.6 | M6 | Strategic Decision Engine + next API | Completed | High | Eng | T6.SI.5 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Ranked actions |
-| T6.SI.7 | M6 | Learning loop (publish/stats → beliefs) | Completed | High | Eng | T6.SI.3, T6.SI.6 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Closes 14 §4 C |
-| T6.1 | M6 | Content Intelligence closed loop | Planned | Medium | Eng | T6.SI.7 | — | — | — | Overlaps T6.SI.7 |
+| T6.SI.7 | M6 | Learning loop (publish/stats → beliefs) | Completed | High | Eng | T6.SI.3, T6.SI.6 | 2026-07-29 | 2026-07-29 | 2026-07-29 | Thin stubs; deepened in T6.SI.11 |
+| T6.SI.8 | M6.5 | Single knowledge writer + source-aware confidence | Completed | Critical | Eng | T6.SI.3 | 2026-08-06 | 2026-08-06 | 2026-08-06 | Doc 21 single-writer rule |
+| T6.SI.9 | M6.5 | Strategist UI (WorkspaceStrategy + gaps + decisions) | Completed | Critical | Eng | T6.SI.8 | 2026-08-06 | 2026-08-06 | 2026-08-06 | Replace content-themes Strategy board |
+| T6.SI.10 | M6.5 | Hierarchy harden (strategy_id + required campaign_id) | Completed | High | Eng | T6.SI.1 | 2026-08-06 | 2026-08-06 | 2026-08-06 | Backfill + enforce |
+| T6.SI.11 | M6.5 | Content Intelligence closed loop (T6.1) | Completed | High | Eng | T6.SI.7, T6.SI.8 | 2026-08-06 | 2026-08-06 | 2026-08-06 | Evidence confirm + hypotheses |
+| T6.SI.12 | M6.5 | Decisions → roadmap/post proposals (HITL) | Completed | High | Eng | T6.SI.6, T6.SI.11 | 2026-08-06 | 2026-08-06 | 2026-08-06 | plan_content / publish_awareness |
+| T6.1 | M6 | Content Intelligence closed loop | Completed | Medium | Eng | T6.SI.7 | 2026-08-06 | 2026-08-06 | 2026-08-06 | Delivered as T6.SI.11 |
 | T6.2 | M6 | Agency multi-workspace pack | Post-MVP | Medium | Eng | T5.1 | — | — | — | Doc 20; tenancy locked |
 | T6.3 | M6 | Full UX validator / rich linking | Post-MVP | Low | Eng | T4.4 | — | — | — | — |
 | T6.4 | M6 | Required Qdrant / hybrid retrieve | Post-MVP | Low | Eng | T2.2 | — | — | — | Optional only in MVP |
@@ -144,6 +150,7 @@ Dependencies: **M0 → M1 → M2 → M3 → M4 → M5**; M6 Strategic Intelligen
 | **M4** | Staging strategist demo; Package/scores in UI; writer search retired on new paths |
 | **M5** | Single chat brain; dual path deleted |
 | **M6** | Strategic Intelligence phases 1–7 green; Default Campaign + strategy + decisions behind flag |
+| **M6.5** | Single writer; Strategy UI; strategy_id + campaign_id harden; T6.1 loop; decisions→planning |
 
 ---
 
@@ -168,7 +175,7 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. Implement M6 Strategic Intelligence T6.SI.1–T6.SI.7 per [doc 21](./architecture/v0.5/21-strategic-intelligence.md).  
+1. Soak M6.5 (T6.SI.8–12) in staging; monitor knowledge writes + Strategy UI.  
 2. Keep agency pack (T6.2) and full UX validator (T6.3) deferred.  
 3. Optional soak: `ORCHESTRATOR_V05_GRAPH_ENABLED=false` only for emergency supervisor.
 
@@ -192,3 +199,5 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-28 | Dialogue + section revise: CI LLM-primary storytelling/section-edit; Conversation skill; seed open draft for user-directed Writing revise; results-panel `blogs.update` sync; docs updated (LTM MVP = preferences only) |
 | 2026-07-29 | M6 Strategic Intelligence approved: doc 21, ADR-015; Campaign Agent plan superseded; T6.SI.* tasks added |
 | 2026-07-29 | M6 Strategic Intelligence T6.SI.1–T6.SI.7 implemented: Default Campaign, WorkspaceStrategy, beliefs, intelligence, plan policies, decision engine, learning loop |
+| 2026-08-06 | M6.5 started: doc 21 implementation status; T6.SI.8–12 (single writer, UI, harden, T6.1, decisions→planning) |
+| 2026-08-06 | M6.5 complete: single writer, Strategy UI, strategy_id/campaign_id harden, learning loop, decisions→propose |

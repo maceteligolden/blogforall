@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, PanelRight, Pencil, Plus, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
@@ -34,6 +34,7 @@ import {
 import { extractMoatSnapshot } from "@/lib/utils/moat-snapshot";
 import { parseExplicitSessionModeSwitch, isWritingEffectiveMode } from "@/lib/utils/session-mode-parser";
 import { useOrchestratorArtifacts } from "@/lib/hooks/use-orchestrator-artifacts";
+import { useRenameThread } from "@/lib/hooks/use-rename-thread";
 import { useSpeechSynthesis } from "@/lib/hooks/use-speech-synthesis";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
 
@@ -91,7 +92,7 @@ export function OrchestratorChat({
     setupInterviewActive,
     setSetupInterviewActive,
   } = useOrchestrator();
-  const { artifacts, hasArtifacts, showResultsPanel } = useOrchestratorArtifacts();
+  const { artifacts, hasViewableArtifacts, showResultsPanel } = useOrchestratorArtifacts();
   const { currentSiteId } = useAuthStore();
   const queryClient = useQueryClient();
   const { data: tokenUsage } = useTokenUsage();
@@ -188,28 +189,7 @@ export function OrchestratorChat({
     clearLivePhase();
   }, [threadId, clearLivePhase]);
 
-  const renameThreadMutation = useMutation({
-    mutationFn: ({ threadId: id, title }: { threadId: string; title: string }) =>
-      OrchestratorService.renameThread(currentSiteId as string, id, title),
-    onSuccess: (updated) => {
-      if (!currentSiteId) return;
-      setEditingThreadId(null);
-      setEditTitle("");
-      setRenameError(null);
-      queryClient.setQueryData(
-        QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, updated._id),
-        (old: { thread: { title: string }; messages: unknown[] } | undefined) =>
-          old ? { ...old, thread: { ...old.thread, title: updated.title } } : old
-      );
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId),
-      });
-    },
-    onError: (err: unknown) => {
-      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setRenameError(apiMessage ?? "Could not rename conversation.");
-    },
-  });
+  const renameThreadMutation = useRenameThread(currentSiteId);
 
   useEffect(() => {
     if (editingThreadId && renameInputRef.current) {
@@ -251,7 +231,21 @@ export function OrchestratorChat({
       return;
     }
     setRenameError(null);
-    renameThreadMutation.mutate({ threadId: editingThreadId, title: trimmed });
+    renameThreadMutation.mutate(
+      { threadId: editingThreadId, title: trimmed },
+      {
+        onSuccess: () => {
+          setEditingThreadId(null);
+          setEditTitle("");
+          setRenameError(null);
+        },
+        onError: (err: unknown) => {
+          const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+            ?.message;
+          setRenameError(apiMessage ?? "Could not rename conversation.");
+        },
+      }
+    );
   };
 
   const handleRenameKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -579,7 +573,7 @@ export function OrchestratorChat({
           sttSupported={sttSupported}
           disabled={!!pending || !currentSiteId || tokensExhausted}
           error={error}
-          hasResults={hasArtifacts}
+          hasResults={hasViewableArtifacts}
           onViewResults={() => {
             openResultsPanel(artifacts[artifacts.length - 1]?.id);
             onShowMobileArtifacts?.();
@@ -657,7 +651,7 @@ export function OrchestratorChat({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {hasArtifacts && (
+          {hasViewableArtifacts && (
             <button
               type="button"
               onClick={() => {

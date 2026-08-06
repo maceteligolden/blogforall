@@ -232,7 +232,7 @@ export const PRICING = {
       period: "",
       badge: "Full access",
       featured: true,
-      bullets: ["Up to 3 blog posts", "1 site", "API access", "AI strategist workspace", "No credit card"],
+      bullets: ["Up to 3 blog posts", "1 workspace", "API access", "AI strategist workspace", "No credit card"],
     },
     {
       name: "Starter",
@@ -240,7 +240,7 @@ export const PRICING = {
       period: "/month",
       badge: null,
       featured: false,
-      bullets: ["Up to 10 posts", "AI generation & review", "1 site", "Basic campaigns", "API access"],
+      bullets: ["Up to 10 posts", "AI generation & review", "1 workspace", "Basic campaigns", "API access"],
     },
     {
       name: "Professional",
@@ -248,7 +248,7 @@ export const PRICING = {
       period: "/month",
       badge: "Most popular",
       featured: false,
-      bullets: ["Up to 50 posts", "3 sites", "Unlimited campaigns", "Team collaboration", "Campaign templates"],
+      bullets: ["Up to 50 posts", "3 workspaces", "Unlimited campaigns", "Team collaboration", "Campaign templates"],
     },
     {
       name: "Enterprise",
@@ -256,7 +256,7 @@ export const PRICING = {
       period: "/month",
       badge: null,
       featured: false,
-      bullets: ["Unlimited posts & sites", "Advanced API", "Unlimited members", "Priority support"],
+      bullets: ["Unlimited posts & workspaces", "Advanced API", "Unlimited members", "Priority support"],
     },
   ],
 } as const;

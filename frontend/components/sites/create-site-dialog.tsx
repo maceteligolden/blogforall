@@ -52,7 +52,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
         ((err as { code?: string; message?: string })?.code === "ECONNREFUSED" ||
         (err as { message?: string })?.message?.includes("Network")
           ? "Cannot reach server. Please check that the backend is running."
-          : "Failed to create site");
+          : "Failed to create workspace");
       setError(message);
     },
   });
@@ -103,11 +103,11 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
         )}
 
         <div>
-          <Label htmlFor="site-name" className="text-gray-300">
+          <Label htmlFor="workspace-name" className="text-gray-300">
             Workspace name <span className="text-red-400">*</span>
           </Label>
           <Input
-            id="site-name"
+            id="workspace-name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}

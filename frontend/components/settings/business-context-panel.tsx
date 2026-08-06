@@ -30,6 +30,7 @@ export function BusinessContextPanel() {
       MemoryService.updateMemory(currentSiteId as string, {
         preferences: { tone: tone || data?.preferences.tone },
         strategic: {
+          website_url: data?.strategic.website_url,
           brand_voice: brandVoice || data?.strategic.brand_voice,
           target_audience: audience
             ? audience
@@ -57,7 +58,7 @@ export function BusinessContextPanel() {
   if (!currentSiteId) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-        <p className="mb-4 text-gray-400">Choose a workspace in the site switcher to view business context.</p>
+        <p className="mb-4 text-gray-400">Choose a workspace in the workspace switcher to view business context.</p>
         <Link href="/dashboard/sites" className="text-primary hover:underline">
           View workspaces
         </Link>
@@ -97,6 +98,24 @@ export function BusinessContextPanel() {
       )}
 
       <div className="space-y-6">
+        {data.strategic.website_url && (
+          <div>
+            <Label className="text-gray-300">Website</Label>
+            <p className="mt-1 break-all text-sm text-gray-400">
+              <a
+                href={data.strategic.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                {data.strategic.website_url}
+              </a>
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Used for website-first setup. Ask the AI in chat to refresh business context from a URL.
+            </p>
+          </div>
+        )}
         <div>
           <Label className="text-gray-300">Tone</Label>
           <Input

@@ -21,6 +21,7 @@ const BREVO_TEMPLATE_IDS: Partial<Record<EmailTemplateKey, number>> = {
 const BREVO_PARAM_NAMES: Partial<Record<EmailTemplateKey, string[]>> = {
   [EMAIL_TEMPLATE_KEYS.SITE_INVITATION]: ["inviterName", "siteName", "roleLabel", "acceptUrl", "expiresAt"],
   [EMAIL_TEMPLATE_KEYS.PASSWORD_RESET]: ["code", "expiresInMinutes", "firstName"],
+  [EMAIL_TEMPLATE_KEYS.EMAIL_VERIFICATION]: ["code", "expiresInMinutes", "firstName"],
   [EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST]: ["authorName", "blogTitle", "commentSnippet", "commentUrl"],
   [EMAIL_TEMPLATE_KEYS.WELCOME]: ["firstName", "loginUrl"],
   [EMAIL_TEMPLATE_KEYS.SCHEDULED_POST_REVIEW]: [
@@ -90,6 +91,8 @@ function getSubjectForTemplate(key: EmailTemplateKey, params: Record<string, str
       return `You've been invited to collaborate on ${params.siteName ?? "a site"}`;
     case EMAIL_TEMPLATE_KEYS.PASSWORD_RESET:
       return "Your password reset code";
+    case EMAIL_TEMPLATE_KEYS.EMAIL_VERIFICATION:
+      return "Verify your Bloggr email";
     case EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST:
       return `New comment on "${params.blogTitle ?? "your post"}"`;
     case EMAIL_TEMPLATE_KEYS.WELCOME:
@@ -125,6 +128,12 @@ function getCodeBackedTemplate(key: EmailTemplateKey, _locale: string, params: R
         subject: getSubjectForTemplate(key, params),
         html: buildPasswordResetHtml(params),
         text: buildPasswordResetText(params),
+      };
+    case EMAIL_TEMPLATE_KEYS.EMAIL_VERIFICATION:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildEmailVerificationHtml(params),
+        text: buildEmailVerificationText(params),
       };
     case EMAIL_TEMPLATE_KEYS.COMMENT_ON_POST:
       return {
@@ -274,6 +283,29 @@ function buildPasswordResetText(params: Record<string, string>): string {
   const code = params.code ?? "";
   const expiresInMinutes = params.expiresInMinutes ?? "15";
   return `Your Bloggr password reset code is ${code}. It expires in ${expiresInMinutes} minutes. If you didn't request this, ignore this email.`;
+}
+
+function buildEmailVerificationHtml(params: Record<string, string>): string {
+  const code = params.code ?? "";
+  const expiresInMinutes = params.expiresInMinutes ?? "15";
+  const firstName = params.firstName ?? "there";
+  return `
+<!DOCTYPE html>
+<html>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h1>Verify your email</h1>
+  <p>Hi ${escapeHtml(firstName)},</p>
+  <p>Welcome to Bloggr. Use the code below to verify your email address. It expires in ${escapeHtml(expiresInMinutes)} minutes.</p>
+  <p style="font-size: 32px; letter-spacing: 8px; font-weight: 700; background: #f3f4f6; padding: 16px 24px; border-radius: 8px; text-align: center; font-family: 'SFMono-Regular', Menlo, Consolas, monospace;">${escapeHtml(code)}</p>
+  <p style="color: #999; font-size: 12px;">If you didn't create a Bloggr account, you can safely ignore this email.</p>
+</body>
+</html>`;
+}
+
+function buildEmailVerificationText(params: Record<string, string>): string {
+  const code = params.code ?? "";
+  const expiresInMinutes = params.expiresInMinutes ?? "15";
+  return `Your Bloggr email verification code is ${code}. It expires in ${expiresInMinutes} minutes. If you didn't create an account, ignore this email.`;
 }
 
 function buildCommentOnPostHtml(params: Record<string, string>): string {

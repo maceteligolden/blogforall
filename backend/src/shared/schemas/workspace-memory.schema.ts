@@ -7,6 +7,8 @@ import type { BehavioralRule, EngagementSignal, StrategyState } from "./memory-t
  * orchestrator onboarding chat and refined over time.
  */
 export interface WorkspaceMemoryStrategic {
+  /** Homepage / personal site used for website-first onboarding. */
+  website_url?: string;
   business_type?: string;
   target_audience: string[];
   brand_voice?: string;
@@ -14,6 +16,25 @@ export interface WorkspaceMemoryStrategic {
   seo_priorities: string[];
   publishing_channels: string[];
   competitive_notes?: string;
+}
+
+/** How workspace context is being captured during setup (or a later refresh). */
+export type OnboardingPath = "unset" | "primary" | "secondary";
+
+/**
+ * Staged profile from website ingest, awaiting user confirmation before write.
+ */
+export interface WorkspaceOnboardingProposal {
+  business_type?: string;
+  target_audience?: string[];
+  brand_voice?: string;
+  business_goals?: string[];
+  seo_priorities?: string[];
+  publishing_channels?: string[];
+  competitive_notes?: string;
+  tone?: string;
+  default_word_count?: number;
+  memory_summary?: string;
 }
 
 /**
@@ -54,6 +75,18 @@ export interface WorkspaceMemory extends BaseEntity {
   strategic: WorkspaceMemoryStrategic;
   operational: WorkspaceMemoryOperational;
   preferences: WorkspaceMemoryPreferences;
+  /**
+   * Website-first onboarding branch: unset until the user provides a URL or
+   * declines; primary = propose-from-site; secondary = field-by-field chat.
+   */
+  onboarding_path?: OnboardingPath;
+  /** Staged website-derived profile waiting for yes/no confirmation. */
+  pending_proposal?: WorkspaceOnboardingProposal | null;
+  /**
+   * When true, confirming `pending_proposal` patches memory without completing
+   * onboarding (active-mode business-context refresh).
+   */
+  context_refresh_active?: boolean;
   /** Rolling summary of recent blogs/themes; refreshed by memory-digest cron. */
   content_summary: string;
   performance_summary: WorkspaceMemoryPerformance;
@@ -119,6 +152,7 @@ const workspaceMemorySchema = new Schema<WorkspaceMemory>(
       index: true,
     },
     strategic: {
+      website_url: { type: String, trim: true, maxlength: 2048 },
       business_type: { type: String, trim: true, maxlength: 200 },
       target_audience: { type: [String], default: [] },
       brand_voice: { type: String, trim: true, maxlength: 1000 },
@@ -127,6 +161,16 @@ const workspaceMemorySchema = new Schema<WorkspaceMemory>(
       publishing_channels: { type: [String], default: [] },
       competitive_notes: { type: String, maxlength: 4000 },
     },
+    onboarding_path: {
+      type: String,
+      enum: ["unset", "primary", "secondary"],
+      default: "unset",
+    },
+    pending_proposal: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+    context_refresh_active: { type: Boolean, default: false },
     operational: {
       publishing_cadence: { type: String, trim: true, maxlength: 200 },
       approval_rules: {

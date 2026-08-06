@@ -42,7 +42,7 @@ export default function WorkspacesListPage() {
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
               <Building2 className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">No workspaces yet</h3>
-              <p className="text-gray-400">Create a workspace from the site switcher in the navbar</p>
+              <p className="text-gray-400">Create a workspace from the workspace switcher in the sidebar</p>
             </div>
           ) : (
             <div className="space-y-4">

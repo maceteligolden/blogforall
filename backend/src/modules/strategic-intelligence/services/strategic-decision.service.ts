@@ -24,6 +24,7 @@ export type StrategicDecision = {
   campaign_id?: string;
   knowledge_key?: string;
   question?: string;
+  proposal_id?: string;
 };
 
 export type StrategicDecisionResult = {
@@ -57,6 +58,8 @@ export class StrategicDecisionEngineService {
     const campaignId = opts?.campaignId ?? def._id!.toString();
     const intel = await this.intelligence.recompute(campaignId, siteId);
     const gaps = await this.knowledge.listGaps(siteId);
+    // Engagement / health signal from campaign intelligence dimensions (T6.1).
+    const engagementBoost = (intel.dimensions?.overall_confidence ?? 0) > 0.6 ? 0.08 : 0;
 
     const decisions: StrategicDecision[] = [];
 
@@ -94,7 +97,7 @@ export class StrategicDecisionEngineService {
         kind: "publish_awareness",
         title: "Publish another awareness article",
         rationale: "Funnel coverage is thin at awareness",
-        score: 0.72,
+        score: 0.72 + engagementBoost,
         campaign_id: campaignId,
       });
     }
@@ -122,7 +125,7 @@ export class StrategicDecisionEngineService {
       kind: "plan_content",
       title: "Plan and generate campaign content",
       rationale: "Content generation remains a valid next step under the resolved campaign",
-      score: opts?.contentIntent ? 0.8 : 0.55,
+      score: (opts?.contentIntent ? 0.8 : 0.55) + engagementBoost * 0.5,
       campaign_id: campaignId,
     });
 

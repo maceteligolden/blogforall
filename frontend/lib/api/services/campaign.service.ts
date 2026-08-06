@@ -69,6 +69,18 @@ export interface CampaignWithStats extends Campaign {
   posts_pending: number;
 }
 
+export interface CampaignIntelligenceSnapshot {
+  knowledge_gaps?: string[];
+  funnel_coverage?: Record<string, number>;
+  unverified_assumptions?: string[];
+  next_questions?: string[];
+  progress_pct?: number;
+  success_probability?: number;
+  recommended_actions?: string[];
+  dimensions?: Record<string, number>;
+  computed_at?: string;
+}
+
 export interface CampaignTemplate {
   _id: string;
   name: string;
@@ -143,7 +155,7 @@ export class CampaignService {
   private static requireSiteId(): string {
     const siteId = this.getCurrentSiteId();
     if (!siteId) {
-      throw new Error("No workspace selected. Choose a site before managing campaigns.");
+      throw new Error("No workspace selected. Choose a workspace before managing campaigns.");
     }
     return siteId;
   }
@@ -299,6 +311,16 @@ export class CampaignService {
   static async getCampaignHealth(id: string) {
     const siteId = this.requireSiteId();
     return apiClient.get(API_ENDPOINTS.CAMPAIGNS.HEALTH(siteId, id));
+  }
+
+  static async getIntelligence(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.get(API_ENDPOINTS.CAMPAIGNS.INTELLIGENCE(siteId, id));
+  }
+
+  static async recomputeIntelligence(id: string) {
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.INTELLIGENCE_RECOMPUTE(siteId, id), null);
   }
 
   static async getLatestProgressReport(id: string) {

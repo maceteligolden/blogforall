@@ -49,7 +49,7 @@ export function PricingPlans() {
               </li>
               <li className="flex items-start gap-3">
                 <CheckIcon />
-                <span className="text-gray-300">1 site</span>
+                <span className="text-gray-300">1 workspace</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckIcon />
@@ -101,7 +101,7 @@ export function PricingPlans() {
               </li>
               <li className="flex items-start gap-3">
                 <CheckIcon />
-                <span className="text-gray-300">3 sites</span>
+                <span className="text-gray-300">3 workspaces</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckIcon />
@@ -157,7 +157,7 @@ export function PricingPlans() {
               </li>
               <li className="flex items-start gap-3">
                 <CheckIcon />
-                <span className="text-gray-300">Unlimited sites</span>
+                <span className="text-gray-300">Unlimited workspaces</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckIcon />

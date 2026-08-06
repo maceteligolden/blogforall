@@ -7,6 +7,7 @@ import { BusinessKnowledgeService } from "../services/business-knowledge.service
 import { StrategicDecisionEngineService } from "../services/strategic-decision.service";
 import { CampaignService } from "../../campaign/services/campaign.service";
 import { CampaignIntelligenceService } from "../services/campaign-intelligence.service";
+import { DecisionProposalService } from "../services/decision-proposal.service";
 import type { BusinessKnowledgeKey } from "../constants/business-knowledge.keys";
 import { BUSINESS_KNOWLEDGE_KEYS } from "../constants/business-knowledge.keys";
 import { BadRequestError } from "../../../shared/errors";
@@ -18,7 +19,8 @@ export class StrategicIntelligenceController {
     private readonly knowledgeService: BusinessKnowledgeService,
     private readonly decisionsService: StrategicDecisionEngineService,
     private readonly campaignService: CampaignService,
-    private readonly intelligenceService: CampaignIntelligenceService
+    private readonly intelligenceService: CampaignIntelligenceService,
+    private readonly decisionProposalService: DecisionProposalService
   ) {}
 
   private siteId(req: Request): string {
@@ -91,17 +93,33 @@ export class StrategicIntelligenceController {
       const siteId = this.siteId(req);
       const userId = getJwtUserId(req);
       const { canonicalKey } = req.validatedParams as { siteId: string; canonicalKey: string };
-      const body = (req.validatedBody ?? req.body) as { value: unknown; confidence?: number };
+      const body = (req.validatedBody ?? req.body) as {
+        value?: unknown;
+        confidence?: number;
+        source?: string;
+        status?: "new" | "confirmed" | "updated" | "invalidated";
+      };
       if (
         !BUSINESS_KNOWLEDGE_KEYS.includes(canonicalKey as BusinessKnowledgeKey) &&
         !canonicalKey.startsWith("business.")
       ) {
         throw new BadRequestError("Unknown knowledge key");
       }
+      if (body.status === "invalidated") {
+        await this.knowledgeService.invalidateBelief(
+          siteId,
+          canonicalKey,
+          typeof body.value === "string" ? body.value : undefined
+        );
+        const belief = await this.knowledgeService.getBelief(siteId, canonicalKey);
+        sendSuccess(res, "Knowledge invalidated", belief);
+        return;
+      }
       if (body.value === undefined) throw new BadRequestError("value is required");
       const belief = await this.knowledgeService.upsertBelief(siteId, userId, canonicalKey, body.value, {
-        confidence: body.confidence ?? 0.8,
-        source: "user_explicit",
+        confidence: body.confidence,
+        source: body.source ?? "user_explicit",
+        status: body.status ?? "confirmed",
       });
       sendSuccess(res, "Knowledge updated", belief);
     } catch (e) {
@@ -133,13 +151,31 @@ export class StrategicIntelligenceController {
     }
   };
 
+  proposeDecision = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const siteId = this.siteId(req);
+      const userId = getJwtUserId(req);
+      const body = (req.validatedBody ?? req.body) as {
+        kind: string;
+        campaign_id?: string;
+        accept?: boolean;
+      };
+      if (!body.kind) throw new BadRequestError("kind is required");
+      const result = await this.decisionProposalService.propose(siteId, userId, body);
+      sendSuccess(res, "Decision proposal", result);
+    } catch (e) {
+      next(e);
+    }
+  };
+
   ensureDefaultCampaign = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const siteId = this.siteId(req);
       const userId = getJwtUserId(req);
       const campaign = await this.campaignService.ensureDefaultCampaign(siteId, userId);
       const backfill = await this.campaignService.backfillContentToDefault(siteId, userId);
-      sendSuccess(res, "Default campaign ready", { campaign, backfill });
+      const strategyBackfill = await this.campaignService.backfillStrategyIds(siteId, userId);
+      sendSuccess(res, "Default campaign ready", { campaign, backfill, strategyBackfill });
     } catch (e) {
       next(e);
     }

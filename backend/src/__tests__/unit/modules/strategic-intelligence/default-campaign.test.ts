@@ -23,6 +23,7 @@ describe("CampaignService Default Campaign (Strategic Intelligence)", () => {
     name: "Evergreen",
     goal: "Evergreen content",
     is_default: true,
+    strategy_id: "strat1",
     status: CampaignStatus.ACTIVE,
     lifecycle_status: CampaignLifecycleStatus.ACTIVE,
     campaign_type: CampaignType.CUSTOM,
@@ -54,7 +55,10 @@ describe("CampaignService Default Campaign (Strategic Intelligence)", () => {
       findByCampaign: jest.fn(() => Promise.resolve([])),
       update: jest.fn(),
     };
-    service = new CampaignService(campaignRepository, scheduledPostRepository);
+    const workspaceStrategy = {
+      ensureStrategy: jest.fn().mockResolvedValue({ _id: "strat1", purpose: "test" } as never),
+    };
+    service = new CampaignService(campaignRepository, scheduledPostRepository, workspaceStrategy as never);
   });
 
   it("returns existing default campaign without creating", async () => {

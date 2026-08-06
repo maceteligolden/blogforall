@@ -28,7 +28,24 @@ import {
   type SupervisorDecision,
 } from "../interfaces/orchestrator.interface";
 import { buildNextOnboardingQuestion, ensureOnboardingInterviewReply } from "../utils/onboarding-interview.helper";
+import {
+  extractWebsiteUrl,
+  isAffirmativeReply,
+  isBusinessContextRefreshIntent,
+  isNoWebsiteReply,
+  isRejectReply,
+  proposalToMemoryPatch,
+  WEBSITE_ONBOARDING_QUESTION,
+} from "../utils/website-onboarding.helper";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
+import { WebsiteIngestService } from "./website-ingest.service";
+import {
+  buildAutoTitlePromptContext,
+  sanitizeGeneratedTitle,
+  shouldAutoTitleThread,
+} from "../utils/thread-auto-title.helper";
+import { createChatOpenAI } from "../../../shared/ai/create-chat-openai";
+import { z } from "zod";
 import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 import { CampaignRoadmapService } from "../../campaign/services/campaign-roadmap.service";
 import { OnboardingService, type SetupProgress } from "../../onboarding/services/onboarding.service";
@@ -121,7 +138,8 @@ export class OrchestratorService {
     private readonly conversationIntelligence: ConversationIntelligenceService,
     private readonly realtimeService: RealtimeService,
     private readonly notificationService: NotificationService,
-    private readonly onboardingService: OnboardingService
+    private readonly onboardingService: OnboardingService,
+    private readonly websiteIngest: WebsiteIngestService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -149,8 +167,8 @@ export class OrchestratorService {
 
   /**
    * Start (or resume) the brand-setup interview without an LLM call: append the
-   * next missing-field question as an assistant message on the canonical
-   * onboarding thread. Idempotent when that question is already unanswered.
+   * next question (website gate, proposal confirm, or field interview) on the
+   * canonical onboarding thread. Idempotent when that question is already unanswered.
    */
   async startOnboardingInterview(
     siteId: string,
@@ -196,9 +214,12 @@ export class OrchestratorService {
       };
     }
 
+    const path = memory.onboarding_path ?? "unset";
     const opener =
       history.length === 0
-        ? "Let's finish your workspace setup. I'll ask one thing at a time."
+        ? path === "unset"
+          ? "Let's set up your workspace. Sharing a website is the fastest path — or we can chat through a few questions."
+          : "Let's finish your workspace setup. I'll ask one thing at a time."
         : "Let's pick up where we left off on your workspace setup.";
     const content = `${opener}\n\n${question}`;
 
@@ -252,7 +273,7 @@ export class OrchestratorService {
     if (thread.user_id !== userId) {
       throw new ForbiddenError("You do not have access to this thread");
     }
-    const updated = await this.threadRepository.rename(threadId, siteId, title);
+    const updated = await this.threadRepository.rename(threadId, siteId, title, "user");
     if (!updated) {
       throw new NotFoundError("Thread not found");
     }
@@ -384,6 +405,29 @@ export class OrchestratorService {
     const pendingApproval = await this.approvalRepository.findPendingForThread(thread._id!.toString(), siteId);
     if (pendingApproval && this.shortCircuitConfirmationReply(message, pendingApproval)) {
       return this.resolveConfirmationFromText(siteId, userId, thread, pendingApproval, message);
+    }
+
+    // Website-first onboarding / context-refresh branches (deterministic; no LLM).
+    if (mode === "onboarding") {
+      const gated = await this.tryWebsiteOnboardingTurn({
+        siteId,
+        userId,
+        message,
+        thread,
+        memory,
+      });
+      if (gated) return gated;
+    } else if (mode === "active") {
+      const refresh = await this.tryWebsiteContextRefreshTurn({
+        siteId,
+        userId,
+        message,
+        thread,
+        memory,
+        effectiveSessionMode,
+        modeResolution,
+      });
+      if (refresh) return refresh;
     }
 
     // M5: v0.5 LangGraph is the default active chat brain (opt out with ORCHESTRATOR_V05_GRAPH_ENABLED=false).
@@ -679,6 +723,10 @@ export class OrchestratorService {
       });
     }
 
+    if (mode === "active") {
+      void this.maybeAutoTitleThread(siteId, thread._id!.toString());
+    }
+
     return {
       thread_id: thread._id!.toString(),
       assistant_message: {
@@ -839,6 +887,8 @@ export class OrchestratorService {
       },
       { siteId }
     );
+
+    void this.maybeAutoTitleThread(siteId, threadId);
 
     return {
       thread_id: threadId,
@@ -1214,6 +1264,7 @@ export class OrchestratorService {
     const operational: Record<string, unknown> = {};
 
     const STRATEGIC_KEYS = [
+      "website_url",
       "business_type",
       "brand_voice",
       "target_audience",
@@ -1346,6 +1397,625 @@ export class OrchestratorService {
     const has = await this.siteService.hasSiteAccess(siteId, userId);
     if (!has) {
       throw new ForbiddenError("You do not have access to this workspace");
+    }
+  }
+
+  /**
+   * Deterministic website-first onboarding turns: URL ingest → propose → confirm,
+   * or decline → secondary field interview. Returns null to fall through to LLM.
+   */
+  private async tryWebsiteOnboardingTurn(args: {
+    siteId: string;
+    userId: string;
+    message: string;
+    thread: OrchestratorThread;
+    memory: WorkspaceMemory;
+  }): Promise<ChatTurnResponse | null> {
+    const { siteId, userId, message, thread, memory } = args;
+    const path = memory.onboarding_path ?? "unset";
+    const threadId = thread._id!.toString();
+
+    if (path === "unset") {
+      const url = extractWebsiteUrl(message);
+      if (url) {
+        await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.USER,
+          content: message,
+        });
+        const proposed = await this.websiteIngest.ingestAndPropose(url);
+        if (!proposed) {
+          await this.memoryRepository.update(
+            siteId,
+            { onboarding_path: "secondary", pending_proposal: null } as never,
+            userId
+          );
+          const updated = (await this.memoryRepository.findBySiteId(siteId)) ?? memory;
+          const nextQ = buildNextOnboardingQuestion({ ...updated, onboarding_path: "secondary" }, undefined);
+          const reply = `I couldn't read that website. Let's set things up via chat instead.\n\n${nextQ ?? "What does your business do, in one sentence?"}`;
+          const assistant = await this.messageRepository.create({
+            thread_id: threadId,
+            site_id: siteId,
+            role: OrchestratorMessageRole.ASSISTANT,
+            content: reply,
+          });
+          await this.threadRepository.touch(threadId);
+          return this.buildSimpleResponse(thread, assistant, "onboarding");
+        }
+
+        await this.memoryRepository.update(
+          siteId,
+          {
+            onboarding_path: "primary",
+            pending_proposal: proposed.proposal,
+            context_refresh_active: false,
+            strategic: {
+              ...(memory.strategic as object),
+              website_url: proposed.url,
+            },
+          } as never,
+          userId
+        );
+        const assistant = await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.ASSISTANT,
+          content: proposed.summary,
+        });
+        await this.threadRepository.touch(threadId);
+        return this.buildSimpleResponse(thread, assistant, "onboarding");
+      }
+
+      if (isNoWebsiteReply(message)) {
+        await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.USER,
+          content: message,
+        });
+        await this.memoryRepository.update(
+          siteId,
+          { onboarding_path: "secondary", pending_proposal: null } as never,
+          userId
+        );
+        const nextQ = buildNextOnboardingQuestion(
+          { ...memory, onboarding_path: "secondary", pending_proposal: null },
+          undefined
+        );
+        const reply = `No problem — we'll set up your workspace through a short chat.\n\n${nextQ ?? "What does your business do, in one sentence?"}`;
+        const assistant = await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.ASSISTANT,
+          content: reply,
+        });
+        await this.threadRepository.touch(threadId);
+        return this.buildSimpleResponse(thread, assistant, "onboarding");
+      }
+
+      // Ambiguous reply while awaiting a URL — re-ask without LLM.
+      await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.USER,
+        content: message,
+      });
+      const reply = `Please paste a website URL, or say you don't have one.\n\n${WEBSITE_ONBOARDING_QUESTION}`;
+      const assistant = await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.ASSISTANT,
+        content: reply,
+      });
+      await this.threadRepository.touch(threadId);
+      return this.buildSimpleResponse(thread, assistant, "onboarding");
+    }
+
+    if (path === "primary" && memory.pending_proposal) {
+      await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.USER,
+        content: message,
+      });
+
+      if (isAffirmativeReply(message)) {
+        const applied = await this.applyWebsiteProposalAndComplete({
+          siteId,
+          userId,
+          thread,
+          memory,
+          contextRefreshOnly: false,
+        });
+        return applied;
+      }
+
+      if (isRejectReply(message)) {
+        await this.memoryRepository.update(
+          siteId,
+          { onboarding_path: "secondary", pending_proposal: null } as never,
+          userId
+        );
+        const nextQ = buildNextOnboardingQuestion(
+          { ...memory, onboarding_path: "secondary", pending_proposal: null },
+          undefined
+        );
+        const reply = `Understood — we'll capture your workspace details via chat instead.\n\n${nextQ ?? "What does your business do, in one sentence?"}`;
+        const assistant = await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.ASSISTANT,
+          content: reply,
+        });
+        await this.threadRepository.touch(threadId);
+        return this.buildSimpleResponse(thread, assistant, "onboarding");
+      }
+
+      const reply =
+        "Please reply yes to apply the proposed profile, or no to set things up via chat instead.";
+      const assistant = await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.ASSISTANT,
+        content: reply,
+      });
+      await this.threadRepository.touch(threadId);
+      return this.buildSimpleResponse(thread, assistant, "onboarding");
+    }
+
+    return null;
+  }
+
+  /**
+   * Active-mode business-context refresh via the same website primary/secondary fork.
+   */
+  private async tryWebsiteContextRefreshTurn(args: {
+    siteId: string;
+    userId: string;
+    message: string;
+    thread: OrchestratorThread;
+    memory: WorkspaceMemory;
+    effectiveSessionMode: OperationalSessionMode;
+    modeResolution: SessionModeResolution | null;
+  }): Promise<ChatTurnResponse | null> {
+    const { siteId, userId, message, thread, memory, effectiveSessionMode } = args;
+    const threadId = thread._id!.toString();
+
+    // Confirm / reject a staged refresh proposal.
+    if (memory.context_refresh_active && memory.pending_proposal) {
+      await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.USER,
+        content: message,
+      });
+
+      if (isAffirmativeReply(message)) {
+        return this.applyWebsiteProposalAndComplete({
+          siteId,
+          userId,
+          thread,
+          memory,
+          contextRefreshOnly: true,
+          activeSessionMode: effectiveSessionMode,
+        });
+      }
+
+      if (isRejectReply(message) || isNoWebsiteReply(message)) {
+        await this.memoryRepository.update(
+          siteId,
+          { pending_proposal: null, context_refresh_active: false } as never,
+          userId
+        );
+        const reply = isRejectReply(message)
+          ? "Okay — I won't apply that website profile. Tell me what you'd like to change about your business context."
+          : "Okay — tell me what to update about your business context (audience, voice, goals, etc.).";
+        const assistant = await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.ASSISTANT,
+          content: reply,
+        });
+        await this.threadRepository.touch(threadId);
+        return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+      }
+
+      const url = extractWebsiteUrl(message);
+      if (url) {
+        const proposed = await this.websiteIngest.ingestAndPropose(url);
+        if (!proposed) {
+          const assistant = await this.messageRepository.create({
+            thread_id: threadId,
+            site_id: siteId,
+            role: OrchestratorMessageRole.ASSISTANT,
+            content:
+              "I couldn't read that website. Paste another URL, or say you don't have one and we'll update via chat.",
+          });
+          await this.threadRepository.touch(threadId);
+          return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+        }
+        await this.memoryRepository.update(
+          siteId,
+          {
+            pending_proposal: proposed.proposal,
+            context_refresh_active: true,
+            strategic: {
+              ...(memory.strategic as object),
+              website_url: proposed.url,
+            },
+          } as never,
+          userId
+        );
+        const assistant = await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.ASSISTANT,
+          content: proposed.summary,
+        });
+        await this.threadRepository.touch(threadId);
+        return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+      }
+
+      const assistant = await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.ASSISTANT,
+        content:
+          "Reply yes to apply the proposed profile, no to discard it, or paste a different website URL.",
+      });
+      await this.threadRepository.touch(threadId);
+      return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+    }
+
+    // Awaiting URL after we already asked for a refresh (context_refresh_active, no proposal yet).
+    if (memory.context_refresh_active && !memory.pending_proposal) {
+      await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.USER,
+        content: message,
+      });
+
+      if (isNoWebsiteReply(message)) {
+        await this.memoryRepository.update(siteId, { context_refresh_active: false } as never, userId);
+        const assistant = await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.ASSISTANT,
+          content:
+            "Got it. Tell me what to update — for example audience, brand voice, goals, or tone — and I'll patch your workspace memory.",
+        });
+        await this.threadRepository.touch(threadId);
+        return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+      }
+
+      const url = extractWebsiteUrl(message);
+      if (url) {
+        const proposed = await this.websiteIngest.ingestAndPropose(url);
+        if (!proposed) {
+          const assistant = await this.messageRepository.create({
+            thread_id: threadId,
+            site_id: siteId,
+            role: OrchestratorMessageRole.ASSISTANT,
+            content:
+              "I couldn't read that website. Paste another URL, or say you don't have one and we'll update via chat.",
+          });
+          await this.threadRepository.touch(threadId);
+          return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+        }
+        await this.memoryRepository.update(
+          siteId,
+          {
+            pending_proposal: proposed.proposal,
+            context_refresh_active: true,
+            strategic: {
+              ...(memory.strategic as object),
+              website_url: proposed.url,
+            },
+          } as never,
+          userId
+        );
+        const assistant = await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.ASSISTANT,
+          content: proposed.summary,
+        });
+        await this.threadRepository.touch(threadId);
+        return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+      }
+
+      const assistant = await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.ASSISTANT,
+        content: `Please paste a website URL, or say you don't have one.\n\n${WEBSITE_ONBOARDING_QUESTION}`,
+      });
+      await this.threadRepository.touch(threadId);
+      return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+    }
+
+    // Fresh intent to update business/brand context.
+    if (isBusinessContextRefreshIntent(message)) {
+      await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.USER,
+        content: message,
+      });
+
+      const url = extractWebsiteUrl(message);
+      if (url) {
+        const proposed = await this.websiteIngest.ingestAndPropose(url);
+        if (!proposed) {
+          await this.memoryRepository.update(siteId, { context_refresh_active: true } as never, userId);
+          const assistant = await this.messageRepository.create({
+            thread_id: threadId,
+            site_id: siteId,
+            role: OrchestratorMessageRole.ASSISTANT,
+            content:
+              "I couldn't read that website. Paste another URL, or say you don't have one and we'll update via chat.",
+          });
+          await this.threadRepository.touch(threadId);
+          return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+        }
+        await this.memoryRepository.update(
+          siteId,
+          {
+            pending_proposal: proposed.proposal,
+            context_refresh_active: true,
+            strategic: {
+              ...(memory.strategic as object),
+              website_url: proposed.url,
+            },
+          } as never,
+          userId
+        );
+        const assistant = await this.messageRepository.create({
+          thread_id: threadId,
+          site_id: siteId,
+          role: OrchestratorMessageRole.ASSISTANT,
+          content: proposed.summary,
+        });
+        await this.threadRepository.touch(threadId);
+        return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+      }
+
+      await this.memoryRepository.update(siteId, { context_refresh_active: true } as never, userId);
+      const assistant = await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.ASSISTANT,
+        content: `I can refresh your business context from a website, or we can update it in chat.\n\n${WEBSITE_ONBOARDING_QUESTION}`,
+      });
+      await this.threadRepository.touch(threadId);
+      return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
+    }
+
+    return null;
+  }
+
+  private async applyWebsiteProposalAndComplete(args: {
+    siteId: string;
+    userId: string;
+    thread: OrchestratorThread;
+    memory: WorkspaceMemory;
+    contextRefreshOnly: boolean;
+    activeSessionMode?: OperationalSessionMode;
+  }): Promise<ChatTurnResponse> {
+    const { siteId, userId, thread, memory, contextRefreshOnly } = args;
+    const threadId = thread._id!.toString();
+    const proposal = memory.pending_proposal;
+    if (!proposal) {
+      const assistant = await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.ASSISTANT,
+        content: "There's no pending website profile to apply. Share a URL or continue in chat.",
+      });
+      return this.buildSimpleResponse(
+        thread,
+        assistant,
+        contextRefreshOnly ? "active" : "onboarding",
+        args.activeSessionMode
+      );
+    }
+
+    const websiteUrl = memory.strategic.website_url;
+    const basePatch = proposalToMemoryPatch(proposal, websiteUrl);
+    const strategic = {
+      ...(memory.strategic as object),
+      ...((basePatch.strategic as object) || {}),
+    } as Record<string, unknown>;
+    const preferences = {
+      ...(memory.preferences as object),
+      ...((basePatch.preferences as object) || {}),
+    } as Record<string, unknown>;
+
+    if (contextRefreshOnly) {
+      await this.memoryRepository.update(
+        siteId,
+        {
+          strategic,
+          preferences,
+          ...(typeof basePatch.memory_summary === "string"
+            ? { memory_summary: basePatch.memory_summary }
+            : {}),
+          pending_proposal: null,
+          context_refresh_active: false,
+        } as never,
+        userId
+      );
+      const assistant = await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.ASSISTANT,
+        content: "Applied. Your workspace business context is updated from the website profile.",
+      });
+      await this.threadRepository.touch(threadId);
+      return this.buildSimpleResponse(thread, assistant, "active", args.activeSessionMode);
+    }
+
+    // Ensure completeOnboarding required fields exist.
+    const businessType =
+      (typeof strategic.business_type === "string" && strategic.business_type.trim()) ||
+      "Business (from website)";
+    const audience = Array.isArray(strategic.target_audience)
+      ? (strategic.target_audience as string[]).filter((s) => typeof s === "string" && s.trim())
+      : [];
+    const brandVoice =
+      (typeof strategic.brand_voice === "string" && strategic.brand_voice.trim()) ||
+      (typeof preferences.tone === "string" && preferences.tone.trim()) ||
+      "Professional";
+    const goals = Array.isArray(strategic.business_goals)
+      ? (strategic.business_goals as string[]).filter((s) => typeof s === "string" && s.trim())
+      : [];
+
+    const completeInput = {
+      strategic: {
+        business_type: businessType,
+        target_audience: audience.length ? audience : ["General audience"],
+        brand_voice: brandVoice,
+        business_goals: goals.length ? goals : ["Grow audience through content"],
+        seo_priorities: Array.isArray(strategic.seo_priorities) ? strategic.seo_priorities : [],
+        publishing_channels: Array.isArray(strategic.publishing_channels)
+          ? strategic.publishing_channels
+          : [],
+        competitive_notes:
+          typeof strategic.competitive_notes === "string" ? strategic.competitive_notes : undefined,
+        website_url: websiteUrl,
+      },
+      preferences: {
+        tone: typeof preferences.tone === "string" ? preferences.tone : undefined,
+        default_word_count:
+          typeof preferences.default_word_count === "number" ? preferences.default_word_count : undefined,
+      },
+      memory_summary:
+        typeof basePatch.memory_summary === "string"
+          ? basePatch.memory_summary
+          : `Business: ${businessType}. Website: ${websiteUrl ?? "n/a"}.`,
+    };
+
+    const tool = this.toolRegistry.get("workspace.completeOnboarding");
+    let toolSummary = "Workspace onboarding completed.";
+    if (tool) {
+      const result = await tool.run({
+        siteId,
+        userId,
+        threadId,
+        input: completeInput,
+      });
+      toolSummary = result.summary;
+      await this.messageRepository.create({
+        thread_id: threadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.TOOL,
+        content: toolSummary,
+        tool_name: tool.name,
+      });
+    } else {
+      await this.memoryRepository.update(
+        siteId,
+        {
+          strategic: completeInput.strategic,
+          preferences: completeInput.preferences,
+          memory_summary: completeInput.memory_summary,
+        } as never,
+        userId
+      );
+      await this.siteService.markSiteActive(siteId, userId);
+    }
+
+    await this.memoryRepository.update(
+      siteId,
+      {
+        pending_proposal: null,
+        context_refresh_active: false,
+        onboarding_path: "primary",
+        strategic: {
+          ...completeInput.strategic,
+          website_url: websiteUrl,
+        },
+      } as never,
+      userId
+    );
+    await this.threadRepository.markOnboardingComplete(threadId, siteId);
+
+    const assistant = await this.messageRepository.create({
+      thread_id: threadId,
+      site_id: siteId,
+      role: OrchestratorMessageRole.ASSISTANT,
+      content: `Great — I've applied your website profile and finished workspace setup. ${toolSummary}`,
+      tool_calls: tool
+        ? [{ tool: tool.name, input: completeInput, output_summary: toolSummary, errored: false }]
+        : undefined,
+    });
+    await this.threadRepository.touch(threadId);
+
+    return {
+      thread_id: threadId,
+      assistant_message: {
+        id: assistant._id!.toString(),
+        content: assistant.content,
+        created_at: assistant.created_at ?? new Date(),
+      },
+      tool_calls: tool ? [{ tool: tool.name, summary: toolSummary }] : [],
+      pending_approval: null,
+      active_session_mode: "planning",
+      workspace_status: "active",
+      onboarding_completed: true,
+    };
+  }
+
+  /**
+   * Generate a short conversation title once enough theme is clear.
+   * Fire-and-forget — never blocks the chat turn.
+   */
+  private async maybeAutoTitleThread(siteId: string, threadId: string): Promise<void> {
+    try {
+      const thread = await this.threadRepository.findById(threadId, siteId);
+      if (!thread) return;
+      const history = await this.messageRepository.listByThread(threadId, siteId, { limit: 24 });
+      if (!shouldAutoTitleThread(thread, history)) return;
+
+      const apiKey = env.orchestrator.openaiApiKey;
+      if (!apiKey) return;
+
+      const context = buildAutoTitlePromptContext(history);
+      if (!context.trim()) return;
+
+      const chat = createChatOpenAI({
+        apiKey,
+        model: env.orchestrator.supervisorModel || "gpt-4o-mini",
+        temperature: 0.3,
+        timeout: 20_000,
+      });
+      const structured = chat.withStructuredOutput(
+        z.object({
+          title: z.string().min(3).max(80),
+        })
+      );
+      const raw = await structured.invoke([
+        {
+          role: "system",
+          content:
+            "Generate a short conversation title (3–6 words) that captures the theme. No quotes, no trailing punctuation, no generic titles like New conversation.",
+        },
+        { role: "user", content: context },
+      ]);
+
+      const title = sanitizeGeneratedTitle(raw.title);
+      if (!title) return;
+
+      await this.threadRepository.tryAutoRename(threadId, siteId, title);
+    } catch (e) {
+      const err = e as Error;
+      logger.debug(
+        "Auto-title skipped or failed",
+        { siteId, threadId, error: err?.message ?? String(e) },
+        "OrchestratorService"
+      );
     }
   }
 

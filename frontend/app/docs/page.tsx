@@ -279,7 +279,7 @@ x-secret-key: your_secret_key`}
                 <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">x-secret-key</code> on every request;
                 you do <strong className="text-white">not</strong> pass{" "}
                 <code className="bg-gray-800 px-1.5 py-0.5 rounded text-primary">site_id</code> in the query string—the
-                server resolves the site from the key. Draft and unpublished posts are not returned.
+                server resolves the workspace from the key. Draft and unpublished posts are not returned.
               </p>
               <p className="text-gray-400 text-sm">
                 Base path: <code className="text-primary">/api/v1/public/blogs</code>. All endpoints below require{" "}
@@ -294,7 +294,7 @@ x-secret-key: your_secret_key`}
                 <EndpointCard
                   method="GET"
                   path="/api/v1/public/blogs"
-                  description="List all published blogs for a site with pagination, search, and filtering."
+                  description="List all published blogs for a workspace with pagination, search, and filtering."
                   requiresAuth={true}
                 >
                   <div className="space-y-4">

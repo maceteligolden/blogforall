@@ -51,20 +51,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     enabled: isAuthenticated,
   });
 
-  const { data: sitesData, isLoading: sitesLoading } = useQuery({
-    queryKey: QUERY_KEYS.SITES,
-    queryFn: () => SiteService.getSites(),
-    retry: false,
-    enabled: isAuthenticated && !onboardingStatus?.requiresOnboarding,
-  });
-  const sites = Array.isArray(sitesData) ? sitesData : [];
-
+  // Wizard is the source of truth for signup routing — always fetch when authed.
+  // (Previously disabled when requiresOnboarding, which blocked correct redirects.)
   const { data: wizardStatus, isLoading: wizardLoading } = useQuery({
     queryKey: ["onboarding", "signup-wizard"],
     queryFn: () => OnboardingService.getSignupWizardStatus(),
     retry: false,
-    enabled: isAuthenticated && !onboardingStatus?.requiresOnboarding,
+    enabled: isAuthenticated,
   });
+
+  const wizardComplete = wizardStatus?.stage === "complete";
+  const { data: sitesData, isLoading: sitesLoading, isFetched: sitesFetched } = useQuery({
+    queryKey: QUERY_KEYS.SITES,
+    queryFn: () => SiteService.getSites(),
+    retry: false,
+    enabled: isAuthenticated && wizardComplete,
+  });
+  const sites = Array.isArray(sitesData) ? sitesData : [];
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -84,10 +87,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
-    if (onboardingLoading || sitesLoading || wizardLoading) {
+    if (onboardingLoading || wizardLoading) {
       return;
     }
 
+    // Signup wizard wins over legacy requiresOnboarding (stale cache after plan/invite).
+    if (wizardStatus && wizardStatus.stage !== "complete") {
+      router.replace(signupWizardPath(wizardStatus));
+      return;
+    }
+
+    if (wizardComplete) {
+      if (sitesLoading || !sitesFetched) {
+        return;
+      }
+
+      if (sites.length === 0) {
+        router.push("/onboarding/create-site");
+        return;
+      }
+
+      if (!currentSiteId || !sites.find((s) => s._id === currentSiteId)) {
+        const firstSite = sites[0];
+        if (firstSite) {
+          useAuthStore.getState().setCurrentSiteId(firstSite._id);
+          updateSiteContext(firstSite._id);
+        }
+      }
+
+      setCheckingOnboarding(false);
+      return;
+    }
+
+    // Legacy path: no wizard stage / pre-wizard accounts
     if (onboardingStatus?.requiresOnboarding) {
       void OnboardingService.skip()
         .catch(() => undefined)
@@ -97,24 +129,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
-    if (wizardStatus && wizardStatus.stage !== "complete") {
-      router.replace(signupWizardPath(wizardStatus));
-      return;
-    }
-
-    if (sites.length === 0) {
-      router.push("/onboarding/create-site");
-      return;
-    }
-
-    if (!currentSiteId || !sites.find((s) => s._id === currentSiteId)) {
-      const firstSite = sites[0];
-      if (firstSite) {
-        updateSiteContext(firstSite._id);
-        return;
-      }
-    }
-
     setCheckingOnboarding(false);
   }, [
     pathname,
@@ -122,15 +136,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     onboardingLoading,
     wizardStatus,
     wizardLoading,
+    wizardComplete,
     sites,
     sitesLoading,
+    sitesFetched,
     currentSiteId,
     isAuthenticated,
     router,
     updateSiteContext,
   ]);
 
-  if (checkingOnboarding || onboardingLoading || sitesLoading || wizardLoading) {
+  if (checkingOnboarding || onboardingLoading || wizardLoading || (wizardComplete && (sitesLoading || !sitesFetched))) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="animate-pulse">Loading...</div>

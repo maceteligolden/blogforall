@@ -19,6 +19,7 @@ import { ConfirmModal } from "@/components/ui/modal";
 import Link from "next/link";
 import { CampaignHealthBadge } from "@/components/campaign/CampaignHealthBadge";
 import { CampaignRoadmapTab } from "@/components/campaign/CampaignRoadmapTab";
+import { CampaignIntelligencePanel } from "@/components/campaign/CampaignIntelligencePanel";
 import {
   CampaignProgressReportView,
   type CampaignProgressReportData,
@@ -307,13 +308,14 @@ function CampaignDetailContent() {
                 </div>
                 {scheduleSection}
               </div>
-              <div>
+              <div className="space-y-4">
                 <Link
                   href="/dashboard/campaigns/reports"
                   className="block bg-gray-900 rounded-lg border border-gray-800 p-4 text-sm text-primary hover:border-gray-600"
                 >
                   View workspace daily reports →
                 </Link>
+                <CampaignIntelligencePanel campaignId={campaignId} />
               </div>
             </div>
           </>

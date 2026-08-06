@@ -77,7 +77,7 @@ export function ApiKeysPanel() {
   if (!currentSiteId) {
     return (
       <div className="rounded-lg border border-gray-800 bg-gray-900 p-8 text-center">
-        <p className="mb-4 text-gray-400">Choose a workspace in the site switcher to manage API keys.</p>
+        <p className="mb-4 text-gray-400">Choose a workspace in the workspace switcher to manage API keys.</p>
         <Link href="/dashboard/sites" className="text-primary hover:underline">
           View workspaces
         </Link>

@@ -72,7 +72,7 @@ function requireSiteId(): string {
   }
   const siteId = useAuthStore.getState().currentSiteId;
   if (!siteId) {
-    throw new Error("No workspace selected. Choose a site before using blog review.");
+    throw new Error("No workspace selected. Choose a workspace before using blog review.");
   }
   return siteId;
 }

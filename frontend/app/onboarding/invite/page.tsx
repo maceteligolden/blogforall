@@ -17,6 +17,7 @@ import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 import { PendingInvitationsList } from "@/components/sites/pending-invitations-list";
+import { useAuthStore } from "@/lib/store/auth.store";
 
 const INVITE_PROMPT_SEEN_KEY = "blogforall_invite_prompt_seen";
 
@@ -94,7 +95,24 @@ function InviteOnboardingContent() {
     } catch {
       // Continue to dashboard even if dismiss fails
     }
-    await queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
+    // Optimistic cache so dashboard gate does not see stale requiresOnboarding / invite stage.
+    queryClient.setQueryData(["onboarding", "signup-wizard"], {
+      stage: "complete",
+      site_id: siteId ?? undefined,
+    });
+    queryClient.setQueryData(["onboarding", "status"], {
+      requiresOnboarding: false,
+      hasCard: false,
+      hasPlan: false,
+    });
+    if (siteId) {
+      useAuthStore.getState().setCurrentSiteId(siteId);
+    }
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] }),
+      queryClient.invalidateQueries({ queryKey: ["onboarding", "status"] }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES }),
+    ]);
     if (typeof window !== "undefined") {
       localStorage.setItem(INVITE_PROMPT_SEEN_KEY, "1");
     }
@@ -204,11 +222,18 @@ function InviteOnboardingContent() {
       )}
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        <Button variant="outline" className="flex-1 border-gray-700" onClick={() => finish(true)}>
+        <Button
+          variant="outline"
+          className="flex-1 whitespace-nowrap border-gray-700"
+          onClick={() => finish(true)}
+        >
           Skip for now
         </Button>
-        <Button className="flex-1 bg-gray-700 hover:bg-gray-600" onClick={() => finish(false)}>
-          Continue to brand setup
+        <Button
+          className="flex-1 whitespace-nowrap bg-gray-700 hover:bg-gray-600"
+          onClick={() => finish(false)}
+        >
+          Continue
         </Button>
       </div>
     </AuthSplitLayout>

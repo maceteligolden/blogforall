@@ -465,7 +465,7 @@ Campaign chat planning stays inside the orchestrator + campaign tools; a separat
 2026-07-29
 
 ### Last Updated
-2026-07-29
+2026-08-06
 
 ### Closed
 —
@@ -482,7 +482,7 @@ MVP content pipeline ships posts; ICP differentiation requires a living strategi
 Approved
 
 ### Impact
-M6 Strategic Intelligence phases 1–7; schemas; APIs; orchestrator plan policies; docs 21.
+M6 Strategic Intelligence phases 1–7 shipped (schemas, APIs, orchestrator plan policies, docs 21). **Backend foundation is live** behind `STRATEGIC_INTELLIGENCE_ENABLED`. Remaining work (M6.5): productization (Strategy UI), single knowledge writer + source-aware confidence, hierarchy hardening (`strategy_id` / required `campaign_id`), Content Intelligence closed loop (T6.1), and Decision Engine → planning bridge.
 
 ---
 

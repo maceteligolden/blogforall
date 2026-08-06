@@ -30,6 +30,8 @@ export interface MemoryRecordEntity extends BaseEntity {
     superseded_by?: string;
     soft_deleted?: boolean;
     source_turn_id?: string;
+    source?: string;
+    belief_status?: "new" | "confirmed" | "updated" | "invalidated";
     version: number;
   };
 }
@@ -57,6 +59,11 @@ const memoryRecordEntitySchema = new Schema<MemoryRecordEntity>(
       superseded_by: { type: String },
       soft_deleted: { type: Boolean, default: false },
       source_turn_id: { type: String },
+      source: { type: String },
+      belief_status: {
+        type: String,
+        enum: ["new", "confirmed", "updated", "invalidated"],
+      },
       version: { type: Number, required: true, min: 1 },
     },
   },

@@ -443,6 +443,7 @@ export class OrchestratorV05GraphService {
             excerpt: result.draft.excerpt,
             meta: result.draft.meta,
             status: BlogStatus.DRAFT,
+            campaign_id: state.campaign_id,
           });
           blogId = created._id?.toString();
         }

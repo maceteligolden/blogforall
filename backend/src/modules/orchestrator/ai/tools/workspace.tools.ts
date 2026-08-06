@@ -85,6 +85,7 @@ const updateMemoryInputSchema = z.object({
     .object({
       strategic: z
         .object({
+          website_url: z.string().max(2048).optional(),
           business_type: z.string().max(200).optional(),
           target_audience: z.array(z.string()).max(20).optional(),
           brand_voice: z.string().max(1000).optional(),
@@ -136,10 +137,43 @@ export class WorkspaceUpdateMemoryTool implements OrchestratorTool {
   description =
     "Apply a partial patch to the workspace's strategic/preferences/operational/memory_summary fields. The patch only touches fields you include.";
   requiresConfirmation = false;
-  constructor(private readonly memoryRepository: WorkspaceMemoryRepository) {}
+  constructor(
+    private readonly memoryRepository: WorkspaceMemoryRepository,
+    private readonly businessKnowledge: BusinessKnowledgeService
+  ) {}
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(updateMemoryInputSchema, invocation.input, this.name);
+    const hasStrategicOrPrefs = !!(input.patch.strategic || input.patch.preferences);
+
+    if (env.orchestrator.strategicIntelligenceEnabled && hasStrategicOrPrefs) {
+      const updated = await this.businessKnowledge.applyStrategicPatch(
+        invocation.siteId,
+        invocation.userId,
+        {
+          strategic: input.patch.strategic as Record<string, unknown> | undefined,
+          preferences: input.patch.preferences as Record<string, unknown> | undefined,
+        },
+        "conversation"
+      );
+      const residual = this.buildMongoPatch({
+        operational: input.patch.operational,
+        memory_summary: input.patch.memory_summary,
+      });
+      let version = updated?.version;
+      if (Object.keys(residual).length > 0) {
+        const mem = await this.memoryRepository.update(invocation.siteId, residual as never, invocation.userId);
+        version = mem?.version ?? version;
+      }
+      if (version == null) {
+        throw new Error("Workspace memory not found for this site.");
+      }
+      return {
+        summary: `Updated workspace memory (v${version}) via business knowledge.`,
+        data: { version, updated_keys: Object.keys(input.patch) },
+      };
+    }
+
     const patch = this.buildMongoPatch(input.patch);
     if (Object.keys(patch).length === 0) {
       return { summary: "No memory changes provided; nothing to update." };
@@ -195,6 +229,7 @@ export class WorkspaceUpdateMemoryTool implements OrchestratorTool {
 
 const completeOnboardingInputSchema = z.object({
   strategic: z.object({
+    website_url: z.string().max(2048).optional(),
     business_type: z.string().min(1).max(200),
     target_audience: z.array(z.string().min(1)).min(1).max(20),
     brand_voice: z.string().min(1).max(1000),
@@ -242,36 +277,65 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(completeOnboardingInputSchema, invocation.input, this.name);
-    const patch: Record<string, unknown> = {
-      strategic: {
-        business_type: input.strategic.business_type,
-        target_audience: input.strategic.target_audience,
-        brand_voice: input.strategic.brand_voice,
-        business_goals: input.strategic.business_goals,
-        seo_priorities: input.strategic.seo_priorities ?? [],
-        publishing_channels: input.strategic.publishing_channels ?? [],
-        competitive_notes: input.strategic.competitive_notes,
-      },
-      preferences: {
-        tone: input.preferences?.tone,
-        default_word_count: input.preferences?.default_word_count,
-        communication_style: input.preferences?.communication_style,
-      },
-      memory_summary:
-        input.memory_summary || this.buildMemorySummary(input.strategic.business_type, input.strategic.business_goals),
+    const strategic = {
+      website_url: input.strategic.website_url,
+      business_type: input.strategic.business_type,
+      target_audience: input.strategic.target_audience,
+      brand_voice: input.strategic.brand_voice,
+      business_goals: input.strategic.business_goals,
+      seo_priorities: input.strategic.seo_priorities ?? [],
+      publishing_channels: input.strategic.publishing_channels ?? [],
+      competitive_notes: input.strategic.competitive_notes,
     };
-    if (input.operational) {
-      patch.operational = {
-        publishing_cadence: input.operational.publishing_cadence,
-        review_lead_time_hours: input.operational.review_lead_time_hours,
+    const preferences = {
+      tone: input.preferences?.tone,
+      default_word_count: input.preferences?.default_word_count,
+      communication_style: input.preferences?.communication_style,
+    };
+
+    if (env.orchestrator.strategicIntelligenceEnabled) {
+      await this.businessKnowledge.applyStrategicPatch(
+        invocation.siteId,
+        invocation.userId,
+        {
+          strategic,
+          preferences,
+          memory_summary:
+            input.memory_summary ||
+            this.buildMemorySummary(input.strategic.business_type, input.strategic.business_goals),
+          ...(input.operational
+            ? {
+                operational: {
+                  publishing_cadence: input.operational.publishing_cadence,
+                  review_lead_time_hours: input.operational.review_lead_time_hours,
+                },
+              }
+            : {}),
+        },
+        "onboarding"
+      );
+    } else {
+      const patch: Record<string, unknown> = {
+        strategic,
+        preferences,
+        memory_summary:
+          input.memory_summary ||
+          this.buildMemorySummary(input.strategic.business_type, input.strategic.business_goals),
       };
+      if (input.operational) {
+        patch.operational = {
+          publishing_cadence: input.operational.publishing_cadence,
+          review_lead_time_hours: input.operational.review_lead_time_hours,
+        };
+      }
+      await this.memoryRepository.update(invocation.siteId, patch as never, invocation.userId);
     }
-    await this.memoryRepository.update(invocation.siteId, patch as never, invocation.userId);
     await this.siteService.markSiteActive(invocation.siteId, invocation.userId);
 
     if (env.orchestrator.strategicIntelligenceEnabled) {
       await this.campaignService.ensureDefaultCampaign(invocation.siteId, invocation.userId);
-      await this.businessKnowledge.seedFromWorkspaceMemory(invocation.siteId, invocation.userId);
+      // Beliefs already written via applyStrategicPatch; seed fills any gaps from memory.
+      await this.businessKnowledge.seedFromWorkspaceMemory(invocation.siteId, invocation.userId, "onboarding");
       await this.workspaceStrategy.generate(invocation.siteId, invocation.userId, {
         force: true,
         source: "onboarding",

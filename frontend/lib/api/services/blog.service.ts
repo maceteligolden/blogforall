@@ -41,7 +41,7 @@ export class BlogService {
   private static requireSiteId(): string {
     const siteId = this.getCurrentSiteId();
     if (!siteId) {
-      throw new Error("No workspace selected. Choose a site before managing blogs.");
+      throw new Error("No workspace selected. Choose a workspace before managing blogs.");
     }
     return siteId;
   }

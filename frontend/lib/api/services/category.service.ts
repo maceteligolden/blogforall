@@ -45,7 +45,7 @@ export class CategoryService {
   private static requireSiteId(): string {
     const siteId = this.getCurrentSiteId();
     if (!siteId) {
-      throw new Error("No workspace selected. Choose a site before managing categories.");
+      throw new Error("No workspace selected. Choose a workspace before managing categories.");
     }
     return siteId;
   }

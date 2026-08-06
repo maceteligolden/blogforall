@@ -38,6 +38,8 @@ export const memoryConflictResolutionSchema = z.object({
   rationale: z.string().min(1),
 });
 
+export const beliefStatusSchema = z.enum(["new", "confirmed", "updated", "invalidated"]);
+
 export const memoryMetadataSchema = z.object({
   created_at: z.string().min(1),
   updated_at: z.string().min(1),
@@ -47,6 +49,10 @@ export const memoryMetadataSchema = z.object({
   superseded_by: z.string().optional(),
   soft_deleted: z.boolean().optional(),
   source_turn_id: z.string().optional(),
+  /** Knowledge source (doc 21): onboarding | conversation | user_explicit | analytics | … */
+  source: z.string().optional(),
+  /** Belief lifecycle status (doc 21). */
+  belief_status: beliefStatusSchema.optional(),
   version: z.number().int().positive(),
 });
 

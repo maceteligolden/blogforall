@@ -2,9 +2,28 @@
 
 **Status:** Canonical design (M6 Strategic Intelligence)  
 **Date:** 2026-07-29  
+**Last updated:** 2026-08-06 (implementation status + M6.5 gap-closure)  
 **ADR:** [ADR-015](../../architecture-decisions.md#adr-015--strategic-intelligence-hierarchy)  
 **Companion:** [08](./08-memory-architecture.md), [18](./18-memory-manager.md), [14](./14-mvp-and-roadmap.md), [20](./20-go-to-market-architecture.md)  
 **Supersedes (scope):** [`docs/CAMPAIGN_AGENT_IMPLEMENTATION_PLAN.md`](../../CAMPAIGN_AGENT_IMPLEMENTATION_PLAN.md) for “separate campaign chat agent” — campaign planning stays inside the orchestrator + campaign tools.
+
+---
+
+## Implementation status (2026-08-06)
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Phases 0–7 backend (T6.SI.0–7) | **Done** | Default Campaign, WorkspaceStrategy, beliefs, intelligence, plan policies, decision engine, learning-loop stubs |
+| Single knowledge writer + source-aware confidence | **Done (M6.5)** | All strategic patches → BusinessKnowledge → project hot keys |
+| Strategist product UI | **Done (M6.5)** | Strategy page = WorkspaceStrategy + gaps + decisions (not content themes) |
+| Campaign ↔ strategy_id + required campaign_id | **Done (M6.5)** | Backfill + enforce on create / writing path |
+| Content Intelligence closed loop (T6.1) | **Done (M6.5)** | Evidence-based confirm; hypothesis notes; decision signals |
+| Decisions → roadmap/post proposals | **Done (M6.5)** | `POST /decisions/propose` HITL-gated |
+| Agency multi-brand | Post-MVP | Doc 20 / T6.2 |
+
+**Single-writer rule:** Business-field updates go through `BusinessKnowledgeService.upsertBelief` (with `source` + confidence), then `projectHotKeys` into `WorkspaceMemory.strategic`. Direct hot-only strategic patches for mapped fields are not the authority.
+
+**Source-aware seed confidence (defaults):** `website_inferred` 0.5 · `onboarding` / interview 0.7 · `user_explicit` / settings 0.8 · `conversation` 0.65 · `analytics` / publish deltas capped · `onboarding_backfill` 0.55.
 
 ---
 
@@ -106,7 +125,7 @@ Unbound content intent → strategist clarification (Default vs existing vs new 
 | Strategy | `GET/PATCH /sites/:siteId/strategy`, `GET .../versions`, `POST .../regenerate` |
 | Knowledge | `GET/PATCH /sites/:siteId/knowledge`, `GET .../gaps` |
 | Campaign | existing + `.../intelligence`, `.../intelligence/recompute`; no orphan remove-from-campaign |
-| Decisions | `GET /sites/:siteId/decisions/next` |
+| Decisions | `GET /sites/:siteId/decisions/next`, `POST .../decisions/propose` (HITL plan/awareness proposals) |
 | Blogs | `campaign_id` accepted; server defaults to Default Campaign |
 
 Orchestrator tools: `strategy.*`, `knowledge.*`, `decisions.propose`, campaign resolve helpers.
@@ -137,16 +156,17 @@ Orchestrator tools: `strategy.*`, `knowledge.*`, `decisions.propose`, campaign r
 
 ## 9. Phased delivery
 
-| Phase | Deliverable |
-|-------|-------------|
-| 0 | This doc + ADR-015 + timeline |
-| 1 | Default Campaign + Blog.campaign_id |
-| 2 | WorkspaceStrategy CRUD + generation |
-| 3 | Belief taxonomy + gaps + projection |
-| 4 | Campaign enrichment + intelligence + strategic health |
-| 5 | Orchestrator plan policies |
-| 6 | Strategic Decision Engine |
-| 7 | Learning loop (publish/stats → beliefs/strategy) |
+| Phase | Deliverable | Status |
+|-------|-------------|--------|
+| 0 | This doc + ADR-015 + timeline | Done |
+| 1 | Default Campaign + Blog.campaign_id | Done |
+| 2 | WorkspaceStrategy CRUD + generation | Done |
+| 3 | Belief taxonomy + gaps + projection | Done |
+| 4 | Campaign enrichment + intelligence + strategic health | Done |
+| 5 | Orchestrator plan policies | Done |
+| 6 | Strategic Decision Engine | Done |
+| 7 | Learning loop (publish/stats → beliefs/strategy) | Done (thin stubs) |
+| 8 (M6.5) | Single writer, product UI, hierarchy harden, T6.1 loop, decisions→planning | Done |
 
 ---
 

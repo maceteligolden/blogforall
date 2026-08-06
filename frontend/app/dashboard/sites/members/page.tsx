@@ -51,7 +51,7 @@ export default function SiteMembersPage() {
   const { data: membersData, isLoading } = useQuery({
     queryKey: currentSiteId ? QUERY_KEYS.SITE_MEMBERS(currentSiteId) : [],
     queryFn: () => {
-      if (!currentSiteId) throw new Error("No site selected");
+      if (!currentSiteId) throw new Error("No workspace selected");
       return SiteService.getSiteMembers(currentSiteId);
     },
     enabled: !!currentSiteId,
@@ -62,7 +62,7 @@ export default function SiteMembersPage() {
   const { data: currentSite } = useQuery({
     queryKey: currentSiteId ? QUERY_KEYS.SITE(currentSiteId) : [],
     queryFn: () => {
-      if (!currentSiteId) throw new Error("No site selected");
+      if (!currentSiteId) throw new Error("No workspace selected");
       return SiteService.getSiteById(currentSiteId);
     },
     enabled: !!currentSiteId,
@@ -71,7 +71,7 @@ export default function SiteMembersPage() {
   // Remove member mutation
   const removeMemberMutation = useMutation({
     mutationFn: (userId: string) => {
-      if (!currentSiteId) throw new Error("No site selected");
+      if (!currentSiteId) throw new Error("No workspace selected");
       return SiteService.removeMember(currentSiteId, userId);
     },
     onSuccess: () => {
@@ -85,7 +85,7 @@ export default function SiteMembersPage() {
   // Update member role mutation
   const updateRoleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: "admin" | "editor" | "viewer" }) => {
-      if (!currentSiteId) throw new Error("No site selected");
+      if (!currentSiteId) throw new Error("No workspace selected");
       return SiteService.updateMemberRole(currentSiteId, userId, role);
     },
     onSuccess: () => {
@@ -100,7 +100,7 @@ export default function SiteMembersPage() {
   const { data: siteInvitationsData } = useQuery({
     queryKey: currentSiteId ? QUERY_KEYS.SITE_INVITATIONS(currentSiteId) : [],
     queryFn: () => {
-      if (!currentSiteId) throw new Error("No site selected");
+      if (!currentSiteId) throw new Error("No workspace selected");
       return SiteInvitationService.getSiteInvitations(currentSiteId);
     },
     enabled: !!currentSiteId,
@@ -111,7 +111,7 @@ export default function SiteMembersPage() {
   // Cancel invitation mutation
   const cancelInvitationMutation = useMutation({
     mutationFn: (invitationId: string) => {
-      if (!currentSiteId) throw new Error("No site selected");
+      if (!currentSiteId) throw new Error("No workspace selected");
       return SiteInvitationService.cancelInvitation(currentSiteId, invitationId);
     },
     onSuccess: () => {
@@ -124,7 +124,7 @@ export default function SiteMembersPage() {
 
   const resendInvitationMutation = useMutation({
     mutationFn: (invitationId: string) => {
-      if (!currentSiteId) throw new Error("No site selected");
+      if (!currentSiteId) throw new Error("No workspace selected");
       return SiteInvitationService.resendInvitation(currentSiteId, invitationId);
     },
     onSuccess: () => {
@@ -139,9 +139,9 @@ export default function SiteMembersPage() {
     return (
       <div className="min-h-screen bg-black text-white">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <Breadcrumb items={[{ label: "Dashboard" }, { label: "Site Members" }]} />
+          <Breadcrumb items={[{ label: "Dashboard" }, { label: "Workspace Members" }]} />
           <div className="py-12 text-center">
-            <p className="text-gray-400">Please select a site to view members</p>
+            <p className="text-gray-400">Please select a workspace to view members</p>
           </div>
         </div>
       </div>
@@ -152,7 +152,7 @@ export default function SiteMembersPage() {
     return (
       <div className="min-h-screen bg-black text-white">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-          <Breadcrumb items={[{ label: "Dashboard" }, { label: "Site Members" }]} />
+          <Breadcrumb items={[{ label: "Dashboard" }, { label: "Workspace Members" }]} />
           <div className="py-12 text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
             <p className="text-gray-400">Loading members...</p>
@@ -165,13 +165,13 @@ export default function SiteMembersPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb items={[{ label: "Dashboard" }, { label: "Site Members" }]} />
+        <Breadcrumb items={[{ label: "Dashboard" }, { label: "Workspace Members" }]} />
 
         <main className="py-8">
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
-              <h1 className="text-4xl font-display mb-2 tracking-tight">{currentSite?.name || "Site"} Members</h1>
+              <h1 className="text-4xl font-display mb-2 tracking-tight">{currentSite?.name || "Workspace"} Members</h1>
               <p className="text-gray-400">Manage team members and their roles</p>
             </div>
             <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90 text-white">
@@ -290,7 +290,7 @@ export default function SiteMembersPage() {
             <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
               <User className="w-12 h-12 text-gray-600 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">No members yet</h3>
-              <p className="text-gray-400 mb-6">Invite team members to collaborate on this site</p>
+              <p className="text-gray-400 mb-6">Invite team members to collaborate on this workspace</p>
               <Button onClick={() => setShowInviteDialog(true)} className="bg-primary hover:bg-primary/90 text-white">
                 <Plus className="w-4 h-4 mr-2" />
                 Invite Member
@@ -406,7 +406,7 @@ export default function SiteMembersPage() {
           title="Remove Member"
           message={`Are you sure you want to remove ${
             memberToRemove.user ? `${memberToRemove.user.first_name} ${memberToRemove.user.last_name}` : "this member"
-          } from the site?`}
+          } from the workspace?`}
           confirmText="Remove"
           cancelText="Cancel"
           variant="danger"

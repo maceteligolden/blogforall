@@ -115,12 +115,12 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
     setError("");
 
     if (!sourceSiteId) {
-      setError("Please select a source site");
+      setError("Please select a source workspace");
       return;
     }
 
     if (!currentSiteId) {
-      setError("No target site selected");
+      setError("No target workspace selected");
       return;
     }
 
@@ -214,24 +214,24 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
         )}
 
         <div>
-          <Label htmlFor="source-site" className="text-gray-300">
-            Source Site <span className="text-red-400">*</span>
+          <Label htmlFor="source-workspace" className="text-gray-300">
+            Source workspace <span className="text-red-400">*</span>
           </Label>
           <select
-            id="source-site"
+            id="source-workspace"
             value={sourceSiteId}
             onChange={(e) => handleSourceSiteChange(e.target.value)}
             className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 text-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             required
           >
-            <option value="">Select a site...</option>
+            <option value="">Select a workspace...</option>
             {availableSourceSites.map((site) => (
               <option key={site._id} value={site._id}>
                 {site.name}
               </option>
             ))}
           </select>
-          <p className="mt-1 text-xs text-gray-400">Select the site you want to import categories from</p>
+          <p className="mt-1 text-xs text-gray-400">Select the workspace you want to import categories from</p>
         </div>
 
         {sourceSiteId && (
@@ -241,7 +241,7 @@ export function ImportCategoriesDialog({ isOpen, onClose }: ImportCategoriesDial
             </Label>
             <div className="max-h-96 overflow-y-auto border border-gray-700 rounded-md bg-gray-800/50 p-4">
               {sourceCategories.length === 0 ? (
-                <p className="text-gray-400 text-sm">No categories found in the selected site</p>
+                <p className="text-gray-400 text-sm">No categories found in the selected workspace</p>
               ) : (
                 <div className="space-y-1">
                   {renderCategoryTree(sourceCategories as (Category & { children?: Category[] })[])}

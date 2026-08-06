@@ -15,7 +15,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
 interface AddCardDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (paymentMethodId?: string) => void;
 }
 
 function AddCardForm({
@@ -23,7 +23,7 @@ function AddCardForm({
   onClose,
   clientSecret,
 }: {
-  onSuccess?: () => void;
+  onSuccess?: (paymentMethodId?: string) => void;
   onClose: () => void;
   clientSecret: string;
 }) {
@@ -70,8 +70,9 @@ function AddCardForm({
       }
 
       if (setupIntent?.status === "succeeded" && setupIntent.payment_method) {
+        const paymentMethodId = setupIntent.payment_method as string;
         // Confirm the card on the backend
-        await BillingService.confirmCard(setupIntent.payment_method as string);
+        await BillingService.confirmCard(paymentMethodId);
 
         billingTracker.paymentMethodAdded();
 
@@ -81,7 +82,7 @@ function AddCardForm({
           variant: "success",
         });
 
-        onSuccess?.();
+        onSuccess?.(paymentMethodId);
         onClose();
       }
     } catch (error: any) {

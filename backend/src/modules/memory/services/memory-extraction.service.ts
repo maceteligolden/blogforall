@@ -7,6 +7,8 @@ import { logger } from "../../../shared/utils/logger";
 import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/workspace-memory.repository";
 import { BehavioralRuleService } from "./behavioral-rule.service";
 import { SemanticMemoryService } from "./semantic-memory.service";
+import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
+import { FIELD_PATH_TO_KEY } from "../../strategic-intelligence/constants/business-knowledge.keys";
 
 const extractionSchema = z.object({
   items: z.array(
@@ -26,7 +28,8 @@ export class MemoryExtractionService {
   constructor(
     private readonly memoryRepository: WorkspaceMemoryRepository,
     private readonly behavioralRuleService: BehavioralRuleService,
-    private readonly semanticMemoryService: SemanticMemoryService
+    private readonly semanticMemoryService: SemanticMemoryService,
+    private readonly businessKnowledge: BusinessKnowledgeService
   ) {}
 
   /**
@@ -75,7 +78,21 @@ Classify each item:
       for (const item of out.items ?? []) {
         if (item.type === "noise") continue;
         if (item.type === "stable_fact" && item.field_path && item.value) {
-          patch[item.field_path] = item.value;
+          const mapped =
+            env.orchestrator.strategicIntelligenceEnabled &&
+            (FIELD_PATH_TO_KEY[item.field_path] ||
+              FIELD_PATH_TO_KEY[item.field_path.replace(/^strategic\./, "")]);
+          if (mapped) {
+            await this.businessKnowledge.upsertFromFieldPath(
+              input.siteId,
+              input.userId,
+              item.field_path,
+              item.value,
+              { source: "conversation", confidence: item.importance ?? 0.65 }
+            );
+          } else {
+            patch[item.field_path] = item.value;
+          }
         }
         if (item.type === "preference" && item.rule_text) {
           newRules.push(

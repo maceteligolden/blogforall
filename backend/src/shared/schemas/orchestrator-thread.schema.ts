@@ -6,6 +6,8 @@ export enum OrchestratorThreadStatus {
   ARCHIVED = "archived",
 }
 
+export type OrchestratorThreadTitleSource = "default" | "auto" | "user";
+
 /**
  * A persistent conversation between a single user and the Workspace
  * Orchestrator Agent inside a single workspace. Threads survive process
@@ -18,6 +20,8 @@ export interface OrchestratorThread extends BaseEntity {
   user_id: string;
   /** Short, model- or user-assigned label shown in the thread list. */
   title: string;
+  /** Who last set the title — prevents auto-title from overwriting user renames. */
+  title_source: OrchestratorThreadTitleSource;
   status: OrchestratorThreadStatus;
   /** Last user/assistant turn timestamp; used to sort the thread list. */
   last_activity_at: Date;
@@ -36,6 +40,11 @@ const orchestratorThreadSchema = new Schema<OrchestratorThread>(
     site_id: { type: String, required: true, index: true },
     user_id: { type: String, required: true, index: true },
     title: { type: String, required: true, trim: true, maxlength: 200, default: "New conversation" },
+    title_source: {
+      type: String,
+      enum: ["default", "auto", "user"],
+      default: "default",
+    },
     status: {
       type: String,
       enum: Object.values(OrchestratorThreadStatus),

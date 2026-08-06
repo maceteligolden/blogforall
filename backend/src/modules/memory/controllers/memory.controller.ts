@@ -5,14 +5,17 @@ import { getJwtUserId } from "../../../shared/utils/jwt-user";
 import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/workspace-memory.repository";
 import { StrategyEngineService } from "../services/strategy-engine.service";
 import { BehavioralRuleService } from "../services/behavioral-rule.service";
+import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 import type { BehavioralRule } from "../../../shared/schemas/memory-types";
+import { env } from "../../../shared/config/env";
 
 @injectable()
 export class MemoryController {
   constructor(
     private readonly memoryRepository: WorkspaceMemoryRepository,
     private readonly strategyEngine: StrategyEngineService,
-    private readonly behavioralRuleService: BehavioralRuleService
+    private readonly behavioralRuleService: BehavioralRuleService,
+    private readonly businessKnowledge: BusinessKnowledgeService
   ) {}
 
   private siteId(req: Request): string {
@@ -50,16 +53,36 @@ export class MemoryController {
         strategy_state?: Record<string, unknown>;
       };
       const memory = await this.memoryRepository.ensureForSite(siteId, userId);
-      const updated = await this.memoryRepository.update(siteId, body as never, userId);
+      // Single-writer: strategic (+ mapped tone) go through beliefs → project (doc 21).
+      const updated =
+        env.orchestrator.strategicIntelligenceEnabled && (body.strategic || body.preferences)
+          ? await this.businessKnowledge.applyStrategicPatch(siteId, userId, body, "user_explicit")
+          : await this.memoryRepository.update(siteId, body as never, userId);
+      // Non-strategic keys (behavioral_rules, strategy_state) when SI path used
+      if (
+        env.orchestrator.strategicIntelligenceEnabled &&
+        (body.strategic || body.preferences) &&
+        (body.behavioral_rules || body.strategy_state)
+      ) {
+        await this.memoryRepository.update(
+          siteId,
+          {
+            ...(body.behavioral_rules ? { behavioral_rules: body.behavioral_rules } : {}),
+            ...(body.strategy_state ? { strategy_state: body.strategy_state } : {}),
+          } as never,
+          userId
+        );
+      }
+      const finalMemory = updated ?? (await this.memoryRepository.ensureForSite(siteId, userId));
       await this.behavioralRuleService.logAudit({
         siteId,
         userId,
         action: "patch",
         patchKeys: Object.keys(body),
         previousVersion: memory.version,
-        newVersion: updated?.version,
+        newVersion: finalMemory.version,
       });
-      sendSuccess(res, "Workspace memory updated", updated);
+      sendSuccess(res, "Workspace memory updated", finalMemory);
     } catch (error) {
       next(error);
     }

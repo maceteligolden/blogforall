@@ -12,6 +12,7 @@ export interface CreateCampaignInput {
   timezone?: string;
   total_posts_planned?: number;
   budget?: number;
+  strategy_id?: string;
   success_metrics?: {
     target_views?: number;
     target_engagement?: number;

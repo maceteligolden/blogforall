@@ -16,6 +16,7 @@ export class OrchestratorThreadRepository {
       site_id: input.site_id,
       user_id: input.user_id,
       title: input.title || "New conversation",
+      title_source: "default",
       is_onboarding: !!input.is_onboarding,
       last_activity_at: new Date(),
     });
@@ -72,10 +73,34 @@ export class OrchestratorThreadRepository {
     );
   }
 
-  async rename(threadId: string, siteId: string, title: string): Promise<OrchestratorThread | null> {
+  async rename(
+    threadId: string,
+    siteId: string,
+    title: string,
+    titleSource: "default" | "auto" | "user" = "user"
+  ): Promise<OrchestratorThread | null> {
     return OrchestratorThreadModel.findOneAndUpdate(
       { _id: threadId, site_id: siteId },
-      { $set: { title, updated_at: new Date() } },
+      { $set: { title, title_source: titleSource, updated_at: new Date() } },
+      { new: true }
+    );
+  }
+
+  /**
+   * Auto-title only when still at the default source (never overwrite user/auto).
+   */
+  async tryAutoRename(
+    threadId: string,
+    siteId: string,
+    title: string
+  ): Promise<OrchestratorThread | null> {
+    return OrchestratorThreadModel.findOneAndUpdate(
+      {
+        _id: threadId,
+        site_id: siteId,
+        $or: [{ title_source: "default" }, { title_source: { $exists: false } }],
+      },
+      { $set: { title, title_source: "auto", updated_at: new Date() } },
       { new: true }
     );
   }

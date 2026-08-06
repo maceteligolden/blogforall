@@ -25,12 +25,20 @@ const updateStrategyBodySchema = z.object({
 });
 
 const updateKnowledgeBodySchema = z.object({
-  value: z.unknown(),
+  value: z.unknown().optional(),
   confidence: z.number().min(0).max(1).optional(),
+  source: z.string().optional(),
+  status: z.enum(["new", "confirmed", "updated", "invalidated"]).optional(),
 });
 
 const decisionsQuerySchema = z.object({
   campaign_id: z.string().optional(),
+});
+
+const proposeDecisionBodySchema = z.object({
+  kind: z.string().min(1),
+  campaign_id: z.string().optional(),
+  accept: z.boolean().optional(),
 });
 
 const router = Router({ mergeParams: true });
@@ -62,6 +70,12 @@ router.get(
   validateParams(siteIdParamSchema),
   validateQuery(decisionsQuerySchema),
   controller.nextDecisions
+);
+router.post(
+  "/decisions/propose",
+  validateParams(siteIdParamSchema),
+  validateBody(proposeDecisionBodySchema),
+  controller.proposeDecision
 );
 
 router.post("/default-campaign/ensure", validateParams(siteIdParamSchema), controller.ensureDefaultCampaign);

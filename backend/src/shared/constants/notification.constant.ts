@@ -48,8 +48,7 @@ export enum NotificationStatus {
 export const EMAIL_TEMPLATE_KEYS = {
   SITE_INVITATION: "site_invitation",
   PASSWORD_RESET: "password_reset",
-  /** Same Brevo template as password reset (6-digit code). */
-  EMAIL_VERIFICATION: "password_reset",
+  EMAIL_VERIFICATION: "email_verification",
   COMMENT_ON_POST: "comment_on_post",
   WELCOME: "welcome",
   /** Pre-publish review request sent for an individual scheduled post. */

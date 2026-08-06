@@ -44,6 +44,7 @@ export function useOrchestratorArtifacts() {
   return {
     artifacts,
     hasArtifacts,
+    hasViewableArtifacts,
     showResultsPanel,
     isWritingPinned,
     sessionMode,

@@ -149,11 +149,11 @@ export function SiteSwitcher({ collapsed = false }: SiteSwitcherProps) {
     <>
       <div className={cn("relative z-[9999]", collapsed && "flex justify-center")} ref={dropdownRef}>
         {collapsed ? (
-          <SidebarTooltip label={isLoading ? "Loading..." : currentSite ? currentSite.name : "Select Site"}>
+          <SidebarTooltip label={isLoading ? "Loading..." : currentSite ? currentSite.name : "Select workspace"}>
             <button
               onClick={() => setShowDropdown(!showDropdown)}
               className="flex h-10 w-10 items-center justify-center rounded-md border border-gray-700 bg-gray-900 text-primary hover:bg-gray-800 transition-colors"
-              aria-label={showDropdown ? "Close site selector" : "Open site selector"}
+              aria-label={showDropdown ? "Close workspace selector" : "Open workspace selector"}
               aria-expanded={showDropdown}
               aria-haspopup="true"
             >
@@ -164,14 +164,14 @@ export function SiteSwitcher({ collapsed = false }: SiteSwitcherProps) {
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             className="flex items-center space-x-2 px-3 py-2 rounded-md border border-gray-700 bg-gray-900 hover:bg-gray-800 transition-colors text-sm text-gray-300 hover:text-white min-w-[200px]"
-            aria-label={showDropdown ? "Close site selector" : "Open site selector"}
+            aria-label={showDropdown ? "Close workspace selector" : "Open workspace selector"}
             aria-expanded={showDropdown}
             aria-haspopup="true"
-            aria-controls="site-switcher-dropdown"
+            aria-controls="workspace-switcher-dropdown"
           >
             <Building2 className="w-4 h-4 text-primary flex-shrink-0" aria-hidden="true" />
             <span className="flex-1 text-left truncate">
-              {isLoading ? "Loading..." : currentSite ? currentSite.name : "Select Site"}
+              {isLoading ? "Loading..." : currentSite ? currentSite.name : "Select workspace"}
             </span>
             <ChevronDown
               className={`w-4 h-4 transition-transform ${showDropdown ? "rotate-180" : ""}`}
@@ -182,9 +182,9 @@ export function SiteSwitcher({ collapsed = false }: SiteSwitcherProps) {
 
         {showDropdown && (
           <div
-            id="site-switcher-dropdown"
+            id="workspace-switcher-dropdown"
             role="menu"
-            aria-label="Site selector menu"
+            aria-label="Workspace selector menu"
             className={cn(
               "absolute mt-2 w-72 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl py-2 z-[10000]",
               collapsed ? "left-full ml-2 top-0" : "left-0"
@@ -193,11 +193,11 @@ export function SiteSwitcher({ collapsed = false }: SiteSwitcherProps) {
           >
             {isLoading ? (
               <div className="px-4 py-2 text-sm text-gray-400" role="status" aria-live="polite">
-                Loading sites...
+                Loading workspaces...
               </div>
             ) : sites.length === 0 ? (
               <div className="px-4 py-2 text-sm text-gray-400" role="status">
-                No sites found
+                No workspaces found
               </div>
             ) : (
               <>
@@ -261,7 +261,7 @@ export function SiteSwitcher({ collapsed = false }: SiteSwitcherProps) {
                         role="menuitem"
                         onClick={() => handleSiteSelect(site._id)}
                         className="flex-1 min-w-0 flex items-center gap-2 pl-4 pr-2 py-2 text-sm text-gray-300 text-left"
-                        aria-label={`Switch to ${site.name} site${isCurrent ? " (current)" : ""}`}
+                        aria-label={`Switch to ${site.name} workspace${isCurrent ? " (current)" : ""}`}
                         aria-checked={isCurrent}
                       >
                         <Building2 className="w-4 h-4 text-gray-400 flex-shrink-0" aria-hidden="true" />
@@ -300,10 +300,10 @@ export function SiteSwitcher({ collapsed = false }: SiteSwitcherProps) {
                     setShowCreateDialog(true);
                   }}
                   className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800 transition-colors"
-                  aria-label="Create a new site"
+                  aria-label="Create a new workspace"
                 >
                   <Plus className="w-4 h-4" aria-hidden="true" />
-                  Create New Site
+                  Create new workspace
                 </button>
               </>
             )}

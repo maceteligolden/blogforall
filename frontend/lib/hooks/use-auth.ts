@@ -1,10 +1,11 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "../store/auth.store";
 import { AuthService, LoginRequest, SignupRequest, ChangePasswordRequest } from "../api/services/auth.service";
 import { OnboardingService } from "../api/services/onboarding.service";
 import { signupWizardPath } from "../onboarding/signup-wizard";
 import { authTracker } from "../analytics/flows/auth.tracker";
+import { QUERY_KEYS } from "../api/config";
 
 async function routeToSignupWizard(router: ReturnType<typeof useRouter>) {
   try {
@@ -25,7 +26,13 @@ async function routeToSignupWizard(router: ReturnType<typeof useRouter>) {
 
 export function useAuth() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { setTokens, setUser, setCurrentSiteId, clearAuth, user, isAuthenticated, currentSiteId } = useAuthStore();
+
+  const clearSessionQueries = () => {
+    queryClient.removeQueries({ queryKey: ["onboarding"] });
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.SITES });
+  };
 
   const loginMutation = useMutation({
     mutationFn: (data: LoginRequest) => AuthService.login(data),
@@ -34,6 +41,7 @@ export function useAuth() {
     },
     onSuccess: async (response) => {
       const { tokens, user: userData } = response.data.data;
+      clearSessionQueries();
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
       authTracker.loginSuccess({ userId: userData.id, planType: userData.plan });
@@ -65,8 +73,11 @@ export function useAuth() {
     },
     onSuccess: (response) => {
       const { tokens, user: userData } = response.data.data;
+      // Drop previous account's onboarding/sites cache before navigating.
+      clearSessionQueries();
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
+      queryClient.setQueryData(["onboarding", "signup-wizard"], { stage: "email_verification" });
       authTracker.signupCompleted();
 
       if (typeof window !== "undefined") {
@@ -92,6 +103,7 @@ export function useAuth() {
   const abandonSignupMutation = useMutation({
     mutationFn: () => AuthService.abandonSignup(),
     onSuccess: () => {
+      clearSessionQueries();
       clearAuth();
       router.replace("/auth/signup");
     },
@@ -101,11 +113,13 @@ export function useAuth() {
     mutationFn: () => AuthService.logout(),
     onSuccess: () => {
       authTracker.logout();
+      clearSessionQueries();
       clearAuth();
       router.push("/auth/login");
     },
     onError: () => {
       authTracker.logout();
+      clearSessionQueries();
       clearAuth();
       router.push("/auth/login");
     },
@@ -142,8 +156,8 @@ export function useAuth() {
     onError: (error: unknown) => {
       const message =
         (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to update site context";
-      console.error("Update site context failed:", message);
+        "Failed to update workspace context";
+      console.error("Update workspace context failed:", message);
     },
   });
 

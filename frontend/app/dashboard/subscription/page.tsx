@@ -2,16 +2,24 @@
 
 import { format } from "date-fns";
 import { Check, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { PaymentMethodsCard } from "@/components/billing/payment-methods-card";
+import { AddCardDialog } from "@/components/billing/add-card-dialog";
 import { Button } from "@/components/ui/button";
-import { useSubscription, usePlans } from "@/lib/hooks/use-subscription";
-import { useQuery } from "@tanstack/react-query";
+import { ConfirmModal } from "@/components/ui/modal";
+import {
+  useSubscription,
+  usePlans,
+  useChangePlan,
+  useCancelSubscription,
+} from "@/lib/hooks/use-subscription";
 import { BillingService } from "@/lib/api/services/billing.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
 import { billingTracker } from "@/lib/analytics/flows/billing.tracker";
-import { useEffect } from "react";
+import type { Plan } from "@/lib/api/services/subscription.service";
 
 function formatPrice(price: number, currency = "usd", interval?: string): string {
   if (price === 0 || interval === "free") return "Free";
@@ -42,10 +50,26 @@ function statusLabel(status: string): string {
   }
 }
 
+function isFreePlan(plan: { price: number; interval: string }): boolean {
+  return plan.price === 0 || plan.interval === "free";
+}
+
 export default function SubscriptionPage() {
   const { toast } = useToast();
   const { data: subscriptionData, isLoading: subscriptionLoading } = useSubscription();
   const { data: plans = [], isLoading: plansLoading } = usePlans();
+  const changePlan = useChangePlan();
+  const cancelSubscription = useCancelSubscription();
+
+  const [addCardOpen, setAddCardOpen] = useState(false);
+  const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
+  const [confirmDowngradePlan, setConfirmDowngradePlan] = useState<Plan | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  const cardsQuery = useQuery({
+    queryKey: QUERY_KEYS.BILLING_CARDS || ["billing", "cards"],
+    queryFn: () => BillingService.getCards(),
+  });
 
   const invoicesQuery = useQuery({
     queryKey: QUERY_KEYS.BILLING_INVOICES,
@@ -60,6 +84,69 @@ export default function SubscriptionPage() {
   const currentPlanId = subscriptionData?.plan._id;
   const subscription = subscriptionData?.subscription;
   const currentPlan = subscriptionData?.plan;
+  const isPaid =
+    !!currentPlan &&
+    !isFreePlan(currentPlan) &&
+    subscription?.status !== "free" &&
+    subscription?.status !== "cancelled";
+
+  const applyPlanChange = async (plan: Plan) => {
+    const previous = currentPlan?.name ?? "unknown";
+    try {
+      await changePlan.mutateAsync(plan._id);
+      billingTracker.planChanged({ previous_plan: previous, new_plan: plan.name });
+      toast({
+        title: "Plan updated",
+        description:
+          isFreePlan(plan) || plan._id === currentPlanId
+            ? `You're on ${plan.name}.`
+            : `Switched toward ${plan.name}. Changes may apply next billing cycle.`,
+        variant: "success",
+      });
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Could not change plan.";
+      toast({ title: "Error", description: message, variant: "error" });
+    }
+  };
+
+  const handleSelectPlan = async (plan: Plan) => {
+    if (plan._id === currentPlanId) return;
+
+    if (isFreePlan(plan)) {
+      setConfirmDowngradePlan(plan);
+      return;
+    }
+
+    const cards = cardsQuery.data ?? [];
+    if (cards.length === 0) {
+      setPendingPlanId(plan._id);
+      setAddCardOpen(true);
+      return;
+    }
+
+    await applyPlanChange(plan);
+  };
+
+  const handleCancel = async () => {
+    try {
+      await cancelSubscription.mutateAsync();
+      billingTracker.subscriptionCancelled({ previous_plan: currentPlan?.name });
+      toast({
+        title: "Cancellation scheduled",
+        description: "Your plan stays active until the end of the billing period.",
+        variant: "success",
+      });
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Could not cancel subscription.";
+      toast({ title: "Error", description: message, variant: "error" });
+    } finally {
+      setConfirmCancel(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -147,10 +234,23 @@ export default function SubscriptionPage() {
               )}
             </div>
           )}
+
+          {isPaid && !subscription.cancelAtPeriodEnd && (
+            <div className="mt-6">
+              <Button
+                variant="outline"
+                className="border-red-800 text-red-300 hover:bg-red-950"
+                onClick={() => setConfirmCancel(true)}
+                disabled={cancelSubscription.isPending}
+              >
+                Cancel subscription
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
-      {plans.length > 1 && (
+      {plans.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-white mb-4">Available plans</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -171,15 +271,10 @@ export default function SubscriptionPage() {
                     <Button
                       size="sm"
                       className="mt-4 bg-primary hover:bg-primary/90"
-                      onClick={() =>
-                        toast({
-                          title: "Plan change unavailable",
-                          description: "Paid plans are not available yet. Your account uses the free plan.",
-                          variant: "default",
-                        })
-                      }
+                      disabled={changePlan.isPending}
+                      onClick={() => void handleSelectPlan(plan)}
                     >
-                      Select plan
+                      {changePlan.isPending ? "Updating…" : "Select plan"}
                     </Button>
                   )}
                 </div>
@@ -216,7 +311,7 @@ export default function SubscriptionPage() {
                       {new Intl.NumberFormat("en-US", {
                         style: "currency",
                         currency: invoice.currency.toUpperCase(),
-                      }).format(invoice.amount_paid / 100)}
+                      }).format(invoice.amount_paid)}
                     </span>
                     {invoice.hosted_invoice_url && (
                       <a
@@ -235,6 +330,46 @@ export default function SubscriptionPage() {
           )}
         </div>
       </div>
+
+      <AddCardDialog
+        open={addCardOpen}
+        onOpenChange={(open) => {
+          setAddCardOpen(open);
+          if (!open) setPendingPlanId(null);
+        }}
+        onSuccess={() => {
+          void cardsQuery.refetch();
+          if (pendingPlanId) {
+            const plan = plans.find((p) => p._id === pendingPlanId);
+            setPendingPlanId(null);
+            if (plan) void applyPlanChange(plan);
+          }
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDowngradePlan}
+        onClose={() => setConfirmDowngradePlan(null)}
+        onConfirm={() => {
+          const plan = confirmDowngradePlan;
+          setConfirmDowngradePlan(null);
+          if (plan) void applyPlanChange(plan);
+        }}
+        title="Switch to Free?"
+        message="You'll lose paid-plan limits at the end of the current period or immediately if you're already free-eligible. Continue?"
+        confirmText="Switch to Free"
+        variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={confirmCancel}
+        onClose={() => setConfirmCancel(false)}
+        onConfirm={() => void handleCancel()}
+        title="Cancel subscription?"
+        message="Your plan stays active until the end of the billing period, then you'll move to Free."
+        confirmText="Cancel plan"
+        variant="danger"
+      />
     </div>
   );
 }

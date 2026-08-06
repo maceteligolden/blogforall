@@ -79,3 +79,67 @@ export const WORKSPACE_STRATEGIC_TO_KEY: Record<string, BusinessKnowledgeKey> = 
   seo_priorities: "business.seo_priorities",
   competitive_notes: "business.competitors",
 };
+
+/** Preferences fields that map onto business beliefs. */
+export const WORKSPACE_PREFERENCE_TO_KEY: Record<string, BusinessKnowledgeKey> = {
+  tone: "business.tone",
+};
+
+/**
+ * Dot-path field_paths from MemoryExtraction → canonical keys.
+ * Includes strategic.* and preferences.* aliases.
+ */
+export const FIELD_PATH_TO_KEY: Record<string, BusinessKnowledgeKey> = {
+  "strategic.business_type": "business.type",
+  "strategic.target_audience": "business.audience",
+  "strategic.brand_voice": "business.brand_voice",
+  "strategic.business_goals": "business.goals",
+  "strategic.publishing_channels": "business.publishing_channels",
+  "strategic.seo_priorities": "business.seo_priorities",
+  "strategic.competitive_notes": "business.competitors",
+  "preferences.tone": "business.tone",
+  business_type: "business.type",
+  target_audience: "business.audience",
+  brand_voice: "business.brand_voice",
+  business_goals: "business.goals",
+  publishing_channels: "business.publishing_channels",
+  seo_priorities: "business.seo_priorities",
+  competitive_notes: "business.competitors",
+  tone: "business.tone",
+};
+
+/** Belief lifecycle status (doc 21). */
+export type BeliefStatus = "new" | "confirmed" | "updated" | "invalidated";
+
+/** Knowledge source identifiers (doc 21). */
+export type BeliefSource =
+  | "onboarding"
+  | "website_inferred"
+  | "conversation"
+  | "edit"
+  | "publish"
+  | "analytics"
+  | "user_explicit"
+  | "doc_upload"
+  | "onboarding_backfill";
+
+/** Source-aware default confidence (doc 21 implementation status). */
+export const SOURCE_CONFIDENCE: Record<BeliefSource, number> = {
+  website_inferred: 0.5,
+  onboarding: 0.7,
+  onboarding_backfill: 0.55,
+  conversation: 0.65,
+  edit: 0.75,
+  publish: 0.6,
+  analytics: 0.55,
+  user_explicit: 0.8,
+  doc_upload: 0.6,
+};
+
+export function confidenceForSource(source?: string, override?: number): number {
+  if (override != null) return Math.min(0.98, Math.max(0, override));
+  if (source && source in SOURCE_CONFIDENCE) {
+    return SOURCE_CONFIDENCE[source as BeliefSource];
+  }
+  return SOURCE_CONFIDENCE.onboarding_backfill;
+}

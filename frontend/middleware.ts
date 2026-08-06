@@ -13,13 +13,19 @@ export function middleware(request: NextRequest) {
   // Define protected routes that REQUIRE authentication
   const isProtectedRoute = pathname.startsWith("/dashboard");
 
-  // 1. If user is logged in and tries to access an auth page, redirect to dashboard (or ?redirect= for deep links)
+  // 1. If user is logged in and tries to access an auth page, redirect away.
+  // Signup must NOT go straight to /dashboard: setTokens sets the cookie while still on
+  // /auth/signup, and middleware would race router.push("/auth/verify-email") → stuck Loading.
+  // verify-email is the wizard entry; it replaces to the correct stage when already past OTP.
   if (authToken && isAuthPage) {
     if (pathname.startsWith("/auth/login")) {
       const raw = request.nextUrl.searchParams.get("redirect");
       if (raw && raw.startsWith("/") && !raw.startsWith("//") && raw.startsWith("/dashboard")) {
         return NextResponse.redirect(new URL(raw, request.url));
       }
+    }
+    if (pathname.startsWith("/auth/signup") || pathname === "/") {
+      return NextResponse.redirect(new URL("/auth/verify-email", request.url));
     }
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }

@@ -1,6 +1,10 @@
 import { OrchestratorMessageRole } from "../../../shared/schemas/orchestrator-message.schema";
 import type { OrchestratorMessage } from "../../../shared/schemas/orchestrator-message.schema";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
+import {
+  WEBSITE_ONBOARDING_QUESTION,
+  WEBSITE_PROPOSAL_CONFIRM_QUESTION,
+} from "./website-onboarding.helper";
 
 export type OnboardingFieldKey =
   | "business_type"
@@ -80,7 +84,21 @@ function resolveNextFieldKey(memory: WorkspaceMemory, history?: OrchestratorMess
   return FIELD_ORDER[idx];
 }
 
+/**
+ * Next question for start/resume, respecting website-first path state.
+ */
 export function buildNextOnboardingQuestion(memory: WorkspaceMemory, history?: OrchestratorMessage[]): string | null {
+  const path = memory.onboarding_path ?? "unset";
+
+  if (path === "unset") {
+    return WEBSITE_ONBOARDING_QUESTION;
+  }
+
+  if (path === "primary" && memory.pending_proposal) {
+    return WEBSITE_PROPOSAL_CONFIRM_QUESTION;
+  }
+
+  // Primary without pending (rejected or failed) falls through to secondary fields.
   const key = resolveNextFieldKey(memory, history);
   return key ? FIELD_QUESTIONS[key] : null;
 }
@@ -90,9 +108,28 @@ export function buildNextOnboardingQuestion(memory: WorkspaceMemory, history?: O
  * Only exposes the single next field to ask — never a list of "ask about these".
  */
 export function formatOnboardingProgress(memory: WorkspaceMemory): string {
+  const path = memory.onboarding_path ?? "unset";
+
+  if (path === "unset") {
+    return [
+      "Phase: website gate.",
+      `Ask EXACTLY this question: ${WEBSITE_ONBOARDING_QUESTION}`,
+      "If they paste a URL, the server will ingest it — do not invent scrape results.",
+      "If they say they have no website, the server will switch to the chat interview.",
+    ].join("\n");
+  }
+
+  if (path === "primary" && memory.pending_proposal) {
+    return [
+      "Phase: primary path — website profile proposed; awaiting confirmation only.",
+      `Ask EXACTLY: ${WEBSITE_PROPOSAL_CONFIRM_QUESTION}`,
+      "Do NOT ask follow-up field questions unless they reject the proposal.",
+    ].join("\n");
+  }
+
   const missing = listMissingOnboardingFields(memory);
   const captured = FIELD_ORDER.filter((k) => !missing.includes(k));
-  const lines: string[] = [];
+  const lines: string[] = [`Phase: secondary chat interview (path=${path}).`];
   if (captured.length > 0) {
     lines.push(`Captured: ${captured.join(", ")}`);
   }
@@ -151,13 +188,19 @@ function firstSentence(text: string, maxLen = 180): string {
 
 /**
  * Ensure every onboarding turn ends with exactly one interview question —
- * the next missing field only.
+ * the next missing field only. Skips repair while awaiting website URL or
+ * proposal confirmation (those paths are server-driven).
  */
 export function ensureOnboardingInterviewReply(
   reply: string,
   memory: WorkspaceMemory,
   history?: OrchestratorMessage[]
 ): { reply: string; repaired: boolean; nextField: OnboardingFieldKey | null } {
+  const path = memory.onboarding_path ?? "unset";
+  if (path === "unset" || (path === "primary" && memory.pending_proposal)) {
+    return { reply: reply.trim(), repaired: false, nextField: null };
+  }
+
   const nextField = resolveNextFieldKey(memory, history);
   const nextQ = nextField ? FIELD_QUESTIONS[nextField] : null;
   if (!nextQ) {
@@ -192,3 +235,5 @@ export function ensureOnboardingInterviewReply(
     nextField,
   };
 }
+
+export { FIELD_QUESTIONS, FIELD_ORDER };

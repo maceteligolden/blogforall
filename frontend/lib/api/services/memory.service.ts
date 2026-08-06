@@ -12,6 +12,7 @@ export interface BehavioralRule {
 
 export interface WorkspaceMemoryResponse {
   strategic: {
+    website_url?: string;
     business_type?: string;
     target_audience: string[];
     brand_voice?: string;

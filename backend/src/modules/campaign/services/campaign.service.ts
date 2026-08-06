@@ -24,13 +24,23 @@ import {
 } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
 import { env } from "../../../shared/config/env";
+import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
+import CampaignModel from "../../../shared/schemas/campaign.schema";
 
 @injectable()
 export class CampaignService {
   constructor(
     private campaignRepository: CampaignRepository,
-    private scheduledPostRepository: ScheduledPostRepository
+    private scheduledPostRepository: ScheduledPostRepository,
+    private workspaceStrategy: WorkspaceStrategyService
   ) {}
+
+  private async resolveStrategyId(siteId: string, userId: string, pinned?: string): Promise<string | undefined> {
+    if (!env.orchestrator.strategicIntelligenceEnabled) return pinned;
+    if (pinned) return pinned;
+    const strategy = await this.workspaceStrategy.ensureStrategy(siteId, userId);
+    return strategy._id?.toString();
+  }
 
   /**
    * Ensure the site has exactly one Default (Evergreen) campaign.
@@ -38,11 +48,22 @@ export class CampaignService {
    */
   async ensureDefaultCampaign(siteId: string, userId: string): Promise<Campaign> {
     const existing = await this.campaignRepository.findDefault(siteId);
-    if (existing) return existing;
+    if (existing) {
+      if (!existing.strategy_id && env.orchestrator.strategicIntelligenceEnabled) {
+        const strategyId = await this.resolveStrategyId(siteId, userId);
+        if (strategyId) {
+          return (await this.campaignRepository.update(existing._id!.toString(), siteId, {
+            strategy_id: strategyId,
+          })) as Campaign;
+        }
+      }
+      return existing;
+    }
 
     const now = new Date();
     const end = new Date(now);
     end.setFullYear(end.getFullYear() + 10);
+    const strategyId = await this.resolveStrategyId(siteId, userId);
 
     try {
       const campaign = await this.campaignRepository.create({
@@ -55,6 +76,7 @@ export class CampaignService {
         lifecycle_status: CampaignLifecycleStatus.ACTIVE,
         campaign_type: CampaignType.CUSTOM,
         is_default: true,
+        strategy_id: strategyId,
         content_autonomy: CampaignContentAutonomy.ASSISTED,
         publishing_mode: CampaignPublishingMode.SCHEDULED_HITL,
         approval_policy: CampaignApprovalPolicy.REQUIRE_PRE_PUBLISH_APPROVAL,
@@ -96,6 +118,18 @@ export class CampaignService {
     };
   }
 
+  /** Backfill strategy_id on campaigns missing it (inherit active WorkspaceStrategy). */
+  async backfillStrategyIds(siteId: string, userId: string): Promise<number> {
+    if (!env.orchestrator.strategicIntelligenceEnabled) return 0;
+    const strategyId = await this.resolveStrategyId(siteId, userId);
+    if (!strategyId) return 0;
+    const res = await CampaignModel.updateMany(
+      { site_id: siteId, $or: [{ strategy_id: { $exists: false } }, { strategy_id: null }, { strategy_id: "" }] },
+      { $set: { strategy_id: strategyId } }
+    );
+    return res.modifiedCount ?? 0;
+  }
+
   async createCampaign(userId: string, siteId: string, input: CreateCampaignInput): Promise<Campaign> {
     if (input.start_date >= input.end_date) {
       throw new BadRequestError("End date must be after start date");
@@ -111,6 +145,8 @@ export class CampaignService {
       await this.ensureDefaultCampaign(siteId, userId);
     }
 
+    const strategyId = await this.resolveStrategyId(siteId, userId, input.strategy_id);
+
     const campaign = await this.campaignRepository.create({
       ...input,
       user_id: userId,
@@ -124,6 +160,7 @@ export class CampaignService {
       timezone,
       posts_published: 0,
       is_default: false,
+      strategy_id: strategyId,
     });
 
     logger.info("Campaign created", { campaignId: campaign._id, userId, siteId }, "CampaignService");

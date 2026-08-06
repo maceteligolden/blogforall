@@ -1,6 +1,8 @@
 import { injectable } from "tsyringe";
 import User from "../../../shared/schemas/user.schema";
 import { SubscriptionService } from "../../subscription/services/subscription.service";
+import { BillingService } from "../../billing/services/billing.service";
+import { CardRepository } from "../../billing/repositories/card.repository";
 import { SiteRepository } from "../../site/repositories/site.repository";
 import { AuthService } from "../../auth/services/auth.service";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
@@ -68,7 +70,9 @@ export class OnboardingService {
   constructor(
     private subscriptionService: SubscriptionService,
     private siteRepository: SiteRepository,
-    private authService: AuthService
+    private authService: AuthService,
+    private billingService: BillingService,
+    private cardRepository: CardRepository
   ) {}
 
   async getOnboardingStatus(userId: string): Promise<{
@@ -81,17 +85,23 @@ export class OnboardingService {
       throw new NotFoundError("User not found");
     }
 
+    let hasCard = false;
+    if (user.stripe_customer_id) {
+      const cards = await this.cardRepository.findByCustomerId(user.stripe_customer_id);
+      hasCard = cards.length > 0;
+    }
+
     let hasPlan = false;
     try {
-      await this.subscriptionService.getActiveSubscription(userId);
-      hasPlan = true;
+      const { plan, subscription } = await this.subscriptionService.getActiveSubscription(userId);
+      hasPlan = plan.price > 0 && subscription.status !== "free";
     } catch {
       hasPlan = false;
     }
 
     return {
       requiresOnboarding: !user.onboarding_completed,
-      hasCard: false,
+      hasCard,
       hasPlan,
     };
   }
@@ -213,7 +223,7 @@ export class OnboardingService {
   }
 
   /**
-   * User confirmed plan selection during signup wizard (free plan only for now).
+   * User confirmed free plan during signup wizard.
    */
   async completePlanSelection(userId: string): Promise<void> {
     const user = await User.findById(userId);
@@ -232,8 +242,61 @@ export class OnboardingService {
     }
   }
 
-  async completeOnboarding(_userId: string, _planId: string, _paymentMethodId: string): Promise<void> {
-    throw new BadRequestError("Plan selection is disabled. All accounts use the free plan.");
+  /**
+   * Complete onboarding with a paid plan and payment method.
+   */
+  async completeOnboarding(userId: string, planId: string, paymentMethodId: string): Promise<void> {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    if (!user.stripe_customer_id) {
+      throw new BadRequestError("Stripe customer not found. Please contact support.");
+    }
+
+    const allPlans = await this.subscriptionService.getActivePlans();
+    const selected = allPlans.find((p) => p._id?.toString() === planId);
+    if (!selected || !selected.isActive) {
+      throw new NotFoundError("Plan not found or inactive");
+    }
+
+    if (selected.price === 0 || selected.interval === "free") {
+      await this.completePlanSelection(userId);
+      return;
+    }
+
+    // Card may already be saved (e.g. AddCardDialog confirmed it client-side).
+    let cards = await this.cardRepository.findByCustomerId(user.stripe_customer_id);
+    let card = cards.find((c) => c.stripe_card_token === paymentMethodId);
+    if (!card) {
+      await this.billingService.confirmCard(userId, paymentMethodId);
+      cards = await this.cardRepository.findByCustomerId(user.stripe_customer_id);
+      card = cards.find((c) => c.stripe_card_token === paymentMethodId);
+    }
+    if (card?._id) {
+      await this.billingService.setDefaultCard(card._id, userId);
+    }
+
+    try {
+      await this.subscriptionService.getActiveSubscription(userId);
+    } catch {
+      await this.subscriptionService.createFreeSubscription(userId);
+    }
+
+    await this.subscriptionService.changePlan(userId, planId);
+
+    await User.findByIdAndUpdate(userId, {
+      onboarding_completed: true,
+      plan_selection_completed_at: user.plan_selection_completed_at ?? new Date(),
+      updated_at: new Date(),
+    });
+
+    logger.info("User completed onboarding with paid plan", { userId, planId }, "OnboardingService");
+    captureServerEvent(ServerAnalyticsEvents.USER_ONBOARDING_COMPLETED, {
+      userId,
+      properties: { plan_id: planId, free_only: false },
+    });
   }
 
   async skipOnboarding(userId: string): Promise<void> {

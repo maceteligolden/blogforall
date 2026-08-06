@@ -69,18 +69,12 @@ export class SubscriptionService {
     return plan.price === 0 || plan.interval === "free";
   }
 
-  private assertPaidPlansDisabled(plan: Plan): void {
-    if (!this.isFreePlan(plan)) {
-      throw new BadRequestError("Plan changes are not available. All accounts use the free plan.");
-    }
-  }
-
   /**
-   * Plans visible to the user (free-only: current plan only).
+   * Plans visible to the user (all active plans).
    */
-  async getPlansForUser(userId: string): Promise<Plan[]> {
-    const { plan } = await this.getActiveSubscription(userId);
-    return [plan];
+  async getPlansForUser(_userId: string): Promise<Plan[]> {
+    const plans = await this.planRepository.fetchActivePlans();
+    return [...plans].sort((a, b) => a.price - b.price);
   }
 
   /**
@@ -147,8 +141,6 @@ export class SubscriptionService {
     if (!newPlan || !newPlan.isActive) {
       throw new NotFoundError("Plan not found or inactive");
     }
-
-    this.assertPaidPlansDisabled(newPlan);
 
     const previousPlan = await this.planRepository.findById(subscription.planId);
     const previousPlanName = previousPlan?.name ?? subscription.planId;
@@ -333,7 +325,32 @@ export class SubscriptionService {
       throw new NotFoundError("Subscription not found");
     }
 
-    throw new BadRequestError("Subscription cancellation is not available. All accounts use the free plan.");
+    const currentPlan = await this.planRepository.findById(subscription.planId);
+    if (subscription.status === SubscriptionStatus.FREE || (currentPlan && this.isFreePlan(currentPlan))) {
+      throw new BadRequestError("Cannot cancel free subscription");
+    }
+
+    if (subscription.providerSubscriptionId) {
+      await this.stripeFacade.setCancelAtPeriodEnd(subscription.providerSubscriptionId, true);
+    }
+
+    const updated = await this.subscriptionRepository.update(subscription._id!, {
+      cancelAtPeriodEnd: true,
+    });
+    if (!updated) {
+      throw new NotFoundError("Subscription not found");
+    }
+
+    captureServerEvent(ServerAnalyticsEvents.SUBSCRIPTION_CHANGED, {
+      userId,
+      properties: {
+        previous_plan: currentPlan?.name ?? subscription.planId,
+        new_plan: "cancelled_at_period_end",
+        plan_id: subscription.planId,
+      },
+    });
+
+    return updated;
   }
 
   /**

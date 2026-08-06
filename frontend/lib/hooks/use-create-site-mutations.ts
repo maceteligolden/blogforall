@@ -63,7 +63,7 @@ export function useCreateSiteMutations(options: UseCreateSiteMutationsOptions = 
         apiMessage ??
         (res?.code === "ECONNREFUSED" || res?.message?.includes("Network")
           ? "Cannot reach server. Please check that the backend is running."
-          : "Failed to create site");
+          : "Failed to create workspace");
       onError?.(message);
     },
   });

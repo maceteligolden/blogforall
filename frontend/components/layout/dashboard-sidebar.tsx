@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MessageSquare, Plus, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Check, MessageSquare, Pencil, Plus, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { DASHBOARD_NAV_ITEMS } from "@/lib/config/dashboard-nav";
 import { SiteSwitcher } from "@/components/sites/site-switcher";
@@ -13,6 +14,7 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { formatThreadTimestamp } from "@/lib/utils/format-thread-timestamp";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import { SidebarTooltip } from "@/components/ui/sidebar-tooltip";
+import { useRenameThread } from "@/lib/hooks/use-rename-thread";
 
 interface DashboardSidebarProps {
   mobileOpen?: boolean;
@@ -31,6 +33,11 @@ export function DashboardSidebar({
   const router = useRouter();
   const { currentSiteId } = useAuthStore();
   const { threadId, setThreadId, clearLiveArtifacts } = useOrchestrator();
+  const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const renameMutation = useRenameThread(currentSiteId);
 
   const threadsQuery = useQuery({
     queryKey: currentSiteId
@@ -41,6 +48,13 @@ export function DashboardSidebar({
     refetchOnWindowFocus: false,
   });
 
+  useEffect(() => {
+    if (editingThreadId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [editingThreadId]);
+
   const handleNewChat = () => {
     clearLiveArtifacts();
     setThreadId(null);
@@ -49,10 +63,65 @@ export function DashboardSidebar({
   };
 
   const handleSelectThread = (id: string) => {
+    if (editingThreadId) return;
     clearLiveArtifacts();
     setThreadId(id);
     router.push(`/dashboard?thread=${encodeURIComponent(id)}`);
     onMobileClose?.();
+  };
+
+  const startRename = (id: string, currentTitle: string) => {
+    setEditingThreadId(id);
+    setEditTitle(currentTitle || "New conversation");
+    setRenameError(null);
+    renameMutation.reset();
+  };
+
+  const cancelRename = () => {
+    setEditingThreadId(null);
+    setEditTitle("");
+    setRenameError(null);
+    renameMutation.reset();
+  };
+
+  const submitRename = () => {
+    if (!editingThreadId || !currentSiteId) return;
+    const trimmed = editTitle.trim();
+    if (!trimmed) {
+      setRenameError("Name cannot be empty");
+      return;
+    }
+    const original = threadsQuery.data?.find((t) => t._id === editingThreadId)?.title ?? "";
+    if ((original || "New conversation") === trimmed) {
+      cancelRename();
+      return;
+    }
+    setRenameError(null);
+    renameMutation.mutate(
+      { threadId: editingThreadId, title: trimmed },
+      {
+        onSuccess: () => {
+          setEditingThreadId(null);
+          setEditTitle("");
+          setRenameError(null);
+        },
+        onError: (err: unknown) => {
+          const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
+            ?.message;
+          setRenameError(apiMessage ?? "Could not rename conversation.");
+        },
+      }
+    );
+  };
+
+  const handleRenameKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitRename();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelRename();
+    }
   };
 
   const isActiveNav = (href: string) => {
@@ -146,6 +215,7 @@ export function DashboardSidebar({
             {threadsQuery.data?.map((t) => {
               const displayTitle = t.title || "New conversation";
               const isActive = pathname === "/dashboard" && threadId === t._id;
+              const isEditing = editingThreadId === t._id;
 
               if (collapsed) {
                 const initial = displayTitle.charAt(0).toUpperCase();
@@ -170,13 +240,55 @@ export function DashboardSidebar({
                 );
               }
 
+              if (isEditing) {
+                return (
+                  <li key={t._id} className="rounded-md bg-gray-900/80 px-2 py-1.5 border-l-2 border-primary">
+                    <div className="flex items-center gap-1">
+                      <input
+                        ref={renameInputRef}
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        onKeyDown={handleRenameKeyDown}
+                        disabled={renameMutation.isPending}
+                        aria-label="Conversation name"
+                        className="flex-1 min-w-0 px-1.5 py-1 text-sm bg-gray-950 border border-gray-700 rounded text-white focus:outline-none focus:border-primary disabled:opacity-60"
+                      />
+                      <button
+                        type="button"
+                        onClick={submitRename}
+                        disabled={renameMutation.isPending}
+                        aria-label="Save conversation name"
+                        className="p-1 rounded text-primary hover:bg-gray-800 disabled:opacity-60"
+                      >
+                        <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelRename}
+                        disabled={renameMutation.isPending}
+                        aria-label="Cancel rename"
+                        className="p-1 rounded text-gray-400 hover:bg-gray-800 disabled:opacity-60"
+                      >
+                        <X className="w-3.5 h-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
+                    {renameError && (
+                      <p className="mt-1 text-xs text-red-400" role="alert">
+                        {renameError}
+                      </p>
+                    )}
+                  </li>
+                );
+              }
+
               return (
-                <li key={t._id}>
+                <li key={t._id} className="group relative">
                   <button
                     type="button"
                     onClick={() => handleSelectThread(t._id)}
                     className={cn(
-                      "w-full text-left rounded-md px-3 py-2 transition-colors",
+                      "w-full text-left rounded-md px-3 py-2 pr-8 transition-colors",
                       isActive
                         ? "bg-primary/10 text-white border-l-2 border-primary"
                         : "text-gray-400 hover:bg-gray-900 hover:text-white border-l-2 border-transparent"
@@ -184,6 +296,17 @@ export function DashboardSidebar({
                   >
                     <p className="text-sm font-medium truncate">{displayTitle}</p>
                     <p className="text-xs text-gray-500">{formatThreadTimestamp(t.last_activity_at)}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startRename(t._id, displayTitle);
+                    }}
+                    aria-label={`Rename ${displayTitle}`}
+                    className="absolute right-1.5 top-2 p-1 rounded text-gray-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-white hover:bg-gray-800 transition-opacity"
+                  >
+                    <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </li>
               );

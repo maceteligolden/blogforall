@@ -206,6 +206,7 @@ export const API_ENDPOINTS = {
     KNOWLEDGE_KEY: (siteId: string, key: string) => `/sites/${siteId}/knowledge/${encodeURIComponent(key)}`,
     KNOWLEDGE_GAPS: (siteId: string) => `/sites/${siteId}/knowledge/gaps`,
     DECISIONS_NEXT: (siteId: string) => `/sites/${siteId}/decisions/next`,
+    DECISIONS_PROPOSE: (siteId: string) => `/sites/${siteId}/decisions/propose`,
     ENSURE_DEFAULT_CAMPAIGN: (siteId: string) => `/sites/${siteId}/default-campaign/ensure`,
   },
   /**
@@ -259,5 +260,10 @@ export const QUERY_KEYS = {
   ORCHESTRATOR_KNOWLEDGE: (siteId: string) => ["orchestrator", siteId, "knowledge"],
   WORKSPACE_MEMORY: (siteId: string) => ["memory", siteId],
   WORKSPACE_STRATEGY: (siteId: string) => ["memory", siteId, "strategy"],
+  CONTENT_THEMES: (siteId: string) => ["memory", siteId, "content-themes"],
+  STRATEGIC_STRATEGY: (siteId: string) => ["strategic", siteId, "strategy"],
+  STRATEGIC_GAPS: (siteId: string) => ["strategic", siteId, "gaps"],
+  STRATEGIC_DECISIONS: (siteId: string) => ["strategic", siteId, "decisions"],
+  CAMPAIGN_INTELLIGENCE: (id: string) => ["campaigns", id, "intelligence"],
   TOKEN_USAGE: ["usage", "tokens"],
 };

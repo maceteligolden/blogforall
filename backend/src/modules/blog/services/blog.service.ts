@@ -116,10 +116,19 @@ export class BlogService {
     }
 
     let campaignId = input.campaign_id;
+    let strategyId = input.strategy_id;
     if (env.orchestrator.strategicIntelligenceEnabled) {
       if (!campaignId) {
         const def = await this.campaignService.ensureDefaultCampaign(siteId, authorId);
         campaignId = def._id!.toString();
+        if (!strategyId) strategyId = def.strategy_id;
+      } else if (!strategyId) {
+        try {
+          const campaign = await this.campaignService.getCampaignById(campaignId, siteId);
+          strategyId = campaign.strategy_id;
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -133,7 +142,7 @@ export class BlogService {
       slug,
       status: input.status || BlogStatus.DRAFT,
       campaign_id: campaignId,
-      strategy_id: input.strategy_id,
+      strategy_id: strategyId,
     });
 
     logger.info("Blog created", { blogId: blog._id, authorId, siteId }, "BlogService");
