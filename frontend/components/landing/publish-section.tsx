@@ -32,10 +32,7 @@ export function PublishSection() {
                 <IllustrationApi className="max-w-sm w-full" />
               </div>
               <p className="text-center text-xs text-primary/90 mt-2 mb-4">Your frontend, Bloggr content</p>
-              <Link
-                href="/docs"
-                className="inline-block text-sm text-primary hover:text-primary/80 transition-colors"
-              >
+              <Link href="/docs" className="inline-block text-sm text-primary hover:text-primary/80 transition-colors">
                 {LANDING_CTAS.readDocs}
               </Link>
             </div>

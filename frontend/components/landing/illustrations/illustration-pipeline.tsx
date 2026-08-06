@@ -2,13 +2,7 @@ import { cn } from "@/lib/utils/cn";
 import { IllustrationShell } from "./illustration-shell";
 
 /** Strategist pipeline — research → draft → quality → publish loop. */
-export function IllustrationPipeline({
-  className = "",
-  animated = true,
-}: {
-  className?: string;
-  animated?: boolean;
-}) {
+export function IllustrationPipeline({ className = "", animated = true }: { className?: string; animated?: boolean }) {
   const steps = [
     { x: 28, label: "Research" },
     { x: 84, label: "Draft" },
@@ -64,7 +58,15 @@ export function IllustrationPipeline({
           r="6"
           className={cn("fill-primary", animated && "motion-safe:animate-landing-pulse-soft")}
         />
-        <text x="120" y="150" textAnchor="middle" className="fill-primary/80" fontSize="8" fontFamily="system-ui" fontWeight="600">
+        <text
+          x="120"
+          y="150"
+          textAnchor="middle"
+          className="fill-primary/80"
+          fontSize="8"
+          fontFamily="system-ui"
+          fontWeight="600"
+        >
           One loop
         </text>
       </svg>

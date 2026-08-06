@@ -2,13 +2,7 @@ import { cn } from "@/lib/utils/cn";
 import { IllustrationShell } from "./illustration-shell";
 
 /** Onboarding as a flowing setup process: URL → scan → brand memory. */
-export function IllustrationOnboard({
-  className = "",
-  animated = true,
-}: {
-  className?: string;
-  animated?: boolean;
-}) {
+export function IllustrationOnboard({ className = "", animated = true }: { className?: string; animated?: boolean }) {
   return (
     <IllustrationShell className={className} animated={animated}>
       <svg viewBox="0 0 240 176" className="h-full w-full" fill="none" aria-hidden>
@@ -37,7 +31,15 @@ export function IllustrationOnboard({
 
         {/* Step 1 — URL */}
         <g>
-          <rect x="16" y="28" width="56" height="40" rx="10" className="fill-white/[0.06] stroke-white/15" strokeWidth="1" />
+          <rect
+            x="16"
+            y="28"
+            width="56"
+            height="40"
+            rx="10"
+            className="fill-white/[0.06] stroke-white/15"
+            strokeWidth="1"
+          />
           <circle cx="30" cy="40" r="5" className="fill-primary/80" />
           <rect x="40" y="37" width="22" height="3" rx="1.5" className="fill-white/35" />
           <rect x="26" y="50" width="36" height="2.5" rx="1" className="fill-white/15" />
@@ -49,8 +51,25 @@ export function IllustrationOnboard({
 
         {/* Step 2 — Scan */}
         <g>
-          <rect x="96" y="68" width="56" height="40" rx="10" className="fill-white/[0.07] stroke-primary/35" strokeWidth="1" />
-          <rect x="108" y="80" width="32" height="16" rx="3" className="stroke-primary/50" strokeWidth="1.2" fill="rgb(30 58 138 / 0.25)" />
+          <rect
+            x="96"
+            y="68"
+            width="56"
+            height="40"
+            rx="10"
+            className="fill-white/[0.07] stroke-primary/35"
+            strokeWidth="1"
+          />
+          <rect
+            x="108"
+            y="80"
+            width="32"
+            height="16"
+            rx="3"
+            className="stroke-primary/50"
+            strokeWidth="1.2"
+            fill="rgb(30 58 138 / 0.25)"
+          />
           <path
             d="M112 88h24"
             className={cn("stroke-primary", animated && "motion-safe:animate-landing-line-draw")}
@@ -72,7 +91,15 @@ export function IllustrationOnboard({
 
         {/* Step 3 — Brand memory */}
         <g>
-          <rect x="168" y="108" width="56" height="44" rx="10" className="fill-white/[0.08] stroke-white/20" strokeWidth="1" />
+          <rect
+            x="168"
+            y="108"
+            width="56"
+            height="44"
+            rx="10"
+            className="fill-white/[0.08] stroke-white/20"
+            strokeWidth="1"
+          />
           <rect x="178" y="118" width="28" height="3" rx="1.5" className="fill-primary/60" />
           <rect x="178" y="126" width="36" height="2.5" rx="1" className="fill-white/20" />
           <rect x="178" y="132" width="30" height="2.5" rx="1" className="fill-white/15" />

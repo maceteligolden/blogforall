@@ -1,18 +1,8 @@
 import { Reveal } from "./reveal";
 import { HOW_IT_WORKS } from "@/lib/landing/landing-copy";
-import {
-  IllustrationOnboard,
-  IllustrationPlan,
-  IllustrationDraft,
-  IllustrationShip,
-} from "./illustrations";
+import { IllustrationOnboard, IllustrationPlan, IllustrationDraft, IllustrationShip } from "./illustrations";
 
-const STEP_ILLUSTRATIONS = [
-  IllustrationOnboard,
-  IllustrationPlan,
-  IllustrationDraft,
-  IllustrationShip,
-] as const;
+const STEP_ILLUSTRATIONS = [IllustrationOnboard, IllustrationPlan, IllustrationDraft, IllustrationShip] as const;
 
 export function HowItWorksSection() {
   return (

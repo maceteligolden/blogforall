@@ -10,12 +10,7 @@ type IllustrationShellProps = {
 };
 
 /** Premium glass stage for landing motifs — ambient glow + soft float. */
-export function IllustrationShell({
-  children,
-  className,
-  animated = true,
-  wide = false,
-}: IllustrationShellProps) {
+export function IllustrationShell({ children, className, animated = true, wide = false }: IllustrationShellProps) {
   return (
     <div
       className={cn(

@@ -1,16 +1,8 @@
 import { Reveal } from "./reveal";
 import { WHY_DIFFERENT } from "@/lib/landing/landing-copy";
-import {
-  IllustrationConversation,
-  IllustrationMemory,
-  IllustrationPipeline,
-} from "./illustrations";
+import { IllustrationConversation, IllustrationMemory, IllustrationPipeline } from "./illustrations";
 
-const PILLAR_ILLUSTRATIONS = [
-  IllustrationConversation,
-  IllustrationMemory,
-  IllustrationPipeline,
-] as const;
+const PILLAR_ILLUSTRATIONS = [IllustrationConversation, IllustrationMemory, IllustrationPipeline] as const;
 
 export function WhyDifferentSection() {
   return (

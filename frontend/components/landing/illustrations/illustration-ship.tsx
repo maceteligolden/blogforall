@@ -2,19 +2,21 @@ import { cn } from "@/lib/utils/cn";
 import { IllustrationShell } from "./illustration-shell";
 
 /** Ship — draft moves onto the calendar and marks ready. */
-export function IllustrationShip({
-  className = "",
-  animated = true,
-}: {
-  className?: string;
-  animated?: boolean;
-}) {
+export function IllustrationShip({ className = "", animated = true }: { className?: string; animated?: boolean }) {
   return (
     <IllustrationShell className={className} animated={animated}>
       <svg viewBox="0 0 240 176" className="h-full w-full" fill="none" aria-hidden>
         {/* Draft card sliding in */}
         <g className={animated ? "motion-safe:animate-landing-float" : undefined}>
-          <rect x="16" y="52" width="72" height="56" rx="10" className="fill-white/[0.07] stroke-white/15" strokeWidth="1" />
+          <rect
+            x="16"
+            y="52"
+            width="72"
+            height="56"
+            rx="10"
+            className="fill-white/[0.07] stroke-white/15"
+            strokeWidth="1"
+          />
           <rect x="28" y="66" width="40" height="3" rx="1.5" className="fill-white/30" />
           <rect x="28" y="74" width="48" height="2.5" rx="1" className="fill-white/15" />
           <rect x="28" y="82" width="36" height="2.5" rx="1" className="fill-white/10" />
@@ -27,13 +29,35 @@ export function IllustrationShip({
           strokeWidth="2"
           strokeLinecap="round"
         />
-        <path d="M116 74 L126 80 L116 86" className="stroke-primary" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M116 74 L126 80 L116 86"
+          className="stroke-primary"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
 
         {/* Calendar */}
-        <rect x="132" y="24" width="92" height="128" rx="12" className="fill-white/[0.05] stroke-primary/30" strokeWidth="1" />
+        <rect
+          x="132"
+          y="24"
+          width="92"
+          height="128"
+          rx="12"
+          className="fill-white/[0.05] stroke-primary/30"
+          strokeWidth="1"
+        />
         <rect x="132" y="24" width="92" height="28" rx="12" className="fill-primary/20" />
         <rect x="132" y="40" width="92" height="12" className="fill-primary/20" />
-        <text x="178" y="42" textAnchor="middle" className="fill-white/70" fontSize="9" fontFamily="system-ui" fontWeight="600">
+        <text
+          x="178"
+          y="42"
+          textAnchor="middle"
+          className="fill-white/70"
+          fontSize="9"
+          fontFamily="system-ui"
+          fontWeight="600"
+        >
           August
         </text>
 
@@ -68,7 +92,13 @@ export function IllustrationShip({
           r="8"
           className={cn("fill-primary", animated && "motion-safe:animate-landing-pulse-soft")}
         />
-        <path d="M183 91l2.5 2.5 5-5" className="stroke-white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M183 91l2.5 2.5 5-5"
+          className="stroke-white"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     </IllustrationShell>
   );

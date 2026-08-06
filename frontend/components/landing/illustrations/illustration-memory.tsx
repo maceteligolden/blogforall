@@ -2,13 +2,7 @@ import { cn } from "@/lib/utils/cn";
 import { IllustrationShell } from "./illustration-shell";
 
 /** Business memory — layered context that stays loaded. */
-export function IllustrationMemory({
-  className = "",
-  animated = true,
-}: {
-  className?: string;
-  animated?: boolean;
-}) {
+export function IllustrationMemory({ className = "", animated = true }: { className?: string; animated?: boolean }) {
   return (
     <IllustrationShell className={className} animated={animated}>
       <svg viewBox="0 0 240 176" className="h-full w-full" fill="none" aria-hidden>
@@ -33,7 +27,15 @@ export function IllustrationMemory({
           strokeWidth="1"
           transform="rotate(3 120 86)"
         />
-        <rect x="48" y="44" width="144" height="108" rx="14" className="fill-white/[0.08] stroke-primary/30" strokeWidth="1.2" />
+        <rect
+          x="48"
+          y="44"
+          width="144"
+          height="108"
+          rx="14"
+          className="fill-white/[0.08] stroke-primary/30"
+          strokeWidth="1.2"
+        />
 
         <circle cx="72" cy="68" r="10" className="fill-primary/70" />
         <rect x="90" y="62" width="56" height="3.5" rx="1.5" className="fill-white/35" />
@@ -45,7 +47,15 @@ export function IllustrationMemory({
           { y: 136, label: "Offers", w: 62 },
         ].map((row, i) => (
           <g key={row.label}>
-            <rect x="64" y={row.y} width="112" height="14" rx="5" className="fill-white/[0.05] stroke-white/10" strokeWidth="1" />
+            <rect
+              x="64"
+              y={row.y}
+              width="112"
+              height="14"
+              rx="5"
+              className="fill-white/[0.05] stroke-white/10"
+              strokeWidth="1"
+            />
             <text x="72" y={row.y + 10} className="fill-primary/70" fontSize="7" fontFamily="system-ui">
               {row.label}
             </text>

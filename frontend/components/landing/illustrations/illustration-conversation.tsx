@@ -16,7 +16,15 @@ export function IllustrationConversation({
         <rect x="32" y="38" width="40" height="3" rx="1.5" className="fill-white/45" />
         <rect x="32" y="45" width="28" height="2.5" rx="1" className="fill-white/30" />
 
-        <rect x="70" y="72" width="96" height="40" rx="14" className="fill-white/[0.08] stroke-white/15" strokeWidth="1" />
+        <rect
+          x="70"
+          y="72"
+          width="96"
+          height="40"
+          rx="14"
+          className="fill-white/[0.08] stroke-white/15"
+          strokeWidth="1"
+        />
         <rect x="84" y="84" width="56" height="3" rx="1.5" className="fill-white/30" />
         <rect x="84" y="92" width="68" height="2.5" rx="1" className="fill-white/15" />
         <rect x="84" y="100" width="44" height="2.5" rx="1" className="fill-white/12" />
@@ -28,7 +36,15 @@ export function IllustrationConversation({
           fill="none"
         />
 
-        <rect x="176" y="20" width="48" height="56" rx="10" className="fill-primary/15 stroke-primary/40" strokeWidth="1" />
+        <rect
+          x="176"
+          y="20"
+          width="48"
+          height="56"
+          rx="10"
+          className="fill-primary/15 stroke-primary/40"
+          strokeWidth="1"
+        />
         <rect x="186" y="32" width="28" height="3" rx="1.5" className="fill-white/35" />
         <rect x="186" y="40" width="20" height="2.5" rx="1" className="fill-white/15" />
         <rect x="186" y="52" width="24" height="12" rx="4" className="fill-primary/70" />

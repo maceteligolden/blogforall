@@ -2,13 +2,7 @@ import { cn } from "@/lib/utils/cn";
 import { IllustrationShell } from "./illustration-shell";
 
 /** Campaigns — messaging lanes feeding a shared publish timeline. */
-export function IllustrationCampaign({
-  className = "",
-  animated = true,
-}: {
-  className?: string;
-  animated?: boolean;
-}) {
+export function IllustrationCampaign({ className = "", animated = true }: { className?: string; animated?: boolean }) {
   return (
     <IllustrationShell className={className} animated={animated} wide>
       <svg viewBox="0 0 320 200" className="h-full w-full" fill="none" aria-hidden>
@@ -45,7 +39,15 @@ export function IllustrationCampaign({
         ))}
 
         {/* Timeline rail */}
-        <rect x="244" y="32" width="60" height="148" rx="12" className="fill-white/[0.05] stroke-primary/30" strokeWidth="1" />
+        <rect
+          x="244"
+          y="32"
+          width="60"
+          height="148"
+          rx="12"
+          className="fill-white/[0.05] stroke-primary/30"
+          strokeWidth="1"
+        />
         <text x="274" y="52" textAnchor="middle" className="fill-white/50" fontSize="8" fontFamily="system-ui">
           Calendar
         </text>
@@ -53,14 +55,16 @@ export function IllustrationCampaign({
 
         {[0, 1, 2, 3, 4].map((i) => (
           <g key={i} transform={`translate(256 ${76 + i * 20})`}>
-            <circle
-              cx="6"
-              cy="6"
-              r="4"
-              className={i < 3 ? "fill-primary" : "fill-white/20"}
-            />
+            <circle cx="6" cy="6" r="4" className={i < 3 ? "fill-primary" : "fill-white/20"} />
             {i < 4 && <path d="M6 10 V20" className="stroke-white/15" strokeWidth="1" />}
-            <rect x="16" y="3" width={i === 1 ? 28 : 22} height="6" rx="3" className={i < 3 ? "fill-primary/50" : "fill-white/10"} />
+            <rect
+              x="16"
+              y="3"
+              width={i === 1 ? 28 : 22}
+              height="6"
+              rx="3"
+              className={i < 3 ? "fill-primary/50" : "fill-white/10"}
+            />
           </g>
         ))}
 
