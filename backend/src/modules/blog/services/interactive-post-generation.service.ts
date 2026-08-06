@@ -15,10 +15,7 @@ import { buildResearchBrief, formatResearchBriefForPrompt } from "../ai/contract
 import { FirstPartyPriorsService } from "../ai/first-party-priors.service";
 import { routeResearchNotes, formatRoutedNotesForPrompt } from "../ai/contracts/signal-router";
 import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
-import {
-  formatBusinessContextForPrompt,
-  formatBusinessOneLiner,
-} from "../../../shared/utils/format-business-context";
+import { formatBusinessContextForPrompt, formatBusinessOneLiner } from "../../../shared/utils/format-business-context";
 
 export const INTERACTIVE_POST_TYPES = [
   "article",
@@ -235,9 +232,7 @@ Rules:
     const urls = [...(enrichment.links ?? []), ...(enrichment.example_urls ?? [])].filter(Boolean).slice(0, 5);
 
     const archetype =
-      coerceContentArchetype(input.topic.post_type) ||
-      coerceContentArchetype(input.topic.title) ||
-      "article";
+      coerceContentArchetype(input.topic.post_type) || coerceContentArchetype(input.topic.title) || "article";
     const styleProfile = resolveStyleProfile({
       archetype,
       variant: enrichment.style_variant,

@@ -96,10 +96,7 @@ export class ResearchLiteService {
     }
 
     const queries = narrativeOnly || research_brief.scope.kind === "brand_owned" ? [] : research_brief.search_queries;
-    const rawNotes =
-      narrativeOnly || !queries.length
-        ? []
-        : await this.tavily.search(queries[0]!, input.signal);
+    const rawNotes = narrativeOnly || !queries.length ? [] : await this.tavily.search(queries[0]!, input.signal);
 
     const routed = routeResearchNotes(
       rawNotes.map((n) => ({
@@ -109,11 +106,18 @@ export class ResearchLiteService {
         source: "web" as const,
       })),
       style,
-      { maxKeep: MVP_LOCKS.researchSourcesLiteMax, mustInclude: input.must_include, personalNotes: input.personal_notes }
+      {
+        maxKeep: MVP_LOCKS.researchSourcesLiteMax,
+        mustInclude: input.must_include,
+        personalNotes: input.personal_notes,
+      }
     );
 
     // Extract top URLs for denser notes
-    const extractUrls = routed.map((n) => n.url).filter((u): u is string => Boolean(u && /^https?:/i.test(u))).slice(0, 3);
+    const extractUrls = routed
+      .map((n) => n.url)
+      .filter((u): u is string => Boolean(u && /^https?:/i.test(u)))
+      .slice(0, 3);
     const extracted = extractUrls.length ? await this.tavily.extract(extractUrls, input.signal) : [];
     const byUrl = new Map(extracted.map((e) => [e.url, e]));
 

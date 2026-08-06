@@ -36,9 +36,7 @@ export function formatBusinessContextForPrompt(
   if (s.publishing_channels.length) lines.push(`Publishing channels: ${s.publishing_channels.join(", ")}`);
 
   if (s.competitors.length) {
-    const comp = s.competitors
-      .map((c) => (c.notes?.trim() ? `${c.name} — ${c.notes.trim()}` : c.name))
-      .join("; ");
+    const comp = s.competitors.map((c) => (c.notes?.trim() ? `${c.name} — ${c.notes.trim()}` : c.name)).join("; ");
     lines.push(`Competitors: ${comp}`);
   }
 

@@ -79,7 +79,10 @@ export function formatProposalSummary(proposal: WorkspaceOnboardingProposal, web
   if (proposal.industries?.length) lines.push(`• Industries: ${proposal.industries.join("; ")}`);
   if (proposal.customers?.length) {
     lines.push(
-      `• Customers: ${proposal.customers.map((c) => c.label || c.who).filter(Boolean).join("; ")}`
+      `• Customers: ${proposal.customers
+        .map((c) => c.label || c.who)
+        .filter(Boolean)
+        .join("; ")}`
     );
   } else if (proposal.target_audience?.length) {
     lines.push(`• Audience: ${proposal.target_audience.join("; ")}`);

@@ -94,10 +94,7 @@ function isoWeekKey(d = new Date()): string {
   return `${date.getUTCFullYear()}-W${week}`;
 }
 
-function pickVariant(
-  archetype: ContentArchetype,
-  input: StyleProfileResolveInput
-): StyleVariant {
+function pickVariant(archetype: ContentArchetype, input: StyleProfileResolveInput): StyleVariant {
   const allowed = VARIANTS_BY_ARCHETYPE[archetype];
   if (input.variant && (STYLE_VARIANTS as readonly string[]).includes(input.variant)) {
     const v = input.variant as StyleVariant;
@@ -127,12 +124,14 @@ function pickVariant(
     return "framework_essay";
   }
 
-  const seed =
-    input.seed ?? `${input.site_id ?? "site"}|${input.topic ?? "topic"}|${isoWeekKey()}`;
+  const seed = input.seed ?? `${input.site_id ?? "site"}|${input.topic ?? "topic"}|${isoWeekKey()}`;
   return allowed[hashSeed(seed) % allowed.length]!;
 }
 
-function proseFor(archetype: ContentArchetype, variant: StyleVariant): {
+function proseFor(
+  archetype: ContentArchetype,
+  variant: StyleVariant
+): {
   lexicon: LexiconPolicy;
   craft: ProseCraft;
   do_sentences: string[];
@@ -168,8 +167,7 @@ function proseFor(archetype: ContentArchetype, variant: StyleVariant): {
           "It is important to configure your billing settings appropriately.",
           "Leveraging proper troubleshooting methodologies ensures success.",
         ],
-        section_voice_notes:
-          "Each H2 is an action. Body = do this, what done looks like, one pitfall. Minimal prose.",
+        section_voice_notes: "Each H2 is an action. Body = do this, what done looks like, one pitfall. Minimal prose.",
         research_needs: ["steps_ui_paths"],
       };
     case "coach_walkthrough":
@@ -358,8 +356,7 @@ function proseFor(archetype: ContentArchetype, variant: StyleVariant): {
           "The client achieved remarkable results by leveraging our solution.",
           "They were delighted with the seamless journey to success.",
         ],
-        section_voice_notes:
-          "Customer is hero. Headers state problem/approach/outcome. Never invent metrics.",
+        section_voice_notes: "Customer is hero. Headers state problem/approach/outcome. Never invent metrics.",
         research_needs: ["metrics_outcomes", "lived_user_words"],
       };
     case "field_manual":

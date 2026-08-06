@@ -167,10 +167,7 @@ describe("onboarding interview one-field-at-a-time", () => {
 
   it("advances to customers after description, model, and industries are captured", () => {
     const multi = "Nice. Who is your audience? What tone should we use?";
-    const { reply, nextField, repaired } = ensureOnboardingInterviewReply(
-      multi,
-      memoryWithBusinessDescription()
-    );
+    const { reply, nextField, repaired } = ensureOnboardingInterviewReply(multi, memoryWithBusinessDescription());
     expect(repaired).toBe(true);
     expect(nextField).toBe("customers");
     expect(countQuestionMarks(reply)).toBe(1);

@@ -1901,13 +1901,11 @@ export class OrchestratorService {
       strategic: {
         business_description: businessDescription,
         industries: Array.isArray(strategic.industries) ? strategic.industries : undefined,
-        business_model:
-          typeof strategic.business_model === "string" ? strategic.business_model : undefined,
+        business_model: typeof strategic.business_model === "string" ? strategic.business_model : undefined,
         target_audience: audience.length ? audience : seededCustomers.map((c) => c.label || c.who),
         customers: seededCustomers,
         brand_voice: brandVoice,
-        brand_negatives:
-          typeof strategic.brand_negatives === "string" ? strategic.brand_negatives : undefined,
+        brand_negatives: typeof strategic.brand_negatives === "string" ? strategic.brand_negatives : undefined,
         business_goals: goals.length ? goals : ["Grow audience through content"],
         seo_priorities: Array.isArray(strategic.seo_priorities) ? strategic.seo_priorities : [],
         publishing_channels: Array.isArray(strategic.publishing_channels) ? strategic.publishing_channels : [],

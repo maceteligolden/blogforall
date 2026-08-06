@@ -24,9 +24,7 @@ export function migrateStrategicMemory(
     s.business_description = s.business_type.trim();
   }
 
-  s.target_audience = Array.isArray(s.target_audience)
-    ? s.target_audience.filter((a) => !!a?.trim())
-    : [];
+  s.target_audience = Array.isArray(s.target_audience) ? s.target_audience.filter((a) => !!a?.trim()) : [];
 
   if (!customersHaveContent(s.customers)) {
     s.customers = normalizeCustomers(s.customers, s.target_audience);

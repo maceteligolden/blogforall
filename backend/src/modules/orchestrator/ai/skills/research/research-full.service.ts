@@ -114,8 +114,7 @@ export class ResearchFullService {
       };
     }
 
-    const queries =
-      narrativeOnly || research_brief.scope.kind === "brand_owned" ? [] : research_brief.search_queries;
+    const queries = narrativeOnly || research_brief.scope.kind === "brand_owned" ? [] : research_brief.search_queries;
 
     emit?.({
       phase: "research_planning",
@@ -168,7 +167,7 @@ export class ResearchFullService {
     const extracted = extractUrls.length ? await this.tavily.extract(extractUrls, input.signal) : [];
     const byUrl = new Map(extracted.map((e) => [e.url, e]));
 
-    let notes = routed.map((n, i) => {
+    const notes = routed.map((n, i) => {
       const ex = n.url ? byUrl.get(n.url) : undefined;
       const qLen = Math.max(1, research_brief.must_answer.length);
       return {
@@ -215,8 +214,7 @@ export class ResearchFullService {
       coverage_retries += 1;
       const missing = built.package.coverage.missing_areas;
       const gapQuestion =
-        research_brief.must_answer.find((_, i) => missing.includes(`q${i + 1}`)) ||
-        `${topic} overview sources`;
+        research_brief.must_answer.find((_, i) => missing.includes(`q${i + 1}`)) || `${topic} overview sources`;
       emit?.({
         phase: "research_gathering",
         message: "Coverage below minimum — targeted retry for unanswered questions",

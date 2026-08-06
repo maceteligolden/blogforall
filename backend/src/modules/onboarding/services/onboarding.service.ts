@@ -33,9 +33,7 @@ const SETUP_ITEMS: Array<{ id: string; label: string; check: (m: Record<string, 
     id: "business_description",
     label: "What your business does",
     check: (m) => {
-      const s = m?.strategic as
-        | { business_description?: string; business_type?: string }
-        | undefined;
+      const s = m?.strategic as { business_description?: string; business_type?: string } | undefined;
       return Boolean(s?.business_description?.trim() || s?.business_type?.trim());
     },
   },
@@ -43,9 +41,7 @@ const SETUP_ITEMS: Array<{ id: string; label: string; check: (m: Record<string, 
     id: "customers",
     label: "Who you write for",
     check: (m) => {
-      const s = m?.strategic as
-        | { customers?: Array<{ who?: string }>; target_audience?: string[] }
-        | undefined;
+      const s = m?.strategic as { customers?: Array<{ who?: string }>; target_audience?: string[] } | undefined;
       const hasCustomers = Array.isArray(s?.customers) && s.customers.some((c) => !!c?.who?.trim());
       const hasLabels = Array.isArray(s?.target_audience) && s.target_audience.length > 0;
       return hasCustomers || hasLabels;

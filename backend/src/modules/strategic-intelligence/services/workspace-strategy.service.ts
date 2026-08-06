@@ -78,7 +78,8 @@ export class WorkspaceStrategyService {
     const avoid = strategic.brand_negatives?.trim();
 
     const thin =
-      (!strategic.business_description && !strategic.business_type) &&
+      !strategic.business_description &&
+      !strategic.business_type &&
       !strategic.target_audience?.length &&
       !strategic.customers.length;
     const source: WorkspaceStrategySource = opts?.source ?? (thin ? "stub" : gaps.length > 8 ? "ai" : "onboarding");
@@ -93,9 +94,7 @@ export class WorkspaceStrategyService {
     }
     if (avoid) constraints.push(`Avoid brand negatives: ${avoid}`);
     if (strategic.competitors.length) {
-      constraints.push(
-        `Differentiate from competitors: ${strategic.competitors.map((c) => c.name).join(", ")}`
-      );
+      constraints.push(`Differentiate from competitors: ${strategic.competitors.map((c) => c.name).join(", ")}`);
     }
     if (!constraints.length) constraints.push("Do not invent unsupported claims");
 

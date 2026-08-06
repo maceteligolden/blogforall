@@ -1,11 +1,7 @@
 /** Draft-prompt helpers for post_format (voice) and content_archetype (Animalz shape). */
 
 import { coerceContentArchetype, outlinePromptForArchetype } from "./contracts/content-archetype";
-import {
-  formatStyleProfileForPrompt,
-  resolveStyleProfile,
-  type StyleProfile,
-} from "./contracts/style-profile";
+import { formatStyleProfileForPrompt, resolveStyleProfile, type StyleProfile } from "./contracts/style-profile";
 import { formatResearchBriefForPrompt, type ResearchBrief } from "./contracts/research-brief";
 
 function isPersonalVoiceFormat(format?: string): boolean {

@@ -86,8 +86,7 @@ function isFieldMissing(memory: WorkspaceMemory, key: OnboardingFieldKey): boole
       return !customersHaveContent(s.customers);
     case "target_audience":
       return (
-        !customersHaveContent(s.customers) &&
-        (!s.target_audience?.length || s.target_audience.every((a) => !a?.trim()))
+        !customersHaveContent(s.customers) && (!s.target_audience?.length || s.target_audience.every((a) => !a?.trim()))
       );
     case "brand_voice":
       return !s.brand_voice?.trim();

@@ -195,8 +195,7 @@ ${ingest.text.slice(0, MAX_TEXT_CHARS)}`,
     return {
       industries: cleanList(raw.industries ?? undefined),
       business_model: raw.business_model ?? undefined,
-      business_description:
-        raw.business_description?.trim() || raw.business_type?.trim() || undefined,
+      business_description: raw.business_description?.trim() || raw.business_type?.trim() || undefined,
       target_audience: audience,
       customers: customers.length ? customers : undefined,
       brand_voice: raw.brand_voice?.trim() || undefined,

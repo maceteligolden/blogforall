@@ -355,8 +355,7 @@ export class OrchestratorV05GraphService {
       });
       if (result.needs_clarification) {
         const q =
-          result.research_brief.ambiguity.clarifying_question ||
-          "Which scope should research use before searching?";
+          result.research_brief.ambiguity.clarifying_question || "Which scope should research use before searching?";
         const opts = result.research_brief.ambiguity.options?.join(" / ");
         return {
           summary: `Research needs clarification: ${q}`,

@@ -104,8 +104,7 @@ export function buildResearchPackageFromNotes(input: BuildResearchPackageInput):
   });
   const completed = coverageItems.filter((c) => c.status === "completed").length;
   const partial = coverageItems.filter((c) => c.status === "partial").length;
-  const coverage_score =
-    questions.length === 0 ? 0.2 : Math.min(0.95, (completed + partial * 0.5) / questions.length);
+  const coverage_score = questions.length === 0 ? 0.2 : Math.min(0.95, (completed + partial * 0.5) / questions.length);
 
   const degraded = sources.length === 0;
   const effectiveCoverage = degraded ? 0.2 : coverage_score;

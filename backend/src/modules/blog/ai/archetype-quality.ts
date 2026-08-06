@@ -5,10 +5,7 @@ import {
   type ContentArchetype,
 } from "./contracts/content-archetype";
 import type { StyleProfile } from "./contracts/style-profile";
-import type {
-  OptimizationRecommendation,
-  ValidatorResult,
-} from "../../orchestrator/ai/contracts/content-optimization";
+import type { OptimizationRecommendation, ValidatorResult } from "../../orchestrator/ai/contracts/content-optimization";
 
 function stripTags(html: string): string {
   return html
@@ -55,8 +52,7 @@ export type ArchetypeValidateInput = {
  * Animalz structure + prose quality gates for content archetypes.
  */
 export function runArchetypeQualityValidator(input: ArchetypeValidateInput): ValidatorResult {
-  const archetype =
-    coerceContentArchetype(input.archetype) || input.style_profile?.archetype || undefined;
+  const archetype = coerceContentArchetype(input.archetype) || input.style_profile?.archetype || undefined;
   const issues: ValidatorResult["issues"] = [];
   const recommendations: OptimizationRecommendation[] = [];
   if (!archetype) {
@@ -143,7 +139,13 @@ export function runArchetypeQualityValidator(input: ArchetypeValidateInput): Val
           message: "Listicle sections vary widely in depth",
         });
         recommendations.push(
-          rec("arch_list_parallel", "Medium", "structure", "Keep listicle items roughly parallel in depth (±30%)", "body")
+          rec(
+            "arch_list_parallel",
+            "Medium",
+            "structure",
+            "Keep listicle items roughly parallel in depth (±30%)",
+            "body"
+          )
         );
       }
     }
@@ -227,7 +229,9 @@ export function runArchetypeQualityValidator(input: ArchetypeValidateInput): Val
         severity: "Medium",
         message: `Variant expects short punchy sentences; avg ~${avg.toFixed(1)} words`,
       });
-      recommendations.push(rec("arch_rhythm", "Medium", "readability", "Shorten sentences to match style variant", "body"));
+      recommendations.push(
+        rec("arch_rhythm", "Medium", "readability", "Shorten sentences to match style variant", "body")
+      );
     }
   }
 
@@ -246,8 +250,7 @@ export function runArchetypeQualityValidator(input: ArchetypeValidateInput): Val
     0,
     100 -
       issues.reduce(
-        (a: number, i: { severity: string }) =>
-          a + (i.severity === "Critical" ? 30 : i.severity === "High" ? 15 : 8),
+        (a: number, i: { severity: string }) => a + (i.severity === "Critical" ? 30 : i.severity === "High" ? 15 : 8),
         0
       )
   );

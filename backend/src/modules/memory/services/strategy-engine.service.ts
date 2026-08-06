@@ -126,10 +126,7 @@ Return 6-10 blog ideas, 3-5 themes, and 2-4 content clusters.`;
         ? strategic.business_goals
         : ["Industry insights"];
     const audienceLabel =
-      strategic.target_audience?.[0] ||
-      strategic.customers?.[0]?.label ||
-      strategic.customers?.[0]?.who ||
-      "readers";
+      strategic.target_audience?.[0] || strategic.customers?.[0]?.label || strategic.customers?.[0]?.who || "readers";
 
     return {
       ideas: topics.slice(0, 6).map((t, i) => ({

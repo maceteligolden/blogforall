@@ -32,8 +32,7 @@ const AI_PROMPTS: Record<string, string> = {
     "Help me improve my business overview — industries, business model (B2B/B2C/C2C/B2B2C), and a clear paragraph description of what we do.",
   customers:
     "Help me refine our customer personas — who they are, the pain points we solve, and what success looks like. Keep short audience labels too.",
-  brand:
-    "Help me write a descriptive brand voice and list brand negatives (words, tones, or claims to avoid).",
+  brand: "Help me write a descriptive brand voice and list brand negatives (words, tones, or claims to avoid).",
   competitors: "Help me identify and describe our main competitors and how we differ from each.",
   goals: "Help me clarify business goals, SEO priorities, and publishing channels for content.",
 };
@@ -242,9 +241,7 @@ export function BusinessProfileForm() {
               {data.strategic.website_url}
             </a>
           </p>
-          <p className="mt-1 text-xs text-gray-500">
-            Ask the AI in chat to refresh business context from a URL.
-          </p>
+          <p className="mt-1 text-xs text-gray-500">Ask the AI in chat to refresh business context from a URL.</p>
         </div>
       )}
 
@@ -327,9 +324,7 @@ export function BusinessProfileForm() {
                   className="mt-1 border-gray-700 bg-gray-800"
                   value={persona.label || ""}
                   onChange={(e) =>
-                    setCustomers((prev) =>
-                      prev.map((c, i) => (i === index ? { ...c, label: e.target.value } : c))
-                    )
+                    setCustomers((prev) => prev.map((c, i) => (i === index ? { ...c, label: e.target.value } : c)))
                   }
                   placeholder="Optional tag"
                 />
@@ -340,9 +335,7 @@ export function BusinessProfileForm() {
                   className="mt-1 min-h-[72px] border-gray-700 bg-gray-800"
                   value={persona.who}
                   onChange={(e) =>
-                    setCustomers((prev) =>
-                      prev.map((c, i) => (i === index ? { ...c, who: e.target.value } : c))
-                    )
+                    setCustomers((prev) => prev.map((c, i) => (i === index ? { ...c, who: e.target.value } : c)))
                   }
                   placeholder="Describe this customer in a paragraph."
                 />
@@ -365,9 +358,7 @@ export function BusinessProfileForm() {
                   className="mt-1 min-h-[72px] border-gray-700 bg-gray-800"
                   value={persona.success || ""}
                   onChange={(e) =>
-                    setCustomers((prev) =>
-                      prev.map((c, i) => (i === index ? { ...c, success: e.target.value } : c))
-                    )
+                    setCustomers((prev) => prev.map((c, i) => (i === index ? { ...c, success: e.target.value } : c)))
                   }
                 />
               </div>
@@ -433,9 +424,7 @@ export function BusinessProfileForm() {
                 className="border-gray-700 bg-gray-800 sm:w-1/3"
                 value={comp.name}
                 onChange={(e) =>
-                  setCompetitors((prev) =>
-                    prev.map((c, i) => (i === index ? { ...c, name: e.target.value } : c))
-                  )
+                  setCompetitors((prev) => prev.map((c, i) => (i === index ? { ...c, name: e.target.value } : c)))
                 }
                 placeholder="Name"
               />
@@ -443,9 +432,7 @@ export function BusinessProfileForm() {
                 className="border-gray-700 bg-gray-800 flex-1"
                 value={comp.notes || ""}
                 onChange={(e) =>
-                  setCompetitors((prev) =>
-                    prev.map((c, i) => (i === index ? { ...c, notes: e.target.value } : c))
-                  )
+                  setCompetitors((prev) => prev.map((c, i) => (i === index ? { ...c, notes: e.target.value } : c)))
                 }
                 placeholder="How you differ (optional)"
               />
@@ -491,11 +478,7 @@ export function BusinessProfileForm() {
         </div>
         <div>
           <Label className="text-gray-300">SEO priorities (comma-separated)</Label>
-          <Input
-            className="mt-1 border-gray-700 bg-gray-800"
-            value={seo}
-            onChange={(e) => setSeo(e.target.value)}
-          />
+          <Input className="mt-1 border-gray-700 bg-gray-800" value={seo} onChange={(e) => setSeo(e.target.value)} />
         </div>
         <div>
           <Label className="text-gray-300">Publishing channels (comma-separated)</Label>
@@ -528,12 +511,7 @@ export function BusinessProfileForm() {
         >
           {saveMutation.isPending ? "Saving…" : "Save changes"}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="border-gray-700"
-          onClick={() => improveWithAi("overview")}
-        >
+        <Button type="button" variant="outline" className="border-gray-700" onClick={() => improveWithAi("overview")}>
           <Sparkles className="mr-2 h-4 w-4" />
           Open AI chat
         </Button>

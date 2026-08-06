@@ -52,8 +52,7 @@ export type BuildResearchBriefInput = {
 
 const VAGUE_TOPIC_RE =
   /^(?:write\s+(?:a\s+)?(?:post|blog|article)\s+about\s+)?(?:a|an|the|some)\s+\w+(?:\s+\w+){0,3}$/i;
-const NAMED_PERSON_HINT =
-  /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b|\b(timothy treadwell|grizzly man)\b/i;
+const NAMED_PERSON_HINT = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})\b|\b(timothy treadwell|grizzly man)\b/i;
 
 function scopeSearchTopic(scope: ResearchScope): string {
   switch (scope.kind) {
@@ -72,7 +71,10 @@ function detectAmbiguity(topic: string): ResearchBrief["ambiguity"] & { tentativ
   const lower = t.toLowerCase();
 
   // "a man that fights bears" / "men who fight bears" → class vs named
-  if (/\b(a|an|the|some)\s+(man|woman|person|people|men|women)\b/.test(lower) || /\bwho (fight|fights|fought)\b/.test(lower)) {
+  if (
+    /\b(a|an|the|some)\s+(man|woman|person|people|men|women)\b/.test(lower) ||
+    /\bwho (fight|fights|fought)\b/.test(lower)
+  ) {
     const classLabel = t.replace(/^write\s+(a\s+)?(post|blog|article)\s+about\s+/i, "").trim();
     return {
       is_ambiguous: true,
@@ -155,8 +157,10 @@ function buildMustAnswer(
   if (needs.includes("evaluation_criteria")) qs.push(`What criteria should be used to evaluate ${topic}?`);
   if (needs.includes("pricing_features")) qs.push(`What pricing and feature facts are current for ${topic}?`);
   if (needs.includes("metrics_outcomes")) qs.push(`What measurable outcomes or case results exist for ${topic}?`);
-  if (needs.includes("counterarguments")) qs.push(`What strong counterarguments exist against common claims about ${topic}?`);
-  if (needs.includes("subtopic_coverage")) qs.push(`What major subtopics must a comprehensive piece on ${topic} cover?`);
+  if (needs.includes("counterarguments"))
+    qs.push(`What strong counterarguments exist against common claims about ${topic}?`);
+  if (needs.includes("subtopic_coverage"))
+    qs.push(`What major subtopics must a comprehensive piece on ${topic} cover?`);
 
   if (archetype === "comparison") qs.push(`How do the leading options for ${topic} compare dimension by dimension?`);
   if (archetype === "how_to") qs.push(`What does "done" look like after completing ${topic}?`);
@@ -216,8 +220,7 @@ function buildQueries(scope: ResearchScope, archetype: ContentArchetype | undefi
  */
 export function buildResearchBrief(input: BuildResearchBriefInput): ResearchBrief {
   const raw = input.topic.trim();
-  const archetype =
-    coerceContentArchetype(input.archetype) || input.style_profile?.archetype || undefined;
+  const archetype = coerceContentArchetype(input.archetype) || input.style_profile?.archetype || undefined;
   const fp = input.first_party ?? {
     avoid_duplicate_angles: [],
     style_exemplar_post_ids: [],
@@ -226,7 +229,11 @@ export function buildResearchBrief(input: BuildResearchBriefInput): ResearchBrie
     comment_questions: [],
   };
 
-  if (input.personal_notes?.trim() && !input.resolved_scope && /personal|my story|i was|lived/i.test(input.personal_notes)) {
+  if (
+    input.personal_notes?.trim() &&
+    !input.resolved_scope &&
+    /personal|my story|i was|lived/i.test(input.personal_notes)
+  ) {
     const scope: ResearchScope = { kind: "brand_owned", topic: raw };
     const must_answer = buildMustAnswer(scope, archetype, input.style_profile, fp.comment_questions);
     return {
@@ -247,12 +254,10 @@ export function buildResearchBrief(input: BuildResearchBriefInput): ResearchBrie
   }
 
   let ambiguity = detectAmbiguity(raw);
-  let scope: ResearchScope =
-    input.resolved_scope ||
+  let scope: ResearchScope = input.resolved_scope ||
     (input.clarify_choice
       ? applyClarifyChoice(raw, input.clarify_choice, ambiguity.tentative)
-      : ambiguity.tentative) ||
-    { kind: "general_topic", topic: raw };
+      : ambiguity.tentative) || { kind: "general_topic", topic: raw };
 
   if (input.clarify_choice) {
     ambiguity = { is_ambiguous: false };
