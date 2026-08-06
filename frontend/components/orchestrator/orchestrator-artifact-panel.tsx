@@ -322,7 +322,7 @@ function BlogListArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
               </button>
               {row.id && (
                 <Link
-                  href={`/dashboard/blogs/${row.id}`}
+                  href={`/dashboard/posts/${row.id}`}
                   className="shrink-0 inline-flex items-center gap-1 text-[11px] text-primary hover:underline pt-0.5"
                 >
                   Open

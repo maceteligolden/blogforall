@@ -15,7 +15,7 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
 import { ArrowLeft, Calendar } from "lucide-react";
 
-const SCHEDULED_BASE = "/dashboard/blogs/scheduled";
+const SCHEDULED_BASE = "/dashboard/posts/scheduled";
 
 export default function BlogNewScheduledPostPage() {
   const router = useRouter();
@@ -102,7 +102,7 @@ export default function BlogNewScheduledPostPage() {
     }
 
     if (useExistingBlog && !formData.blog_id) {
-      setError("Please select a blog post");
+      setError("Please select a post");
       return;
     }
 
@@ -197,7 +197,7 @@ export default function BlogNewScheduledPostPage() {
     <div className="max-w-4xl mx-auto">
       <Breadcrumb
         items={[
-          { label: "Contents", href: "/dashboard/blogs" },
+          { label: "Posts", href: "/dashboard/posts" },
           { label: "Scheduled", href: SCHEDULED_BASE },
           { label: "Schedule Post" },
         ]}
@@ -209,7 +209,7 @@ export default function BlogNewScheduledPostPage() {
           Back
         </Button>
         <h1 className="text-3xl font-display text-white">Schedule Post</h1>
-        <p className="text-gray-400 mt-2">Schedule a blog post (with or without a campaign)</p>
+        <p className="text-gray-400 mt-2">Schedule a post (with or without a campaign)</p>
       </div>
 
       <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
@@ -251,7 +251,7 @@ export default function BlogNewScheduledPostPage() {
                   onChange={() => setUseExistingBlog(true)}
                   className="w-4 h-4 text-primary bg-gray-800 border-gray-700"
                 />
-                <span className="text-gray-300">Use Existing Blog</span>
+                <span className="text-gray-300">Use Existing Post</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
@@ -260,7 +260,7 @@ export default function BlogNewScheduledPostPage() {
                   onChange={() => setUseExistingBlog(false)}
                   className="w-4 h-4 text-primary bg-gray-800 border-gray-700"
                 />
-                <span className="text-gray-300">Auto-Generate Blog</span>
+                <span className="text-gray-300">Auto-Generate Post</span>
               </label>
             </div>
           </div>
@@ -268,7 +268,7 @@ export default function BlogNewScheduledPostPage() {
           {useExistingBlog ? (
             <div>
               <Label htmlFor="blog_id" className="text-gray-300">
-                Select Blog <span className="text-red-400">*</span>
+                Select Post <span className="text-red-400">*</span>
               </Label>
               <select
                 id="blog_id"
@@ -278,7 +278,7 @@ export default function BlogNewScheduledPostPage() {
                 className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white"
                 required
               >
-                <option value="">Select a blog post...</option>
+                <option value="">Select a post...</option>
                 {blogs
                   ?.filter((blog: { status: string }) => blog.status === "draft" || blog.status === "published")
                   .map((blog: { _id: string; title: string; status: string }) => (
@@ -299,12 +299,12 @@ export default function BlogNewScheduledPostPage() {
                 name="generation_prompt"
                 value={formData.generation_prompt}
                 onChange={handleChange}
-                placeholder="Describe what you want the blog post to be about..."
+                placeholder="Describe what you want the post to be about..."
                 className="mt-1 flex min-h-[120px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
                 required={!useExistingBlog}
               />
               <p className="mt-1 text-xs text-gray-400">
-                The AI will generate a blog post based on this prompt when it&apos;s time to publish
+                The AI will generate a post based on this prompt when it&apos;s time to publish
               </p>
             </div>
           )}
@@ -330,7 +330,7 @@ export default function BlogNewScheduledPostPage() {
               <p className="mt-1 text-xs text-gray-400">
                 {useExistingBlog
                   ? "This will be used as a preview title"
-                  : "This will be the title of the generated blog post"}
+                  : "This will be the title of the generated post"}
               </p>
             </div>
 

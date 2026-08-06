@@ -20,7 +20,7 @@ import {
 } from "date-fns";
 import Link from "next/link";
 
-const SCHEDULED_BASE = "/dashboard/blogs/scheduled";
+const SCHEDULED_BASE = "/dashboard/posts/scheduled";
 
 interface ScheduledPostsCalendarProps {
   showListViewButton?: boolean;

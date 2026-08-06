@@ -59,12 +59,12 @@ export default function BlogsPage() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: "Contents" }, { label: "Posts" }]} />
+        <Breadcrumb items={[{ label: "Posts" }]} />
         <BlogHubTabs />
         <div className="flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-            <p className="text-gray-400">Loading content...</p>
+            <p className="text-gray-400">Loading posts...</p>
           </div>
         </div>
       </>
@@ -73,16 +73,16 @@ export default function BlogsPage() {
 
   return (
     <>
-      <Breadcrumb items={[{ label: "Contents" }, { label: "Posts" }]} />
+      <Breadcrumb items={[{ label: "Posts" }]} />
       <BlogHubTabs />
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-display text-white">My Content</h1>
+        <h1 className="text-2xl font-display text-white">My Posts</h1>
         <Button
           className="bg-primary hover:bg-primary/90 text-white"
-          onClick={() => router.push("/dashboard/blogs/new")}
+          onClick={() => router.push("/dashboard/posts/new")}
         >
-          Create Blog
+          Create Post
         </Button>
       </div>
 
@@ -93,7 +93,7 @@ export default function BlogsPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search blogs by title..."
+              placeholder="Search posts by title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-black border-gray-700 text-white"
@@ -176,9 +176,9 @@ export default function BlogsPage() {
           </p>
           <Button
             className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => router.push("/dashboard/blogs/new")}
+            onClick={() => router.push("/dashboard/posts/new")}
           >
-            Create Your First Blog
+            Create Your First Post
           </Button>
         </div>
       ) : viewMode === "cards" ? (
@@ -227,14 +227,14 @@ export default function BlogsPage() {
                     <Button
                       className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex-1"
                       size="sm"
-                      onClick={() => router.push(`/dashboard/blogs/${blog._id}/view`)}
+                      onClick={() => router.push(`/dashboard/posts/${blog._id}/view`)}
                     >
                       View
                     </Button>
                     <Button
                       className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex-1"
                       size="sm"
-                      onClick={() => router.push(`/dashboard/blogs/${blog._id}`)}
+                      onClick={() => router.push(`/dashboard/posts/${blog._id}`)}
                     >
                       Edit
                     </Button>
@@ -343,14 +343,14 @@ export default function BlogsPage() {
                         <Button
                           className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
                           size="sm"
-                          onClick={() => router.push(`/dashboard/blogs/${blog._id}/view`)}
+                          onClick={() => router.push(`/dashboard/posts/${blog._id}/view`)}
                         >
                           View
                         </Button>
                         <Button
                           className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
                           size="sm"
-                          onClick={() => router.push(`/dashboard/blogs/${blog._id}`)}
+                          onClick={() => router.push(`/dashboard/posts/${blog._id}`)}
                         >
                           Edit
                         </Button>
@@ -396,7 +396,7 @@ export default function BlogsPage() {
           setBlogToDelete(null);
         }}
         onConfirm={handleDeleteConfirm}
-        title="Delete Blog"
+        title="Delete Post"
         message="Are you sure you want to delete this blog? This action cannot be undone."
         confirmText="Delete"
         cancelText="Cancel"

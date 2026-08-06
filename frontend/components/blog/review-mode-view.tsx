@@ -89,7 +89,7 @@ export function ReviewModeView({
             </div>
           )}
           <div>
-            <div className="text-xs text-gray-500 uppercase mb-1">Content</div>
+            <div className="text-xs text-gray-500 uppercase mb-1">Post</div>
             {hasBlocks ? (
               <div className="space-y-3 text-gray-300">
                 {content_blocks!.map((block) => (

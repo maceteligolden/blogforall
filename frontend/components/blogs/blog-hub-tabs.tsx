@@ -8,23 +8,25 @@ const tabClass = (active: boolean) =>
     active ? "bg-primary text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"
   }`;
 
-export function ContentHubTabs() {
+export function PostsHubTabs() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-2 border-b border-gray-800 pb-4 mb-6" aria-label="Contents section">
-      <Link href="/dashboard/blogs" className={tabClass(pathname === "/dashboard/blogs")}>
+    <nav className="flex flex-wrap gap-2 border-b border-gray-800 pb-4 mb-6" aria-label="Posts section">
+      <Link href="/dashboard/posts" className={tabClass(pathname === "/dashboard/posts")}>
         Posts
       </Link>
-      <Link href="/dashboard/blogs/categories" className={tabClass(pathname === "/dashboard/blogs/categories")}>
+      <Link href="/dashboard/posts/categories" className={tabClass(pathname === "/dashboard/posts/categories")}>
         Categories
       </Link>
-      <Link href="/dashboard/blogs/scheduled" className={tabClass(pathname === "/dashboard/blogs/scheduled")}>
+      <Link href="/dashboard/posts/scheduled" className={tabClass(pathname === "/dashboard/posts/scheduled")}>
         Scheduled
       </Link>
     </nav>
   );
 }
 
-/** @deprecated Use ContentHubTabs */
-export const BlogHubTabs = ContentHubTabs;
+/** @deprecated Use PostsHubTabs */
+export const ContentHubTabs = PostsHubTabs;
+/** @deprecated Use PostsHubTabs */
+export const BlogHubTabs = PostsHubTabs;

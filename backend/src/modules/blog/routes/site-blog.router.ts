@@ -22,6 +22,8 @@ import {
   blogReviewBodySchema,
   applyReviewBodySchema,
   applyOneBodySchema,
+  suggestTopicsBodySchema,
+  outlineBodySchema,
 } from "../validations/blog-route.validation";
 
 const router = Router({ mergeParams: true });
@@ -33,6 +35,20 @@ const imageController = container.resolve(ImageController);
 const siteParams = validateParams(siteIdParamSchema);
 
 // Static / multi-segment paths before /:id
+router.post(
+  "/generate/suggest-topics",
+  authMiddleware,
+  siteParams,
+  validateBody(suggestTopicsBodySchema),
+  blogGenerationController.suggestTopics
+);
+router.post(
+  "/generate/outline",
+  authMiddleware,
+  siteParams,
+  validateBody(outlineBodySchema),
+  blogGenerationController.buildOutline
+);
 router.post(
   "/generate/analyze",
   authMiddleware,

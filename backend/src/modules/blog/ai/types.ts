@@ -13,6 +13,9 @@ export interface BlogUserGenerationParams {
   context_pack?: string;
   /** Editor-gate format: personal_story | engineering_reflection | productivity | linkedin_post */
   post_format?: string;
+  /** User-approved outline sections — skip LLM outline when drafting sectionally. */
+  approved_outline_sections?: Array<{ heading: string; summary: string }>;
+  approved_outline_title?: string;
 }
 
 export interface PromptAnalysis {

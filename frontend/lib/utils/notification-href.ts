@@ -32,7 +32,7 @@ export function getNotificationHref(notification: NotificationItem): string | nu
 
   const blogId = payload.blogId ?? payload.blog_id;
   if (blogId) {
-    return `/dashboard/blogs/${blogId}/view`;
+    return `/dashboard/posts/${blogId}/view`;
   }
 
   return null;

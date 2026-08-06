@@ -13,7 +13,7 @@ import { ConfirmModal } from "@/components/ui/modal";
 import Link from "next/link";
 import { BlogHubTabs } from "@/components/blogs/blog-hub-tabs";
 
-const SCHEDULED_BASE = "/dashboard/blogs/scheduled";
+const SCHEDULED_BASE = "/dashboard/posts/scheduled";
 
 export default function BlogScheduledPostsPage() {
   const router = useRouter();
@@ -105,7 +105,7 @@ export default function BlogScheduledPostsPage() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Scheduled" }]} />
+        <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: "Scheduled" }]} />
         <BlogHubTabs />
         <div className="flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
@@ -119,7 +119,7 @@ export default function BlogScheduledPostsPage() {
 
   return (
     <>
-      <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Scheduled" }]} />
+      <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: "Scheduled" }]} />
       <BlogHubTabs />
 
       <div className="flex justify-between items-center mb-6">
@@ -260,10 +260,10 @@ export default function BlogScheduledPostsPage() {
 
                   {post.blog_id && (
                     <Link
-                      href={`/dashboard/blogs/${post.blog_id}/view`}
+                      href={`/dashboard/posts/${post.blog_id}/view`}
                       className="text-sm text-primary hover:text-primary/80 inline-flex items-center gap-1"
                     >
-                      View Blog Post →
+                      View Post Post →
                     </Link>
                   )}
                 </div>

@@ -331,26 +331,48 @@ ${this.buildDraftPrompt(prompt.trim(), analysis, researchNotes, userParams)}`;
     const researchNotes = researchOut.researchNotes ?? [];
     emit("research", { count: researchNotes.length, titles: researchNotes.map((r) => r.title).slice(0, 5) });
 
+    if (userParams?.approved_outline_sections?.length) {
+      emit("phase", { step: "outline_locked", sections: userParams.approved_outline_sections.length });
+    }
+
     emit("phase", { step: "draft" });
-    const chat = this.getMainChat();
-    const structured = chat.withStructuredOutput(DraftSchema);
-    const draftPrompt = this.buildDraftPrompt(prompt.trim(), mergedAnalysis, researchNotes, userParams);
-    const stream = await structured.stream([new HumanMessage(draftPrompt)], { signal });
-    let last: z.infer<typeof DraftSchema> | null = null;
-    for await (const chunk of stream) {
-      last = chunk as z.infer<typeof DraftSchema>;
-      emit("draft_partial", { title: last.title, contentLen: last.content?.length ?? 0 });
+
+    let draft: GeneratedBlogContent;
+    if (userParams?.context_pack?.trim() && userParams.approved_outline_sections?.length) {
+      const sectional = await this.nodeDraftSectional(
+        {
+          prompt: prompt.trim(),
+          userParams,
+          analysis: mergedAnalysis,
+          researchNotes,
+          draft: null,
+          review: null,
+        },
+        { signal }
+      );
+      draft = sectional.draft!;
+      emit("draft_partial", { title: draft.title, contentLen: draft.content?.length ?? 0 });
+    } else {
+      const chat = this.getMainChat();
+      const structured = chat.withStructuredOutput(DraftSchema);
+      const draftPrompt = this.buildDraftPrompt(prompt.trim(), mergedAnalysis, researchNotes, userParams);
+      const stream = await structured.stream([new HumanMessage(draftPrompt)], { signal });
+      let last: z.infer<typeof DraftSchema> | null = null;
+      for await (const chunk of stream) {
+        last = chunk as z.infer<typeof DraftSchema>;
+        emit("draft_partial", { title: last.title, contentLen: last.content?.length ?? 0 });
+      }
+      if (!last?.content) {
+        throw new BadRequestError("The model returned empty content. Please try again.");
+      }
+      draft = {
+        title: last.title,
+        content: last.content,
+        excerpt: last.excerpt,
+        meta: this.normalizeDraftMeta(last.meta),
+      };
+      this.validateDraft(draft, mergedAnalysis);
     }
-    if (!last?.content) {
-      throw new BadRequestError("The model returned empty content. Please try again.");
-    }
-    const draft: GeneratedBlogContent = {
-      title: last.title,
-      content: last.content,
-      excerpt: last.excerpt,
-      meta: this.normalizeDraftMeta(last.meta),
-    };
-    this.validateDraft(draft, mergedAnalysis);
 
     emit("phase", { step: "review" });
     let review: BlogReviewResult;
@@ -518,17 +540,27 @@ Return structured output matching the schema.`;
 
   private async nodeDraftSectional(state: BlogGenStateType, config?: RunnableConfig): Promise<BlogGenUpdate> {
     const chat = this.getMainChat();
-    const outlineStructured = chat.withStructuredOutput(OutlineSchema);
-    const outlinePrompt = `Based on the following blog brief, produce ONLY an outline with a title and 3-6 section headings with one-line summaries.
+    const approved = state.userParams?.approved_outline_sections;
+    let outline: { title: string; sections: Array<{ heading: string; summary: string }> };
+
+    if (approved?.length) {
+      outline = {
+        title: state.userParams?.approved_outline_title || state.analysis!.topic,
+        sections: approved.slice(0, 12),
+      };
+    } else {
+      const outlineStructured = chat.withStructuredOutput(OutlineSchema);
+      const outlinePrompt = `Based on the following blog brief, produce ONLY an outline with a title and 3-6 section headings with one-line summaries.
 Respect the workspace context pack in your outline.
 
 ${this.buildDraftPrompt(state.prompt, state.analysis!, state.researchNotes, state.userParams)}`;
+      outline = await outlineStructured.invoke([new HumanMessage(outlinePrompt)], { signal: config?.signal });
+    }
 
-    const outline = await outlineStructured.invoke([new HumanMessage(outlinePrompt)], { signal: config?.signal });
     const sections: string[] = [];
     let priorSummary = "";
 
-    for (const section of outline.sections.slice(0, 6)) {
+    for (const section of outline.sections.slice(0, 8)) {
       const sectionPrompt = `Write ONE section of a blog post as HTML only (h2 + paragraphs/lists). No Markdown (#, -, **, or code fences). No full article wrapper.
 
 Title: ${outline.title}

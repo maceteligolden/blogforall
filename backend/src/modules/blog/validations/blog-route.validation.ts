@@ -55,6 +55,61 @@ export const blogGenerationAnalyzeBodySchema = z.object({
   user_params: blogGenerationUserHintsSchema.optional(),
 });
 
+export const suggestTopicsBodySchema = z.object({
+  seed_intent: z.string().max(1000).optional(),
+  campaign_id: z.string().optional(),
+  count: z.number().int().min(3).max(8).optional(),
+});
+
+export const postEnrichmentSchema = z.object({
+  links: z.array(z.string().url().max(2048)).max(5).optional(),
+  example_urls: z.array(z.string().url().max(2048)).max(5).optional(),
+  personal_notes: z.string().max(5000).optional(),
+  must_include: z.string().max(2000).optional(),
+  must_avoid: z.string().max(2000).optional(),
+  target_audience: z.string().max(200).optional(),
+  cta: z.string().max(300).optional(),
+  tone: z.string().max(120).optional(),
+  length_preset: lengthPresetEnum.optional(),
+  word_count: z.number().int().min(300).max(8000).optional(),
+});
+
+export const topicSuggestionSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().min(1).max(300),
+  about: z.string().min(1).max(2000),
+  campaign_id: z.string().optional(),
+  campaign_name: z.string().max(300).optional(),
+  campaign_support: z.string().max(2000),
+  keywords: z.array(z.string().max(100)).min(1).max(10),
+  post_type: z.enum(["article", "tutorial", "how_to", "listicle", "opinion", "case_study"]),
+});
+
+export const postOutlineSchema = z.object({
+  working_title: z.string().min(1).max(300),
+  thesis: z.string().min(1).max(2000),
+  sections: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        heading: z.string().min(1).max(300),
+        intent: z.string().min(1).max(2000),
+      })
+    )
+    .min(2)
+    .max(12),
+  keyword_notes: z.string().max(2000),
+  campaign_tie_in: z.string().max(2000),
+  post_type: z.enum(["article", "tutorial", "how_to", "listicle", "opinion", "case_study"]),
+  keywords: z.array(z.string().max(100)).max(20),
+  campaign_id: z.string().optional(),
+});
+
+export const outlineBodySchema = z.object({
+  topic: topicSuggestionSchema,
+  enrichment: postEnrichmentSchema.optional(),
+});
+
 export const blogGenerationBodySchema = z.object({
   prompt: z.string().min(1, "Prompt is required"),
   analysis: z.unknown().optional(),
@@ -66,6 +121,13 @@ export const blogGenerationBodySchema = z.object({
   purpose: z.string().max(120).optional(),
   structure: z.string().max(120).optional(),
   user_params: blogGenerationUserHintsSchema.optional(),
+  campaign_id: z.string().optional(),
+  keywords: z.array(z.string().max(100)).max(20).optional(),
+  post_type: z
+    .enum(["article", "tutorial", "how_to", "listicle", "opinion", "case_study"])
+    .optional(),
+  enrichment: postEnrichmentSchema.optional(),
+  approved_outline: postOutlineSchema.optional(),
 });
 
 /** Review payload when editing an existing draft (optional fields). */

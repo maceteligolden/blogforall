@@ -4,18 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-const HUB_TAB_PATHS = new Set(["/dashboard/blogs", "/dashboard/blogs/categories", "/dashboard/blogs/scheduled"]);
+const HUB_TAB_PATHS = new Set(["/dashboard/posts", "/dashboard/posts/categories", "/dashboard/posts/scheduled"]);
 
 function getBackNav(pathname: string): { href: string; label: string } | null {
   if (HUB_TAB_PATHS.has(pathname)) return null;
-  if (!pathname.startsWith("/dashboard/blogs")) return null;
-  if (pathname.startsWith("/dashboard/blogs/scheduled/")) {
-    return { href: "/dashboard/blogs/scheduled", label: "Back to scheduled posts" };
+  if (!pathname.startsWith("/dashboard/posts")) return null;
+  if (pathname.startsWith("/dashboard/posts/scheduled/")) {
+    return { href: "/dashboard/posts/scheduled", label: "Back to scheduled posts" };
   }
-  return { href: "/dashboard/blogs", label: "Back to blogs" };
+  return { href: "/dashboard/posts", label: "Back to posts" };
 }
 
-export default function BlogsLayout({ children }: { children: React.ReactNode }) {
+export default function PostsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const backNav = getBackNav(pathname);
 

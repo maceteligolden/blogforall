@@ -140,7 +140,7 @@ export default function BlogCategoriesPage() {
   if (isLoading) {
     return (
       <>
-        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Categories" }]} />
+        <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: "Categories" }]} />
         <BlogHubTabs />
         <div className="flex min-h-[40vh] items-center justify-center">
           <div className="text-center">
@@ -154,7 +154,7 @@ export default function BlogCategoriesPage() {
 
   return (
     <>
-      <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Categories" }]} />
+      <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: "Categories" }]} />
       <BlogHubTabs />
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-display text-white">Categories</h1>
@@ -316,7 +316,7 @@ export default function BlogCategoriesPage() {
         }}
         onConfirm={handleDeleteConfirm}
         title="Delete Category"
-        message="Are you sure you want to delete this category? Blogs assigned to it will lose their category."
+        message="Are you sure you want to delete this category? Posts assigned to it will lose their category."
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"

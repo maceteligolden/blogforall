@@ -8,17 +8,27 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/dashboard/categories",
-        destination: "/dashboard/blogs/categories",
+        destination: "/dashboard/posts/categories",
         permanent: true,
       },
       {
         source: "/dashboard/scheduled-posts",
-        destination: "/dashboard/blogs/scheduled",
+        destination: "/dashboard/posts/scheduled",
         permanent: true,
       },
       {
         source: "/dashboard/scheduled-posts/:path*",
-        destination: "/dashboard/blogs/scheduled/:path*",
+        destination: "/dashboard/posts/scheduled/:path*",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/blogs",
+        destination: "/dashboard/posts",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/blogs/:path*",
+        destination: "/dashboard/posts/:path*",
         permanent: true,
       },
     ];

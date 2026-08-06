@@ -13,6 +13,7 @@ export interface CreateBlogRequest {
   images?: string[];
   status?: "draft" | "scheduled" | "published" | "unpublished";
   category?: string;
+  campaign_id?: string;
   dynamic_forms?: Record<string, unknown>;
   meta?: {
     description?: string;

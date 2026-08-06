@@ -520,7 +520,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
         <div className="flex items-center gap-2">
           {blogId && (
             <Link
-              href={`/dashboard/blogs/${blogId}`}
+              href={`/dashboard/posts/${blogId}`}
               className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition-colors"
             >
               Open full editor

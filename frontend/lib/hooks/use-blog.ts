@@ -42,7 +42,7 @@ export function useCreateBlog() {
       const blog = response.data.data;
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOGS, currentSiteId] });
-      router.push(`/dashboard/blogs/${blog._id}`);
+      router.push(`/dashboard/posts/${blog._id}`);
     },
   });
 }
@@ -59,7 +59,7 @@ export function useUpdateBlog() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOGS, currentSiteId] });
       // Optionally redirect to view page after update
-      // router.push(`/dashboard/blogs/${variables.id}/view`);
+      // router.push(`/dashboard/posts/${variables.id}/view`);
     },
   });
 }
@@ -74,7 +74,7 @@ export function useDeleteBlog() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOGS, currentSiteId] });
-      router.push("/dashboard/blogs");
+      router.push("/dashboard/posts");
     },
   });
 }

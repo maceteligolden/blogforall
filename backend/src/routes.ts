@@ -30,7 +30,8 @@ router.use("/auth", authRouter);
 // Platform admin routes
 router.use("/admin", adminRouter);
 
-// Blog routes (site-scoped: GET siteId in path; POST/PUT body validated on router)
+// Post routes (primary). /blogs kept as compatibility alias (same handlers).
+router.use("/sites/:siteId/posts", siteBlogRouter);
 router.use("/sites/:siteId/blogs", siteBlogRouter);
 
 // Public API routes (protected with API keys)

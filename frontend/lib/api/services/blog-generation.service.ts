@@ -3,6 +3,7 @@ import { API_CONFIG, API_ENDPOINTS } from "../config";
 import { ensureAccessTokenFresh, SessionRefreshFailedError } from "../token-refresh";
 import { useAuthStore } from "../../store/auth.store";
 import { AxiosRequestConfig } from "axios";
+import type { PostEnrichment, PostOutline, TopicSuggestion } from "@/lib/types/interactive-post";
 
 export interface PromptAnalysis {
   topic: string;
@@ -35,6 +36,7 @@ export interface GenerateBlogResponse {
     message: string;
     type: string;
   };
+  campaign_id?: string;
 }
 
 export interface AnalyzePromptOptions {
@@ -48,13 +50,24 @@ export interface AnalyzePromptOptions {
   length_preset?: "short" | "medium" | "long";
 }
 
+export type InteractiveGenerateOptions = {
+  signal?: AbortSignal;
+  analysis?: PromptAnalysis;
+  enrichment?: PostEnrichment;
+  approved_outline?: PostOutline;
+  campaign_id?: string;
+  keywords?: string[];
+  post_type?: string;
+  onEvent?: (event: string, data: unknown) => void;
+};
+
 function requireSiteId(): string {
   if (typeof window === "undefined") {
-    throw new Error("Blog generation requires a browser context");
+    throw new Error("Post generation requires a browser context");
   }
   const siteId = useAuthStore.getState().currentSiteId;
   if (!siteId) {
-    throw new Error("No workspace selected. Choose a workspace before generating blogs.");
+    throw new Error("No workspace selected. Choose a workspace before generating posts.");
   }
   return siteId;
 }
@@ -81,26 +94,47 @@ function parseSseBlocks(buffer: string): { events: Array<{ event: string; data: 
 }
 
 export class BlogGenerationService {
+  static async suggestTopics(input?: {
+    seed_intent?: string;
+    campaign_id?: string;
+    count?: number;
+    signal?: AbortSignal;
+  }): Promise<{ topics: TopicSuggestion[]; business_summary: string }> {
+    const siteId = requireSiteId();
+    const res = await apiClient.post(
+      API_ENDPOINTS.BLOGS.GENERATE_SUGGEST_TOPICS(siteId),
+      {
+        seed_intent: input?.seed_intent,
+        campaign_id: input?.campaign_id,
+        count: input?.count,
+      },
+      { timeout: 120000, signal: input?.signal }
+    );
+    return res.data.data;
+  }
+
+  static async buildOutline(input: {
+    topic: TopicSuggestion;
+    enrichment?: PostEnrichment;
+    signal?: AbortSignal;
+  }): Promise<PostOutline> {
+    const siteId = requireSiteId();
+    const res = await apiClient.post(
+      API_ENDPOINTS.BLOGS.GENERATE_OUTLINE(siteId),
+      { topic: input.topic, enrichment: input.enrichment },
+      { timeout: 180000, signal: input.signal }
+    );
+    return res.data.data;
+  }
+
   static async analyzePrompt(prompt: string, opts?: AnalyzePromptOptions): Promise<{ data: { data: PromptAnalysis } }> {
     const siteId = requireSiteId();
     const { signal, tone, target_audience, topics_to_explore, word_count, purpose, structure, length_preset } =
       opts ?? {};
-    const config: AxiosRequestConfig = {
-      timeout: 120000,
-      signal,
-    };
+    const config: AxiosRequestConfig = { timeout: 120000, signal };
     return apiClient.post(
       API_ENDPOINTS.BLOGS.GENERATE_ANALYZE(siteId),
-      {
-        prompt,
-        tone,
-        target_audience,
-        topics_to_explore,
-        word_count,
-        purpose,
-        structure,
-        length_preset,
-      },
+      { prompt, tone, target_audience, topics_to_explore, word_count, purpose, structure, length_preset },
       config
     );
   }
@@ -108,48 +142,43 @@ export class BlogGenerationService {
   static async generateBlog(
     prompt: string,
     analysis?: PromptAnalysis,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    extras?: Omit<InteractiveGenerateOptions, "signal" | "analysis" | "onEvent">
   ): Promise<{ data: { data: GenerateBlogResponse } }> {
     const siteId = requireSiteId();
-    const config: AxiosRequestConfig = {
-      timeout: 180000,
-      signal,
-    };
     return apiClient.post(
       API_ENDPOINTS.BLOGS.GENERATE(siteId),
       {
         prompt,
         analysis,
-        tone: analysis?.tone,
-        target_audience: analysis?.target_audience,
-        topics_to_explore: analysis?.topics_to_explore,
-        word_count: analysis?.word_count,
-        purpose: analysis?.purpose,
-        structure: analysis?.structure,
+        tone: analysis?.tone ?? extras?.enrichment?.tone,
+        target_audience: analysis?.target_audience ?? extras?.enrichment?.target_audience,
+        topics_to_explore: analysis?.topics_to_explore ?? extras?.keywords,
+        word_count: analysis?.word_count ?? extras?.enrichment?.word_count,
+        purpose: extras?.approved_outline ? undefined : analysis?.purpose?.slice(0, 120),
+        structure: extras?.approved_outline ? undefined : analysis?.structure?.slice(0, 120),
+        enrichment: extras?.enrichment,
+        approved_outline: extras?.approved_outline,
+        campaign_id: extras?.campaign_id ?? extras?.approved_outline?.campaign_id,
+        keywords: extras?.keywords ?? extras?.approved_outline?.keywords,
+        post_type: extras?.post_type ?? extras?.approved_outline?.post_type,
+        length_preset: extras?.enrichment?.length_preset,
       },
-      config
+      { timeout: 180000, signal }
     );
   }
 
-  /**
-   * Streamed generation (SSE). Resolves with the same shape as generateBlog when `final` is received.
-   */
   static async generateBlogStream(
     prompt: string,
     analysis: PromptAnalysis | undefined,
-    options: {
-      signal?: AbortSignal;
-      onEvent?: (event: string, data: unknown) => void;
-    } = {}
+    options: InteractiveGenerateOptions = {}
   ): Promise<GenerateBlogResponse> {
     const siteId = requireSiteId();
     if (typeof window !== "undefined") {
       try {
         await ensureAccessTokenFresh();
       } catch (e) {
-        if (e instanceof SessionRefreshFailedError) {
-          throw new Error("Authentication required");
-        }
+        if (e instanceof SessionRefreshFailedError) throw new Error("Authentication required");
         throw e;
       }
     }
@@ -157,6 +186,25 @@ export class BlogGenerationService {
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     const { getCorrelationHeaders } = await import("@/lib/observability/request-headers");
     const correlation = getCorrelationHeaders();
+    const hasApprovedOutline = !!options.approved_outline;
+    // When an approved outline is present, full thesis/structure live there (and in
+    // context_pack server-side). Flat purpose/structure are capped at 120 by Zod.
+    const body = {
+      prompt,
+      analysis: analysis ?? options.analysis,
+      tone: analysis?.tone ?? options.enrichment?.tone,
+      target_audience: analysis?.target_audience ?? options.enrichment?.target_audience,
+      topics_to_explore: analysis?.topics_to_explore ?? options.keywords,
+      word_count: analysis?.word_count ?? options.enrichment?.word_count,
+      purpose: hasApprovedOutline ? undefined : analysis?.purpose?.slice(0, 120),
+      structure: hasApprovedOutline ? undefined : analysis?.structure?.slice(0, 120),
+      enrichment: options.enrichment,
+      approved_outline: options.approved_outline,
+      campaign_id: options.campaign_id ?? options.approved_outline?.campaign_id,
+      keywords: options.keywords ?? options.approved_outline?.keywords,
+      post_type: options.post_type ?? options.approved_outline?.post_type,
+      length_preset: options.enrichment?.length_preset,
+    };
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -164,16 +212,7 @@ export class BlogGenerationService {
         ...correlation,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({
-        prompt,
-        analysis,
-        tone: analysis?.tone,
-        target_audience: analysis?.target_audience,
-        topics_to_explore: analysis?.topics_to_explore,
-        word_count: analysis?.word_count,
-        purpose: analysis?.purpose,
-        structure: analysis?.structure,
-      }),
+      body: JSON.stringify(body),
       signal: options.signal,
     });
 
@@ -182,21 +221,15 @@ export class BlogGenerationService {
       let message = `Generation failed (${res.status})`;
       try {
         const j = JSON.parse(raw) as { message?: string };
-        if (j?.message) {
-          message = j.message;
-        }
+        if (j?.message) message = j.message;
       } catch {
-        if (raw) {
-          message = raw.slice(0, 200);
-        }
+        if (raw) message = raw.slice(0, 200);
       }
       throw new Error(message);
     }
 
     const reader = res.body?.getReader();
-    if (!reader) {
-      throw new Error("No response body from stream");
-    }
+    if (!reader) throw new Error("No response body from stream");
 
     const decoder = new TextDecoder();
     let carry = "";
@@ -204,9 +237,7 @@ export class BlogGenerationService {
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
+      if (done) break;
       carry += decoder.decode(value, { stream: true });
       const { events, rest } = parseSseBlocks(carry);
       carry = rest;
@@ -238,9 +269,7 @@ export class BlogGenerationService {
       }
     }
 
-    if (!finalPayload) {
-      throw new Error("Stream ended without a final result");
-    }
+    if (!finalPayload) throw new Error("Stream ended without a final result");
     return finalPayload;
   }
 }

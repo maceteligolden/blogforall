@@ -186,7 +186,7 @@ function CampaignDetailContent() {
                 <p className="text-sm text-gray-400">{new Date(post.scheduled_at).toLocaleString()}</p>
                 {post.blog_id && (
                   <Link
-                    href={`/dashboard/blogs/${post.blog_id}/view`}
+                    href={`/dashboard/posts/${post.blog_id}/view`}
                     className="text-primary text-sm mt-2 inline-block"
                   >
                     View blog →

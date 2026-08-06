@@ -32,9 +32,9 @@ export default function ViewBlogPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
-          <p className="text-gray-400 mb-4">Blog not found</p>
-          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => router.push("/dashboard/blogs")}>
-            Back to Contents
+          <p className="text-gray-400 mb-4">Post not found</p>
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => router.push("/dashboard/posts")}>
+            Back to Posts
           </Button>
         </div>
       </div>
@@ -44,10 +44,10 @@ export default function ViewBlogPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
-        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: blog.title || "View Blog" }]} />
+        <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: blog.title || "View Post" }]} />
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-display text-white">View Blog</h1>
-          <Link href={`/dashboard/blogs/${id}`}>
+          <h1 className="text-2xl font-display text-white">View Post</h1>
+          <Link href={`/dashboard/posts/${id}`}>
             <Button className="bg-primary hover:bg-primary/90 text-white">Edit</Button>
           </Link>
         </div>

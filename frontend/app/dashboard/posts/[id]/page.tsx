@@ -259,7 +259,7 @@ export default function EditBlogPage() {
       return;
     }
     if (!useBlocks && !formData.content?.trim()) {
-      setError("Content is required");
+      setError("Post body is required");
       return;
     }
 
@@ -317,7 +317,7 @@ export default function EditBlogPage() {
             } catch (scheduleErr: any) {
               scheduleSideEffectsOk = false;
               console.error("Failed to schedule blog:", scheduleErr);
-              setError(scheduleErr?.response?.data?.message || "Blog updated but scheduling failed");
+              setError(scheduleErr?.response?.data?.message || "Post updated but scheduling failed");
             }
           } else if (existingSchedule?._id) {
             try {
@@ -327,7 +327,7 @@ export default function EditBlogPage() {
             } catch (unscheduleErr: any) {
               scheduleSideEffectsOk = false;
               console.error("Failed to unschedule blog:", unscheduleErr);
-              setError(unscheduleErr?.response?.data?.message || "Blog updated but unscheduling failed");
+              setError(unscheduleErr?.response?.data?.message || "Post updated but unscheduling failed");
             }
           }
           if (scheduleChanged) {
@@ -409,9 +409,9 @@ export default function EditBlogPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-black">
         <div className="text-center">
-          <p className="text-gray-400 mb-4">Blog not found</p>
-          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => router.push("/dashboard/blogs")}>
-            Back to Contents
+          <p className="text-gray-400 mb-4">Post not found</p>
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => router.push("/dashboard/posts")}>
+            Back to Posts
           </Button>
         </div>
       </div>
@@ -421,14 +421,14 @@ export default function EditBlogPage() {
   return (
     <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex-shrink-0">
-        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: blog?.title || "Edit Blog" }]} />
+        <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: blog?.title || "Edit Post" }]} />
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-display text-white">Edit Blog</h1>
+          <h1 className="text-2xl font-display text-white">Edit Post</h1>
           <div className="flex items-center space-x-4">
             <Button
               type="button"
               className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-              onClick={() => router.push("/dashboard/blogs")}
+              onClick={() => router.push("/dashboard/posts")}
             >
               Cancel
             </Button>
@@ -530,7 +530,7 @@ export default function EditBlogPage() {
                               : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
                           }
                         >
-                          Content
+                          Post
                         </Button>
                         <Button
                           type="button"
@@ -640,13 +640,13 @@ export default function EditBlogPage() {
 
                         <div className="flex-1 min-h-0 min-w-0">
                           <Label htmlFor="content" className="text-gray-300 mb-2 block">
-                            Content *
+                            Post *
                           </Label>
                           <div className="h-[calc(100vh-500px)] min-h-[600px]">
                             <BlockEditor
                               value={formData.content_blocks ?? []}
                               onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
-                              placeholder="Start writing your blog post..."
+                              placeholder="Start writing your post..."
                               onUploadImage={handleEditorImageUpload}
                             />
                           </div>

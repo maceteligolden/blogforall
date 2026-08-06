@@ -9,7 +9,7 @@ export interface DashboardNavItem {
 
 export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/blogs", label: "Contents", icon: FileText },
+  { href: "/dashboard/posts", label: "Posts", icon: FileText },
   { href: "/dashboard/library", label: "Library", icon: FolderOpen },
   { href: "/dashboard/strategy", label: "Strategy", icon: Compass },
   { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },

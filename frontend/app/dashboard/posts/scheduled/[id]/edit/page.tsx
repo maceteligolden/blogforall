@@ -14,7 +14,7 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
 import { ArrowLeft, Calendar } from "lucide-react";
 
-const SCHEDULED_BASE = "/dashboard/blogs/scheduled";
+const SCHEDULED_BASE = "/dashboard/posts/scheduled";
 
 export default function BlogEditScheduledPostPage() {
   const router = useRouter();
@@ -177,7 +177,7 @@ export default function BlogEditScheduledPostPage() {
     <div className="max-w-4xl mx-auto">
       <Breadcrumb
         items={[
-          { label: "Contents", href: "/dashboard/blogs" },
+          { label: "Posts", href: "/dashboard/posts" },
           { label: "Scheduled", href: SCHEDULED_BASE },
           { label: "Edit Scheduled Post" },
         ]}
@@ -242,7 +242,7 @@ export default function BlogEditScheduledPostPage() {
             ) : (
               <div>
                 <Label htmlFor="blog_id" className="text-gray-300">
-                  Blog Post
+                  Post
                 </Label>
                 <select
                   id="blog_id"
@@ -251,7 +251,7 @@ export default function BlogEditScheduledPostPage() {
                   onChange={(e) => handleBlogSelect(e.target.value)}
                   className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white"
                 >
-                  <option value="">Select a blog post...</option>
+                  <option value="">Select a post...</option>
                   {blogs
                     ?.filter((blog: { status: string }) => blog.status === "draft" || blog.status === "published")
                     .map((blog: { _id: string; title: string; status: string }) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { BlockEditor } from "@/components/editor/BlockEditor";
-import { blocksToHtml, canSaveContentBlocks, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
+import { blocksToHtml, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 import { hasBodyContent, hasTitle } from "@/lib/utils/blog-form-validation";
 import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
@@ -23,21 +23,10 @@ import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
-import { PromptInput } from "@/components/blog/prompt-input";
-import { PromptTemplates } from "@/components/blog/prompt-templates";
-import { PreGenerationConfirmation } from "@/components/blog/pre-generation-confirmation";
-import {
-  BlogAiGenerationSettings,
-  defaultBlogGenerationFormParams,
-} from "@/components/blog/blog-ai-generation-settings";
-import { GenerationProgress, GenerationStage } from "@/components/blog/generation-progress";
-import { ConfirmModal } from "@/components/ui/modal";
-import { useBlogGeneration } from "@/lib/hooks/use-blog-generation";
+import { AiPostWizard } from "@/components/blog/ai-post-wizard";
 import { useBlogDraft } from "@/lib/hooks/use-blog-draft";
-import { PromptAnalysis } from "@/lib/api/services/blog-generation.service";
-import type { BlogGenerationFormParams } from "@/lib/utils/blog-ai-generation-params";
-import { formParamsToGenerationHints, mergePromptAnalysisWithForm } from "@/lib/utils/blog-generation-form";
-import { Sparkles, PenTool, Save, Trash2, RotateCcw, Undo2, Keyboard, Calendar } from "lucide-react";
+import type { GenerateBlogResponse } from "@/lib/api/services/blog-generation.service";
+import { Sparkles, PenTool, Save, Trash2, Keyboard, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { generationTracker } from "@/lib/analytics/flows/generation.tracker";
 
@@ -51,29 +40,14 @@ export default function NewBlogPage() {
   const createBlog = useCreateBlog();
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
-  const { reviewBlog, reviewBlogAsync, isReviewing, reviewResult, applyReviewAsync } = useBlogReview();
-  const { analyzePrompt, generateBlog, cancelRequest, isAnalyzing, isGenerating } = useBlogGeneration();
+  const { reviewBlogAsync, isReviewing, reviewResult } = useBlogReview();
   const [mode, setMode] = useState<BlogCreationMode>("write");
-  const [prompt, setPrompt] = useState("");
-  const [generationParams, setGenerationParams] = useState<BlogGenerationFormParams>(() =>
-    defaultBlogGenerationFormParams()
-  );
-  const [promptAnalysis, setPromptAnalysis] = useState<PromptAnalysis | null>(null);
-  const [promptError, setPromptError] = useState("");
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [showProgress, setShowProgress] = useState(false);
-  const [generationStage, setGenerationStage] = useState<GenerationStage>("analyzing");
-  const [autoReviewResult, setAutoReviewResult] = useState<any>(null); // Review from auto-review after generation
+  const [autoReviewResult, setAutoReviewResult] = useState<any>(null);
   const [showReview, setShowReview] = useState(false);
   const [reviewPanelTab, setReviewPanelTab] = useState<"content" | "review">("content");
   const [reviewHasNewInfo, setReviewHasNewInfo] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
-  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
-  const [previousContent, setPreviousContent] = useState<{
-    title: string;
-    content: string;
-  } | null>(null);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState<{
     title: string;
     content: string;
@@ -81,6 +55,7 @@ export default function NewBlogPage() {
     content_blocks?: ContentBlock[];
     featured_image: string;
     category: string;
+    campaign_id: string;
     status: "draft" | "scheduled" | "published" | "unpublished";
     scheduled_at: string;
   }>({
@@ -89,28 +64,18 @@ export default function NewBlogPage() {
     content_type: "html",
     featured_image: "",
     category: "",
+    campaign_id: "",
     status: "draft",
     scheduled_at: "",
   });
 
   const canSubmitWriteForm = mode === "write" && hasTitle(formData.title) && hasBodyContent(formData);
   const canReviewForm = hasTitle(formData.title) && hasBodyContent(formData);
+  const activeReviewResult = reviewResult || autoReviewResult;
 
   useEffect(() => {
     generationTracker.viewed();
   }, []);
-
-  useEffect(() => {
-    const onLeave = () => {
-      if (isAnalyzing || isGenerating) {
-        generationTracker.abandoned({
-          stage: generationStage === "generating" ? "generate" : "analyze",
-        });
-      }
-    };
-    window.addEventListener("beforeunload", onLeave);
-    return () => window.removeEventListener("beforeunload", onLeave);
-  }, [isAnalyzing, isGenerating, generationStage]);
 
   const getContentHtml = () =>
     formData.content_blocks != null && formData.content_blocks.length > 0
@@ -118,195 +83,30 @@ export default function NewBlogPage() {
       : formData.content;
 
   const derivedExcerpt = () => deriveExcerptFromContent(getContentHtml());
-  const [error, setError] = useState("");
 
-  const handleAnalyzePrompt = useCallback(async () => {
-    if (!prompt.trim()) {
-      setPromptError("Please enter a prompt");
-      return;
-    }
-
-    setPromptError("");
-    try {
-      const hints = formParamsToGenerationHints(generationParams);
-      const analysis = await analyzePrompt(prompt.trim(), hints);
-      const merged = mergePromptAnalysisWithForm(analysis, generationParams);
-      setPromptAnalysis(merged);
-
-      if (!analysis.is_valid) {
-        setPromptError(analysis.rejection_reason || "Invalid prompt");
-      } else {
-        // Show confirmation modal after successful analysis
-        setShowConfirmation(true);
-      }
-    } catch (err: any) {
-      // Error message is already user-friendly from backend
-      const errorMessage =
-        err?.response?.data?.message || err?.message || "Failed to analyze prompt. Please try again.";
-      setPromptError(errorMessage);
-    }
-  }, [prompt, generationParams, analyzePrompt]);
-
-  const handleConfirmGeneration = async (confirmedAnalysis: PromptAnalysis) => {
-    setShowConfirmation(false);
+  const handleWizardComplete = (generatedData: GenerateBlogResponse) => {
     generationTracker.confirmed({ generation_type: "ai-generate" });
-    setShowProgress(true);
-    setGenerationStage("generating"); // Skip analyzing stage since it's already done
+    setFormData((prev) => ({
+      ...prev,
+      title: generatedData.content.title,
+      content: generatedData.content.content,
+      content_blocks: htmlToBlocks(generatedData.content.content),
+      campaign_id: generatedData.campaign_id || prev.campaign_id,
+    }));
 
-    try {
-      const generatedData = await generateBlog(prompt.trim(), confirmedAnalysis);
-
-      setFormData((prev) => ({
-        ...prev,
-        title: generatedData.content.title,
-        content: generatedData.content.content,
-        content_blocks: htmlToBlocks(generatedData.content.content),
-      }));
-
-      setGenerationStage("complete");
-
-      if (generatedData.review) {
-        setAutoReviewResult(generatedData.review);
-        setReviewHasNewInfo(true);
-      }
-
-      setMode("write");
-      setShowProgress(false);
-
-      if (generatedData.review) {
-        setReviewPanelTab("content");
-        setShowReview(true);
-      }
-    } catch (err: any) {
-      setShowProgress(false);
-      setGenerationStage("analyzing"); // Reset to initial stage on error
-      // Error message is already user-friendly from backend
-      const errorMessage =
-        err?.response?.data?.message || err?.message || "Failed to generate blog content. Please try again.";
-      setPromptError(errorMessage);
-    }
-  };
-
-  const handleCancelGeneration = () => {
-    cancelRequest(); // Cancel the actual API request
-    setShowProgress(false);
-    setGenerationStage("analyzing");
-    setPromptError("Generation cancelled by user");
-  };
-
-  const handleRegenerateClick = () => {
-    if (!prompt.trim() || !promptAnalysis) {
-      setPromptError("Cannot regenerate without a valid prompt and analysis");
-      return;
+    if (generatedData.review) {
+      setAutoReviewResult(generatedData.review);
+      setReviewHasNewInfo(true);
+      setReviewPanelTab("content");
+      setShowReview(true);
     }
 
-    // Store current content as backup before regenerating
-    if (formData.title || formData.content || formData.content_blocks?.length) {
-      setPreviousContent({
-        title: formData.title,
-        content: formData.content,
-      });
-    }
-
-    setShowRegenerateConfirm(true);
-  };
-
-  const handleRegenerate = async () => {
-    setShowRegenerateConfirm(false);
-
-    if (!prompt.trim() || !promptAnalysis) {
-      setPromptError("Cannot regenerate without a valid prompt and analysis");
-      return;
-    }
-
-    generationTracker.retry({ is_retry: true });
-
-    // Store current content as backup before regenerating
-    if (formData.title || formData.content || formData.content_blocks?.length) {
-      setPreviousContent({
-        title: formData.title,
-        content: formData.content,
-      });
-    }
-
-    setShowProgress(true);
-    setGenerationStage("analyzing");
-
+    setMode("write");
     toast({
-      title: "Regenerating Content",
-      description: "Creating new content based on your prompt...",
-      variant: "info",
+      title: "Post generated",
+      description: "Review the draft, then save when you're ready.",
+      variant: "success",
     });
-
-    try {
-      const hints = formParamsToGenerationHints(generationParams);
-      const freshAnalysis = await analyzePrompt(prompt.trim(), hints);
-
-      if (!freshAnalysis.is_valid) {
-        setPromptError(freshAnalysis.rejection_reason || "Invalid prompt");
-        setShowProgress(false);
-        setGenerationStage("analyzing"); // Reset stage
-        toast({
-          title: "Regeneration Failed",
-          description: freshAnalysis.rejection_reason || "Invalid prompt",
-          variant: "error",
-        });
-        return;
-      }
-
-      const merged = mergePromptAnalysisWithForm(freshAnalysis, generationParams);
-      setPromptAnalysis(merged);
-
-      setGenerationStage("generating");
-      const generatedData = await generateBlog(prompt.trim(), merged);
-
-      setFormData({
-        ...formData,
-        title: generatedData.content.title,
-        content: generatedData.content.content,
-        content_blocks: htmlToBlocks(generatedData.content.content),
-      });
-
-      setGenerationStage("complete");
-
-      if (generatedData.review) {
-        setAutoReviewResult(generatedData.review);
-        setReviewHasNewInfo(true);
-        setReviewPanelTab("content");
-        setShowReview(true);
-      }
-
-      setShowProgress(false);
-    } catch (err: any) {
-      setShowProgress(false);
-      setGenerationStage("analyzing"); // Reset to initial stage on error
-      // Error message is already user-friendly from backend
-      const errorMessage =
-        err?.response?.data?.message || err?.message || "Failed to regenerate blog content. Please try again.";
-      setPromptError(errorMessage);
-      toast({
-        title: "Regeneration Failed",
-        description: errorMessage,
-        variant: "error",
-      });
-    }
-  };
-
-  const handleRevertContent = () => {
-    if (previousContent) {
-      setFormData({
-        ...formData,
-        title: previousContent.title,
-        content: previousContent.content,
-        content_blocks: previousContent.content ? htmlToBlocks(previousContent.content) : formData.content_blocks,
-      });
-      setPreviousContent(null);
-      toast({
-        title: "Content Reverted",
-        description: "Previous content has been restored.",
-        variant: "success",
-      });
-    }
   };
 
   const handleReview = async () => {
@@ -329,41 +129,25 @@ export default function NewBlogPage() {
         },
       });
       const payload = res?.data?.data;
-      if (payload) {
-        setAutoReviewResult(payload);
-      } else {
-        setAutoReviewResult(null);
-      }
+      setAutoReviewResult(payload || null);
       setShowReview(true);
       setReviewHasNewInfo(false);
       setReviewPanelTab("review");
       if (mode === "ai-generate" && (formData.title || hasBodyContent(formData))) {
         setMode("write");
       }
-    } catch (err) {}
+    } catch {
+      // Error handled by hook
+    }
   };
 
-  const activeReviewResult = reviewResult || autoReviewResult;
-
-  useEffect(() => {
-    if (mode === "write") {
-      setGenerationParams(defaultBlogGenerationFormParams());
-    }
-  }, [mode]);
-
-  // Load draft on mount
   useEffect(() => {
     const draft = loadDraft();
     if (draft && !draftRestored) {
-      // Ask user if they want to restore draft
       const shouldRestore = window.confirm("You have a saved draft. Would you like to restore it?");
-
       if (shouldRestore) {
-        setMode(draft.mode);
-        setPrompt(draft.prompt);
-        setPromptAnalysis(draft.promptAnalysis);
-        setGenerationParams(draft.generationParams ?? defaultBlogGenerationFormParams());
         const d = draft.formData;
+        setMode("write");
         setFormData({
           title: d.title,
           content: d.content,
@@ -371,6 +155,7 @@ export default function NewBlogPage() {
           content_blocks: d.content_blocks,
           featured_image: d.featured_image,
           category: d.category,
+          campaign_id: (d as { campaign_id?: string }).campaign_id || "",
           status: d.status,
           scheduled_at: d.status === "published" ? d.scheduled_at : "",
         });
@@ -381,137 +166,57 @@ export default function NewBlogPage() {
           variant: "success",
         });
       } else {
-        // User chose not to restore, clear the draft
         clearDraft();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  }, []);
 
-  // Auto-save draft (debounced)
   useEffect(() => {
-    // Don't save if draft was just restored (to avoid immediate overwrite)
     if (draftRestored) {
-      const timer = setTimeout(() => {
-        setDraftRestored(false);
-      }, 2000);
+      const timer = setTimeout(() => setDraftRestored(false), 2000);
       return () => clearTimeout(timer);
     }
-
-    // Debounce draft saving
     const timer = setTimeout(() => {
-      // Only save if there's meaningful content
-      const hasContent =
-        (mode === "write" && (formData.title || formData.content_blocks?.length || formData.content)) ||
-        (mode === "ai-generate" && prompt.trim());
-
+      const hasContent = formData.title || formData.content_blocks?.length || formData.content;
       if (hasContent) {
         saveDraft({
-          mode,
-          prompt,
-          promptAnalysis,
-          generationParams: mode === "ai-generate" ? generationParams : undefined,
+          mode: "write",
+          prompt: "",
+          promptAnalysis: null,
           formData,
         });
       }
-    }, 2000); // Save after 2 seconds of inactivity
-
+    }, 2000);
     return () => clearTimeout(timer);
-  }, [mode, prompt, promptAnalysis, generationParams, formData, draftRestored, saveDraft, clearDraft]);
+  }, [formData, draftRestored, saveDraft, setDraftRestored]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + S: Save draft manually
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        const hasContent =
-          (mode === "write" && (formData.title || formData.content_blocks?.length || formData.content)) ||
-          (mode === "ai-generate" && prompt.trim());
-
+        const hasContent = formData.title || formData.content_blocks?.length || formData.content;
         if (hasContent) {
-          saveDraft({
-            mode,
-            prompt,
-            promptAnalysis,
-            generationParams: mode === "ai-generate" ? generationParams : undefined,
-            formData,
-          });
-          toast({
-            title: "Draft Saved",
-            description: "Your work has been saved.",
-            variant: "success",
-          });
+          saveDraft({ mode: "write", prompt: "", promptAnalysis: null, formData });
+          toast({ title: "Draft Saved", description: "Your work has been saved.", variant: "success" });
         }
         return;
       }
-
-      // Cmd/Ctrl + Enter: Analyze prompt (AI mode) or Submit form (Write mode)
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
-        if (mode === "ai-generate" && prompt.trim() && !isAnalyzing) {
-          handleAnalyzePrompt();
-        } else if (
-          mode === "write" &&
-          formData.title &&
-          (formData.content_blocks?.length || formData.content?.trim())
-        ) {
-          const form = document.getElementById("blog-form") as HTMLFormElement;
-          if (form) {
-            form.requestSubmit();
-          }
+        if (mode === "write" && formData.title && (formData.content_blocks?.length || formData.content?.trim())) {
+          (document.getElementById("blog-form") as HTMLFormElement | null)?.requestSubmit();
         }
         return;
       }
-
-      // Cmd/Ctrl + K: Open templates
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        if (mode === "ai-generate") {
-          setShowTemplates(true);
-        }
-        return;
-      }
-
-      // Escape: Close modals
       if (e.key === "Escape") {
-        if (showTemplates) {
-          setShowTemplates(false);
-        }
-        if (showConfirmation) {
-          setShowConfirmation(false);
-        }
-        if (showRegenerateConfirm) {
-          setShowRegenerateConfirm(false);
-        }
-        if (showReview) {
-          setShowReview(false);
-        }
-        if (showComparison) {
-          setShowComparison(false);
-        }
-        return;
+        if (showReview) setShowReview(false);
+        if (showComparison) setShowComparison(false);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    mode,
-    prompt,
-    formData,
-    isAnalyzing,
-    showTemplates,
-    showConfirmation,
-    showRegenerateConfirm,
-    showReview,
-    showComparison,
-    saveDraft,
-    promptAnalysis,
-    handleAnalyzePrompt,
-    generationParams,
-    toast,
-  ]);
+  }, [mode, formData, showReview, showComparison, saveDraft, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -535,11 +240,10 @@ export default function NewBlogPage() {
       return;
     }
     if (!useBlocks && !formData.content?.trim()) {
-      setError("Content is required");
+      setError("Post body is required");
       return;
     }
 
-    // Clear draft before submitting
     clearDraft();
 
     try {
@@ -548,6 +252,7 @@ export default function NewBlogPage() {
         content: useBlocks ? "" : formData.content,
         content_blocks: useBlocks ? formData.content_blocks : undefined,
         category: formData.category || undefined,
+        campaign_id: formData.campaign_id || undefined,
         excerpt: derivedExcerpt(),
       };
       const { scheduled_at, ...blogData } = submitData;
@@ -575,15 +280,14 @@ export default function NewBlogPage() {
                 queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS }),
               ]);
             } catch (scheduleErr: any) {
-              console.error("Failed to schedule blog:", scheduleErr);
-              setError(scheduleErr?.response?.data?.message || "Blog created but scheduling failed");
+              setError(scheduleErr?.response?.data?.message || "Post created but scheduling failed");
             }
           }
         },
       });
     } catch (err: unknown) {
       const errorMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to create blog";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to create post";
       setError(errorMessage);
     }
   };
@@ -591,17 +295,14 @@ export default function NewBlogPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       const response = await uploadImage.mutateAsync(file);
-      const imageUrl = response.data.data.url;
-      setFormData({ ...formData, featured_image: imageUrl });
-      setError(""); // Clear any previous errors
+      setFormData({ ...formData, featured_image: response.data.data.url });
+      setError("");
     } catch (err: unknown) {
       const errorMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to upload image";
       setError(errorMessage);
-      console.error("Image upload error:", err);
     }
   };
 
@@ -613,9 +314,9 @@ export default function NewBlogPage() {
   return (
     <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex-shrink-0">
-        <Breadcrumb items={[{ label: "Contents", href: "/dashboard/blogs" }, { label: "Create New Blog" }]} />
+        <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: "Create New Post" }]} />
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <h1 className="text-2xl font-display text-white shrink-0">Create New Blog</h1>
+          <h1 className="text-2xl font-display text-white shrink-0">Create New Post</h1>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-wrap">
             <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-800 shrink-0">
@@ -647,7 +348,7 @@ export default function NewBlogPage() {
               <Button
                 type="button"
                 className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                onClick={() => router.push("/dashboard/blogs")}
+                onClick={() => router.push("/dashboard/posts")}
               >
                 Cancel
               </Button>
@@ -666,7 +367,7 @@ export default function NewBlogPage() {
                 className="bg-primary hover:bg-primary/90 text-white shrink-0"
                 disabled={createBlog.isPending || !canSubmitWriteForm}
               >
-                {createBlog.isPending ? "Creating..." : "Create Blog"}
+                {createBlog.isPending ? "Creating..." : "Create Post"}
               </Button>
             </div>
           </div>
@@ -682,7 +383,7 @@ export default function NewBlogPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
               <div className="lg:col-span-2 space-y-6 min-w-0">
-                {showReview && activeReviewResult && (
+                {showReview && activeReviewResult && mode === "write" && (
                   <div className="flex items-center gap-2">
                     <Button
                       type="button"
@@ -690,14 +391,13 @@ export default function NewBlogPage() {
                         setReviewPanelTab("content");
                         setReviewHasNewInfo(false);
                       }}
-                      disabled={isGenerating || isAnalyzing}
                       className={
                         reviewPanelTab === "content"
                           ? "bg-purple-600 hover:bg-purple-700 text-white"
                           : "bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
                       }
                     >
-                      Content
+                      Post
                     </Button>
                     <Button
                       type="button"
@@ -705,7 +405,6 @@ export default function NewBlogPage() {
                         setReviewPanelTab("review");
                         setReviewHasNewInfo(false);
                       }}
-                      disabled={isGenerating || isAnalyzing}
                       className={
                         reviewPanelTab === "review"
                           ? "bg-purple-600 hover:bg-purple-700 text-white"
@@ -722,7 +421,7 @@ export default function NewBlogPage() {
                   </div>
                 )}
 
-                {reviewPanelTab === "review" && showReview && activeReviewResult ? (
+                {reviewPanelTab === "review" && showReview && activeReviewResult && mode === "write" ? (
                   <BlogReviewCard
                     reviewResult={activeReviewResult}
                     originalContent={{
@@ -737,100 +436,24 @@ export default function NewBlogPage() {
                     onApplyReview={async () => {
                       const result = activeReviewResult;
                       const improvedContent = result.improved_content || formData.content;
-                      try {
-                        const nextBlocks = contentToBlocks(improvedContent);
-                        setFormData({
-                          ...formData,
-                          title: result.improved_title || formData.title,
-                          content_blocks: nextBlocks,
-                          content: blocksToHtml(nextBlocks),
-                          content_type: "html",
-                        });
-                        setShowReview(false);
-                        setReviewPanelTab("content");
-                        setReviewHasNewInfo(false);
-                      } catch (err) {
-                        // Error handled by hook
-                      }
+                      const nextBlocks = contentToBlocks(improvedContent);
+                      setFormData({
+                        ...formData,
+                        title: result.improved_title || formData.title,
+                        content_blocks: nextBlocks,
+                        content: blocksToHtml(nextBlocks),
+                        content_type: "html",
+                      });
+                      setShowReview(false);
+                      setReviewPanelTab("content");
+                      setReviewHasNewInfo(false);
                     }}
                   />
                 ) : mode === "ai-generate" ? (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-white">AI Blog Generation</h3>
-                      <Button
-                        type="button"
-                        onClick={() => setShowTemplates(true)}
-                        className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                      >
-                        <Sparkles className="w-4 h-4 mr-2" />
-                        Browse Templates
-                      </Button>
-                    </div>
-                    <BlogAiGenerationSettings
-                      value={generationParams}
-                      onChange={setGenerationParams}
-                      disabled={isAnalyzing || isGenerating}
-                    />
-                    <PromptInput
-                      value={prompt}
-                      onChange={setPrompt}
-                      onAnalyze={handleAnalyzePrompt}
-                      isAnalyzing={isAnalyzing}
-                      error={promptError}
-                    />
-                    {promptAnalysis && promptAnalysis.is_valid && (
-                      <div className="rounded-md bg-green-900/20 border border-green-800 p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <p className="text-sm text-green-400 font-medium">Prompt Analysis Complete</p>
-                          <div className="flex items-center gap-2">
-                            {(formData.content_blocks?.length || formData.content) && (
-                              <>
-                                <Button
-                                  type="button"
-                                  onClick={handleRegenerateClick}
-                                  disabled={isGenerating || isAnalyzing}
-                                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 h-auto"
-                                >
-                                  <RotateCcw className="w-3 h-3 mr-1" />
-                                  {isGenerating || isAnalyzing ? "Regenerating..." : "Regenerate"}
-                                </Button>
-                                {previousContent && (
-                                  <Button
-                                    type="button"
-                                    onClick={handleRevertContent}
-                                    className="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1 h-auto"
-                                    title="Revert to previous content"
-                                  >
-                                    <Undo2 className="w-3 h-3 mr-1" />
-                                    Revert
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-gray-400">Topic:</span>
-                            <span className="text-white ml-2">{promptAnalysis.topic}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">Domain:</span>
-                            <span className="text-white ml-2">{promptAnalysis.domain}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">Audience:</span>
-                            <span className="text-white ml-2">{promptAnalysis.target_audience}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">Purpose:</span>
-                            <span className="text-white ml-2">{promptAnalysis.purpose}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  <AiPostWizard
+                    onComplete={handleWizardComplete}
+                    onError={(message) => setError(message)}
+                  />
                 ) : (
                   <>
                     <div>
@@ -849,13 +472,13 @@ export default function NewBlogPage() {
 
                     <div className="flex-1 min-h-0 min-w-0">
                       <Label htmlFor="content" className="text-gray-300 mb-2 block">
-                        Content *
+                        Post *
                       </Label>
                       <div className="h-[55vh] min-h-[420px] max-h-[90vh] min-w-0">
                         <BlockEditor
                           value={formData.content_blocks ?? []}
                           onChange={(blocks) => setFormData({ ...formData, content_blocks: blocks })}
-                          placeholder="Start writing your blog post..."
+                          placeholder="Start writing your post..."
                           onUploadImage={handleEditorImageUpload}
                         />
                       </div>
@@ -880,7 +503,7 @@ export default function NewBlogPage() {
                       {isReviewing ? "Reviewing..." : "Review with AI"}
                     </Button>
                     {!canReviewForm && (
-                      <p className="text-xs text-gray-500">Add a title and content to run an AI review.</p>
+                      <p className="text-xs text-gray-500">Add a title and post body to run an AI review.</p>
                     )}
                   </div>
                   <div>
@@ -980,9 +603,6 @@ export default function NewBlogPage() {
             </div>
           </form>
 
-          {/* Review section moved into content/review tabs above */}
-
-          {/* Comparison Modal */}
           {showComparison && activeReviewResult && (
             <BlogReviewComparison
               original={{
@@ -996,11 +616,10 @@ export default function NewBlogPage() {
                 const result = activeReviewResult;
                 const improvedContent = result.improved_content || formData.content;
                 const nextBlocks = contentToBlocks(improvedContent);
-                const normalizedHtml = blocksToHtml(nextBlocks);
                 setFormData({
                   ...formData,
                   title: result.improved_title || formData.title,
-                  content: normalizedHtml,
+                  content: blocksToHtml(nextBlocks),
                   content_type: "html",
                   content_blocks: nextBlocks,
                 });
@@ -1010,47 +629,39 @@ export default function NewBlogPage() {
             />
           )}
 
-          {/* Pre-Generation Confirmation Modal */}
-          {promptAnalysis && (
-            <PreGenerationConfirmation
-              isOpen={showConfirmation}
-              onClose={() => setShowConfirmation(false)}
-              onConfirm={handleConfirmGeneration}
-              initialAnalysis={mergePromptAnalysisWithForm(promptAnalysis, generationParams)}
-              isGenerating={isGenerating}
-            />
+          {(hasDraft || draftRestored) && mode === "write" && (
+            <div className="fixed bottom-4 right-4 flex gap-2 z-40">
+              <Button
+                type="button"
+                variant="outline"
+                className="bg-gray-900 border-gray-700 text-gray-300"
+                onClick={() => {
+                  saveDraft({ mode: "write", prompt: "", promptAnalysis: null, formData });
+                  toast({ title: "Draft Saved", description: "Your work has been saved.", variant: "success" });
+                }}
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Save draft
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-gray-400"
+                onClick={() => {
+                  clearDraft();
+                  toast({ title: "Draft cleared", description: "Local draft removed.", variant: "info" });
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear draft
+              </Button>
+            </div>
           )}
 
-          {/* Generation Progress Modal */}
-          <GenerationProgress
-            isOpen={showProgress}
-            onCancel={handleCancelGeneration}
-            currentStage={generationStage}
-            canCancel={generationStage !== "complete"}
-          />
-
-          {/* Prompt Templates Modal */}
-          {showTemplates && (
-            <PromptTemplates
-              onSelectTemplate={(templatePrompt) => {
-                setPrompt(templatePrompt);
-                setShowTemplates(false);
-              }}
-              onClose={() => setShowTemplates(false)}
-            />
-          )}
-
-          {/* Regenerate Confirmation Modal */}
-          <ConfirmModal
-            isOpen={showRegenerateConfirm}
-            onClose={() => setShowRegenerateConfirm(false)}
-            onConfirm={handleRegenerate}
-            title="Regenerate Content?"
-            message="This will replace your current content with newly generated content. Your current content will be saved so you can revert if needed. Continue?"
-            confirmText="Regenerate"
-            cancelText="Cancel"
-            variant="default"
-          />
+          <p className="text-xs text-gray-600 flex items-center gap-1">
+            <Keyboard className="w-3 h-3" />
+            ⌘/Ctrl+S save draft · ⌘/Ctrl+Enter create
+          </p>
         </div>
       </main>
     </div>

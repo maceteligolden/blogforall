@@ -23,18 +23,18 @@ const stages: { key: GenerationStage; label: string; description: string }[] = [
   },
   {
     key: "generating",
-    label: "Generating Content",
-    description: "Creating your blog post with AI and reviewing quality...",
+    label: "Generating Post",
+    description: "Drafting your post with AI and preparing a review...",
   },
   {
     key: "reviewing",
-    label: "Reviewing Content",
+    label: "Reviewing Post",
     description: "Analyzing quality and providing suggestions...",
   },
   {
     key: "complete",
     label: "Complete",
-    description: "Blog post generated successfully!",
+    description: "Post generated successfully!",
   },
 ];
 
@@ -70,7 +70,7 @@ export function GenerationProgress({ isOpen, onCancel, currentStage, canCancel =
     <Modal isOpen={isOpen} onClose={() => {}} size="md">
       <div className="bg-gray-900 rounded-lg p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-white">Generating Blog Post</h2>
+          <h2 className="text-xl font-semibold text-white">Generating Post</h2>
           {canCancel && currentStage !== "complete" && (
             <button onClick={onCancel} className="text-gray-400 hover:text-white transition-colors">
               <X className="w-5 h-5" />
