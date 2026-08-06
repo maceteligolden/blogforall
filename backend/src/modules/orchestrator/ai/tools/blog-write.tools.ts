@@ -202,14 +202,18 @@ export class BlogGenerateDraftTool implements OrchestratorTool {
     // drafts (~460 words for an 800-word target) because nothing in the chain
     // requested a minimum length. (Debug H19.) When the workspace has set its
     // own preferences they always win.
-    const fallbackTone = memory.preferences.tone || memory.strategic.brand_voice || "professional but approachable";
+    // Prefer preferences.tone for short tone hints; long brand_voice lives in context_pack.
+    const fallbackTone = memory.preferences.tone || "professional but approachable";
     const fallbackWordCount = memory.preferences.default_word_count ?? 1100;
+    const audienceLabels = memory.strategic.target_audience?.length
+      ? memory.strategic.target_audience
+      : memory.strategic.customers?.map((c) => c.label || c.who).filter(Boolean);
 
     const userParams = {
       tone: input.tone || fallbackTone,
       word_count: input.word_count ?? fallbackWordCount,
       topics_to_explore: input.topics_to_explore,
-      target_audience: memory.strategic.target_audience?.join(", ") || undefined,
+      target_audience: audienceLabels?.join(", ") || undefined,
       purpose: memory.strategic.business_goals?.[0],
       context_pack: this.contextPackBuilder.toPromptBlock(contextPack),
     };

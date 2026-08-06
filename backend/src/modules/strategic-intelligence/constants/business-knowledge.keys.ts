@@ -3,9 +3,14 @@
  * Stored as MemoryRecord.canonical_key on workspace/knowledge layers.
  */
 export const BUSINESS_KNOWLEDGE_KEYS = [
-  "business.type",
+  "business.industries",
+  "business.model",
+  "business.description",
+  "business.type", // legacy alias → projects to business_description
   "business.audience",
+  "business.customers",
   "business.brand_voice",
+  "business.brand_negatives",
   "business.goals",
   "business.publishing_channels",
   "business.seo_priorities",
@@ -27,9 +32,14 @@ export type BusinessKnowledgeKey = (typeof BUSINESS_KNOWLEDGE_KEYS)[number];
 
 /** Importance weight for gap scoring (0–1). */
 export const BUSINESS_KNOWLEDGE_IMPORTANCE: Record<BusinessKnowledgeKey, number> = {
-  "business.type": 0.9,
-  "business.audience": 1.0,
+  "business.industries": 0.75,
+  "business.model": 0.8,
+  "business.description": 0.95,
+  "business.type": 0.5,
+  "business.audience": 0.85,
+  "business.customers": 1.0,
   "business.brand_voice": 0.85,
+  "business.brand_negatives": 0.7,
   "business.goals": 0.95,
   "business.publishing_channels": 0.6,
   "business.seo_priorities": 0.7,
@@ -49,9 +59,15 @@ export const BUSINESS_KNOWLEDGE_IMPORTANCE: Record<BusinessKnowledgeKey, number>
 
 /** High-value questions when a key is missing or low-confidence. */
 export const BUSINESS_KNOWLEDGE_QUESTIONS: Record<BusinessKnowledgeKey, string> = {
+  "business.industries": "Which industries does your business operate in?",
+  "business.model": "Is your business B2B, B2C, C2C, or B2B2C?",
+  "business.description": "Describe your business in a short paragraph — what you do and for whom.",
   "business.type": "What does your business do in one sentence?",
-  "business.audience": "Who is your ideal customer (role, company stage, pain)?",
-  "business.brand_voice": "How should your brand sound — tone and words to avoid?",
+  "business.audience": "What short labels describe your ideal customers?",
+  "business.customers":
+    "Who are your customers — describe who they are, the pain you solve, and what success looks like?",
+  "business.brand_voice": "Describe how your brand should sound in content (voice, personality, cadence).",
+  "business.brand_negatives": "What words, tones, or claims should your brand never use?",
   "business.goals": "What long-term outcomes should content drive?",
   "business.publishing_channels": "Where do you primarily publish and promote content?",
   "business.seo_priorities": "Which topics or keywords matter most for SEO?",
@@ -71,13 +87,17 @@ export const BUSINESS_KNOWLEDGE_QUESTIONS: Record<BusinessKnowledgeKey, string> 
 
 /** Map WorkspaceMemory.strategic fields → canonical keys for seeding. */
 export const WORKSPACE_STRATEGIC_TO_KEY: Record<string, BusinessKnowledgeKey> = {
-  business_type: "business.type",
+  industries: "business.industries",
+  business_model: "business.model",
+  business_description: "business.description",
   target_audience: "business.audience",
+  customers: "business.customers",
   brand_voice: "business.brand_voice",
+  brand_negatives: "business.brand_negatives",
   business_goals: "business.goals",
   publishing_channels: "business.publishing_channels",
   seo_priorities: "business.seo_priorities",
-  competitive_notes: "business.competitors",
+  competitors: "business.competitors",
 };
 
 /** Preferences fields that map onto business beliefs. */
@@ -90,20 +110,32 @@ export const WORKSPACE_PREFERENCE_TO_KEY: Record<string, BusinessKnowledgeKey> =
  * Includes strategic.* and preferences.* aliases.
  */
 export const FIELD_PATH_TO_KEY: Record<string, BusinessKnowledgeKey> = {
-  "strategic.business_type": "business.type",
+  "strategic.industries": "business.industries",
+  "strategic.business_model": "business.model",
+  "strategic.business_description": "business.description",
+  "strategic.business_type": "business.description",
   "strategic.target_audience": "business.audience",
+  "strategic.customers": "business.customers",
   "strategic.brand_voice": "business.brand_voice",
+  "strategic.brand_negatives": "business.brand_negatives",
   "strategic.business_goals": "business.goals",
   "strategic.publishing_channels": "business.publishing_channels",
   "strategic.seo_priorities": "business.seo_priorities",
+  "strategic.competitors": "business.competitors",
   "strategic.competitive_notes": "business.competitors",
   "preferences.tone": "business.tone",
-  business_type: "business.type",
+  industries: "business.industries",
+  business_model: "business.model",
+  business_description: "business.description",
+  business_type: "business.description",
   target_audience: "business.audience",
+  customers: "business.customers",
   brand_voice: "business.brand_voice",
+  brand_negatives: "business.brand_negatives",
   business_goals: "business.goals",
   publishing_channels: "business.publishing_channels",
   seo_priorities: "business.seo_priorities",
+  competitors: "business.competitors",
   competitive_notes: "business.competitors",
   tone: "business.tone",
 };

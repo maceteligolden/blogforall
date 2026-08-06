@@ -13,9 +13,19 @@ export function formParamsToGenerationHints(p: BlogGenerationFormParams): {
   word_count?: number;
   purpose?: string;
   structure?: string;
+  content_archetype?: string;
+  style_variant?: string;
+  length_preset?: "short" | "medium" | "long" | "pillar";
 } {
   const topics = topicsInputToArray(p.topicsInput);
   const word_count = getWordCountFromFormParams(p);
+  const length_preset =
+    p.lengthPreset === "short" ||
+    p.lengthPreset === "medium" ||
+    p.lengthPreset === "long" ||
+    p.lengthPreset === "pillar"
+      ? p.lengthPreset
+      : undefined;
   return {
     tone: p.tone.trim() || undefined,
     target_audience: p.target_audience.trim() || undefined,
@@ -23,6 +33,9 @@ export function formParamsToGenerationHints(p: BlogGenerationFormParams): {
     word_count,
     purpose: p.purpose.trim() || undefined,
     structure: p.structure.trim() || undefined,
+    content_archetype: p.structure.trim() || undefined,
+    style_variant: p.style_variant?.trim() || undefined,
+    length_preset,
   };
 }
 

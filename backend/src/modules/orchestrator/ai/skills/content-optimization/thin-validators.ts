@@ -10,6 +10,8 @@ import {
   type ValidatorResult,
 } from "../../contracts/content-optimization";
 import { MVP_LOCKS } from "../../contracts/mvp-locks";
+import { runArchetypeQualityValidator } from "../../../../blog/ai/archetype-quality";
+import type { StyleProfile } from "../../../../blog/ai/contracts/style-profile";
 
 export type DraftForOptimize = {
   title: string;
@@ -237,13 +239,23 @@ export function buildThinOptimizationReport(input: {
   factual_confidence?: number;
   /** Soften CTA/takeaway pressure for personal_story / linkedin_post. */
   post_format?: string;
+  content_archetype?: string;
+  style_profile?: StyleProfile;
+  had_metrics?: boolean;
 }): ContentOptimizationReport {
   const softPersonal = input.post_format === "personal_story" || input.post_format === "linkedin_post";
   const structural = runStructuralValidator(input.draft);
   const readability = runReadabilityValidator(input.draft);
   const seo = runSeoThinValidator(input.draft, input.topic);
   const ux = runUxThinValidator(input.draft, { softPersonal });
-  const validators = [structural, readability, seo, ux];
+  const archetype = runArchetypeQualityValidator({
+    title: input.draft.title,
+    content: input.draft.content,
+    archetype: input.content_archetype,
+    style_profile: input.style_profile,
+    had_metrics: input.had_metrics,
+  });
+  const validators = [structural, readability, seo, ux, archetype];
   const plan = assembleOptimizationPlan(validators, { softPersonal });
 
   const seoScore = seo.score ?? 70;

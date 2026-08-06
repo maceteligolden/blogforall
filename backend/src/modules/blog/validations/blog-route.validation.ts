@@ -29,7 +29,20 @@ export const siteBlogVersionParamSchema = z.object({
 
 export { blogQuerySchema, createBlogSchema, updateBlogSchema, scheduleBlogSchema };
 
-const lengthPresetEnum = z.enum(["short", "medium", "long"]);
+const lengthPresetEnum = z.enum(["short", "medium", "long", "pillar"]);
+
+const interactivePostTypeEnum = z.enum([
+  "article",
+  "tutorial",
+  "how_to",
+  "listicle",
+  "opinion",
+  "case_study",
+  "definitive_guide",
+  "software_roundup",
+  "comparison",
+  "thought_leadership",
+]);
 
 const blogGenerationUserHintsSchema = z.object({
   tone: z.string().max(120).optional(),
@@ -39,6 +52,9 @@ const blogGenerationUserHintsSchema = z.object({
   length_preset: lengthPresetEnum.optional(),
   purpose: z.string().max(120).optional(),
   structure: z.string().max(120).optional(),
+  post_format: z.string().max(64).optional(),
+  content_archetype: z.string().max(64).optional(),
+  style_variant: z.string().max(64).optional(),
 });
 
 export const blogGenerationAnalyzeBodySchema = z.object({
@@ -47,10 +63,12 @@ export const blogGenerationAnalyzeBodySchema = z.object({
   target_audience: z.string().max(200).optional(),
   topics_to_explore: z.array(z.string().max(200)).max(20).optional(),
   word_count: z.number().int().min(300).max(8000).optional(),
-  /** If set and `word_count` is omitted, maps to ~800 / ~1500 / ~2500 words. */
+  /** If set and `word_count` is omitted, maps to ~800 / ~1500 / ~2500 / ~3500 words. */
   length_preset: lengthPresetEnum.optional(),
   purpose: z.string().max(120).optional(),
   structure: z.string().max(120).optional(),
+  content_archetype: z.string().max(64).optional(),
+  style_variant: z.string().max(64).optional(),
   /** Alternative to flat fields */
   user_params: blogGenerationUserHintsSchema.optional(),
 });
@@ -72,6 +90,7 @@ export const postEnrichmentSchema = z.object({
   tone: z.string().max(120).optional(),
   length_preset: lengthPresetEnum.optional(),
   word_count: z.number().int().min(300).max(8000).optional(),
+  style_variant: z.string().max(64).optional(),
 });
 
 export const topicSuggestionSchema = z.object({
@@ -82,7 +101,7 @@ export const topicSuggestionSchema = z.object({
   campaign_name: z.string().max(300).optional(),
   campaign_support: z.string().max(2000),
   keywords: z.array(z.string().max(100)).min(1).max(10),
-  post_type: z.enum(["article", "tutorial", "how_to", "listicle", "opinion", "case_study"]),
+  post_type: interactivePostTypeEnum,
 });
 
 export const postOutlineSchema = z.object({
@@ -100,14 +119,17 @@ export const postOutlineSchema = z.object({
     .max(12),
   keyword_notes: z.string().max(2000),
   campaign_tie_in: z.string().max(2000),
-  post_type: z.enum(["article", "tutorial", "how_to", "listicle", "opinion", "case_study"]),
+  post_type: interactivePostTypeEnum,
   keywords: z.array(z.string().max(100)).max(20),
   campaign_id: z.string().optional(),
+  style_variant: z.string().max(64).optional(),
+  content_archetype: z.string().max(64).optional(),
 });
 
 export const outlineBodySchema = z.object({
   topic: topicSuggestionSchema,
   enrichment: postEnrichmentSchema.optional(),
+  clarify_choice: z.string().max(500).optional(),
 });
 
 export const blogGenerationBodySchema = z.object({
@@ -123,7 +145,11 @@ export const blogGenerationBodySchema = z.object({
   user_params: blogGenerationUserHintsSchema.optional(),
   campaign_id: z.string().optional(),
   keywords: z.array(z.string().max(100)).max(20).optional(),
-  post_type: z.enum(["article", "tutorial", "how_to", "listicle", "opinion", "case_study"]).optional(),
+  post_type: interactivePostTypeEnum.optional(),
+  /** Voice format only (personal_story, etc.) — not interactive post_type */
+  post_format: z.string().max(64).optional(),
+  content_archetype: z.string().max(64).optional(),
+  style_variant: z.string().max(64).optional(),
   enrichment: postEnrichmentSchema.optional(),
   approved_outline: postOutlineSchema.optional(),
 });

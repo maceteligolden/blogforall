@@ -21,6 +21,9 @@ export type ContentOptimizationInput = {
   created_by?: string;
   thread_id?: string;
   post_format?: string;
+  content_archetype?: string;
+  style_profile?: import("../../../../blog/ai/contracts/style-profile").StyleProfile;
+  had_metrics?: boolean;
   onPhase?: PhaseListener;
 };
 
@@ -62,6 +65,9 @@ export class ContentOptimizationService {
           topic: input.topic,
           factual_confidence: input.factual_confidence,
           post_format: input.post_format,
+          content_archetype: input.content_archetype,
+          style_profile: input.style_profile,
+          had_metrics: input.had_metrics,
         });
 
     const can_loop_again = canOptimizeAgain(optimize_count);

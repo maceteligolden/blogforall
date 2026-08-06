@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { injectable } from "tsyringe";
 import { BlogService } from "../../../blog/services/blog.service";
+import { FirstPartyPriorsService } from "../../../blog/ai/first-party-priors.service";
 import { BlogStatus } from "../../../../shared/constants";
 import { env } from "../../../../shared/config/env";
 import { ConversationIntelligenceService } from "../conversation-intelligence/conversation-intelligence";
@@ -151,7 +152,8 @@ export class OrchestratorV05GraphService {
     private readonly strategy: ContentStrategyService,
     private readonly conversation: ConversationSkillService,
     private readonly blogService: BlogService,
-    private readonly strategicContext: StrategicContextService
+    private readonly strategicContext: StrategicContextService,
+    private readonly firstPartyPriors: FirstPartyPriorsService
   ) {}
 
   async runTurn(input: V05GraphTurnInput): Promise<V05GraphTurnResult> {
@@ -337,16 +339,33 @@ export class OrchestratorV05GraphService {
       const topic = state.slots.topic ?? state.message;
       const post_format = isPostFormat(state.slots.post_format) ? state.slots.post_format : undefined;
       const onPhase = this.graphDeps?.onPhase;
+      const first_party = await this.firstPartyPriors.load(state.workspace_id, topic).catch(() => undefined);
       const result = await this.research.run({
         workspace_id: state.workspace_id,
         topic,
         depth,
         post_format,
+        allow_guess: depth === "lite",
+        personal_notes: state.message,
+        first_party,
         persist: true,
         created_by: state.user_id,
         thread_id: state.thread_id,
         onPhase,
       });
+      if (result.needs_clarification) {
+        const q =
+          result.research_brief.ambiguity.clarifying_question ||
+          "Which scope should research use before searching?";
+        const opts = result.research_brief.ambiguity.options?.join(" / ");
+        return {
+          summary: `Research needs clarification: ${q}`,
+          patch: {
+            reply: opts ? `${q}\nOptions: ${opts}` : q,
+            pending_question: q,
+          },
+        };
+      }
       return {
         summary: `Research ${depth}: ${result.summary.source_count} sources`,
         patch: {

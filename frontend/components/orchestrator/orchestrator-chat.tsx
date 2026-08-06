@@ -33,6 +33,7 @@ import {
 } from "@/lib/utils/orchestrator-artifacts";
 import { extractMoatSnapshot } from "@/lib/utils/moat-snapshot";
 import { parseExplicitSessionModeSwitch, isWritingEffectiveMode } from "@/lib/utils/session-mode-parser";
+import { BUSINESS_REFINE_PROMPT_KEY } from "@/lib/onboarding/brand-setup-items";
 import { useOrchestratorArtifacts } from "@/lib/hooks/use-orchestrator-artifacts";
 import { useRenameThread } from "@/lib/hooks/use-rename-thread";
 import { useSpeechSynthesis } from "@/lib/hooks/use-speech-synthesis";
@@ -127,6 +128,14 @@ export function OrchestratorChat({
   useEffect(() => {
     pendingRef.current = pending;
   }, [pending]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const prompt = sessionStorage.getItem(BUSINESS_REFINE_PROMPT_KEY);
+    if (!prompt?.trim()) return;
+    sessionStorage.removeItem(BUSINESS_REFINE_PROMPT_KEY);
+    setInput(prompt.trim());
+  }, []);
 
   const handleSendRef = useRef<(text?: string) => Promise<void>>(async () => {});
 

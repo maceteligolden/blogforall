@@ -13,15 +13,17 @@ import {
   type MemoryRecord,
   type RememberResult,
 } from "../../contracts/memory-record";
+import { customersHaveContent } from "../../../../../shared/types/business-profile";
+import { migrateStrategicMemory } from "../../../../../shared/utils/migrate-strategic-memory";
 
 function listSetupGaps(memory: WorkspaceMemory): string[] {
   const gaps: string[] = [];
-  const s = memory.strategic;
-  if (!s?.business_type?.trim()) gaps.push("business_type");
-  if (!s?.target_audience?.length) gaps.push("target_audience");
-  if (!s?.brand_voice?.trim()) gaps.push("brand_voice");
-  if (!s?.business_goals?.length) gaps.push("business_goals");
-  if (!s?.publishing_channels?.length) gaps.push("publishing_channels");
+  const s = migrateStrategicMemory(memory.strategic);
+  if (!s.business_description?.trim()) gaps.push("business_description");
+  if (!customersHaveContent(s.customers) && !s.target_audience?.length) gaps.push("customers");
+  if (!s.brand_voice?.trim()) gaps.push("brand_voice");
+  if (!s.business_goals?.length) gaps.push("business_goals");
+  if (!s.publishing_channels?.length) gaps.push("publishing_channels");
   return gaps;
 }
 
@@ -117,12 +119,19 @@ export class MemoryManagerService {
       this.memoryRecords.listByLayer(ctx.workspace_id, "content_intelligence", { limit: 10 }),
     ]);
 
+    const strategic = migrateStrategicMemory(memory.strategic);
     return {
       workspace_slice: {
-        brand_voice: memory.strategic?.brand_voice,
-        target_audience: memory.strategic?.target_audience,
-        business_goals: memory.strategic?.business_goals,
-        seo_priorities: memory.strategic?.seo_priorities,
+        business_description: strategic.business_description,
+        business_model: strategic.business_model,
+        industries: strategic.industries,
+        brand_voice: strategic.brand_voice,
+        brand_negatives: strategic.brand_negatives,
+        target_audience: strategic.target_audience,
+        customers: strategic.customers,
+        competitors: strategic.competitors,
+        business_goals: strategic.business_goals,
+        seo_priorities: strategic.seo_priorities,
         preferences: memory.preferences,
         company_role,
         company_role_detail,

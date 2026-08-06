@@ -1,5 +1,5 @@
 /** Length preset drives `word_count` sent to the API (except "custom"). Empty = let AI infer length. */
-export type BlogLengthPreset = "" | "short" | "medium" | "long" | "custom";
+export type BlogLengthPreset = "" | "short" | "medium" | "long" | "pillar" | "custom";
 
 export interface BlogGenerationFormParams {
   lengthPreset: BlogLengthPreset;
@@ -11,6 +11,7 @@ export interface BlogGenerationFormParams {
   topicsInput: string;
   purpose: string;
   structure: string;
+  style_variant?: string;
 }
 
 export const defaultBlogGenerationFormParams = (): BlogGenerationFormParams => ({
@@ -21,6 +22,7 @@ export const defaultBlogGenerationFormParams = (): BlogGenerationFormParams => (
   topicsInput: "",
   purpose: "",
   structure: "",
+  style_variant: "",
 });
 
 export function getWordCountFromFormParams(p: BlogGenerationFormParams): number | undefined {
@@ -39,6 +41,9 @@ export function getWordCountFromFormParams(p: BlogGenerationFormParams): number 
   }
   if (p.lengthPreset === "long") {
     return 2500;
+  }
+  if (p.lengthPreset === "pillar") {
+    return 3500;
   }
   return undefined;
 }

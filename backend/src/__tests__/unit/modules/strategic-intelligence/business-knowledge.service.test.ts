@@ -91,4 +91,90 @@ describe("BusinessKnowledgeService", () => {
     expect(arg.metadata.confidence).toBe(0);
     expect(arg.metadata.belief_status).toBe("invalidated");
   });
+
+  it("projectHotKeys maps description, customers, and competitors", async () => {
+    records.listByLayer.mockResolvedValue([
+      {
+        id: "mr_d",
+        workspace_id: "site1",
+        layer: "workspace",
+        canonical_key: "business.description",
+        value: "We help teams ship content",
+        value_text: "We help teams ship content",
+        metadata: {
+          confidence: 0.8,
+          importance: 0.9,
+          belief_status: "confirmed",
+          created_at: "t",
+          updated_at: "t",
+          version: 1,
+        },
+      },
+      {
+        id: "mr_c",
+        workspace_id: "site1",
+        layer: "workspace",
+        canonical_key: "business.customers",
+        value: [{ who: "Founders", pain_points: "No time", success: "Consistent publishing" }],
+        value_text: "[{...}]",
+        metadata: {
+          confidence: 0.8,
+          importance: 1,
+          belief_status: "confirmed",
+          created_at: "t",
+          updated_at: "t",
+          version: 1,
+        },
+      },
+      {
+        id: "mr_comp",
+        workspace_id: "site1",
+        layer: "workspace",
+        canonical_key: "business.competitors",
+        value: [{ name: "Acme", notes: "Cheaper" }],
+        value_text: '[{"name":"Acme"}]',
+        metadata: {
+          confidence: 0.7,
+          importance: 0.75,
+          belief_status: "confirmed",
+          created_at: "t",
+          updated_at: "t",
+          version: 1,
+        },
+      },
+    ]);
+    workspaceMemory.ensureForSite.mockResolvedValue({
+      strategic: {
+        industries: [],
+        target_audience: [],
+        customers: [],
+        business_goals: [],
+        seo_priorities: [],
+        publishing_channels: [],
+        competitors: [],
+      },
+      preferences: {},
+      version: 1,
+    });
+
+    await service.projectHotKeys("site1", "user1");
+    expect(workspaceMemory.update).toHaveBeenCalled();
+    const updateArg = workspaceMemory.update.mock.calls[0][1] as {
+      strategic: {
+        business_description?: string;
+        customers?: Array<{ who: string }>;
+        competitors?: Array<{ name: string }>;
+      };
+    };
+    expect(updateArg.strategic.business_description).toBe("We help teams ship content");
+    expect(updateArg.strategic.customers?.[0]?.who).toBe("Founders");
+    expect(updateArg.strategic.competitors?.[0]?.name).toBe("Acme");
+  });
+
+  it("listGaps excludes deprecated business.type", async () => {
+    const gaps = await service.listGaps("site1");
+    expect(gaps.some((g) => g.key === "business.type")).toBe(false);
+    expect(gaps.some((g) => g.key === "business.description")).toBe(true);
+    expect(gaps.some((g) => g.key === "business.customers")).toBe(true);
+  });
 });

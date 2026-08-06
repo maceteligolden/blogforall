@@ -77,6 +77,9 @@ describe("T2.4 ResearchFullService", () => {
     }));
     const tavily = {
       search: jest.fn(async (q: string) => notes.map((n, i) => ({ ...n, url: `${n.url}-${q.slice(0, 8)}-${i}` }))),
+      extract: jest.fn(async (urls: string[]) =>
+        urls.map((url) => ({ url, title: "Extracted", text: "Extracted body with concrete steps and pitfalls." }))
+      ),
     };
     const artifacts = {
       saveResearchPackage: jest.fn(async (pkg: { id: string }) => ({ package_id: pkg.id })),
@@ -86,22 +89,37 @@ describe("T2.4 ResearchFullService", () => {
       workspace_id: "ws_1",
       topic: "AI agents",
       persist: true,
+      allow_guess: true,
+      content_archetype: "article",
     });
     expect(result.package.depth).toBe("full");
     expect(result.package.sources.length).toBeLessThanOrEqual(MVP_LOCKS.researchSourcesFullMax);
-    expect(result.package.research_questions.length).toBe(3);
-    expect(tavily.search.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(result.package.research_questions.length).toBeGreaterThanOrEqual(1);
+    expect(result.research_brief).toBeDefined();
+    expect(tavily.search.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(result.persisted).toBe(true);
     expect(artifacts.saveResearchPackage).toHaveBeenCalled();
   });
 
   it("ResearchSkillService routes lite vs full", async () => {
+    const brief = {
+      raw_topic: "t",
+      scope: { kind: "general_topic", topic: "t" },
+      reader_job: "j",
+      must_answer: [],
+      must_not_invent: [],
+      ambiguity: { is_ambiguous: false },
+      first_party_reuse: { avoid_duplicate_angles: [], style_exemplar_post_ids: [], winning_patterns: [] },
+      search_queries: ["t"],
+    };
     const lite = {
       run: jest.fn(async () => ({
         package: { id: "rp_lite", depth: "lite" },
         summary: { depth: "lite" },
         provenance_errors: [],
         persisted: true,
+        research_brief: brief,
+        needs_clarification: false,
       })),
     };
     const full = {
@@ -111,6 +129,8 @@ describe("T2.4 ResearchFullService", () => {
         provenance_errors: [],
         coverage_retries: 0,
         persisted: true,
+        research_brief: brief,
+        needs_clarification: false,
       })),
     };
     const skill = new ResearchSkillService(lite as any, full as any);

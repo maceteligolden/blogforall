@@ -2,7 +2,7 @@
 
 **Status:** Canonical design (M6 Strategic Intelligence)  
 **Date:** 2026-07-29  
-**Last updated:** 2026-08-06 (implementation status + M6.5 gap-closure)  
+**Last updated:** 2026-08-06 (richer business profile hot keys + `/dashboard/business` UI)  
 **ADR:** [ADR-015](../../architecture-decisions.md#adr-015--strategic-intelligence-hierarchy)  
 **Companion:** [08](./08-memory-architecture.md), [18](./18-memory-manager.md), [14](./14-mvp-and-roadmap.md), [20](./20-go-to-market-architecture.md)  
 **Supersedes (scope):** [`docs/CAMPAIGN_AGENT_IMPLEMENTATION_PLAN.md`](../../CAMPAIGN_AGENT_IMPLEMENTATION_PLAN.md) for “separate campaign chat agent” — campaign planning stays inside the orchestrator + campaign tools.
@@ -72,6 +72,28 @@ Implemented as `MemoryRecord` with a constrained `canonical_key` taxonomy (not a
 | `source` | onboarding \| conversation \| edit \| publish \| analytics \| user_explicit \| doc_upload |
 
 Hot keys project into `WorkspaceMemory.strategic` for cheap reads.
+
+**Hot-key taxonomy (business profile):**
+
+| Canonical key | Hot field | Notes |
+|---|---|---|
+| `business.industries` | `industries: string[]` | Industry labels |
+| `business.model` | `business_model` | `b2b \| b2c \| c2c \| b2b2c` |
+| `business.description` | `business_description` | Paragraph description of the business |
+| `business.type` | _(legacy)_ | Read-migrates into `business_description`; excluded from gap scoring |
+| `business.audience` | `target_audience: string[]` | Short audience labels |
+| `business.customers` | `customers: { who, pain_points?, success?, label? }[]` | Persona profiles |
+| `business.brand_voice` | `brand_voice` | Descriptive prose (not a one-word label) |
+| `business.brand_negatives` | `brand_negatives` | Words / tones / claims to avoid |
+| `business.competitors` | `competitors: { name, notes? }[]` | Named competitors (legacy `competitive_notes` migrates in) |
+| `business.goals` | `business_goals` | |
+| `business.seo_priorities` | `seo_priorities` | |
+| `business.publishing_channels` | `publishing_channels` | |
+| `business.tone` | `preferences.tone` | Short draft tone |
+
+Lazy migration on read / `projectHotKeys`: `business_type` → `business_description`; `competitive_notes` → `competitors[]`; empty `customers` seeded from `target_audience` labels.
+
+Product UI: `/dashboard/business` (sidebar) for view/edit + AI refine CTAs into orchestrator chat.
 
 ### WorkspaceStrategy
 

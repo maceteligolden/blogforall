@@ -1,6 +1,20 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
 
+export type BusinessModel = "b2b" | "b2c" | "c2c" | "b2b2c";
+
+export interface CustomerPersona {
+  who: string;
+  pain_points?: string;
+  success?: string;
+  label?: string;
+}
+
+export interface CompetitorEntry {
+  name: string;
+  notes?: string;
+}
+
 export interface BehavioralRule {
   rule_id: string;
   category: string;
@@ -10,17 +24,27 @@ export interface BehavioralRule {
   source: string;
 }
 
+export interface WorkspaceStrategic {
+  website_url?: string;
+  industries: string[];
+  business_model?: BusinessModel;
+  business_description?: string;
+  /** @deprecated Prefer business_description */
+  business_type?: string;
+  target_audience: string[];
+  customers: CustomerPersona[];
+  brand_voice?: string;
+  brand_negatives?: string;
+  business_goals: string[];
+  seo_priorities: string[];
+  publishing_channels: string[];
+  competitors: CompetitorEntry[];
+  /** @deprecated Prefer competitors */
+  competitive_notes?: string;
+}
+
 export interface WorkspaceMemoryResponse {
-  strategic: {
-    website_url?: string;
-    business_type?: string;
-    target_audience: string[];
-    brand_voice?: string;
-    business_goals: string[];
-    seo_priorities: string[];
-    publishing_channels: string[];
-    competitive_notes?: string;
-  };
+  strategic: WorkspaceStrategic;
   preferences: {
     tone?: string;
     formatting?: string;

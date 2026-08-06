@@ -26,16 +26,20 @@ import {
   outlineBodySchema,
   suggestTopicsBodySchema,
 } from "../validations/blog-route.validation";
+import { coerceContentArchetype } from "../ai/contracts/content-archetype";
+import { resolveStyleProfile } from "../ai/contracts/style-profile";
+import { isPostFormat } from "../../orchestrator/ai/contracts/post-format";
 
 type AnalyzeBody = z.infer<typeof blogGenerationAnalyzeBodySchema>;
 type GenerateBody = z.infer<typeof blogGenerationBodySchema>;
 type SuggestTopicsBody = z.infer<typeof suggestTopicsBodySchema>;
 type OutlineBody = z.infer<typeof outlineBodySchema>;
 
-function lengthPresetToWordCount(preset: "short" | "medium" | "long" | undefined): number | undefined {
+function lengthPresetToWordCount(preset: "short" | "medium" | "long" | "pillar" | undefined): number | undefined {
   if (!preset) return undefined;
   if (preset === "short") return 800;
   if (preset === "medium") return 1500;
+  if (preset === "pillar") return 3500;
   if (preset === "long") return 2500;
   return undefined;
 }
@@ -84,6 +88,35 @@ function userParamsFromGenerateBody(
   const contextPack = outline ? interactive.buildContextPack(outline, enrichment) : undefined;
   const structureFromOutline = outline ? outline.sections.map((s) => s.heading).join(" → ") : undefined;
 
+  const content_archetype =
+    body.content_archetype ||
+    outline?.content_archetype ||
+    coerceContentArchetype(body.post_type) ||
+    coerceContentArchetype(outline?.post_type) ||
+    coerceContentArchetype(body.structure ?? u?.structure);
+
+  // Voice formats only — do NOT stuff interactive post_type into post_format
+  const post_format = isPostFormat(body.post_format)
+    ? body.post_format
+    : isPostFormat(u?.post_format)
+      ? u?.post_format
+      : undefined;
+
+  const style_profile = resolveStyleProfile({
+    archetype: content_archetype,
+    structure: body.structure ?? u?.structure,
+    purpose: body.purpose ?? u?.purpose ?? outline?.thesis,
+    variant: body.style_variant ?? enrichment?.style_variant ?? outline?.style_variant,
+    audience: body.target_audience ?? enrichment?.target_audience ?? u?.target_audience,
+    tone: body.tone ?? enrichment?.tone ?? u?.tone,
+    personal_notes: enrichment?.personal_notes,
+    must_include: enrichment?.must_include,
+    must_avoid: enrichment?.must_avoid,
+    length_preset: body.length_preset ?? enrichment?.length_preset ?? u?.length_preset,
+    topic: outline?.working_title ?? body.prompt,
+    site_id: undefined,
+  });
+
   const merged: BlogUserGenerationParams = {
     tone: body.tone ?? enrichment?.tone ?? u?.tone,
     target_audience: body.target_audience ?? enrichment?.target_audience ?? u?.target_audience,
@@ -92,7 +125,13 @@ function userParamsFromGenerateBody(
     purpose: body.purpose ?? u?.purpose ?? outline?.thesis,
     structure: body.structure ?? u?.structure ?? structureFromOutline,
     context_pack: contextPack,
-    post_format: body.post_type ?? outline?.post_type,
+    post_format,
+    content_archetype: style_profile.archetype,
+    style_variant: style_profile.variant,
+    style_profile,
+    personal_notes: enrichment?.personal_notes,
+    must_include: enrichment?.must_include,
+    must_avoid: enrichment?.must_avoid,
     approved_outline_title: outline?.working_title,
     approved_outline_sections: outline?.sections.map((s) => ({
       heading: s.heading,
@@ -106,7 +145,8 @@ function userParamsFromGenerateBody(
     merged.word_count != null ||
     !!merged.purpose?.trim() ||
     !!merged.structure?.trim() ||
-    !!merged.context_pack?.trim();
+    !!merged.context_pack?.trim() ||
+    !!merged.content_archetype;
   if (!hasHints) return undefined;
   return merged;
 }

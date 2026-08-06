@@ -13,6 +13,13 @@ import { CampaignService } from "../../../campaign/services/campaign.service";
 import { BusinessKnowledgeService } from "../../../strategic-intelligence/services/business-knowledge.service";
 import { WorkspaceStrategyService } from "../../../strategic-intelligence/services/workspace-strategy.service";
 import { env } from "../../../../shared/config/env";
+import {
+  completeOnboardingStrategicSchema,
+  strategicPatchSchema,
+} from "../../../../shared/validations/business-profile.validation";
+import { formatBusinessOneLiner } from "../../../../shared/utils/format-business-context";
+import { migrateStrategicMemory } from "../../../../shared/utils/migrate-strategic-memory";
+import { normalizeCompetitors, normalizeCustomers } from "../../../../shared/types/business-profile";
 
 // -----------------------------------------------------------------------------
 // workspace.renameWorkspace
@@ -61,12 +68,13 @@ export class WorkspaceGetMemoryTool implements OrchestratorTool {
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const memory = await this.memoryRepository.ensureForSite(invocation.siteId);
+    const strategic = migrateStrategicMemory(memory.strategic);
     return {
       summary: truncateSummary(
-        `Workspace memory v${memory.version}. Goals: ${(memory.strategic.business_goals || []).join(", ") || "(none)"}. Tone: ${memory.preferences.tone || "(unset)"}.`
+        `Workspace memory v${memory.version}. Goals: ${(strategic.business_goals || []).join(", ") || "(none)"}. Tone: ${memory.preferences.tone || "(unset)"}.`
       ),
       data: {
-        strategic: memory.strategic,
+        strategic,
         operational: memory.operational,
         preferences: memory.preferences,
         memory_summary: memory.memory_summary,
@@ -83,19 +91,7 @@ export class WorkspaceGetMemoryTool implements OrchestratorTool {
 const updateMemoryInputSchema = z.object({
   patch: z
     .object({
-      strategic: z
-        .object({
-          website_url: z.string().max(2048).optional(),
-          business_type: z.string().max(200).optional(),
-          target_audience: z.array(z.string()).max(20).optional(),
-          brand_voice: z.string().max(1000).optional(),
-          business_goals: z.array(z.string()).max(20).optional(),
-          seo_priorities: z.array(z.string()).max(50).optional(),
-          publishing_channels: z.array(z.string()).max(20).optional(),
-          competitive_notes: z.string().max(4000).optional(),
-        })
-        .partial()
-        .optional(),
+      strategic: strategicPatchSchema.optional(),
       operational: z
         .object({
           publishing_cadence: z.string().max(200).optional(),
@@ -228,16 +224,7 @@ export class WorkspaceUpdateMemoryTool implements OrchestratorTool {
 // -----------------------------------------------------------------------------
 
 const completeOnboardingInputSchema = z.object({
-  strategic: z.object({
-    website_url: z.string().max(2048).optional(),
-    business_type: z.string().min(1).max(200),
-    target_audience: z.array(z.string().min(1)).min(1).max(20),
-    brand_voice: z.string().min(1).max(1000),
-    business_goals: z.array(z.string().min(1)).min(1).max(20),
-    seo_priorities: z.array(z.string()).max(50).optional(),
-    publishing_channels: z.array(z.string()).max(20).optional(),
-    competitive_notes: z.string().max(4000).optional(),
-  }),
+  strategic: completeOnboardingStrategicSchema,
   preferences: z
     .object({
       tone: z.string().max(200).optional(),
@@ -262,7 +249,7 @@ const completeOnboardingInputSchema = z.object({
 export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
   name = "workspace.completeOnboarding";
   description =
-    "Finalize workspace onboarding. Call this once you have captured business_type, target_audience, brand_voice, and business_goals. Writes the captured payload to workspace memory and unlocks the dashboard.";
+    "Finalize workspace onboarding. Call once you have captured business_description, at least one customer persona, brand_voice, and business_goals. Writes the captured payload to workspace memory and unlocks the dashboard.";
   // Onboarding is gated by site.status; no in-chat confirmation needed.
   requiresConfirmation = false;
   confirmationKind = OrchestratorApprovalKind.IN_CHAT_CONFIRMATION;
@@ -277,21 +264,33 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
 
   async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
     const input = parseToolInput(completeOnboardingInputSchema, invocation.input, this.name);
+    const customers = normalizeCustomers(input.strategic.customers);
+    const audienceLabels =
+      input.strategic.target_audience?.length && input.strategic.target_audience.length > 0
+        ? input.strategic.target_audience
+        : customers.map((c) => c.label || c.who).filter(Boolean);
     const strategic = {
       website_url: input.strategic.website_url,
-      business_type: input.strategic.business_type,
-      target_audience: input.strategic.target_audience,
+      industries: input.strategic.industries ?? [],
+      business_model: input.strategic.business_model,
+      business_description: input.strategic.business_description,
+      target_audience: audienceLabels,
+      customers,
       brand_voice: input.strategic.brand_voice,
+      brand_negatives: input.strategic.brand_negatives,
       business_goals: input.strategic.business_goals,
       seo_priorities: input.strategic.seo_priorities ?? [],
       publishing_channels: input.strategic.publishing_channels ?? [],
-      competitive_notes: input.strategic.competitive_notes,
+      competitors: normalizeCompetitors(input.strategic.competitors ?? []),
     };
     const preferences = {
       tone: input.preferences?.tone,
       default_word_count: input.preferences?.default_word_count,
       communication_style: input.preferences?.communication_style,
     };
+    const summary =
+      input.memory_summary ||
+      this.buildMemorySummary(input.strategic.business_description, input.strategic.business_goals);
 
     if (env.orchestrator.strategicIntelligenceEnabled) {
       await this.businessKnowledge.applyStrategicPatch(
@@ -300,9 +299,7 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
         {
           strategic,
           preferences,
-          memory_summary:
-            input.memory_summary ||
-            this.buildMemorySummary(input.strategic.business_type, input.strategic.business_goals),
+          memory_summary: summary,
           ...(input.operational
             ? {
                 operational: {
@@ -318,9 +315,7 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
       const patch: Record<string, unknown> = {
         strategic,
         preferences,
-        memory_summary:
-          input.memory_summary ||
-          this.buildMemorySummary(input.strategic.business_type, input.strategic.business_goals),
+        memory_summary: summary,
       };
       if (input.operational) {
         patch.operational = {
@@ -343,7 +338,7 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
     }
 
     return {
-      summary: `Onboarding complete: '${input.strategic.business_type}' workspace is now active.`,
+      summary: `Onboarding complete: '${formatBusinessOneLiner(strategic)}' workspace is now active.`,
       data: {
         site_active: true,
         captured_goals: input.strategic.business_goals,
@@ -351,8 +346,8 @@ export class WorkspaceCompleteOnboardingTool implements OrchestratorTool {
     };
   }
 
-  private buildMemorySummary(businessType: string, goals: string[]): string {
+  private buildMemorySummary(businessDescription: string, goals: string[]): string {
     const top = goals.slice(0, 3).join("; ");
-    return `Business: ${businessType}. Top goals: ${top || "(none)"}.`;
+    return `Business: ${businessDescription}. Top goals: ${top || "(none)"}.`;
   }
 }

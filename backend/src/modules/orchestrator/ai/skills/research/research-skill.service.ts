@@ -2,6 +2,8 @@ import { injectable } from "tsyringe";
 import type { PostFormat } from "../../contracts/post-format";
 import type { ResearchPackage, ResearchPackageSummary } from "../../contracts/research-package";
 import type { PhaseListener } from "../../observability/phase-emitter";
+import type { ContentArchetype } from "../../../../blog/ai/contracts/content-archetype";
+import type { FirstPartyPriors, ResearchBrief, ResearchScope } from "../../../../blog/ai/contracts/research-brief";
 import { ResearchFullService } from "./research-full.service";
 import { ResearchLiteService } from "./research-lite.service";
 
@@ -12,6 +14,13 @@ export type ResearchSkillInput = {
   audience?: string;
   search_intent?: string;
   post_format?: PostFormat;
+  content_archetype?: ContentArchetype | string;
+  personal_notes?: string;
+  must_include?: string;
+  clarify_choice?: string;
+  resolved_scope?: ResearchScope;
+  first_party?: FirstPartyPriors;
+  allow_guess?: boolean;
   signal?: AbortSignal;
   persist?: boolean;
   created_by?: string;
@@ -26,6 +35,8 @@ export type ResearchSkillResult = {
   depth: "lite" | "full";
   coverage_retries?: number;
   persisted: boolean;
+  research_brief: ResearchBrief;
+  needs_clarification: boolean;
 };
 
 /** Facade: select lite vs full Research and persist by default. */
@@ -46,6 +57,8 @@ export class ResearchSkillService {
         depth: "full",
         coverage_retries: result.coverage_retries,
         persisted: result.persisted,
+        research_brief: result.research_brief,
+        needs_clarification: result.needs_clarification,
       };
     }
     const result = await this.lite.run(input);
@@ -55,6 +68,8 @@ export class ResearchSkillService {
       provenance_errors: result.provenance_errors,
       depth: "lite",
       persisted: Boolean(result.persisted),
+      research_brief: result.research_brief,
+      needs_clarification: result.needs_clarification,
     };
   }
 }

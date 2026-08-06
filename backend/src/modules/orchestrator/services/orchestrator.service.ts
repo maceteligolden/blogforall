@@ -1249,8 +1249,8 @@ export class OrchestratorService {
    * Build a WorkspaceMemory patch from the orchestrator's `onboarding_payload`.
    *
    * The supervisor system prompt instructs the LLM to capture strategic fields
-   * at the TOP level of the payload (e.g. `business_type`, `business_goals`,
-   * `target_audience`, ...). We map those into the persisted
+   * at the TOP level of the payload (e.g. `business_description`, `business_goals`,
+   * `customers`, ...). We map those into the persisted
    * `WorkspaceMemory.strategic` / `.preferences` shape.
    *
    * Nested forms (`payload.strategic`, `payload.preferences`,
@@ -1265,12 +1265,19 @@ export class OrchestratorService {
 
     const STRATEGIC_KEYS = [
       "website_url",
+      "industries",
+      "business_model",
+      "business_description",
       "business_type",
       "brand_voice",
+      "brand_negatives",
       "target_audience",
+      "customers",
+      "competitors",
       "business_goals",
       "seo_priorities",
       "publishing_channels",
+      "competitive_notes",
     ] as const;
     for (const key of STRATEGIC_KEYS) {
       if (payload[key] !== undefined && payload[key] !== null) {
@@ -1854,28 +1861,57 @@ export class OrchestratorService {
     }
 
     // Ensure completeOnboarding required fields exist.
-    const businessType =
-      (typeof strategic.business_type === "string" && strategic.business_type.trim()) || "Business (from website)";
+    const businessDescription =
+      (typeof strategic.business_description === "string" && strategic.business_description.trim()) ||
+      (typeof strategic.business_type === "string" && strategic.business_type.trim()) ||
+      "Business (from website)";
     const audience = Array.isArray(strategic.target_audience)
       ? (strategic.target_audience as string[]).filter((s) => typeof s === "string" && s.trim())
       : [];
+    const customers = Array.isArray(strategic.customers)
+      ? (strategic.customers as Array<{ who?: string; pain_points?: string; success?: string; label?: string }>)
+          .filter((c) => c && typeof c.who === "string" && c.who.trim())
+          .map((c) => ({
+            who: c.who!.trim(),
+            pain_points: c.pain_points,
+            success: c.success,
+            label: c.label,
+          }))
+      : [];
+    const seededCustomers =
+      customers.length > 0
+        ? customers
+        : audience.length
+          ? audience.map((label) => ({ who: label, label }))
+          : [{ who: "General audience", label: "General audience" }];
     const brandVoice =
       (typeof strategic.brand_voice === "string" && strategic.brand_voice.trim()) ||
       (typeof preferences.tone === "string" && preferences.tone.trim()) ||
-      "Professional";
+      "Clear, helpful, and credible.";
     const goals = Array.isArray(strategic.business_goals)
       ? (strategic.business_goals as string[]).filter((s) => typeof s === "string" && s.trim())
       : [];
+    const competitors = Array.isArray(strategic.competitors)
+      ? (strategic.competitors as Array<{ name?: string; notes?: string }>)
+          .filter((c) => c && typeof c.name === "string" && c.name.trim())
+          .map((c) => ({ name: c.name!.trim(), notes: c.notes }))
+      : undefined;
 
     const completeInput = {
       strategic: {
-        business_type: businessType,
-        target_audience: audience.length ? audience : ["General audience"],
+        business_description: businessDescription,
+        industries: Array.isArray(strategic.industries) ? strategic.industries : undefined,
+        business_model:
+          typeof strategic.business_model === "string" ? strategic.business_model : undefined,
+        target_audience: audience.length ? audience : seededCustomers.map((c) => c.label || c.who),
+        customers: seededCustomers,
         brand_voice: brandVoice,
+        brand_negatives:
+          typeof strategic.brand_negatives === "string" ? strategic.brand_negatives : undefined,
         business_goals: goals.length ? goals : ["Grow audience through content"],
         seo_priorities: Array.isArray(strategic.seo_priorities) ? strategic.seo_priorities : [],
         publishing_channels: Array.isArray(strategic.publishing_channels) ? strategic.publishing_channels : [],
-        competitive_notes: typeof strategic.competitive_notes === "string" ? strategic.competitive_notes : undefined,
+        competitors,
         website_url: websiteUrl,
       },
       preferences: {
@@ -1886,7 +1922,7 @@ export class OrchestratorService {
       memory_summary:
         typeof basePatch.memory_summary === "string"
           ? basePatch.memory_summary
-          : `Business: ${businessType}. Website: ${websiteUrl ?? "n/a"}.`,
+          : `Business: ${businessDescription}. Website: ${websiteUrl ?? "n/a"}.`,
     };
 
     const tool = this.toolRegistry.get("workspace.completeOnboarding");

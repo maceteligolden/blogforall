@@ -162,6 +162,8 @@ export class BlogGenerationService {
         campaign_id: extras?.campaign_id ?? extras?.approved_outline?.campaign_id,
         keywords: extras?.keywords ?? extras?.approved_outline?.keywords,
         post_type: extras?.post_type ?? extras?.approved_outline?.post_type,
+        content_archetype: extras?.approved_outline?.content_archetype,
+        style_variant: extras?.enrichment?.style_variant ?? extras?.approved_outline?.style_variant,
         length_preset: extras?.enrichment?.length_preset,
       },
       { timeout: 180000, signal }
@@ -203,6 +205,8 @@ export class BlogGenerationService {
       campaign_id: options.campaign_id ?? options.approved_outline?.campaign_id,
       keywords: options.keywords ?? options.approved_outline?.keywords,
       post_type: options.post_type ?? options.approved_outline?.post_type,
+      content_archetype: options.approved_outline?.content_archetype,
+      style_variant: options.enrichment?.style_variant ?? options.approved_outline?.style_variant,
       length_preset: options.enrichment?.length_preset,
     };
     const res = await fetch(url, {

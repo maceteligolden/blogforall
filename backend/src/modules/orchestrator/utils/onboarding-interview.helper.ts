@@ -1,22 +1,36 @@
 import { OrchestratorMessageRole } from "../../../shared/schemas/orchestrator-message.schema";
 import type { OrchestratorMessage } from "../../../shared/schemas/orchestrator-message.schema";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
+import { customersHaveContent } from "../../../shared/types/business-profile";
+import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
 import { WEBSITE_ONBOARDING_QUESTION, WEBSITE_PROPOSAL_CONFIRM_QUESTION } from "./website-onboarding.helper";
 
 export type OnboardingFieldKey =
-  | "business_type"
-  | "target_audience"
+  | "business_description"
+  | "business_model"
+  | "industries"
+  | "customers"
   | "brand_voice"
+  | "brand_negatives"
+  | "competitors"
   | "business_goals"
   | "seo_priorities"
   | "publishing_channels"
   | "tone"
-  | "default_word_count";
+  | "default_word_count"
+  /** @deprecated Mapped to business_description for older tests/callers. */
+  | "business_type"
+  /** @deprecated Prefer customers; kept for label-only completeness. */
+  | "target_audience";
 
 const FIELD_ORDER: OnboardingFieldKey[] = [
-  "business_type",
-  "target_audience",
+  "business_description",
+  "business_model",
+  "industries",
+  "customers",
   "brand_voice",
+  "brand_negatives",
+  "competitors",
   "business_goals",
   "seo_priorities",
   "publishing_channels",
@@ -24,28 +38,63 @@ const FIELD_ORDER: OnboardingFieldKey[] = [
   "default_word_count",
 ];
 
+/** Asked once when next, but empty does not block "all fields captured". */
+const OPTIONAL_FIELDS = new Set<OnboardingFieldKey>([
+  "brand_negatives",
+  "competitors",
+  "seo_priorities",
+  "business_model",
+  "industries",
+  "tone",
+  "default_word_count",
+]);
+
 const FIELD_QUESTIONS: Record<OnboardingFieldKey, string> = {
-  business_type: "What does your business do, in one sentence?",
-  target_audience: "Who is your primary target audience? Describe at least one specific persona you want to reach.",
-  brand_voice: "How should your content sound — formal, playful, expert, or something else?",
-  business_goals: "What are your top 3–5 business goals for content? List them in order of priority.",
+  business_description:
+    "Describe your business in a short paragraph — what you do, who you serve, and what makes you different?",
+  business_model: "Is your business primarily B2B, B2C, C2C, or B2B2C?",
+  industries: "Which industries does your business belong to?",
+  customers:
+    "Describe at least one customer persona: who they are, the pain points you solve for them, and what success looks like?",
+  brand_voice:
+    "Describe your brand voice in a short paragraph — personality, cadence, and how you want to sound in content?",
+  brand_negatives: "What words, tones, or claims should your brand avoid? (Optional — you can say skip.)",
+  competitors: "Who are your main competitors? Name them and optionally note how you differ. (Optional — say skip.)",
+  business_goals: "What are your top 3–5 business goals for content, in order of priority?",
   seo_priorities: "Any topics or keywords you want to prioritize for SEO? (Optional — you can say skip if none.)",
   publishing_channels:
     "Where will you publish besides this Bloggr workspace — e.g. newsletter, LinkedIn, or other channels?",
   tone: "What tone should drafts use — e.g. professional, casual, witty?",
   default_word_count: "Rough default length for posts? (e.g. 800 words)",
+  business_type:
+    "Describe your business in a short paragraph — what you do, who you serve, and what makes you different?",
+  target_audience: "Who is your primary target audience? Describe at least one specific persona you want to reach.",
 };
 
 function isFieldMissing(memory: WorkspaceMemory, key: OnboardingFieldKey): boolean {
-  const s = memory.strategic;
+  const s = migrateStrategicMemory(memory.strategic);
   const p = memory.preferences;
   switch (key) {
+    case "business_description":
     case "business_type":
-      return !s.business_type?.trim();
+      return !s.business_description?.trim() && !s.business_type?.trim();
+    case "business_model":
+      return !s.business_model;
+    case "industries":
+      return !s.industries.length;
+    case "customers":
+      return !customersHaveContent(s.customers);
     case "target_audience":
-      return !s.target_audience?.length || s.target_audience.every((a) => !a?.trim());
+      return (
+        !customersHaveContent(s.customers) &&
+        (!s.target_audience?.length || s.target_audience.every((a) => !a?.trim()))
+      );
     case "brand_voice":
       return !s.brand_voice?.trim();
+    case "brand_negatives":
+      return !s.brand_negatives?.trim();
+    case "competitors":
+      return !s.competitors.length;
     case "business_goals":
       return !s.business_goals?.length || s.business_goals.every((g) => !g?.trim());
     case "seo_priorities":
@@ -64,6 +113,11 @@ function isFieldMissing(memory: WorkspaceMemory, key: OnboardingFieldKey): boole
 /** Ordered list of onboarding fields still empty in workspace memory. */
 export function listMissingOnboardingFields(memory: WorkspaceMemory): OnboardingFieldKey[] {
   return FIELD_ORDER.filter((key) => isFieldMissing(memory, key));
+}
+
+/** Required fields still empty (optional interview fields excluded). */
+export function listMissingRequiredOnboardingFields(memory: WorkspaceMemory): OnboardingFieldKey[] {
+  return listMissingOnboardingFields(memory).filter((key) => !OPTIONAL_FIELDS.has(key));
 }
 
 /**
@@ -125,15 +179,20 @@ export function formatOnboardingProgress(memory: WorkspaceMemory): string {
   }
 
   const missing = listMissingOnboardingFields(memory);
+  const requiredMissing = listMissingRequiredOnboardingFields(memory);
   const captured = FIELD_ORDER.filter((k) => !missing.includes(k));
   const lines: string[] = [`Phase: secondary chat interview (path=${path}).`];
   if (captured.length > 0) {
     lines.push(`Captured: ${captured.join(", ")}`);
   }
-  if (missing.length > 0) {
+  if (missing.length > 0 && requiredMissing.length > 0) {
     lines.push(`Ask about this field ONLY next: "${missing[0]}"`);
     lines.push(`Exact question to use: ${FIELD_QUESTIONS[missing[0]]}`);
     lines.push(`Remaining fields after this one: ${missing.length - 1} (do not ask them yet).`);
+  } else if (missing.length > 0) {
+    lines.push(`Required fields captured. Optional next (user may skip): "${missing[0]}"`);
+    lines.push(`Exact question to use: ${FIELD_QUESTIONS[missing[0]]}`);
+    lines.push("After optional questions (or skip), summarize and request confirmation to complete onboarding.");
   } else {
     lines.push("All required fields captured — summarize and request confirmation to complete onboarding.");
   }

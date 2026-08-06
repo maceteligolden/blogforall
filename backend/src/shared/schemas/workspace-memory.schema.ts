@@ -1,6 +1,10 @@
 import { Schema, model } from "mongoose";
 import { BaseEntity } from "../interfaces";
 import type { BehavioralRule, EngagementSignal, StrategyState } from "./memory-types";
+import type { BusinessModel, CompetitorEntry, CustomerPersona } from "../types/business-profile";
+import { BUSINESS_MODELS } from "../types/business-profile";
+
+export type { BusinessModel, CompetitorEntry, CustomerPersona };
 
 /**
  * Strategic, slow-changing facts about the workspace. Captured during the
@@ -9,12 +13,32 @@ import type { BehavioralRule, EngagementSignal, StrategyState } from "./memory-t
 export interface WorkspaceMemoryStrategic {
   /** Homepage / personal site used for website-first onboarding. */
   website_url?: string;
+  /** Industries the business operates in. */
+  industries: string[];
+  /** Go-to-market model (B2B / B2C / C2C / B2B2C). */
+  business_model?: BusinessModel;
+  /** Paragraph description of what the business does. */
+  business_description?: string;
+  /**
+   * @deprecated Migrated into business_description. Kept for lazy read-migrate.
+   */
   business_type?: string;
+  /** Short audience labels for checklist / quick prompts. */
   target_audience: string[];
+  /** Rich customer personas (who / pains / success). */
+  customers: CustomerPersona[];
+  /** Descriptive brand voice (prose, not a single adjective). */
   brand_voice?: string;
+  /** Words, tones, and claims the brand should avoid. */
+  brand_negatives?: string;
   business_goals: string[];
   seo_priorities: string[];
   publishing_channels: string[];
+  /** Named competitors. */
+  competitors: CompetitorEntry[];
+  /**
+   * @deprecated Migrated into competitors[]. Kept for lazy read-migrate.
+   */
   competitive_notes?: string;
 }
 
@@ -25,12 +49,20 @@ export type OnboardingPath = "unset" | "primary" | "secondary";
  * Staged profile from website ingest, awaiting user confirmation before write.
  */
 export interface WorkspaceOnboardingProposal {
+  industries?: string[];
+  business_model?: BusinessModel;
+  business_description?: string;
+  /** @deprecated Prefer business_description. */
   business_type?: string;
   target_audience?: string[];
+  customers?: CustomerPersona[];
   brand_voice?: string;
+  brand_negatives?: string;
   business_goals?: string[];
   seo_priorities?: string[];
   publishing_channels?: string[];
+  competitors?: CompetitorEntry[];
+  /** @deprecated Prefer competitors. */
   competitive_notes?: string;
   tone?: string;
   default_word_count?: number;
@@ -143,6 +175,24 @@ const behavioralRuleSchema = new Schema(
   { _id: false }
 );
 
+const customerPersonaSchema = new Schema(
+  {
+    who: { type: String, required: true, trim: true, maxlength: 4000 },
+    pain_points: { type: String, trim: true, maxlength: 4000 },
+    success: { type: String, trim: true, maxlength: 4000 },
+    label: { type: String, trim: true, maxlength: 200 },
+  },
+  { _id: false }
+);
+
+const competitorEntrySchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true, maxlength: 200 },
+    notes: { type: String, trim: true, maxlength: 2000 },
+  },
+  { _id: false }
+);
+
 const workspaceMemorySchema = new Schema<WorkspaceMemory>(
   {
     site_id: {
@@ -153,12 +203,18 @@ const workspaceMemorySchema = new Schema<WorkspaceMemory>(
     },
     strategic: {
       website_url: { type: String, trim: true, maxlength: 2048 },
+      industries: { type: [String], default: [] },
+      business_model: { type: String, enum: [...BUSINESS_MODELS] },
+      business_description: { type: String, trim: true, maxlength: 8000 },
       business_type: { type: String, trim: true, maxlength: 200 },
       target_audience: { type: [String], default: [] },
-      brand_voice: { type: String, trim: true, maxlength: 1000 },
+      customers: { type: [customerPersonaSchema], default: [] },
+      brand_voice: { type: String, trim: true, maxlength: 4000 },
+      brand_negatives: { type: String, trim: true, maxlength: 4000 },
       business_goals: { type: [String], default: [] },
       seo_priorities: { type: [String], default: [] },
       publishing_channels: { type: [String], default: [] },
+      competitors: { type: [competitorEntrySchema], default: [] },
       competitive_notes: { type: String, maxlength: 4000 },
     },
     onboarding_path: {

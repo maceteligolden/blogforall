@@ -9,6 +9,8 @@ import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/works
 import { BusinessKnowledgeService } from "./business-knowledge.service";
 import { NotFoundError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
+import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
+import { formatBusinessOneLiner } from "../../../shared/utils/format-business-context";
 
 export type UpdateWorkspaceStrategyInput = {
   purpose?: string;
@@ -60,19 +62,42 @@ export class WorkspaceStrategyService {
     const gaps = await this.knowledge.listGaps(siteId);
     const avgConfidence = await this.knowledge.averageConfidence(siteId);
 
-    const audience = memory.strategic.target_audience?.join(", ") || "target audience still being learned";
-    const goals = memory.strategic.business_goals?.length
-      ? memory.strategic.business_goals
+    const strategic = migrateStrategicMemory(memory.strategic);
+    const audience =
+      strategic.customers
+        .map((c) => c.label || c.who)
+        .filter(Boolean)
+        .join("; ") ||
+      strategic.target_audience?.join(", ") ||
+      "target audience still being learned";
+    const goals = strategic.business_goals?.length
+      ? strategic.business_goals
       : ["Grow awareness and trust through consistent, useful content"];
-    const businessType = memory.strategic.business_type?.trim() || "the business";
-    const voice = memory.strategic.brand_voice?.trim() || "clear, helpful, and credible";
+    const businessType = formatBusinessOneLiner(strategic);
+    const voice = strategic.brand_voice?.trim() || "clear, helpful, and credible";
+    const avoid = strategic.brand_negatives?.trim();
 
-    const thin = !memory.strategic.business_type && !memory.strategic.target_audience?.length;
+    const thin =
+      (!strategic.business_description && !strategic.business_type) &&
+      !strategic.target_audience?.length &&
+      !strategic.customers.length;
     const source: WorkspaceStrategySource = opts?.source ?? (thin ? "stub" : gaps.length > 8 ? "ai" : "onboarding");
 
     const purpose = thin
       ? `Build topical authority for ${businessType} while learning who we serve.`
       : `Create content that helps ${audience} and advances goals for ${businessType}.`;
+
+    const constraints: string[] = [];
+    if (strategic.seo_priorities?.length) {
+      constraints.push(`Respect SEO priorities: ${strategic.seo_priorities.join(", ")}`);
+    }
+    if (avoid) constraints.push(`Avoid brand negatives: ${avoid}`);
+    if (strategic.competitors.length) {
+      constraints.push(
+        `Differentiate from competitors: ${strategic.competitors.map((c) => c.name).join(", ")}`
+      );
+    }
+    if (!constraints.length) constraints.push("Do not invent unsupported claims");
 
     const draft: Partial<WorkspaceStrategy> = {
       site_id: siteId,
@@ -80,12 +105,14 @@ export class WorkspaceStrategyService {
       version: await this.strategies.nextVersion(siteId),
       purpose,
       long_term_outcomes: goals,
-      principles: [`Sound ${voice}`, "Prefer evidence over hype", "Every post should advance a campaign objective"],
+      principles: [
+        `Brand voice: ${voice}`,
+        "Prefer evidence over hype",
+        "Every post should advance a campaign objective",
+      ],
       audience_summary: audience,
       perception_goals: [`Be seen as a trusted guide for ${audience}`],
-      constraints: memory.strategic.seo_priorities?.length
-        ? [`Respect SEO priorities: ${memory.strategic.seo_priorities.join(", ")}`]
-        : ["Do not invent unsupported claims"],
+      constraints,
       generated_from: source,
       confidence_summary: thin ? 0.35 : Math.min(0.9, Math.max(0.4, avgConfidence)),
       updated_by: userId,

@@ -9,7 +9,9 @@ export type ContentStrategyInput = {
   post_format?: PostFormat;
   workspace_hints?: {
     business_type?: string;
+    business_description?: string;
     target_audience?: string[];
+    customers?: Array<{ who: string; label?: string }>;
     business_goals?: string[];
     brand_voice?: string;
   };
@@ -28,8 +30,10 @@ export class ContentStrategyService {
     if (!topic) throw new Error("Strategy requires a topic.");
 
     const audience =
-      input.workspace_hints?.target_audience?.[0] ??
-      input.llm_artifact?.target_audience ??
+      input.workspace_hints?.customers?.[0]?.label ||
+      input.workspace_hints?.customers?.[0]?.who ||
+      input.workspace_hints?.target_audience?.[0] ||
+      input.llm_artifact?.target_audience ||
       "target readers interested in this topic";
     const objective =
       input.workspace_hints?.business_goals?.[0] ??

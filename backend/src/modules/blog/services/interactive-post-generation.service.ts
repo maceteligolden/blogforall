@@ -9,8 +9,29 @@ import { CampaignService } from "../../campaign/services/campaign.service";
 import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/workspace-memory.repository";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 import { TavilySearchService } from "../ai/tavily-search.service";
+import { coerceContentArchetype, outlinePromptForArchetype } from "../ai/contracts/content-archetype";
+import { formatStyleProfileForPrompt, resolveStyleProfile } from "../ai/contracts/style-profile";
+import { buildResearchBrief, formatResearchBriefForPrompt } from "../ai/contracts/research-brief";
+import { FirstPartyPriorsService } from "../ai/first-party-priors.service";
+import { routeResearchNotes, formatRoutedNotesForPrompt } from "../ai/contracts/signal-router";
+import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
+import {
+  formatBusinessContextForPrompt,
+  formatBusinessOneLiner,
+} from "../../../shared/utils/format-business-context";
 
-export const INTERACTIVE_POST_TYPES = ["article", "tutorial", "how_to", "listicle", "opinion", "case_study"] as const;
+export const INTERACTIVE_POST_TYPES = [
+  "article",
+  "tutorial",
+  "how_to",
+  "listicle",
+  "opinion",
+  "case_study",
+  "definitive_guide",
+  "software_roundup",
+  "comparison",
+  "thought_leadership",
+] as const;
 
 export type InteractivePostType = (typeof INTERACTIVE_POST_TYPES)[number];
 
@@ -34,8 +55,9 @@ export type PostEnrichment = {
   target_audience?: string;
   cta?: string;
   tone?: string;
-  length_preset?: "short" | "medium" | "long";
+  length_preset?: "short" | "medium" | "long" | "pillar";
   word_count?: number;
+  style_variant?: string;
 };
 
 export type OutlineSection = {
@@ -53,6 +75,8 @@ export type PostOutline = {
   post_type: InteractivePostType;
   keywords: string[];
   campaign_id?: string;
+  style_variant?: string;
+  content_archetype?: string;
 };
 
 const TopicListSchema = z.object({
@@ -88,10 +112,11 @@ const OutlineSchema = z.object({
   campaign_tie_in: z.string(),
 });
 
-function lengthPresetToWordCount(preset: "short" | "medium" | "long" | undefined): number | undefined {
+function lengthPresetToWordCount(preset: "short" | "medium" | "long" | "pillar" | undefined): number | undefined {
   if (!preset) return undefined;
   if (preset === "short") return 800;
   if (preset === "medium") return 1500;
+  if (preset === "pillar") return 3500;
   return 2500;
 }
 
@@ -101,7 +126,8 @@ export class InteractivePostGenerationService {
     private readonly tavily: TavilySearchService,
     private readonly campaignService: CampaignService,
     private readonly workspaceMemory: WorkspaceMemoryRepository,
-    private readonly businessKnowledge: BusinessKnowledgeService
+    private readonly businessKnowledge: BusinessKnowledgeService,
+    private readonly firstPartyPriors: FirstPartyPriorsService
   ) {}
 
   assertConfigured(): void {
@@ -201,21 +227,74 @@ Rules:
     userId: string;
     topic: TopicSuggestion;
     enrichment?: PostEnrichment;
+    clarify_choice?: string;
   }): Promise<PostOutline> {
     this.assertConfigured();
     const { summary } = await this.loadBusinessContext(input.siteId, input.userId);
     const enrichment = input.enrichment ?? {};
     const urls = [...(enrichment.links ?? []), ...(enrichment.example_urls ?? [])].filter(Boolean).slice(0, 5);
 
-    const [searchNotes, extracted] = await Promise.all([
-      this.tavily.searchMultiQuery(input.topic.title, { minSources: 3, maxSources: 10 }),
+    const archetype =
+      coerceContentArchetype(input.topic.post_type) ||
+      coerceContentArchetype(input.topic.title) ||
+      "article";
+    const styleProfile = resolveStyleProfile({
+      archetype,
+      variant: enrichment.style_variant,
+      audience: enrichment.target_audience || summary.target_audience,
+      tone: enrichment.tone,
+      brand_voice: summary.brand_voice,
+      personal_notes: enrichment.personal_notes,
+      must_include: enrichment.must_include,
+      must_avoid: enrichment.must_avoid,
+      length_preset: enrichment.length_preset,
+      topic: input.topic.title,
+      site_id: input.siteId,
+    });
+
+    const first_party = await this.firstPartyPriors.load(input.siteId, input.topic.title);
+    const brief = buildResearchBrief({
+      topic: `${input.topic.title}. ${input.topic.about}`,
+      audience: enrichment.target_audience || summary.target_audience,
+      archetype: styleProfile.archetype,
+      style_profile: styleProfile,
+      personal_notes: enrichment.personal_notes,
+      must_include: enrichment.must_include,
+      clarify_choice: input.clarify_choice,
+      first_party,
+      allow_guess: true,
+    });
+
+    const queries = brief.search_queries.length ? brief.search_queries : [input.topic.title];
+    const [searchBatches, extracted] = await Promise.all([
+      Promise.all(queries.slice(0, 4).map((q) => this.tavily.search(q))),
       urls.length ? this.tavily.extract(urls) : Promise.resolve([]),
     ]);
+    const searchNotes = searchBatches.flat();
+    const routed = routeResearchNotes(
+      [
+        ...searchNotes.map((n) => ({
+          url: n.url,
+          title: n.title,
+          snippet: n.snippet,
+          source: "web" as const,
+        })),
+        ...extracted.map((e) => ({
+          url: e.url,
+          title: e.title || e.url,
+          snippet: e.text.slice(0, 1200),
+          source: "extract" as const,
+        })),
+      ],
+      styleProfile,
+      {
+        maxKeep: 8,
+        mustInclude: enrichment.must_include,
+        personalNotes: enrichment.personal_notes,
+      }
+    );
 
-    const researchBlock = [
-      ...searchNotes.slice(0, 8).map((n, i) => `Search ${i + 1}. ${n.title}: ${n.snippet.slice(0, 300)}`),
-      ...extracted.map((e, i) => `Link ${i + 1}. ${e.title || e.url}: ${e.text.slice(0, 800)}`),
-    ].join("\n\n");
+    const researchBlock = formatRoutedNotesForPrompt(routed);
 
     const chat = createChatOpenAI({
       apiKey: BlogAiConfig.openaiApiKey,
@@ -226,10 +305,18 @@ Rules:
 
     const prompt = `Create a publishable blog post outline the user can edit before drafting.
 
+${formatStyleProfileForPrompt(styleProfile)}
+
+${outlinePromptForArchetype(styleProfile.archetype)}
+
+${formatResearchBriefForPrompt(brief)}
+
 TOPIC:
 Title: ${input.topic.title}
 About: ${input.topic.about}
 Post type: ${input.topic.post_type}
+Content archetype: ${styleProfile.archetype}
+Style variant: ${styleProfile.variant}
 Keywords: ${input.topic.keywords.join(", ")}
 Campaign support: ${input.topic.campaign_support}
 
@@ -244,10 +331,15 @@ Audience override: ${enrichment.target_audience || "(use business audience)"}
 CTA: ${enrichment.cta || "(optional)"}
 Tone: ${enrichment.tone || "(default)"}
 
-RESEARCH:
+FIRST-PARTY PRIORS (style only — do not treat as external citations):
+Avoid angles: ${first_party.avoid_duplicate_angles.slice(0, 5).join("; ") || "(none)"}
+Winning patterns: ${first_party.winning_patterns.join("; ") || "(none)"}
+Style snippets: ${first_party.style_snippets[0]?.slice(0, 300) || "(none)"}
+
+RESEARCH (already filtered for this archetype/variant):
 ${researchBlock || "(limited research)"}
 
-Return working_title, thesis, 4–8 sections with heading + intent (what the section will accomplish), keyword_notes, and campaign_tie_in.`;
+Return working_title, thesis, sections with heading + intent matching the archetype H2 rules above, keyword_notes, and campaign_tie_in.`;
 
     const out = await chat.invoke([new HumanMessage(prompt)]);
     return {
@@ -263,17 +355,33 @@ Return working_title, thesis, 4–8 sections with heading + intent (what the sec
       post_type: input.topic.post_type,
       keywords: input.topic.keywords,
       campaign_id: input.topic.campaign_id,
+      style_variant: styleProfile.variant,
+      content_archetype: styleProfile.archetype,
     };
   }
 
   buildContextPack(outline: PostOutline, enrichment?: PostEnrichment): string {
     const e = enrichment ?? {};
     const sections = outline.sections.map((s, i) => `${i + 1}. ${s.heading}: ${s.intent}`).join("\n");
+    const archetype = outline.content_archetype || coerceContentArchetype(outline.post_type) || "article";
+    const styleProfile = resolveStyleProfile({
+      archetype,
+      variant: outline.style_variant || e.style_variant,
+      tone: e.tone,
+      audience: e.target_audience,
+      personal_notes: e.personal_notes,
+      must_include: e.must_include,
+      must_avoid: e.must_avoid,
+      topic: outline.working_title,
+    });
     return [
       `APPROVED OUTLINE — follow closely.`,
+      formatStyleProfileForPrompt(styleProfile),
       `Title: ${outline.working_title}`,
       `Thesis: ${outline.thesis}`,
       `Post type: ${outline.post_type}`,
+      `Content archetype: ${archetype}`,
+      `Style variant: ${styleProfile.variant}`,
       `Keywords: ${outline.keywords.join(", ")}`,
       `Keyword notes: ${outline.keyword_notes}`,
       `Campaign tie-in: ${outline.campaign_tie_in}`,
@@ -305,17 +413,14 @@ Return working_title, thesis, 4–8 sections with heading + intent (what the sec
       .map((b) => `- ${b.canonical_key}: ${String(b.value_text || "").slice(0, 200)}`)
       .join("\n");
 
-    const strategic = memory?.strategic;
-    const business_type = strategic?.business_type || "";
-    const target_audience = Array.isArray(strategic?.target_audience) ? strategic!.target_audience.join(", ") : "";
-    const brand_voice = strategic?.brand_voice || "";
-    const goals = Array.isArray(strategic?.business_goals) ? strategic!.business_goals.join("; ") : "";
+    const strategic = migrateStrategicMemory(memory?.strategic);
+    const business_type = formatBusinessOneLiner(strategic);
+    const target_audience = strategic.target_audience.join(", ");
+    const brand_voice = strategic.brand_voice || "";
+    const profileText = formatBusinessContextForPrompt(strategic);
 
     const text = [
-      `Business type: ${business_type || "unknown"}`,
-      `Audience: ${target_audience || "general"}`,
-      `Brand voice: ${brand_voice || "professional"}`,
-      `Goals: ${goals || "grow authority"}`,
+      profileText || `Business: ${business_type || "unknown"}`,
       beliefLines ? `Knowledge beliefs:\n${beliefLines}` : "",
       memory?.memory_summary ? `Memory summary: ${memory.memory_summary}` : "",
     ]

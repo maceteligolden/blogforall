@@ -9,7 +9,10 @@ import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant
 import { BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
 import type { BlogUserGenerationParams, GeneratedBlogContent, PromptAnalysis, ResearchNote } from "./types";
-import { draftRoleInstructions, emptyResearchGuidance } from "./post-format-prompt";
+import { emptyResearchGuidance, buildStyleAwareDraftPreamble } from "./post-format-prompt";
+import { resolveStyleProfile } from "./contracts/style-profile";
+import { coerceContentArchetype } from "./contracts/content-archetype";
+import { formatRoutedNotesForPrompt, routeResearchNotes } from "./contracts/signal-router";
 import { TavilySearchService } from "./tavily-search.service";
 import { runBlogReviewWithChat, type BlogReviewResult } from "./blog-review.runner";
 import { clampBlogExcerpt } from "../utils/excerpt.util";
@@ -689,32 +692,79 @@ Return structured JSON: title, content (HTML), excerpt (max 500 characters), met
         : "";
     const toneLine = analysis.tone ? `Tone: ${analysis.tone}` : "";
     const postFormat = userParams?.post_format ?? analysis.post_format;
+    const archetype =
+      coerceContentArchetype(userParams?.content_archetype) ||
+      coerceContentArchetype(analysis.content_archetype) ||
+      coerceContentArchetype(userParams?.structure) ||
+      coerceContentArchetype(analysis.structure);
+
+    const styleProfile =
+      userParams?.style_profile ||
+      resolveStyleProfile({
+        archetype,
+        structure: userParams?.structure ?? analysis.structure,
+        purpose: userParams?.purpose ?? analysis.purpose,
+        variant: userParams?.style_variant ?? analysis.style_variant,
+        audience: userParams?.target_audience ?? analysis.target_audience,
+        tone: userParams?.tone ?? analysis.tone,
+        personal_notes: userParams?.personal_notes,
+        must_include: userParams?.must_include,
+        must_avoid: userParams?.must_avoid,
+        topic: analysis.topic,
+        site_id: userParams?.site_id,
+      });
+
+    const routed = routeResearchNotes(
+      researchNotes.map((n) => ({
+        url: n.url,
+        title: n.title,
+        snippet: n.snippet,
+        source: "web" as const,
+      })),
+      styleProfile,
+      {
+        maxKeep: 8,
+        mustInclude: userParams?.must_include,
+        personalNotes: userParams?.personal_notes,
+      }
+    );
+
     const contextBlock = userParams?.context_pack?.trim()
       ? `\nWORKSPACE CONTEXT (brand voice, rules, strategy — follow closely):\n${userParams.context_pack.slice(0, 4000)}\n`
       : "";
     const researchBlock =
-      researchNotes.length > 0
+      routed.length > 0
         ? `
 GROUNDED RESEARCH (only use facts supported here; do not invent sources):
-${researchNotes.map((n, i) => `[${i + 1}] ${n.title}\nURL: ${n.url}\n${n.snippet}`).join("\n\n")}
+${formatRoutedNotesForPrompt(routed)}
 `
         : `
 ${emptyResearchGuidance(postFormat)}
 `;
 
-    return `${draftRoleInstructions(postFormat)}
+    const styleBlock = buildStyleAwareDraftPreamble({
+      postFormat,
+      styleProfile,
+      researchBrief: userParams?.research_brief,
+      contentArchetype: styleProfile.archetype,
+    });
+
+    return `${styleBlock}
 ${toneLine}
 Purpose: ${analysis.purpose}
 Topic: ${analysis.topic}
-${postFormat ? `Post format: ${postFormat}` : ""}
+${postFormat ? `Voice format: ${postFormat}` : ""}
+Content archetype: ${styleProfile.archetype}
 USER REQUEST: "${prompt}"
 ${topicsLine}
 Structure: ${structure}
-Target length: approximately ${wordCount} words.
+Target length: approximately ${wordCount} words (archetype floor ~${styleProfile.archetype === "definitive_guide" ? 3000 : 800}+).
+${userParams?.must_include ? `Must include: ${userParams.must_include}` : ""}
+${userParams?.must_avoid ? `Must avoid: ${userParams.must_avoid}` : ""}
 ${contextBlock}${researchBlock}
 
-Write the post. content MUST be valid HTML only — use <h2>, <p>, <ul>/<ol>/<li>, <blockquote> as needed. NEVER use Markdown (# headings, - lists, **bold**, or \`\`\` fences).
-Avoid stock AI filler ("the field is constantly evolving", "engineers must adapt", "in today's world"). Prefer concrete scenes and the user's phrasing when present in USER REQUEST.
+Write the post. content MUST be valid HTML only — use <h2>, <p>, <ul>/<ol>/<li>, <blockquote>, and <table> when the archetype requires a comparison/verdict table. NEVER use Markdown (# headings, - lists, **bold**, or \`\`\` fences).
+Avoid stock AI filler and the banned phrases listed in STYLE PROFILE. Prefer concrete scenes and the user's phrasing when present in USER REQUEST.
 
 Return structured JSON fields: title (max ~60 chars), content (HTML only), excerpt (max 500 characters), meta.description (<=160 chars), meta.keywords (array).`;
   }

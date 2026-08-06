@@ -1,4 +1,5 @@
 import type { WorkspaceOnboardingProposal } from "../../../shared/schemas/workspace-memory.schema";
+import { normalizeCompetitors, normalizeCustomers } from "../../../shared/types/business-profile";
 
 export const WEBSITE_ONBOARDING_QUESTION =
   "Do you have a website for your person or business? Paste the URL, or say you don't have one.";
@@ -72,11 +73,19 @@ export function isBusinessContextRefreshIntent(text: string): boolean {
 export function formatProposalSummary(proposal: WorkspaceOnboardingProposal, websiteUrl?: string): string {
   const lines: string[] = ["Here's what I gathered from your website:"];
   if (websiteUrl) lines.push(`• Website: ${websiteUrl}`);
-  if (proposal.business_type) lines.push(`• Business: ${proposal.business_type}`);
-  if (proposal.target_audience?.length) {
+  const description = proposal.business_description || proposal.business_type;
+  if (description) lines.push(`• Business: ${description}`);
+  if (proposal.business_model) lines.push(`• Model: ${proposal.business_model.toUpperCase()}`);
+  if (proposal.industries?.length) lines.push(`• Industries: ${proposal.industries.join("; ")}`);
+  if (proposal.customers?.length) {
+    lines.push(
+      `• Customers: ${proposal.customers.map((c) => c.label || c.who).filter(Boolean).join("; ")}`
+    );
+  } else if (proposal.target_audience?.length) {
     lines.push(`• Audience: ${proposal.target_audience.join("; ")}`);
   }
   if (proposal.brand_voice) lines.push(`• Brand voice: ${proposal.brand_voice}`);
+  if (proposal.brand_negatives) lines.push(`• Avoid: ${proposal.brand_negatives}`);
   if (proposal.business_goals?.length) {
     lines.push(`• Goals: ${proposal.business_goals.join("; ")}`);
   }
@@ -86,11 +95,15 @@ export function formatProposalSummary(proposal: WorkspaceOnboardingProposal, web
   if (proposal.publishing_channels?.length) {
     lines.push(`• Channels: ${proposal.publishing_channels.join("; ")}`);
   }
+  if (proposal.competitors?.length) {
+    lines.push(`• Competitors: ${proposal.competitors.map((c) => c.name).join("; ")}`);
+  } else if (proposal.competitive_notes) {
+    lines.push(`• Competitors: ${proposal.competitive_notes}`);
+  }
   if (proposal.tone) lines.push(`• Tone: ${proposal.tone}`);
   if (proposal.default_word_count != null) {
     lines.push(`• Default post length: ~${proposal.default_word_count} words`);
   }
-  if (proposal.competitive_notes) lines.push(`• Notes: ${proposal.competitive_notes}`);
   lines.push("");
   lines.push(WEBSITE_PROPOSAL_CONFIRM_QUESTION);
   return lines.join("\n");
@@ -103,13 +116,25 @@ export function proposalToMemoryPatch(
 ): Record<string, unknown> {
   const strategic: Record<string, unknown> = {};
   if (websiteUrl) strategic.website_url = websiteUrl;
-  if (proposal.business_type) strategic.business_type = proposal.business_type;
+  const description = proposal.business_description || proposal.business_type;
+  if (description) strategic.business_description = description;
+  if (proposal.business_model) strategic.business_model = proposal.business_model;
+  if (proposal.industries?.length) strategic.industries = proposal.industries;
   if (proposal.target_audience?.length) strategic.target_audience = proposal.target_audience;
+  const customers = normalizeCustomers(proposal.customers, proposal.target_audience);
+  if (customers.length) {
+    strategic.customers = customers;
+    if (!strategic.target_audience) {
+      strategic.target_audience = customers.map((c) => c.label || c.who).filter(Boolean);
+    }
+  }
   if (proposal.brand_voice) strategic.brand_voice = proposal.brand_voice;
+  if (proposal.brand_negatives) strategic.brand_negatives = proposal.brand_negatives;
   if (proposal.business_goals?.length) strategic.business_goals = proposal.business_goals;
   if (proposal.seo_priorities?.length) strategic.seo_priorities = proposal.seo_priorities;
   if (proposal.publishing_channels?.length) strategic.publishing_channels = proposal.publishing_channels;
-  if (proposal.competitive_notes) strategic.competitive_notes = proposal.competitive_notes;
+  const competitors = normalizeCompetitors(proposal.competitors, proposal.competitive_notes);
+  if (competitors.length) strategic.competitors = competitors;
 
   const preferences: Record<string, unknown> = {};
   if (proposal.tone) preferences.tone = proposal.tone;

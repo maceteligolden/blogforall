@@ -8,6 +8,7 @@ import { BehavioralRuleService } from "../services/behavioral-rule.service";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 import type { BehavioralRule } from "../../../shared/schemas/memory-types";
 import { env } from "../../../shared/config/env";
+import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
 
 @injectable()
 export class MemoryController {
@@ -28,7 +29,7 @@ export class MemoryController {
       const siteId = this.siteId(req);
       const memory = await this.memoryRepository.ensureForSite(siteId, userId);
       sendSuccess(res, "Workspace memory retrieved", {
-        strategic: memory.strategic,
+        strategic: migrateStrategicMemory(memory.strategic),
         preferences: memory.preferences,
         operational: memory.operational,
         memory_summary: memory.memory_summary,

@@ -30,16 +30,25 @@ export type SetupProgress = {
 
 const SETUP_ITEMS: Array<{ id: string; label: string; check: (m: Record<string, unknown> | null) => boolean }> = [
   {
-    id: "business_type",
+    id: "business_description",
     label: "What your business does",
-    check: (m) => Boolean((m?.strategic as { business_type?: string } | undefined)?.business_type?.trim()),
+    check: (m) => {
+      const s = m?.strategic as
+        | { business_description?: string; business_type?: string }
+        | undefined;
+      return Boolean(s?.business_description?.trim() || s?.business_type?.trim());
+    },
   },
   {
-    id: "target_audience",
+    id: "customers",
     label: "Who you write for",
     check: (m) => {
-      const aud = (m?.strategic as { target_audience?: string[] } | undefined)?.target_audience;
-      return Array.isArray(aud) && aud.length > 0;
+      const s = m?.strategic as
+        | { customers?: Array<{ who?: string }>; target_audience?: string[] }
+        | undefined;
+      const hasCustomers = Array.isArray(s?.customers) && s.customers.some((c) => !!c?.who?.trim());
+      const hasLabels = Array.isArray(s?.target_audience) && s.target_audience.length > 0;
+      return hasCustomers || hasLabels;
     },
   },
   {

@@ -138,7 +138,7 @@ export class OrchestratorGraphService {
     const availableTools =
       input.mode === "onboarding"
         ? [
-            "workspace.completeOnboarding — Capture business_type, target_audience, brand_voice, business_goals, seo_priorities, publishing_channels and finalize onboarding.",
+            "workspace.completeOnboarding — Capture business_description, customers, brand_voice, business_goals (plus optional model/industries/competitors/negatives) and finalize onboarding.",
           ]
         : manifestTools.map((t) => {
             const tag = t.requiresConfirmation ? " (requires confirmation)" : "";

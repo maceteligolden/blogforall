@@ -6,6 +6,8 @@ import { env } from "../../../shared/config/env";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
 import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/workspace-memory.repository";
 import { randomUUID } from "crypto";
+import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
+import { formatBusinessContextForPrompt } from "../../../shared/utils/format-business-context";
 
 const ideaSchema = z.object({
   ideas: z.array(
@@ -101,13 +103,11 @@ export class StrategyEngineService {
         temperature: 0.4,
       });
       const structured = chat.withStructuredOutput(ideaSchema);
+      const strategic = migrateStrategicMemory(memory.strategic);
       const prompt = `Generate content strategy for this workspace.
 
-Business: ${memory.strategic.business_type ?? "unknown"}
-Audience: ${(memory.strategic.target_audience ?? []).join(", ") || "general"}
-Goals: ${(memory.strategic.business_goals ?? []).join(", ") || "grow audience"}
-Brand voice: ${memory.strategic.brand_voice ?? memory.preferences.tone ?? "professional"}
-SEO priorities: ${(memory.strategic.seo_priorities ?? []).join(", ")}
+${formatBusinessContextForPrompt(strategic)}
+Tone preference: ${memory.preferences.tone ?? "professional"}
 Recent themes: ${memory.content_summary?.slice(0, 1500) ?? "none"}
 
 Return 6-10 blog ideas, 3-5 themes, and 2-4 content clusters.`;
@@ -119,16 +119,22 @@ Return 6-10 blog ideas, 3-5 themes, and 2-4 content clusters.`;
   }
 
   private fallbackIdeas(memory: WorkspaceMemory) {
-    const topics = memory.strategic.seo_priorities?.length
-      ? memory.strategic.seo_priorities
-      : memory.strategic.business_goals?.length
-        ? memory.strategic.business_goals
+    const strategic = migrateStrategicMemory(memory.strategic);
+    const topics = strategic.seo_priorities?.length
+      ? strategic.seo_priorities
+      : strategic.business_goals?.length
+        ? strategic.business_goals
         : ["Industry insights"];
+    const audienceLabel =
+      strategic.target_audience?.[0] ||
+      strategic.customers?.[0]?.label ||
+      strategic.customers?.[0]?.who ||
+      "readers";
 
     return {
       ideas: topics.slice(0, 6).map((t, i) => ({
         title: `${t} — deep dive`,
-        angle: `Practical guide for ${(memory.strategic.target_audience ?? ["readers"])[0] ?? "readers"}`,
+        angle: `Practical guide for ${audienceLabel}`,
         funnel_stage: (i === 0 ? "awareness" : i < topics.length - 1 ? "consideration" : "conversion") as
           | "awareness"
           | "consideration"

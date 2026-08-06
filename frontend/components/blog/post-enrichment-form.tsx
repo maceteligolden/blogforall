@@ -114,8 +114,31 @@ export function PostEnrichmentForm({ value, onChange }: Props) {
             <option value="short">Short (~800)</option>
             <option value="medium">Medium (~1500)</option>
             <option value="long">Long (~2500)</option>
+            <option value="pillar">Pillar (~3500)</option>
           </select>
         </div>
+      </div>
+
+      <div>
+        <Label className="text-gray-300">Writing style variant</Label>
+        <select
+          className="mt-1 w-full rounded-md bg-black border border-gray-700 text-white px-3 py-2 text-sm"
+          value={value.style_variant || ""}
+          onChange={(e) => set("style_variant", e.target.value)}
+        >
+          <option value="">Auto (recommended)</option>
+          <option value="operator_checklist">How-to: checklist</option>
+          <option value="coach_walkthrough">How-to: coach walkthrough</option>
+          <option value="war_story_howto">How-to: war story</option>
+          <option value="curated_survey">Listicle: survey</option>
+          <option value="ranked_picks">Listicle: ranked</option>
+          <option value="criteria_debate">Comparison: criteria</option>
+          <option value="buyer_brief">Roundup: buyer brief</option>
+          <option value="customer_hero">Case study: customer hero</option>
+          <option value="polemic">Thought leadership: polemic</option>
+          <option value="framework_essay">Framework essay</option>
+          <option value="field_manual">Definitive: field manual</option>
+        </select>
       </div>
 
       <div className="rounded-md border border-dashed border-gray-700 p-4 opacity-60">

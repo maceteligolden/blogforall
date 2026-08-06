@@ -2,6 +2,10 @@
  * Shared types for LangGraph blog generation.
  */
 
+import type { ContentArchetype } from "./contracts/content-archetype";
+import type { ResearchBrief } from "./contracts/research-brief";
+import type { StyleProfile, StyleVariant } from "./contracts/style-profile";
+
 export interface BlogUserGenerationParams {
   tone?: string;
   target_audience?: string;
@@ -11,11 +15,23 @@ export interface BlogUserGenerationParams {
   structure?: string;
   /** RAG context pack from workspace memory (brand, rules, episodic). */
   context_pack?: string;
-  /** Editor-gate format: personal_story | engineering_reflection | productivity | linkedin_post */
+  /** Editor-gate voice format: personal_story | engineering_reflection | productivity | linkedin_post */
   post_format?: string;
+  /** Animalz content archetype — orthogonal to post_format voice. */
+  content_archetype?: ContentArchetype | string;
+  /** Optional style variant override (else auto-resolved). */
+  style_variant?: StyleVariant | string;
+  /** Resolved style profile for this draft (injected by controller/services). */
+  style_profile?: StyleProfile;
+  /** Research brief for scoped grounding. */
+  research_brief?: ResearchBrief;
   /** User-approved outline sections — skip LLM outline when drafting sectionally. */
   approved_outline_sections?: Array<{ heading: string; summary: string }>;
   approved_outline_title?: string;
+  site_id?: string;
+  personal_notes?: string;
+  must_include?: string;
+  must_avoid?: string;
 }
 
 export interface PromptAnalysis {
@@ -32,6 +48,8 @@ export interface PromptAnalysis {
   is_valid: boolean;
   rejection_reason?: string;
   post_format?: string;
+  content_archetype?: ContentArchetype | string;
+  style_variant?: StyleVariant | string;
 }
 
 export interface GeneratedBlogContent {

@@ -8,6 +8,7 @@ import { TavilySearchService } from "../../blog/ai/tavily-search.service";
 import type { WorkspaceOnboardingProposal } from "../../../shared/schemas/workspace-memory.schema";
 import { normalizeWebsiteUrl, formatProposalSummary } from "../utils/website-onboarding.helper";
 import { parseDefaultWordCount } from "../utils/sanitize-memory-patch.helper";
+import { BUSINESS_MODELS, normalizeCompetitors, normalizeCustomers } from "../../../shared/types/business-profile";
 
 const MAX_TEXT_CHARS = 24_000;
 const FETCH_TIMEOUT_MS = 12_000;
@@ -21,12 +22,38 @@ export interface WebsiteIngestResult {
 }
 
 const proposalSchema = z.object({
+  industries: z.array(z.string().max(100)).max(10).optional().nullable(),
+  business_model: z.enum(BUSINESS_MODELS).optional().nullable(),
+  business_description: z.string().max(8000).optional().nullable(),
   business_type: z.string().max(200).optional().nullable(),
   target_audience: z.array(z.string().max(200)).max(10).optional().nullable(),
-  brand_voice: z.string().max(1000).optional().nullable(),
+  customers: z
+    .array(
+      z.object({
+        who: z.string().max(4000),
+        pain_points: z.string().max(4000).optional().nullable(),
+        success: z.string().max(4000).optional().nullable(),
+        label: z.string().max(200).optional().nullable(),
+      })
+    )
+    .max(10)
+    .optional()
+    .nullable(),
+  brand_voice: z.string().max(4000).optional().nullable(),
+  brand_negatives: z.string().max(4000).optional().nullable(),
   business_goals: z.array(z.string().max(300)).max(10).optional().nullable(),
   seo_priorities: z.array(z.string().max(200)).max(20).optional().nullable(),
   publishing_channels: z.array(z.string().max(100)).max(15).optional().nullable(),
+  competitors: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        notes: z.string().max(2000).optional().nullable(),
+      })
+    )
+    .max(15)
+    .optional()
+    .nullable(),
   competitive_notes: z.string().max(2000).optional().nullable(),
   tone: z.string().max(200).optional().nullable(),
   default_word_count: z.number().min(300).max(8000).optional().nullable(),
@@ -84,9 +111,17 @@ export class WebsiteIngestService {
         {
           role: "system",
           content: `You extract workspace brand/onboarding fields from a business or personal website.
-Return only fields you can reasonably infer. Use short concrete phrases.
-Prefer arrays for audience, goals, SEO topics, and channels.
-default_word_count should be a single integer between 300 and 8000 when you can infer a typical post length; otherwise omit it.
+Return only fields you can reasonably infer.
+- business_description: 1-3 paragraphs describing what the business does (not a bullet list).
+- business_model: one of b2b, b2c, c2c, b2b2c when clear.
+- industries: short industry labels.
+- customers: array of personas with who, pain_points, success (paragraphs), optional label.
+- target_audience: short labels only.
+- brand_voice: descriptive prose of how the brand sounds.
+- brand_negatives: words/tones/claims to avoid.
+- competitors: array of {name, notes?}.
+- Prefer arrays for goals, SEO topics, and channels.
+default_word_count: single integer 300–8000 when inferable; otherwise omit.
 memory_summary: 1-3 sentences summarizing the brand for an AI assistant.`,
         },
         {
@@ -139,15 +174,37 @@ ${ingest.text.slice(0, MAX_TEXT_CHARS)}`,
         .slice(0, 20);
 
     const wordCount = raw.default_word_count != null ? parseDefaultWordCount(raw.default_word_count) : undefined;
+    const audience = cleanList(raw.target_audience ?? undefined);
+    const customers = normalizeCustomers(
+      (raw.customers ?? []).map((c) => ({
+        who: c.who,
+        pain_points: c.pain_points ?? undefined,
+        success: c.success ?? undefined,
+        label: c.label ?? undefined,
+      })),
+      audience
+    );
+    const competitors = normalizeCompetitors(
+      (raw.competitors ?? []).map((c) => ({
+        name: c.name,
+        notes: c.notes ?? undefined,
+      })),
+      raw.competitive_notes ?? undefined
+    );
 
     return {
-      business_type: raw.business_type?.trim() || undefined,
-      target_audience: cleanList(raw.target_audience ?? undefined),
+      industries: cleanList(raw.industries ?? undefined),
+      business_model: raw.business_model ?? undefined,
+      business_description:
+        raw.business_description?.trim() || raw.business_type?.trim() || undefined,
+      target_audience: audience,
+      customers: customers.length ? customers : undefined,
       brand_voice: raw.brand_voice?.trim() || undefined,
+      brand_negatives: raw.brand_negatives?.trim() || undefined,
       business_goals: cleanList(raw.business_goals ?? undefined),
       seo_priorities: cleanList(raw.seo_priorities ?? undefined),
       publishing_channels: cleanList(raw.publishing_channels ?? undefined),
-      competitive_notes: raw.competitive_notes?.trim() || undefined,
+      competitors: competitors.length ? competitors : undefined,
       tone: raw.tone?.trim() || undefined,
       default_word_count: wordCount,
       memory_summary: raw.memory_summary?.trim() || undefined,
@@ -157,7 +214,7 @@ ${ingest.text.slice(0, MAX_TEXT_CHARS)}`,
   private heuristicProposal(ingest: WebsiteIngestResult): WorkspaceOnboardingProposal {
     const snippet = ingest.text.replace(/\s+/g, " ").trim().slice(0, 280);
     return {
-      business_type: snippet || undefined,
+      business_description: snippet || undefined,
       memory_summary: snippet || undefined,
     };
   }

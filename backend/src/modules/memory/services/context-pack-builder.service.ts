@@ -6,6 +6,8 @@ import { BehavioralRuleService } from "./behavioral-rule.service";
 import { SemanticMemoryService } from "./semantic-memory.service";
 import type { OrchestratorSessionMode } from "../../orchestrator/utils/turn-context.helper";
 import { env } from "../../../shared/config/env";
+import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
+import { formatBusinessOneLiner } from "../../../shared/utils/format-business-context";
 
 export interface ContextPack {
   structured: string;
@@ -83,9 +85,12 @@ export class ContextPackBuilderService {
   }
 
   private buildStructuredBlock(memory: WorkspaceMemory, mode: OrchestratorSessionMode): string {
+    const strategic = migrateStrategicMemory(memory.strategic);
+
     if (mode === "casual") {
+      const oneLiner = formatBusinessOneLiner(strategic);
       const lines = [
-        memory.strategic.business_type ? `Business: ${memory.strategic.business_type}` : "",
+        oneLiner && oneLiner !== "unknown" ? `Business: ${oneLiner}` : "",
         memory.preferences.tone ? `Tone: ${memory.preferences.tone}` : "",
         memory.memory_summary?.trim() ? `Summary: ${memory.memory_summary.trim().slice(0, 800)}` : "",
       ].filter(Boolean);
@@ -93,7 +98,7 @@ export class ContextPackBuilderService {
     }
 
     const snapshot = {
-      strategic: memory.strategic,
+      strategic,
       preferences: memory.preferences,
       operational:
         mode === "strategy" || mode === "planning"

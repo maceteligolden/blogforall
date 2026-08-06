@@ -43,6 +43,7 @@ export function BlogAiGenerationSettings({ value, onChange, disabled }: BlogAiGe
             <option value="short">Short (~800 words)</option>
             <option value="medium">Medium (~1500 words)</option>
             <option value="long">Long (~2500 words)</option>
+            <option value="pillar">Pillar / definitive (~3500 words)</option>
             <option value="custom">Custom word count</option>
           </select>
         </div>
@@ -148,13 +149,40 @@ export function BlogAiGenerationSettings({ value, onChange, disabled }: BlogAiGe
             className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white"
           >
             <option value="">Let AI infer</option>
-            <option value="tutorial">Tutorial</option>
+            <option value="how_to">How-to / tutorial</option>
             <option value="listicle">Listicle</option>
-            <option value="opinion">Opinion piece</option>
-            <option value="guide">Guide / deep dive</option>
-            <option value="comparison">Comparison</option>
-            <option value="case-study">Case study</option>
-            <option value="interview">Interview / Q&A style</option>
+            <option value="thought_leadership">Thought leadership / opinion</option>
+            <option value="definitive_guide">Definitive guide / pillar</option>
+            <option value="comparison">Comparison (X vs Y)</option>
+            <option value="software_roundup">Software roundup</option>
+            <option value="case_study">Case study</option>
+            <option value="article">General article</option>
+          </select>
+        </div>
+
+        <div>
+          <Label htmlFor="ai-style-variant" className="text-gray-300">
+            Writing style variant (optional)
+          </Label>
+          <select
+            id="ai-style-variant"
+            value={value.style_variant || ""}
+            onChange={(e) => patch({ style_variant: e.target.value })}
+            disabled={disabled}
+            className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white"
+          >
+            <option value="">Auto (recommended)</option>
+            <option value="operator_checklist">How-to: checklist</option>
+            <option value="coach_walkthrough">How-to: coach walkthrough</option>
+            <option value="war_story_howto">How-to: war story</option>
+            <option value="curated_survey">Listicle: survey</option>
+            <option value="ranked_picks">Listicle: ranked</option>
+            <option value="criteria_debate">Comparison: criteria</option>
+            <option value="buyer_brief">Roundup: buyer brief</option>
+            <option value="customer_hero">Case study: customer hero</option>
+            <option value="polemic">Thought leadership: polemic</option>
+            <option value="framework_essay">Framework essay</option>
+            <option value="field_manual">Definitive: field manual</option>
           </select>
         </div>
       </div>

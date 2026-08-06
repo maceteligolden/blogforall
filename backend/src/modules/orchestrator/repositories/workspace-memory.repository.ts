@@ -29,10 +29,13 @@ export class WorkspaceMemoryRepository {
     const doc = new WorkspaceMemoryModel({
       site_id: siteId,
       strategic: {
+        industries: [],
         target_audience: [],
+        customers: [],
         business_goals: [],
         seo_priorities: [],
         publishing_channels: [],
+        competitors: [],
       },
       operational: {
         approval_rules: WORKSPACE_MEMORY_DEFAULTS.approval_rules,
