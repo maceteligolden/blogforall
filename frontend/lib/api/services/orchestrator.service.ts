@@ -1,7 +1,9 @@
 import apiClient from "../client";
-import { API_ENDPOINTS } from "../config";
+import { API_CONFIG, API_ENDPOINTS } from "../config";
+import { ensureAccessTokenFresh, SessionRefreshFailedError } from "../token-refresh";
 import type {
   ChatTurnResponse,
+  OpenThreadResponse,
   OrchestratorApproval,
   OrchestratorApprovalStatus,
   OrchestratorChatAttachment,
@@ -16,6 +18,57 @@ import type { OrchestratorSelectionContext } from "@/lib/types/orchestrator-sess
 
 const ORCHESTRATOR_TURN_TIMEOUT_MS = 180_000;
 
+function parseSseBlocks(buffer: string): { events: Array<{ event: string; data: string }>; rest: string } {
+  const parts = buffer.split("\n\n");
+  const rest = parts.pop() ?? "";
+  const events: Array<{ event: string; data: string }> = [];
+  for (const block of parts) {
+    let event = "message";
+    let data = "";
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event:")) {
+        event = line.slice(6).trim();
+      } else if (line.startsWith("data:")) {
+        data += line.slice(5).trim();
+      }
+    }
+    if (data) {
+      events.push({ event, data });
+    }
+  }
+  return { events, rest };
+}
+
+function buildChatBody(
+  message: string,
+  threadId?: string,
+  options?: {
+    sessionMode?: OrchestratorSessionMode;
+    attachments?: OrchestratorChatAttachment[];
+    selectionContext?: OrchestratorSelectionContext;
+    conversationMode?: boolean;
+  }
+): OrchestratorChatRequest {
+  return {
+    message,
+    ...(threadId ? { thread_id: threadId } : {}),
+    ...(options?.sessionMode ? { session_mode: options.sessionMode } : {}),
+    ...(options?.conversationMode ? { conversation_mode: true } : {}),
+    ...(options?.attachments?.length ? { attachments: options.attachments } : {}),
+    ...(options?.selectionContext
+      ? {
+          selection_context: {
+            blog_id: options.selectionContext.blogId,
+            reference_type: options.selectionContext.referenceType,
+            ...(options.selectionContext.referenceType === "highlight" && options.selectionContext.selectedText
+              ? { text: options.selectionContext.selectedText }
+              : {}),
+          },
+        }
+      : {}),
+  };
+}
+
 export class OrchestratorService {
   static async chat(
     siteId: string,
@@ -28,28 +81,119 @@ export class OrchestratorService {
       conversationMode?: boolean;
     }
   ): Promise<ChatTurnResponse> {
-    const body: OrchestratorChatRequest = {
-      message,
-      ...(threadId ? { thread_id: threadId } : {}),
-      ...(options?.sessionMode ? { session_mode: options.sessionMode } : {}),
-      ...(options?.conversationMode ? { conversation_mode: true } : {}),
-      ...(options?.attachments?.length ? { attachments: options.attachments } : {}),
-      ...(options?.selectionContext
-        ? {
-            selection_context: {
-              blog_id: options.selectionContext.blogId,
-              reference_type: options.selectionContext.referenceType,
-              ...(options.selectionContext.referenceType === "highlight" && options.selectionContext.selectedText
-                ? { text: options.selectionContext.selectedText }
-                : {}),
-            },
-          }
-        : {}),
-    };
+    const body = buildChatBody(message, threadId, options);
     const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.CHAT(siteId), body, {
       timeout: ORCHESTRATOR_TURN_TIMEOUT_MS,
     });
     return response.data?.data ?? response.data;
+  }
+
+  /**
+   * Voice call path: full turn then SSE `sentence` events + final `done` payload.
+   */
+  static async chatStream(
+    siteId: string,
+    message: string,
+    threadId?: string,
+    options?: {
+      sessionMode?: OrchestratorSessionMode;
+      attachments?: OrchestratorChatAttachment[];
+      selectionContext?: OrchestratorSelectionContext;
+      conversationMode?: boolean;
+      onSentence?: (text: string) => void;
+      signal?: AbortSignal;
+    }
+  ): Promise<ChatTurnResponse> {
+    if (typeof window !== "undefined") {
+      try {
+        await ensureAccessTokenFresh();
+      } catch (e) {
+        if (e instanceof SessionRefreshFailedError) throw new Error("Authentication required");
+        throw e;
+      }
+    }
+    const url = `${API_CONFIG.baseURL}${API_ENDPOINTS.ORCHESTRATOR.CHAT_STREAM(siteId)}`;
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    const { getCorrelationHeaders } = await import("@/lib/observability/request-headers");
+    const correlation = getCorrelationHeaders();
+    const body = buildChatBody(message, threadId, options);
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...correlation,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: options?.signal,
+    });
+
+    if (!res.ok) {
+      const raw = await res.text();
+      let msg = `Chat stream failed (${res.status})`;
+      try {
+        const j = JSON.parse(raw) as { message?: string };
+        if (j?.message) msg = j.message;
+      } catch {
+        if (raw) msg = raw.slice(0, 200);
+      }
+      throw new Error(msg);
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No response body from stream");
+
+    const decoder = new TextDecoder();
+    let carry = "";
+    let finalPayload: ChatTurnResponse | null = null;
+
+    const handleEvent = (ev: { event: string; data: string }) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(ev.data) as unknown;
+      } catch {
+        parsed = ev.data;
+      }
+      if (ev.event === "sentence" && parsed && typeof parsed === "object") {
+        const text = (parsed as { text?: string }).text;
+        if (text?.trim()) options?.onSentence?.(text);
+      }
+      if (ev.event === "done" && parsed && typeof parsed === "object") {
+        finalPayload = parsed as ChatTurnResponse;
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      carry += decoder.decode(value, { stream: true });
+      const { events, rest } = parseSseBlocks(carry);
+      carry = rest;
+      for (const ev of events) handleEvent(ev);
+    }
+
+    const tail = parseSseBlocks(carry.endsWith("\n\n") ? carry : `${carry}\n\n`);
+    for (const ev of tail.events) handleEvent(ev);
+
+    if (!finalPayload) throw new Error("Stream ended without a done event");
+    return finalPayload;
+  }
+
+  static async openThread(siteId: string, threadId?: string): Promise<OpenThreadResponse> {
+    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.THREADS_OPEN(siteId), {
+      ...(threadId ? { thread_id: threadId } : {}),
+    });
+    return response.data?.data ?? response.data;
+  }
+
+  static async synthesizeTts(siteId: string, text: string): Promise<Blob> {
+    const response = await apiClient.post(
+      API_ENDPOINTS.ORCHESTRATOR.VOICE_TTS(siteId),
+      { text },
+      { responseType: "blob", timeout: 60_000 }
+    );
+    return response.data as Blob;
   }
 
   static async onboardingChat(siteId: string, message: string): Promise<ChatTurnResponse> {

@@ -56,9 +56,9 @@ After completing work:
 | Production chat today | v0.5 default; set `ORCHESTRATOR_V05_GRAPH_ENABLED=false` for supervisor emergency |
 | Dirty worktree | Unrelated WIP may still exist — keep commits narrow |
 
-**Active milestone:** **M6.5 Strategic Intelligence productization** (ADR-015, [doc 21](./architecture/v0.5/21-strategic-intelligence.md) — phases 1–7 backend done).
+**Active milestone:** **M7 AI Strategist Experience** ([doc 22](./architecture/v0.5/22-ai-strategist-experience.md)). M6.5 complete.
 
-**Next approved coding tasks:** T6.SI.8–T6.SI.12 (single writer → UI → harden → T6.1 → decisions→planning).
+**Next approved coding tasks:** Doc 22 experience contract — message lifecycle, intent gate, proactive opener, hybrid stages, call-mode ElevenLabs streaming.
 
 ---
 
@@ -73,10 +73,11 @@ M3 Graph behind flag                    ████ DONE
 M4 Strategist UX                                  ████ DONE
 M5 Remove dual brain                                        ████ DONE
 M6 Strategic Intelligence                                         ████ Backend done (T6.SI.0–7)
-M6.5 Productization + closed loop                                       ░░░░░ In progress
+M6.5 Productization + closed loop                                       ████ DONE
+M7 AI Strategist Experience                                                   ░░░░░ In progress
 ```
 
-Dependencies: **M0 → M1 → M2 → M3 → M4 → M5 → M6**; M6.5 after M6 backend; agency pack remains later.
+Dependencies: **M0 → M1 → M2 → M3 → M4 → M5 → M6 → M6.5 → M7**; agency pack remains later.
 
 ---
 
@@ -175,7 +176,7 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 
 ## 8. Immediate next actions
 
-1. Soak M6.5 (T6.SI.8–12) in staging; monitor knowledge writes + Strategy UI.  
+1. Ship M7 AI Strategist Experience per [doc 22](./architecture/v0.5/22-ai-strategist-experience.md).  
 2. Keep agency pack (T6.2) and full UX validator (T6.3) deferred.  
 3. Optional soak: `ORCHESTRATOR_V05_GRAPH_ENABLED=false` only for emergency supervisor.
 
@@ -201,3 +202,5 @@ MVP locks from architecture review are **Approved** (ADR-001 … ADR-012).
 | 2026-07-29 | M6 Strategic Intelligence T6.SI.1–T6.SI.7 implemented: Default Campaign, WorkspaceStrategy, beliefs, intelligence, plan policies, decision engine, learning loop |
 | 2026-08-06 | M6.5 started: doc 21 implementation status; T6.SI.8–12 (single writer, UI, harden, T6.1, decisions→planning) |
 | 2026-08-06 | M6.5 complete: single writer, Strategy UI, strategy_id/campaign_id harden, learning loop, decisions→propose |
+| 2026-08-06 | M7 AI Strategist Experience started: doc 22 experience contract |
+| 2026-08-06 | M7 AI Strategist Experience implemented: message lifecycle, intent gate, opener, stages, ElevenLabs voice, WorkspaceBrief |

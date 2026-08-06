@@ -26,6 +26,7 @@ export type ResearchSkillInput = {
   created_by?: string;
   thread_id?: string;
   onPhase?: PhaseListener;
+  revise?: boolean;
 };
 
 export type ResearchSkillResult = {
@@ -61,7 +62,10 @@ export class ResearchSkillService {
         needs_clarification: result.needs_clarification,
       };
     }
-    const result = await this.lite.run(input);
+    const result = await this.lite.run({
+      ...input,
+      revise: input.revise,
+    });
     return {
       package: result.package,
       summary: result.summary,

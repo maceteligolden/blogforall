@@ -69,8 +69,21 @@ import { RealtimeService, REALTIME_EVENTS } from "../../../shared/realtime";
 import type { WorkflowPhaseEvent } from "../ai/observability/phase-emitter";
 import { NotificationService } from "../../notification/services/notification.service";
 import { notifyApprovalCreatedInApp } from "../../../shared/utils/notify-approval-created.util";
+import { WorkspaceBriefService } from "./workspace-brief.service";
 
-/** Ops tools live on the supervisor path (blogs.list / get / statistics), not v0.5 skills. */
+/**
+ * Ops tools live on the supervisor path (blogs.list / get / statistics / publish), not v0.5 skills.
+ * Includes schedule/publish/unpublish/delete plus list/get/analytics.
+ *
+ * Not included (stay on v0.5):
+ * - `strategy` → content_strategy skill (doc 21/22)
+ * - `create_campaign` / `learn_campaign` → Conversation collect on v0.5 (campaigns.create tool available)
+ */
+/**
+ * Ops intents that use the supervisor tool path (blogs.list/get/publish/schedule/…).
+ * Strategy / campaign create-collect / knowledge stay on v0.5 skills + strategy.* / campaigns.* tools.
+ * Doc 22: conversational ops for publish/schedule/list; strategist path for strategy.
+ */
 const SUPERVISOR_OPS_INTENTS = new Set([
   "list_content",
   "get_content",
@@ -79,6 +92,8 @@ const SUPERVISOR_OPS_INTENTS = new Set([
   "schedule_content",
   "unpublish_content",
   "delete_content",
+  "update_campaign",
+  "campaign_performance",
 ]);
 
 interface ChatAttachment {
@@ -139,7 +154,8 @@ export class OrchestratorService {
     private readonly realtimeService: RealtimeService,
     private readonly notificationService: NotificationService,
     private readonly onboardingService: OnboardingService,
-    private readonly websiteIngest: WebsiteIngestService
+    private readonly websiteIngest: WebsiteIngestService,
+    private readonly workspaceBrief: WorkspaceBriefService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -832,14 +848,33 @@ export class OrchestratorService {
       );
     };
 
+    // WorkspaceBrief for every turn (doc 22 § isolation + awareness); voice adds product-steer prefix.
+    let workspaceBriefBlock: string | undefined;
+    try {
+      const brief = await this.workspaceBrief.buildBrief(siteId, userId);
+      workspaceBriefBlock = conversationMode
+        ? `Product steer (voice): priority=${brief.priority}. ${brief.opener_line}\nWorkspace brief:\n${brief.text}`
+        : `Workspace brief (site-shared knowledge; do not invent other threads' chats):\n${brief.text}`;
+    } catch {
+      workspaceBriefBlock = undefined;
+    }
+
     const result = await this.v05Graph.runTurn({
       workspace_id: siteId,
       user_id: userId,
       thread_id: threadId,
       message,
       recent_messages,
+      history_messages: history.map((m) => ({
+        role: m.role,
+        tool_calls: m.tool_calls?.map((t) => ({
+          tool: t.tool,
+          output_data: (t.output_data ?? undefined) as Record<string, unknown> | undefined,
+        })),
+      })),
       conversation_mode: conversationMode,
       conversation_context: conversationContext,
+      voice_product_steer: workspaceBriefBlock,
       selection: selectionContext?.blog_id
         ? {
             blog_id: selectionContext.blog_id,
@@ -850,11 +885,21 @@ export class OrchestratorService {
       onPhase,
     });
 
+    let reply = result.reply;
+    if (conversationMode) {
+      const memory = await this.memoryRepository.findBySiteId(siteId);
+      const voiceRepaired = ensureVoiceConversationReply(reply, {
+        memory: memory ?? undefined,
+        userMessage: message,
+      });
+      reply = voiceRepaired.reply;
+    }
+
     const assistant = await this.messageRepository.create({
       thread_id: threadId,
       site_id: siteId,
       role: OrchestratorMessageRole.ASSISTANT,
-      content: result.reply,
+      content: reply,
       tool_calls: result.tool_calls.map((t) => ({
         tool: t.tool,
         input: {},
@@ -894,7 +939,7 @@ export class OrchestratorService {
       thread_id: threadId,
       assistant_message: {
         id: assistant._id!.toString(),
-        content: result.reply,
+        content: reply,
         created_at: assistant.created_at ?? new Date(),
       },
       tool_calls: result.tool_calls,

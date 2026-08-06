@@ -16,6 +16,8 @@ export type ResearchNoteLike = {
   claim?: string;
   question_id?: string;
   source_kind?: "web" | "extract" | "user" | "first_party";
+  /** Optional bucket hint from LLM synthesis. */
+  kind?: "fact" | "definition" | "statistic" | "example";
 };
 
 export type BuildResearchPackageInput = {
@@ -80,25 +82,32 @@ export function buildResearchPackageFromNotes(input: BuildResearchPackageInput):
     retrieved_at: now,
   }));
 
-  const facts = sources.map((s, i) => {
+  const provenanced = sources.map((s, i) => {
     const note = capped[i]!;
     const qid =
       note.question_id && questions.some((q) => q.id === note.question_id)
         ? note.question_id
         : questions[Math.min(i % questions.length, questions.length - 1)]!.id;
+    const kind =
+      note.kind === "definition" || note.kind === "statistic" || note.kind === "example"
+        ? note.kind
+        : ("fact" as const);
     return {
       id: `f${i + 1}`,
-      kind: "fact" as const,
-      text: (note.claim || s.snippet || s.title).slice(0, 800),
+      kind,
+      text: (note.claim || s.snippet || s.title).slice(0, 280),
       source_id: s.id,
       confidence: note.source_kind === "user" ? 0.85 : input.depth === "full" ? 0.6 : 0.55,
       freshness: "recent" as const,
       research_question_ids: [qid],
     };
   });
+  const facts = provenanced.filter((f) => f.kind === "fact");
+  const definitionsFromNotes = provenanced.filter((f) => f.kind === "definition");
+  const statisticsFromNotes = provenanced.filter((f) => f.kind === "statistic");
 
   const coverageItems = questions.map((q) => {
-    const hit = facts.filter((f) => f.research_question_ids.includes(q.id)).length;
+    const hit = provenanced.filter((f) => f.research_question_ids.includes(q.id)).length;
     const status = hit === 0 ? ("missing" as const) : hit >= 2 ? ("completed" as const) : ("partial" as const);
     return { research_question_id: q.id, status };
   });
@@ -126,9 +135,9 @@ export function buildResearchPackageFromNotes(input: BuildResearchPackageInput):
         : brief?.ambiguity.is_ambiguous
           ? [{ id: "g_ambiguous", description: "Topic scope was ambiguous at search time", priority: 1 }]
           : [],
-    definitions: [],
-    facts,
-    statistics: [],
+    definitions: definitionsFromNotes.map((f, i) => ({ ...f, id: `d${i + 1}`, kind: "definition" as const })),
+    facts: facts.map((f, i) => ({ ...f, id: `f${i + 1}`, kind: "fact" as const })),
+    statistics: statisticsFromNotes.map((f, i) => ({ ...f, id: `st${i + 1}`, kind: "statistic" as const })),
     examples: [],
     expert_opinions: [],
     recent_developments: [],
@@ -170,7 +179,9 @@ export function buildResearchPackageFromNotes(input: BuildResearchPackageInput):
     },
     confidence_summary: {
       mean_source_quality: sources.length ? sources.reduce((a, s) => a + s.quality_score, 0) / sources.length : 0,
-      mean_fact_confidence: facts.length ? facts.reduce((a, f) => a + f.confidence, 0) / facts.length : 0,
+      mean_fact_confidence: provenanced.length
+        ? provenanced.reduce((a, f) => a + f.confidence, 0) / provenanced.length
+        : 0,
       contradiction_count: 0,
     },
     degraded: degraded || undefined,

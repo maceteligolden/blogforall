@@ -6,14 +6,25 @@ import { getRequestIdFromHeaders } from "../../../shared/utils/request-id";
 import { OrchestratorApprovalStatus } from "../../../shared/schemas/orchestrator-approval.schema";
 import { OrchestratorService } from "../services/orchestrator.service";
 import { OrchestratorKnowledgeService } from "../services/orchestrator-knowledge.service";
+import { ThreadOpenerService } from "../services/thread-opener.service";
+import { ElevenLabsTtsService } from "../services/elevenlabs-tts.service";
 import { serializeApproval } from "../interfaces/orchestrator.interface";
 import type { OrchestratorSessionMode } from "../utils/turn-context.helper";
+
+function splitReplyIntoSentences(text: string): string[] {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (!cleaned) return [];
+  const parts = cleaned.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  return parts.length > 0 ? parts : [cleaned];
+}
 
 @injectable()
 export class OrchestratorController {
   constructor(
     private orchestratorService: OrchestratorService,
-    private knowledgeService: OrchestratorKnowledgeService
+    private knowledgeService: OrchestratorKnowledgeService,
+    private threadOpenerService: ThreadOpenerService,
+    private elevenLabsTts: ElevenLabsTtsService
   ) {}
 
   private siteId(req: Request): string {
@@ -61,6 +72,110 @@ export class OrchestratorController {
         res.setHeader("X-Request-Id", requestId);
       }
       sendSuccess(res, "OK", response);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /sites/:siteId/orchestrator/chat/stream
+   * Same turn as /chat, then SSE sentence events for voice TTS pipelining.
+   */
+  chatStream = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const body = req.validatedBody as {
+        thread_id?: string;
+        message: string;
+        session_mode?: OrchestratorSessionMode;
+        conversation_mode?: boolean;
+        selection_context?: {
+          blog_id: string;
+          reference_type?: "highlight" | "blog";
+          text?: string;
+        };
+        attachments?: Array<{
+          name: string;
+          url: string;
+          mime_type: string;
+          extracted_text?: string;
+        }>;
+      };
+
+      const response = await this.orchestratorService.chat({
+        siteId,
+        userId,
+        message: body.message,
+        threadId: body.thread_id,
+        requestId: getRequestIdFromHeaders(req),
+        sessionMode: body.session_mode,
+        conversationMode: body.conversation_mode,
+        selectionContext: body.selection_context,
+        attachments: body.attachments,
+      });
+
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      const requestId = getRequestIdFromHeaders(req);
+      if (requestId) {
+        res.setHeader("X-Request-Id", requestId);
+      }
+      const flush = (res as Response & { flushHeaders?: () => void }).flushHeaders?.bind(res);
+      flush?.();
+
+      const emit = (event: string, data: unknown) => {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      };
+
+      if (body.conversation_mode) {
+        const sentences = splitReplyIntoSentences(response.assistant_message.content);
+        for (const sentence of sentences) {
+          emit("sentence", { text: sentence });
+        }
+      }
+
+      emit("done", response);
+      res.end();
+    } catch (error) {
+      if (res.headersSent) {
+        res.write(`event: error\ndata: ${JSON.stringify({ message: "Chat stream failed" })}\n\n`);
+        res.end();
+        return;
+      }
+      next(error);
+    }
+  };
+
+  /**
+   * POST /sites/:siteId/orchestrator/threads/open
+   * Create/resume thread and persist a proactive opener when empty.
+   */
+  openThread = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const body = (req.validatedBody as { thread_id?: string } | undefined) ?? {};
+      const result = await this.threadOpenerService.ensureOpener(siteId, userId, body.thread_id);
+      sendSuccess(res, "OK", result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /sites/:siteId/orchestrator/voice/tts
+   * Synthesize speech via ElevenLabs; returns audio/mpeg.
+   */
+  voiceTts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { text } = req.validatedBody as { text: string };
+      const audio = await this.elevenLabsTts.synthesize(text);
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "no-store");
+      res.send(audio);
     } catch (error) {
       next(error);
     }

@@ -17,7 +17,14 @@ import type {
 import { ChatComposer } from "./chat-composer";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 import { FullConversationView, type ConversationStatus } from "./full-conversation-view";
-import { KnowledgeBaseModal } from "./knowledge-base-modal";
+import { WritingStageRail } from "./writing-stage-rail";
+import { ResearchFindingsCard } from "./research-findings-card";
+import { OutlineApprovalCard } from "./outline-approval-card";
+import {
+  extractOutlineCardProps,
+  extractResearchCardProps,
+  findActiveWritingHitl,
+} from "@/lib/utils/writing-hitl";
 import { useOrchestrator } from "./orchestrator-provider";
 import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
 import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
@@ -27,7 +34,9 @@ import {
   findArtifactIdForToolMessage,
   extractBlogIdFromArtifactData,
   DRAFT_ARTIFACT_TOOLS,
-  VIEWABLE_ARTIFACT_TOOLS,
+  ENTITY_PANEL_TOOLS,
+  artifactHasEntityId,
+  entityViewCtaLabel,
   patchBlogCacheFromToolOutput,
   type OrchestratorArtifact,
 } from "@/lib/utils/orchestrator-artifacts";
@@ -37,6 +46,7 @@ import { BUSINESS_REFINE_PROMPT_KEY } from "@/lib/onboarding/brand-setup-items";
 import { useOrchestratorArtifacts } from "@/lib/hooks/use-orchestrator-artifacts";
 import { useRenameThread } from "@/lib/hooks/use-rename-thread";
 import { useSpeechSynthesis } from "@/lib/hooks/use-speech-synthesis";
+import { useElevenLabsTts } from "@/lib/hooks/use-elevenlabs-tts";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
 
 interface PendingTurn {
@@ -49,6 +59,9 @@ interface OptimisticMessage {
   content: string;
   toolName?: string;
   artifactId?: string;
+  artifactTool?: string;
+  hasDraftEntity?: boolean;
+  viewCtaLabel?: string | null;
   moat?: V05MoatSnapshot | null;
 }
 
@@ -86,9 +99,11 @@ export function OrchestratorChat({
     clearPendingAttachments,
     voiceMode,
     openResultsPanel,
+    closeResultsPanel,
     conversationMode,
     exitConversationMode,
     livePhase,
+    livePhaseHistory,
     clearLivePhase,
     setupInterviewActive,
     setSetupInterviewActive,
@@ -106,20 +121,34 @@ export function OrchestratorChat({
   const [pending, setPending] = useState<PendingTurn | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingApproval, setPendingApproval] = useState<OrchestratorApproval | null>(null);
+  const [lastTurnToolCalls, setLastTurnToolCalls] = useState<
+    Array<{ tool: string; summary: string; output_data?: Record<string, unknown> }>
+  >([]);
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const prevMessageCountRef = useRef(0);
-  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
-  const { speak, stop: stopSpeaking } = useSpeechSynthesis();
+  const { speak: browserSpeak, stop: stopBrowserSpeaking } = useSpeechSynthesis();
+  const {
+    speak: elevenSpeak,
+    stop: stopElevenSpeaking,
+    whenIdle: whenElevenIdle,
+  } = useElevenLabsTts(currentSiteId);
   const lastSpokenRef = useRef<string | null>(null);
   const [convListening, setConvListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const conversationModeRef = useRef(conversationMode);
   const pendingRef = useRef(pending);
+  const openThreadInFlightRef = useRef(false);
+  const openedThreadKeyRef = useRef<string | null>(null);
+
+  const stopSpeaking = () => {
+    stopElevenSpeaking();
+    stopBrowserSpeaking();
+  };
 
   useEffect(() => {
     conversationModeRef.current = conversationMode;
@@ -185,6 +214,138 @@ export function OrchestratorChat({
       setSetupInterviewActive(true);
     }
   }, [threadQuery.data?.thread?.is_onboarding, setSetupInterviewActive]);
+
+  // Proactive opener: new thread or empty thread with 0 messages.
+  useEffect(() => {
+    if (!currentSiteId || setupInterviewActive) {
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+        body: JSON.stringify({
+          sessionId: "17457c",
+          runId: "pre-fix",
+          hypothesisId: "H-D",
+          location: "orchestrator-chat.tsx:opener",
+          message: "opener skipped early",
+          data: { hasSite: !!currentSiteId, setupInterviewActive },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return;
+    }
+    if (openThreadInFlightRef.current) return;
+
+    const needsNewThread = !threadId;
+    const threadLoadedEmpty =
+      !!threadId && threadQuery.isSuccess && (threadQuery.data?.messages?.length ?? 0) === 0;
+    if (!needsNewThread && !threadLoadedEmpty) {
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+        body: JSON.stringify({
+          sessionId: "17457c",
+          runId: "pre-fix",
+          hypothesisId: "H-D",
+          location: "orchestrator-chat.tsx:opener",
+          message: "opener skipped not empty",
+          data: {
+            threadId,
+            isSuccess: threadQuery.isSuccess,
+            msgCount: threadQuery.data?.messages?.length ?? 0,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return;
+    }
+
+    const key = needsNewThread ? `${currentSiteId}:new` : `${currentSiteId}:${threadId}`;
+    if (openedThreadKeyRef.current === key) return;
+
+    openThreadInFlightRef.current = true;
+    openedThreadKeyRef.current = key;
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+      body: JSON.stringify({
+        sessionId: "17457c",
+        runId: "pre-fix",
+        hypothesisId: "H-D",
+        location: "orchestrator-chat.tsx:opener",
+        message: "opener calling openThread",
+        data: { key, needsNewThread, threadId },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+    void OrchestratorService.openThread(currentSiteId, threadId ?? undefined)
+      .then((res) => {
+        // #region agent log
+        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+          body: JSON.stringify({
+            sessionId: "17457c",
+            runId: "pre-fix",
+            hypothesisId: "H-D",
+            location: "orchestrator-chat.tsx:opener",
+            message: "opener success",
+            data: {
+              thread_id: res.thread_id,
+              hasAssistant: Boolean(res.assistant_message?.content),
+              preview: (res.assistant_message?.content ?? "").slice(0, 80),
+              priority: res.priority,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        if (threadId !== res.thread_id) {
+          setThreadId(res.thread_id);
+        }
+        void queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId),
+        });
+        void queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, res.thread_id),
+        });
+      })
+      .catch((err) => {
+        // #region agent log
+        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+          body: JSON.stringify({
+            sessionId: "17457c",
+            runId: "pre-fix",
+            hypothesisId: "H-D",
+            location: "orchestrator-chat.tsx:opener",
+            message: "opener failed",
+            data: { err: String(err) },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        // Allow retry on next relevant state change.
+        openedThreadKeyRef.current = null;
+      })
+      .finally(() => {
+        openThreadInFlightRef.current = false;
+      });
+  }, [
+    currentSiteId,
+    threadId,
+    threadQuery.isSuccess,
+    threadQuery.data?.messages?.length,
+    setupInterviewActive,
+    setThreadId,
+    queryClient,
+  ]);
 
   useEffect(() => {
     setOptimisticMessages([]);
@@ -273,30 +434,75 @@ export function OrchestratorChat({
     }
   }, [threadQuery.data]);
 
+  // Drop optimistic rows once the same turn is in persisted history (single message lifecycle).
+  useEffect(() => {
+    const msgs = threadQuery.data?.messages ?? [];
+    if (!msgs.length || !optimisticMessages.length) return;
+    const persistedIds = new Set(msgs.map((m) => m._id));
+    setOptimisticMessages((prev) =>
+      prev.filter((m) => {
+        if (persistedIds.has(m.id)) return false;
+        if (m.id.startsWith("local-") && m.role === "user") {
+          return !msgs.some((p) => p.role === "user" && p.content === m.content);
+        }
+        if (m.role === "tool") {
+          return !msgs.some(
+            (p) => p.role === "tool" && p.tool_name === m.toolName && p.content === m.content
+          );
+        }
+        return true;
+      })
+    );
+  }, [threadQuery.data?.messages]);
+
   const combinedMessages = useMemo<OptimisticMessage[]>(() => {
     const msgs = threadQuery.data?.messages ?? [];
     const threadMoatByAssistant = new Map<string, V05MoatSnapshot>();
-    // Attribute research/optimize tool_calls on an assistant message to that bubble.
     for (const m of msgs) {
       if (m.role !== "assistant") continue;
       const moat = extractMoatSnapshot({ messages: [m] });
       if (moat) threadMoatByAssistant.set(m._id, moat);
     }
-    // Also scan preceding tool messages' sibling assistant — tool_calls live on assistant in v05.
+    const persistedIds = new Set(msgs.map((m) => m._id));
+    const persistedContents = new Set(
+      msgs.filter((m) => m.role === "user").map((m) => m.content)
+    );
     const persisted: OptimisticMessage[] = msgs.map((m: OrchestratorMessage) => {
       const toolArtifactId =
         m.role === "tool" ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts) : undefined;
       const assistantArtifactId = m.role === "assistant" ? findArtifactIdForAssistantMessage(m, artifacts) : undefined;
+      const artifactId = toolArtifactId ?? assistantArtifactId;
+      const matched = artifactId ? artifacts.find((a) => a.id === artifactId) : undefined;
+      const artifactTool =
+        matched?.tool ??
+        (m.role === "assistant"
+          ? m.tool_calls?.find((c) => ENTITY_PANEL_TOOLS.has(c.tool))?.tool
+          : m.tool_name);
+      const hasDraft =
+        !!matched && DRAFT_ARTIFACT_TOOLS.has(matched.tool) && !!extractBlogIdFromArtifactData(matched.outputData);
       return {
         id: m._id,
         role: m.role === "system" ? "assistant" : m.role,
         content: m.content,
         toolName: m.tool_name,
-        artifactId: toolArtifactId ?? assistantArtifactId,
+        artifactId,
+        artifactTool,
+        hasDraftEntity: hasDraft,
+        viewCtaLabel: matched && artifactHasEntityId(matched) ? entityViewCtaLabel(matched.tool) : null,
         moat: m.role === "assistant" ? (threadMoatByAssistant.get(m._id) ?? null) : null,
       };
     });
-    return [...persisted, ...optimisticMessages];
+    const pendingOptimistic = optimisticMessages.filter((m) => {
+      if (persistedIds.has(m.id)) return false;
+      if (m.id.startsWith("local-") && m.role === "user" && persistedContents.has(m.content)) return false;
+      if (m.role === "tool") {
+        return !msgs.some(
+          (p) => p.role === "tool" && p.tool_name === m.toolName && p.content === m.content
+        );
+      }
+      return true;
+    });
+    return [...persisted, ...pendingOptimistic];
   }, [threadQuery.data, optimisticMessages, artifacts]);
 
   const handleViewArtifact = (artifactId: string) => {
@@ -323,6 +529,7 @@ export function OrchestratorChat({
     if (!text || pending) return;
     setError(null);
     if (!overrideText) setInput("");
+    setLastTurnToolCalls([]);
     const userMsg: OptimisticMessage = {
       id: `local-${Date.now()}`,
       role: "user",
@@ -353,17 +560,29 @@ export function OrchestratorChat({
             referenceType: "blog" as const,
           }
         : undefined);
-    const sendStartedAt = Date.now();
     const useOnboardingInterview = setupInterviewActive || Boolean(threadQuery.data?.thread?.is_onboarding);
+    const chatOptions = {
+      sessionMode: explicitMode ?? sessionMode,
+      attachments: pendingAttachments.length ? pendingAttachments : undefined,
+      selectionContext: effectiveSelectionContext,
+      conversationMode: conversationModeRef.current || undefined,
+    };
     try {
-      const res: ChatTurnResponse = useOnboardingInterview
-        ? await OrchestratorService.onboardingChat(currentSiteId, text)
-        : await OrchestratorService.chat(currentSiteId, text, threadId ?? undefined, {
-            sessionMode: explicitMode ?? sessionMode,
-            attachments: pendingAttachments.length ? pendingAttachments : undefined,
-            selectionContext: effectiveSelectionContext,
-            conversationMode: conversationModeRef.current || undefined,
-          });
+      let res: ChatTurnResponse;
+      if (useOnboardingInterview) {
+        res = await OrchestratorService.onboardingChat(currentSiteId, text);
+      } else if (conversationModeRef.current) {
+        res = await OrchestratorService.chatStream(currentSiteId, text, threadId ?? undefined, {
+          ...chatOptions,
+          conversationMode: true,
+          onSentence: (sentence) => {
+            setIsSpeaking(true);
+            elevenSpeak(sentence);
+          },
+        });
+      } else {
+        res = await OrchestratorService.chat(currentSiteId, text, threadId ?? undefined, chatOptions);
+      }
 
       if (res.active_session_mode) {
         setEffectiveSessionMode(res.active_session_mode);
@@ -372,7 +591,6 @@ export function OrchestratorChat({
         setSessionMode(explicitMode);
       }
 
-      const newOptimistic: OptimisticMessage[] = [];
       const newLiveArtifacts: OrchestratorArtifact[] = [];
       for (const call of res.tool_calls ?? []) {
         orchestratorTracker.toolExecuted({ tool_name: call.tool, thread_id: res.thread_id });
@@ -406,41 +624,83 @@ export function OrchestratorChat({
             void queryClient.refetchQueries({ queryKey: QUERY_KEYS.BLOG(blogId) });
           }
         }
-        newOptimistic.push({
-          id: `tool-${Date.now()}-${newOptimistic.length}`,
-          role: "tool",
-          content: call.summary,
-          toolName: call.tool,
-          artifactId: call.output_data ? liveId : undefined,
-        });
+        // Do not invent tool chat bubbles — persisted history (or assistant tool_calls) is source of truth.
       }
       if (newLiveArtifacts.length > 0) {
         mergeLiveArtifacts(newLiveArtifacts);
+        const entityArts = newLiveArtifacts.filter(
+          (a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a)
+        );
         const preferred =
-          [...newLiveArtifacts].reverse().find((a) => DRAFT_ARTIFACT_TOOLS.has(a.tool)) ??
-          [...newLiveArtifacts].reverse().find((a) => a.tool === "blogs.review") ??
-          [...newLiveArtifacts].reverse().find((a) => VIEWABLE_ARTIFACT_TOOLS.has(a.tool)) ??
-          newLiveArtifacts[newLiveArtifacts.length - 1];
-        const hasViewable = newLiveArtifacts.some((a) => VIEWABLE_ARTIFACT_TOOLS.has(a.tool));
-        // Only open for blog/list/research-style artifacts — never for chat skills.
-        if (hasViewable) {
-          openResultsPanel(preferred?.id);
+          [...entityArts].reverse().find((a) => DRAFT_ARTIFACT_TOOLS.has(a.tool)) ??
+          [...entityArts].reverse().find((a) => a.tool === "blogs.review") ??
+          [...entityArts].reverse()[0];
+        if (preferred) {
+          openResultsPanel(preferred.id);
           onShowMobileArtifacts?.();
+        }
+        for (const call of res.tool_calls ?? []) {
+          if (call.tool === "blogs.delete") {
+            const deletedId =
+              typeof call.output_data === "object" && call.output_data
+                ? extractBlogIdFromArtifactData(call.output_data as Record<string, unknown>)
+                : undefined;
+            if (deletedId && deletedId === activeDraftBlogId) {
+              setActiveDraftBlogId(null);
+              closeResultsPanel();
+            }
+          }
         }
       }
       clearPendingAttachments();
-      newOptimistic.push({
-        id: res.assistant_message.id,
-        role: "assistant",
-        content: res.assistant_message.content,
-        artifactId: newLiveArtifacts.length > 0 ? newLiveArtifacts[newLiveArtifacts.length - 1]?.id : undefined,
-        moat: extractMoatSnapshot({ v05: res.v05_graph, toolCalls: res.tool_calls }),
-      });
+      const panelArt = [...newLiveArtifacts]
+        .reverse()
+        .find((a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a));
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+        body: JSON.stringify({
+          sessionId: "17457c",
+          runId: "pre-fix",
+          hypothesisId: "H-A",
+          location: "orchestrator-chat.tsx:handleSend",
+          message: "cta assignment after turn",
+          data: {
+            tools: (res.tool_calls ?? []).map((c) => c.tool),
+            panelArtTool: panelArt?.tool ?? null,
+            panelArtId: panelArt?.id ?? null,
+            viewCta: panelArt ? entityViewCtaLabel(panelArt.tool) : null,
+            openedPanel: Boolean(
+              newLiveArtifacts.some((a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a))
+            ),
+            pendingApproval: res.pending_approval?.action ?? null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      // Keep local user bubble until refetch; assistant only (no synthetic tool rows).
+      setOptimisticMessages((prev) => [
+        ...prev.filter((m) => m.id.startsWith("local-")),
+        {
+          id: res.assistant_message.id,
+          role: "assistant",
+          content: res.assistant_message.content,
+          artifactId: panelArt?.id,
+          artifactTool: panelArt?.tool,
+          hasDraftEntity: panelArt
+            ? DRAFT_ARTIFACT_TOOLS.has(panelArt.tool) && !!extractBlogIdFromArtifactData(panelArt.outputData)
+            : false,
+          viewCtaLabel: panelArt ? entityViewCtaLabel(panelArt.tool) : null,
+          moat: extractMoatSnapshot({ v05: res.v05_graph, toolCalls: res.tool_calls }),
+        },
+      ]);
       if (voiceMode && res.assistant_message.content !== lastSpokenRef.current) {
         lastSpokenRef.current = res.assistant_message.content;
         if (conversationModeRef.current) {
-          setIsSpeaking(true);
-          speak(res.assistant_message.content, () => {
+          // Sentences were already queued via chatStream onSentence; wait for queue idle.
+          whenElevenIdle(() => {
             setIsSpeaking(false);
             if (conversationModeRef.current && sttSupported && !pendingRef.current) {
               startConvListening();
@@ -448,11 +708,19 @@ export function OrchestratorChat({
             }
           });
         } else {
-          speak(res.assistant_message.content);
+          browserSpeak(res.assistant_message.content);
         }
+      } else if (conversationModeRef.current) {
+        whenElevenIdle(() => {
+          setIsSpeaking(false);
+          if (conversationModeRef.current && sttSupported && !pendingRef.current) {
+            startConvListening();
+            setConvListening(true);
+          }
+        });
       }
-      setOptimisticMessages((prev) => [...prev, ...newOptimistic]);
       setPendingApproval(res.pending_approval);
+      setLastTurnToolCalls(res.tool_calls ?? []);
       if (threadId !== res.thread_id) {
         setThreadId(res.thread_id);
       }
@@ -477,12 +745,17 @@ export function OrchestratorChat({
       }
       invalidateTokenUsage();
     } catch (e: unknown) {
+      stopSpeaking();
+      setIsSpeaking(false);
       if (showFromError(e)) {
         invalidateTokenUsage();
         setError("Daily AI token limit reached.");
       } else {
-        const err = e as { response?: { status?: number; data?: { message?: string; code?: string } } };
-        const apiMessage = err?.response?.data?.message;
+        const err = e as {
+          response?: { status?: number; data?: { message?: string; code?: string } };
+          message?: string;
+        };
+        const apiMessage = err?.response?.data?.message ?? err?.message;
         const apiCode = err?.response?.data?.code;
         if (err?.response?.status === 409 && apiCode === "AI_REQUEST_IN_PROGRESS") {
           setError("A previous AI request is still finishing. Wait a moment, then try again.");
@@ -501,10 +774,12 @@ export function OrchestratorChat({
 
   const handleNewThread = () => {
     clearLiveArtifacts();
+    openedThreadKeyRef.current = null;
     setThreadId(null);
     setSetupInterviewActive(false);
     setOptimisticMessages([]);
     setPendingApproval(null);
+    setLastTurnToolCalls([]);
     setError(null);
     cancelRename();
   };
@@ -564,7 +839,82 @@ export function OrchestratorChat({
         ? "listening"
         : "idle";
 
+  const activeWritingHitl = useMemo(() => {
+    if (lastTurnToolCalls.length) {
+      const synthetic: OrchestratorMessage = {
+        _id: "live-hitl",
+        thread_id: threadId ?? "",
+        site_id: currentSiteId ?? "",
+        role: "assistant",
+        content: "",
+        created_at: new Date().toISOString(),
+        tool_calls: lastTurnToolCalls.map((c) => ({
+          tool: c.tool,
+          output_summary: c.summary,
+          output_data: c.output_data,
+        })),
+      };
+      const live = findActiveWritingHitl([synthetic]);
+      if (live) return live;
+    }
+    return findActiveWritingHitl(threadQuery.data?.messages ?? []);
+  }, [threadQuery.data?.messages, lastTurnToolCalls, threadId, currentSiteId]);
+
+  const researchCardProps =
+    activeWritingHitl?.kind === "research" ? extractResearchCardProps(activeWritingHitl.output) : null;
+  const outlineCardProps =
+    activeWritingHitl?.kind === "outline" ? extractOutlineCardProps(activeWritingHitl.output) : null;
+
+  // #region agent log
+  useEffect(() => {
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+      body: JSON.stringify({
+        sessionId: "17457c",
+        runId: "post-fix",
+        hypothesisId: "H-C",
+        location: "orchestrator-chat.tsx:hitl",
+        message: "hitl card state",
+        data: {
+          hitlKind: activeWritingHitl?.kind ?? null,
+          hasResearchCard: Boolean(researchCardProps),
+          hasOutlineCard: Boolean(outlineCardProps),
+          lastTools: lastTurnToolCalls.map((c) => c.tool),
+          conversationMode,
+          pending: Boolean(pending),
+          activeDraftBlogId,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }, [
+    activeWritingHitl?.kind,
+    researchCardProps,
+    outlineCardProps,
+    lastTurnToolCalls,
+    conversationMode,
+    pending,
+    activeDraftBlogId,
+  ]);
+  // #endregion
+
   if (conversationMode) {
+    const voiceWorkflowActions =
+      researchCardProps && !pending
+        ? [
+            { label: "Approve research", onClick: () => void handleSend("Approve the research") },
+            { label: "Revise research", onClick: () => void handleSend("Revise the research") },
+            { label: "Continue", onClick: () => void handleSend("Continue") },
+          ]
+        : outlineCardProps && !pending
+          ? [
+              { label: "Approve outline", onClick: () => void handleSend("Approve the outline") },
+              { label: "Modify outline", onClick: () => void handleSend("Modify the outline") },
+              { label: "Continue", onClick: () => void handleSend("Continue") },
+            ]
+          : undefined;
+
     return (
       <div className={cn("flex flex-col min-w-0 h-full", className)}>
         <FullConversationView
@@ -585,6 +935,7 @@ export function OrchestratorChat({
             openResultsPanel(artifacts[artifacts.length - 1]?.id);
             onShowMobileArtifacts?.();
           }}
+          workflowActions={voiceWorkflowActions}
           onMicToggle={handleConvMicToggle}
           onEndCall={handleEndConversation}
         />
@@ -717,10 +1068,14 @@ export function OrchestratorChat({
             content={m.content}
             toolName={m.toolName}
             artifactId={m.artifactId}
+            artifactTool={m.artifactTool}
+            hasDraftEntity={m.hasDraftEntity}
+            viewCtaLabel={m.viewCtaLabel}
             onViewArtifact={handleViewArtifact}
             moat={m.moat}
           />
         ))}
+        {pending && livePhaseHistory.length > 0 && <WritingStageRail phases={livePhaseHistory} className="mx-0" />}
         {pending && (
           <ThinkingIndicator
             label={
@@ -734,6 +1089,24 @@ export function OrchestratorChat({
         )}
         {error && (
           <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">{error}</div>
+        )}
+        {researchCardProps && !pending && (
+          <ResearchFindingsCard
+            {...researchCardProps}
+            disabled={!!pending}
+            onApprove={() => handleSend("Approve the research")}
+            onRevise={() => handleSend("Revise the research")}
+            onContinue={() => handleSend("Continue")}
+          />
+        )}
+        {outlineCardProps && !pending && (
+          <OutlineApprovalCard
+            {...outlineCardProps}
+            disabled={!!pending}
+            onApprove={() => handleSend("Approve the outline")}
+            onModify={() => handleSend("Modify the outline")}
+            onContinue={() => handleSend("Continue")}
+          />
         )}
         {pendingApproval && (
           <div className="rounded-xl border border-yellow-700/60 bg-yellow-900/20 p-4">
@@ -781,19 +1154,16 @@ export function OrchestratorChat({
           onSubmit={() => handleSend()}
           disabled={!!pending || !currentSiteId || tokensExhausted}
           autoFocus
-          onOpenKnowledgeBase={() => setKnowledgeOpen(true)}
           placeholder={
             tokensExhausted
               ? "Daily AI token limit reached — resets when your window rolls over"
-              : "Ask the orchestrator to act on this workspace..."
+              : "Ask your content strategist…"
           }
         />
         <p className="mt-2 text-xs text-gray-500">
           Destructive actions (delete, publish, unpublish) always ask for an in-chat confirmation before running.
         </p>
       </div>
-
-      <KnowledgeBaseModal open={knowledgeOpen} onClose={() => setKnowledgeOpen(false)} />
     </div>
   );
 }

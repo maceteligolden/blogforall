@@ -20,7 +20,7 @@ Infer communicative intent (not only literal wording). Soft suggestions about wr
 
 Given the latest user message, recent dialogue, and workspace snapshot, produce ConversationContext JSON with these fields:
 - communicative_category: ask_information | request_action | brainstorm | provide_feedback | update_preferences | casual | unknown
-- workflow_intent: create_content | update_content | optimize_content | review_content | publish_content | schedule_content | unpublish_content | delete_content | list_content | get_content | explain | strategy | research | analytics | update_memory | onboarding | casual | unknown
+- workflow_intent: create_content | update_content | optimize_content | review_content | publish_content | schedule_content | unpublish_content | delete_content | list_content | get_content | explain | strategy | research | analytics | update_memory | onboarding | casual | create_campaign | update_campaign | learn_campaign | discuss_campaign | campaign_content | campaign_performance | unknown
 - confidence: 0–1
 - action_required: true if a content/ops workflow should start
 - conversation_mode: information | creation | planning | editing | feedback | casual
@@ -38,9 +38,11 @@ Given the latest user message, recent dialogue, and workspace snapshot, produce 
 - literal_interpretation / communicative_rationale: short internal notes
 
 Rules:
-- "Write a blog post about X" → request_action, create_content, start_content_workflow — NEVER a passive "you can start writing" ack.
-- "How does SEO work?" → ask_information, explain.
-- "I want to write something about AI" / "give me blog ideas" → brainstorm, start_planning.
+- "Write a blog post about X" / "Draft a post about X" / "Generate an article on X" → request_action, create_content, start_content_workflow — NEVER a passive "you can start writing" ack.
+- "How does SEO work?" → ask_information, explain, action_required=false. Do NOT start_content_workflow.
+- "What do you think about this idea?" / "pros and cons?" / "can you explain…?" → ask_information or brainstorm, explain or casual_reply, action_required=false. Discussion ≠ writing.
+- Soft topic without a write verb ("maybe something about AI", "an idea for electric engines") → brainstorm or ask_information, start_planning or clarify ("Want me to draft this, or keep exploring?"), NOT start_content_workflow until they confirm.
+- "I want to write something about AI" / "give me blog ideas" → brainstorm, start_planning (plan/discuss first, do not auto-draft).
 - Storytelling / sharing an experience ("I want to talk about…", "I was at a party…", continuing a personal anecdote) → ask_information or casual, suggested_next_action explain or casual_reply, action_required=false. Engage conversationally; do NOT start create/strategy/research until they explicitly ask to write, draft, or research.
 - When the user explicitly asks to write/draft a post from a lived narrative (bike ride, friend story, personal anecdote) and slots_patch.post_format is not set and they did NOT say "quick draft" / "just write it" / "draft now" → requires_clarification=true, suggested_next_action=clarify, clarification_question asking whether they want: personal story / engineering reflection / productivity article / LinkedIn post. Put their pick in slots_patch.post_format.
 - If they answer the format question (e.g. "personal story") or say "just write it", set post_format (default personal_story for narrative skips) and start_content_workflow.
@@ -58,6 +60,12 @@ Rules:
 - Ambiguous referential create ("write about that") with no recoverable topic → requires_clarification + clarify.
 - How many posts / list blogs → list_content, start_content_workflow, action_required true.
 - Blog stats/analytics → analytics, start_content_workflow.
+- "Create a campaign" / "start a new campaign" → create_campaign, clarify (collect fields conversationally — do NOT start research or content workflow).
+- "Let's talk about my campaign" / "discuss the Q3 campaign" → discuss_campaign, clarify (Conversation only; no research unless asked).
+- "Content for this campaign" / "posts for the campaign" → campaign_content, clarify (ask which campaign / list if id missing — do NOT re-run research in a loop).
+- "Update/rename my campaign" / "change campaign dates" → update_campaign, clarify or start_content_workflow.
+- "How do campaigns work" / "explain my campaign strategy" → learn_campaign, explain.
+- "How is my campaign performing" / "campaign progress/health" → campaign_performance, start_content_workflow.
 - Company tone/brand/audience questions → explain (not web research on the question text).
 - Never invent publish/delete unless explicitly asked.
 - Thin/speculative create topics (e.g. "a man who flew") → clarify with discuss / research / quick-draft options.

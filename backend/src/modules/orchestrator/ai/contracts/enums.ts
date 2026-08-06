@@ -33,6 +33,12 @@ export const intentSchema = z.enum([
   "update_memory",
   "onboarding",
   "casual",
+  "create_campaign",
+  "update_campaign",
+  "learn_campaign",
+  "discuss_campaign",
+  "campaign_content",
+  "campaign_performance",
   "unknown",
 ]);
 

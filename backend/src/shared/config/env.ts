@@ -15,7 +15,7 @@ const WORKSPACE_DEFAULT_NAME_DEFAULT = "My Workspace";
 const INVITATION_EXPIRY_DAYS_DEFAULT = 7;
 const FRONTEND_BASE_URL_DEFAULT = "http://localhost:3000";
 
-const smtpFromDefault = (process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@bloggr.com").trim();
+const smtpFromDefault = (process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@bloggr.io").trim();
 
 export const env = {
   nodeEnv: NODE_ENV,
@@ -144,6 +144,12 @@ export const env = {
     strategicIntelligenceEnabled: (process.env.STRATEGIC_INTELLIGENCE_ENABLED || "true").toLowerCase() !== "false",
   },
 
+  /** ElevenLabs TTS for orchestrator voice call mode (doc 22). */
+  elevenlabs: {
+    apiKey: (process.env.ELEVENLABS_API_KEY || "").trim(),
+    voiceId: (process.env.ELEVENLABS_VOICE_ID || "bitB3zPqF1vZmMnmEMcw").trim(),
+  },
+
   /**
    * @deprecated M5 — cognition dual-brain removed. Env var ignored; always disabled.
    */
@@ -228,7 +234,7 @@ export const env = {
 
   notification: {
     brevoApiKey: (process.env.BREVO_API_KEY || "").trim(),
-    brevoSenderEmail: (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || "noreply@bloggr.com").trim(),
+    brevoSenderEmail: (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || "noreply@bloggr.io").trim(),
     brevoSenderName: (process.env.BREVO_SENDER_NAME || "Bloggr").trim(),
     brevoWaitlistListId: parseIntEnv(process.env.BREVO_WAITLIST_LIST_ID, 0) || undefined,
     redisUrl: process.env.REDIS_URL?.trim() ?? (NODE_ENV === "development" ? "" : "redis://localhost:6379"),

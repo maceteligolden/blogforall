@@ -96,6 +96,16 @@ export class MemoryService {
     return res.data.data;
   }
 
+  /** Scrape a website and apply extracted business profile into workspace memory. */
+  static async fillFromWebsite(siteId: string, url?: string) {
+    const res = await apiClient.post(API_ENDPOINTS.MEMORY.FROM_WEBSITE(siteId), url ? { url } : {});
+    return res.data.data as WorkspaceMemoryResponse & {
+      website_url: string;
+      source?: string;
+      summary?: string;
+    };
+  }
+
   static async getStrategy(siteId: string) {
     const res = await apiClient.get(API_ENDPOINTS.MEMORY.STRATEGY(siteId));
     return res.data.data;

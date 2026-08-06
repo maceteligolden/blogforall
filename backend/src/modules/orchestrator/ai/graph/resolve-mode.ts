@@ -7,6 +7,7 @@ const STRATEGIST = /\b(?:high[- ]quality|strategist|authority|in[- ]depth|compre
 /**
  * MVP mode selection (doc 14 §2): quick/urgency → quick_draft;
  * strategist language → strategist_pipeline; else keep chat (plan still runs create path).
+ * Voice has full parity with text — no special mode forcing.
  */
 export function resolveWorkflowMode(state: OrchestratorState): WorkflowMode {
   if (state.mode !== "chat") return state.mode;

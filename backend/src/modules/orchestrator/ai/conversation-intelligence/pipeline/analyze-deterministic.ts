@@ -38,10 +38,25 @@ const CASUAL = /^(?:hi|hello|hey|thanks|thank\s+you|lol|haha|😂|good\s+(?:morn
 /** Includes contractions like "whats" / "how's" and mid-sentence question words. */
 const ASK =
   /\?$|^(?:what|whats|what'?s|how|hows|how'?s|why|when|where|who|whos|who'?s|can\s+you\s+explain|tell\s+me|describe|explain)\b|\b(?:what|whats|what'?s|how|hows|how'?s|why|when|where|who)\b|\btell\s+me\s+about\b/i;
+/** Discussion / opinion — never auto-start writing. */
+const DISCUSSION =
+  /\b(?:what\s+do\s+you\s+think|pros\s+and\s+cons|your\s+thoughts|can\s+you\s+explain|walk\s+me\s+through|help\s+me\s+think)\b/i;
 const LIST_POSTS =
   /\b(?:how\s+many\s+posts?|list\s+(?:my\s+|our\s+)?(?:posts?|blogs?)|show\s+(?:me\s+)?(?:my\s+|our\s+)?(?:posts?|blogs?)|posts?\s+(?:do\s+we|we\s+have|have\s+we)|what\s+posts?\s+(?:do\s+we|we\s+have))\b/i;
 const ANALYTICS =
   /\b(?:blog\s+stats|post\s+stats|statistics|analytics|how\s+(?:are|is)\s+(?:our|my)\s+posts?\s+doing)\b/i;
+const CREATE_CAMPAIGN =
+  /\b(?:create|start|launch|set\s+up|setup)\b[\s\S]{0,40}\bcampaign\b|\bnew\s+campaign\b|\bcampaign\s+for\b/i;
+const UPDATE_CAMPAIGN =
+  /\b(?:update|rename|change|edit|pause|resume|extend)\b[\s\S]{0,40}\bcampaign\b|\bcampaign\b[\s\S]{0,40}\b(?:dates?|goal|audience|frequency)\b/i;
+const LEARN_CAMPAIGN =
+  /\b(?:how\s+do\s+campaigns?\s+work|explain\s+(?:my\s+|our\s+)?campaigns?|what\s+is\s+a\s+campaign|tell\s+me\s+about\s+(?:my\s+|our\s+)?campaigns?)\b/i;
+const CAMPAIGN_PERFORMANCE =
+  /\b(?:campaign\s+(?:performance|progress|health|stats|report)|how\s+is\s+(?:my\s+|our\s+)?campaign\s+doing|campaign\s+metrics)\b/i;
+const DISCUSS_CAMPAIGN =
+  /\b(?:discuss|talk\s+(?:about|through)|brainstorm|explore)\b[\s\S]{0,40}\bcampaign\b|\bcampaign\b[\s\S]{0,40}\b(?:ideas?|angle|direction)\b/i;
+const CAMPAIGN_CONTENT =
+  /\b(?:content|posts?|blogs?|articles?)\b[\s\S]{0,40}\bcampaign\b|\bcampaign\b[\s\S]{0,40}\b(?:content|posts?|roadmap|calendar)\b/i;
 const TONE_OR_BRAND =
   /\b(?:(?:brand|company)\s+tone|tone\s+of\s+(?:the\s+)?(?:company|brand|business)|brand\s+voice|our\s+(?:brand|audience|tone|voice))\b/i;
 const FOLLOW_UP = /\bi\s+meant\b|\bi\s+mean\b|\bas\s+in\b|\bthat(?:'s|\s+is)\s+what\s+i\s+meant\b/i;
@@ -235,6 +250,52 @@ export function analyzeConversationDeterministic(input: ConversationIntelligence
     action_required = true;
     confidence = 0.88;
     initiative = "lead";
+  } else if (CAMPAIGN_PERFORMANCE.test(message)) {
+    communicative_category = "request_action";
+    workflow_intent = "campaign_performance";
+    suggested_next_action = "start_content_workflow";
+    conversation_mode = "information";
+    action_required = true;
+    confidence = 0.9;
+    initiative = "lead";
+  } else if (LEARN_CAMPAIGN.test(message)) {
+    communicative_category = "ask_information";
+    workflow_intent = "learn_campaign";
+    suggested_next_action = "explain";
+    conversation_mode = "information";
+    confidence = 0.88;
+    initiative = "suggest";
+  } else if (DISCUSS_CAMPAIGN.test(message) && !CREATE_CAMPAIGN.test(message) && !CREATE.test(message)) {
+    communicative_category = "brainstorm";
+    workflow_intent = "discuss_campaign";
+    suggested_next_action = "clarify";
+    conversation_mode = "planning";
+    confidence = 0.87;
+    initiative = "suggest";
+  } else if (CAMPAIGN_CONTENT.test(message) && !CREATE_CAMPAIGN.test(message) && !CREATE.test(message)) {
+    communicative_category = "request_action";
+    workflow_intent = "campaign_content";
+    suggested_next_action = "clarify";
+    conversation_mode = "planning";
+    action_required = true;
+    confidence = 0.86;
+    initiative = "lead";
+  } else if (CREATE_CAMPAIGN.test(message) && !CREATE.test(message)) {
+    communicative_category = "request_action";
+    workflow_intent = "create_campaign";
+    suggested_next_action = "clarify";
+    conversation_mode = "planning";
+    action_required = true;
+    confidence = 0.91;
+    initiative = "lead";
+  } else if (UPDATE_CAMPAIGN.test(message) && !CREATE.test(message)) {
+    communicative_category = "request_action";
+    workflow_intent = "update_campaign";
+    suggested_next_action = "clarify";
+    conversation_mode = "planning";
+    action_required = true;
+    confidence = 0.86;
+    initiative = "suggest";
   } else if (GET_POST.test(message) && !CREATE.test(message)) {
     communicative_category = "request_action";
     workflow_intent = "get_content";
@@ -309,8 +370,13 @@ export function analyzeConversationDeterministic(input: ConversationIntelligence
     action_required = true;
     confidence = 0.84;
     initiative = "lead";
-  } else if (ASK.test(message) && !CREATE.test(message) && !SOFT_CREATE.test(message)) {
-    // Questions (incl. "whats the time", "How does SEO work?") → explain before optimize.
+  } else if (
+    (DISCUSSION.test(message) || ASK.test(message)) &&
+    !CREATE.test(message) &&
+    !SOFT_CREATE.test(message) &&
+    !QUICK_DRAFT_PHRASE.test(message)
+  ) {
+    // Questions / discussion (incl. "whats the time", "How does SEO work?", "what do you think?") → explain.
     communicative_category = "ask_information";
     workflow_intent = "explain";
     suggested_next_action = "explain";
@@ -334,13 +400,24 @@ export function analyzeConversationDeterministic(input: ConversationIntelligence
     action_required = true;
     confidence = 0.83;
     initiative = "suggest";
-  } else if (CREATE.test(message) || SOFT_CREATE.test(message) || QUICK_DRAFT_PHRASE.test(message)) {
+  } else if (SOFT_CREATE.test(message) && !CREATE.test(message) && !QUICK_DRAFT_PHRASE.test(message)) {
+    // Soft create ("we should probably write…") → confirm before drafting.
+    communicative_category = "brainstorm";
+    workflow_intent = "create_content";
+    suggested_next_action = "clarify";
+    conversation_mode = "planning";
+    requires_clarification = true;
+    clarification_question = "Want me to draft this, or keep exploring the idea first?";
+    action_required = false;
+    confidence = 0.82;
+    initiative = "suggest";
+  } else if (CREATE.test(message) || QUICK_DRAFT_PHRASE.test(message)) {
     communicative_category = "request_action";
     workflow_intent = "create_content";
     suggested_next_action = "start_content_workflow";
     conversation_mode = "creation";
     action_required = true;
-    confidence = SOFT_CREATE.test(message) ? 0.8 : 0.93;
+    confidence = 0.93;
     initiative = "lead";
     const skipFormatGate =
       QUICK_DRAFT_PHRASE.test(message) || EXPLICIT_DRAFT_NOW.test(message) || SKIP_FORMAT_GATE_RE.test(message);

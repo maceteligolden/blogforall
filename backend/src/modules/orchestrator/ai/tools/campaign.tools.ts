@@ -1,19 +1,61 @@
 import { injectable } from "tsyringe";
 import { z } from "zod";
 import { CampaignRepository } from "../../../campaign/repositories/campaign.repository";
+import { CampaignService } from "../../../campaign/services/campaign.service";
 import { CampaignPlanningService } from "../../../campaign/services/campaign-planning.service";
 import { CampaignRoadmapService } from "../../../campaign/services/campaign-roadmap.service";
 import { CampaignProgressReportService } from "../../../campaign/services/campaign-progress-report.service";
 import { CampaignHealthService } from "../../../campaign/services/campaign-health.service";
 import { ScheduledPostRepository } from "../../../campaign/repositories/scheduled-post.repository";
 import { ScheduledPostService } from "../../../campaign/services/scheduled-post.service";
-import { ScheduledPostStatus } from "../../../../shared/constants/campaign.constant";
+import { PostFrequency, ScheduledPostStatus } from "../../../../shared/constants/campaign.constant";
 import type {
   OrchestratorTool,
   OrchestratorToolInvocation,
   OrchestratorToolResult,
 } from "../../interfaces/orchestrator.interface";
 import { normalizeCampaignToolInput, parseToolInput, resolveCampaignIdForTool, truncateSummary } from "./_helpers";
+
+const createCampaignSchema = z.object({
+  name: z.string().min(1).max(200),
+  goal: z.string().min(1).max(2000),
+  target_audience: z.string().max(1000).optional(),
+  description: z.string().max(4000).optional(),
+  start_date: z.coerce.date(),
+  end_date: z.coerce.date(),
+  posting_frequency: z.nativeEnum(PostFrequency).default(PostFrequency.WEEKLY),
+  timezone: z.string().optional(),
+  total_posts_planned: z.number().int().positive().optional(),
+});
+
+@injectable()
+export class CampaignCreateTool implements OrchestratorTool {
+  name = "campaigns.create";
+  description =
+    "Create a new campaign. REQUIRED: name, goal, start_date, end_date. Optional: target_audience, description, posting_frequency (daily|weekly|biweekly|monthly), timezone. Prefer collecting fields conversationally, summarizing, and confirming before calling.";
+  requiresConfirmation = false;
+  constructor(private readonly campaignService: CampaignService) {}
+
+  async run(invocation: OrchestratorToolInvocation): Promise<OrchestratorToolResult> {
+    const input = parseToolInput(createCampaignSchema, normalizeCampaignToolInput(invocation.input ?? {}), this.name);
+    const campaign = await this.campaignService.createCampaign(invocation.userId, invocation.siteId, input);
+    const campaignId = campaign._id?.toString();
+    return {
+      summary: truncateSummary(`Created campaign '${campaign.name}'.`),
+      data: {
+        id: campaignId,
+        campaign_id: campaignId,
+        name: campaign.name,
+        goal: campaign.goal,
+        target_audience: campaign.target_audience,
+        start_date: campaign.start_date,
+        end_date: campaign.end_date,
+        posting_frequency: campaign.posting_frequency,
+        lifecycle_status: campaign.lifecycle_status,
+      },
+    };
+  }
+}
 
 @injectable()
 export class CampaignListTool implements OrchestratorTool {

@@ -183,9 +183,11 @@ export const API_ENDPOINTS = {
   },
   ORCHESTRATOR: {
     CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/chat`,
+    CHAT_STREAM: (siteId: string) => `/sites/${siteId}/orchestrator/chat/stream`,
     ONBOARDING_CHAT: (siteId: string) => `/sites/${siteId}/orchestrator/onboarding/chat`,
     ONBOARDING_START: (siteId: string) => `/sites/${siteId}/orchestrator/onboarding/start`,
     THREADS: (siteId: string) => `/sites/${siteId}/orchestrator/threads`,
+    THREADS_OPEN: (siteId: string) => `/sites/${siteId}/orchestrator/threads/open`,
     THREAD: (siteId: string, threadId: string) => `/sites/${siteId}/orchestrator/threads/${threadId}`,
     APPROVALS: (siteId: string) => `/sites/${siteId}/orchestrator/approvals`,
     APPROVAL_DECIDE: (siteId: string, approvalId: string) =>
@@ -194,9 +196,11 @@ export const API_ENDPOINTS = {
     KNOWLEDGE: (siteId: string) => `/sites/${siteId}/orchestrator/knowledge`,
     KNOWLEDGE_ITEM: (siteId: string, id: string) => `/sites/${siteId}/orchestrator/knowledge/${id}`,
     GOOGLE_DRIVE_AUTH: (siteId: string) => `/sites/${siteId}/orchestrator/knowledge/google/auth`,
+    VOICE_TTS: (siteId: string) => `/sites/${siteId}/orchestrator/voice/tts`,
   },
   MEMORY: {
     GET: (siteId: string) => `/sites/${siteId}/memory`,
+    FROM_WEBSITE: (siteId: string) => `/sites/${siteId}/memory/from-website`,
     STRATEGY: (siteId: string) => `/sites/${siteId}/memory/strategy`,
     GENERATE_STRATEGY: (siteId: string) => `/sites/${siteId}/memory/strategy/generate`,
   },

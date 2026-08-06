@@ -34,6 +34,15 @@ function beliefValueText(value: unknown): string {
   return JSON.stringify(value);
 }
 
+/** Flatten nested object keys to Mongo dotted $set paths (avoids clobbering siblings). */
+function toDottedPatch(prefix: string, obj: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) out[`${prefix}.${k}`] = v;
+  }
+  return out;
+}
+
 export type KnowledgeGap = {
   key: BusinessKnowledgeKey;
   importance: number;
@@ -185,18 +194,31 @@ export class BusinessKnowledgeService {
       }
     }
 
-    // Residual WorkspaceMemory writes: unmapped strategic fields + full preferences/ops/etc.
+    // Residual WorkspaceMemory writes: unmapped strategic fields + prefs/ops/etc.
     // Mapped strategic fields are already projected via projectHotKeys when SI is on.
+    // Use dotted paths so partial strategic/preferences patches do not clobber siblings.
     const memoryPatch: Record<string, unknown> = { ...patch };
+    delete memoryPatch.strategic;
+    delete memoryPatch.preferences;
+
     if (env.orchestrator.strategicIntelligenceEnabled) {
-      const residualStrategic: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(strategic)) {
-        if (!(k in WORKSPACE_STRATEGIC_TO_KEY) && v !== undefined) residualStrategic[k] = v;
+        if (!(k in WORKSPACE_STRATEGIC_TO_KEY) && v !== undefined) {
+          memoryPatch[`strategic.${k}`] = v;
+        }
       }
-      if (Object.keys(residualStrategic).length > 0) memoryPatch.strategic = residualStrategic;
-      else delete memoryPatch.strategic;
-      // Preferences still written directly (tone also projected from belief).
-      if (!patch.preferences || Object.keys(preferences).length === 0) delete memoryPatch.preferences;
+      // Non-tone preference fields still written directly (tone projected from belief).
+      for (const [k, v] of Object.entries(preferences)) {
+        if (k in WORKSPACE_PREFERENCE_TO_KEY) continue;
+        if (v !== undefined) memoryPatch[`preferences.${k}`] = v;
+      }
+    } else {
+      if (patch.strategic && typeof patch.strategic === "object") {
+        Object.assign(memoryPatch, toDottedPatch("strategic", patch.strategic as Record<string, unknown>));
+      }
+      if (patch.preferences && typeof patch.preferences === "object") {
+        Object.assign(memoryPatch, toDottedPatch("preferences", patch.preferences as Record<string, unknown>));
+      }
     }
 
     if (Object.keys(memoryPatch).length === 0) {
@@ -453,9 +475,10 @@ export class BusinessKnowledgeService {
 
     if (Object.keys(patch).length === 0 && Object.keys(prefsPatch).length === 0) return;
 
-    const update: Record<string, unknown> = {};
-    if (Object.keys(patch).length) update.strategic = patch;
-    if (Object.keys(prefsPatch).length) update.preferences = prefsPatch;
+    const update: Record<string, unknown> = {
+      ...toDottedPatch("strategic", patch as Record<string, unknown>),
+      ...toDottedPatch("preferences", prefsPatch as Record<string, unknown>),
+    };
     await this.workspaceMemory.update(siteId, update as never, userId);
   }
 

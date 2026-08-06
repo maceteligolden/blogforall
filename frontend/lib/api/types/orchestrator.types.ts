@@ -61,6 +61,25 @@ export interface SetupInterviewStartResponse {
   };
 }
 
+export type WorkspaceBriefPriority =
+  | "onboarding"
+  | "approvals"
+  | "drafts"
+  | "campaign_risk"
+  | "strategy_gap"
+  | "welcome_back";
+
+export interface OpenThreadResponse {
+  thread_id: string;
+  assistant_message?: {
+    id: string;
+    content: string;
+    created_at: string;
+  };
+  chips: string[];
+  priority: WorkspaceBriefPriority;
+}
+
 export interface ChatTurnResponse {
   thread_id: string;
   assistant_message: {
@@ -93,16 +112,6 @@ export interface ChatTurnResponse {
     }>;
     research_summary?: V05ResearchMoatSnapshot;
     optimization?: V05OptimizationMoatSnapshot;
-  };
-  cognition?: {
-    enabled: true;
-    goal: string;
-    content_type: string;
-    phase: string;
-    plan_kind: string;
-    choice_chips?: string[];
-    progress_events?: Array<{ stage: string; message: string; current?: number; total?: number }>;
-    persona_display_name?: string;
   };
 }
 

@@ -1,4 +1,8 @@
-import { CampaignStatus, PostFrequency } from "../../../shared/constants/campaign.constant";
+import {
+  CampaignLifecycleStatus,
+  CampaignStatus,
+  PostFrequency,
+} from "../../../shared/constants/campaign.constant";
 
 export interface CreateCampaignInput {
   name: string;
@@ -41,6 +45,7 @@ export interface UpdateCampaignInput {
     kpis?: string[];
   };
   status?: CampaignStatus;
+  lifecycle_status?: CampaignLifecycleStatus;
 }
 
 export interface CampaignQueryFilters {

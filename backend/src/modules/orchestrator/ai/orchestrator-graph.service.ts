@@ -30,12 +30,7 @@ import {
 import type { SelectionContextPayload } from "../utils/selection-focus.helper";
 import { SiteMemberRole } from "../../../shared/constants";
 import { canRunOrchestratorTool, filterToolsForRole } from "../../../shared/utils/site-permissions.util";
-import {
-  buildVoiceConversationInstructions,
-  buildVoiceDeclineReply,
-  getVoiceAllowedToolNames,
-  isVoiceToolAllowed,
-} from "../utils/voice-conversation.helper";
+import { buildVoiceConversationInstructions } from "../utils/voice-conversation.helper";
 
 export interface PlanTurnInput {
   siteId: string;
@@ -129,11 +124,7 @@ export class OrchestratorGraphService {
     const roleFiltered =
       input.mode === "onboarding" ? [] : filterToolsForRole(this.toolRegistry.manifest(), input.memberRole);
 
-    let manifestTools = roleFiltered;
-    if (input.conversationMode && input.mode === "active") {
-      const allowed = getVoiceAllowedToolNames(input.newUserMessage);
-      manifestTools = roleFiltered.filter((t) => allowed.has(t.name));
-    }
+    const manifestTools = roleFiltered;
 
     const availableTools =
       input.mode === "onboarding"
@@ -224,15 +215,6 @@ export class OrchestratorGraphService {
         tool_invocation: null,
         assistant_reply:
           "I tried to call a tool but didn't get a tool name from the planner. Please rephrase your request.",
-      };
-    }
-
-    if (input.conversationMode && !isVoiceToolAllowed(toolName, input.newUserMessage)) {
-      const decline = buildVoiceDeclineReply();
-      return {
-        decision: { ...decision, next: "respond", tool: null, reply: decline },
-        tool_invocation: null,
-        assistant_reply: decline,
       };
     }
 

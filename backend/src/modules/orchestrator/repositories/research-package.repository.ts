@@ -38,12 +38,61 @@ export class ResearchPackageRepository {
   }
 
   async findById(workspaceId: string, packageId: string): Promise<ResearchPackage | null> {
-    const doc = await ResearchPackageModel.findOne({
+    let doc = await ResearchPackageModel.findOne({
       package_id: packageId,
       workspace_id: workspaceId,
     }).lean();
-    if (!doc?.package) return null;
-    return researchPackageSchema.parse(doc.package);
+    // Fallback: id match only (guards workspace_id drift between site/thread contexts).
+    if (!doc?.package) {
+      doc = await ResearchPackageModel.findOne({ package_id: packageId }).lean();
+    }
+    if (!doc?.package) {
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+        body: JSON.stringify({
+          sessionId: "17457c",
+          runId: "post-fix",
+          hypothesisId: "H-SAVE",
+          location: "research-package.repository.ts:findById",
+          message: "research package not found",
+          data: { packageId, workspaceId },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return null;
+    }
+    const parsed = researchPackageSchema.safeParse(doc.package);
+    if (!parsed.success) {
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+        body: JSON.stringify({
+          sessionId: "17457c",
+          runId: "post-fix",
+          hypothesisId: "H-SAVE",
+          location: "research-package.repository.ts:findById",
+          message: "research package parse failed",
+          data: {
+            packageId,
+            workspaceId,
+            docWorkspace: doc.workspace_id,
+            zodIssues: parsed.error.issues.slice(0, 5).map((i) => ({
+              path: i.path.join("."),
+              code: i.code,
+              message: i.message,
+            })),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      return null;
+    }
+    return parsed.data;
   }
 
   async listRecent(workspaceId: string, limit = 20): Promise<ResearchPackageSummary[]> {
@@ -53,5 +102,16 @@ export class ResearchPackageRepository {
       .select("summary")
       .lean();
     return docs.map((d) => d.summary);
+  }
+
+  async findLatestByThread(workspaceId: string, threadId: string): Promise<ResearchPackage | null> {
+    const doc = await ResearchPackageModel.findOne({
+      workspace_id: workspaceId,
+      thread_id: threadId,
+    })
+      .sort({ created_at: -1 })
+      .lean();
+    if (!doc?.package) return null;
+    return researchPackageSchema.parse(doc.package);
   }
 }

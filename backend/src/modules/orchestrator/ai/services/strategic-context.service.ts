@@ -53,12 +53,17 @@ export class StrategicContextService implements StrategicContextLoader {
       .filter(Boolean)
       .join("\n");
 
+    const campaign = others.data.find((c) => c._id?.toString() === resolvedCampaignId) ?? def;
+
     return {
       campaign_id: resolvedCampaignId,
       strategy_id: strategy._id?.toString(),
       prompt_suffix,
       metadata: {
         strategy_id: strategy._id?.toString(),
+        strategy_purpose: strategy.purpose,
+        campaign_name: campaign.name,
+        campaign_goal: campaign.goal,
         default_campaign_id: def._id!.toString(),
         needs_campaign_clarify: !campaignId && nonDefault.length > 0,
         strategic_top_gap_question,

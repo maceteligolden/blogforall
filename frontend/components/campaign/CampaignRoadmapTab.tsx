@@ -4,9 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CampaignService } from "@/lib/api/services/campaign.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 
 export function CampaignRoadmapTab({ campaignId }: { campaignId: string }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEYS.CAMPAIGN_ROADMAP(campaignId),
@@ -35,6 +37,37 @@ export function CampaignRoadmapTab({ campaignId }: { campaignId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CAMPAIGN_ROADMAP(campaignId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CAMPAIGN(campaignId) });
+    },
+    onError: (err: unknown) => {
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+        body: JSON.stringify({
+          sessionId: "17457c",
+          runId: "post-fix",
+          hypothesisId: "H-ROAD",
+          location: "CampaignRoadmapTab.tsx:planMutation",
+          message: "roadmap generate failed in UI",
+          data: {
+            campaignId,
+            err:
+              err && typeof err === "object" && "response" in err
+                ? String((err as { response?: { data?: { message?: string } } }).response?.data?.message ?? err)
+                : String(err),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
+      const message =
+        err && typeof err === "object" && "response" in err
+          ? String(
+              (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+                "Failed to generate roadmap"
+            )
+          : "Failed to generate roadmap";
+      toast({ title: "Error", description: message, variant: "error" });
     },
   });
 

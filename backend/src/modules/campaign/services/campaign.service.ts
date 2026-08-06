@@ -284,6 +284,29 @@ export class CampaignService {
   async activateCampaign(campaignId: string, siteId: string, userId: string): Promise<Campaign> {
     const campaign = await this.getCampaignById(campaignId, siteId, userId);
 
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+      body: JSON.stringify({
+        sessionId: "17457c",
+        runId: "post-fix",
+        hypothesisId: "H-ACT",
+        location: "campaign.service.ts:activateCampaign",
+        message: "activate campaign requested",
+        data: {
+          campaignId,
+          status: campaign.status,
+          lifecycle: campaign.lifecycle_status,
+          endDate: campaign.end_date instanceof Date ? campaign.end_date.toISOString() : String(campaign.end_date),
+          endInPast: campaign.end_date < new Date(),
+          isDefault: Boolean(campaign.is_default),
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
     if (campaign.status === CampaignStatus.ACTIVE) {
       return campaign;
     }
@@ -296,7 +319,10 @@ export class CampaignService {
       throw new BadRequestError("Cannot activate campaign with end date in the past");
     }
 
-    return this.updateCampaign(campaignId, siteId, userId, { status: CampaignStatus.ACTIVE });
+    return this.updateCampaign(campaignId, siteId, userId, {
+      status: CampaignStatus.ACTIVE,
+      lifecycle_status: CampaignLifecycleStatus.ACTIVE,
+    });
   }
 
   async pauseCampaign(campaignId: string, siteId: string, userId: string): Promise<Campaign> {

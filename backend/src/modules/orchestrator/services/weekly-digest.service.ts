@@ -14,6 +14,7 @@ import { UserRepository } from "../../auth/repositories/user.repository";
 import { SiteRepository } from "../../site/repositories/site.repository";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import type { ScheduledPost } from "../../../shared/schemas/scheduled-post.schema";
+import { EMAIL_COLORS, escapeHtml, primaryButton } from "../../../shared/services/email-theme";
 
 interface DigestPostEntry {
   post: ScheduledPost;
@@ -246,17 +247,17 @@ export class WeeklyDigestService {
         });
         return `
         <tr>
-          <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
-            <div style="font-size: 16px; font-weight: 600; color: #111827;">${escapeHtml(e.blogTitle)}</div>
-            <div style="font-size: 13px; color: #6b7280; margin-top: 4px;">Scheduled for ${escapeHtml(when)}</div>
-            <div style="margin-top: 8px;">
-              <a href="${escapeHtml(e.reviewUrl)}" style="display: inline-block; background: #3b82f6; color: #fff; padding: 8px 16px; text-decoration: none; border-radius: 6px; font-size: 14px;">Review</a>
+          <td style="padding: 16px 0; border-bottom: 1px solid ${EMAIL_COLORS.border};">
+            <div style="font-size: 16px; font-weight: 600; color: ${EMAIL_COLORS.heading};">${escapeHtml(e.blogTitle)}</div>
+            <div style="font-size: 13px; color: ${EMAIL_COLORS.muted}; margin-top: 4px;">Scheduled for ${escapeHtml(when)}</div>
+            <div style="margin-top: 12px;">
+              ${primaryButton(e.reviewUrl, "Review")}
             </div>
           </td>
         </tr>`;
       })
       .join("");
-    return `<table style="width: 100%; border-collapse: collapse;">${items}</table>`;
+    return `<table role="presentation" style="width: 100%; border-collapse: collapse; margin: 8px 0 0;">${items}</table>`;
   }
 
   private renderPostsText(entries: DigestPostEntry[]): string {
@@ -267,13 +268,4 @@ export class WeeklyDigestService {
       })
       .join("\n");
   }
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

@@ -6,9 +6,12 @@ import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/works
 import { StrategyEngineService } from "../services/strategy-engine.service";
 import { BehavioralRuleService } from "../services/behavioral-rule.service";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
+import { WebsiteIngestService } from "../../orchestrator/services/website-ingest.service";
+import { proposalToMemoryPatch } from "../../orchestrator/utils/website-onboarding.helper";
 import type { BehavioralRule } from "../../../shared/schemas/memory-types";
 import { env } from "../../../shared/config/env";
 import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
+import { BadRequestError } from "../../../shared/errors";
 
 @injectable()
 export class MemoryController {
@@ -16,7 +19,8 @@ export class MemoryController {
     private readonly memoryRepository: WorkspaceMemoryRepository,
     private readonly strategyEngine: StrategyEngineService,
     private readonly behavioralRuleService: BehavioralRuleService,
-    private readonly businessKnowledge: BusinessKnowledgeService
+    private readonly businessKnowledge: BusinessKnowledgeService,
+    private readonly websiteIngest: WebsiteIngestService
   ) {}
 
   private siteId(req: Request): string {
@@ -109,6 +113,91 @@ export class MemoryController {
         horizonWeeks: body.horizon_weeks,
       });
       sendSuccess(res, "Strategy generated", result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Ingest a website URL and apply the extracted profile into workspace memory.
+   * Uses body.url when provided; otherwise falls back to strategic.website_url.
+   */
+  fillFromWebsite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const body = (req.validatedBody ?? {}) as { url?: string };
+      const memory = await this.memoryRepository.ensureForSite(siteId, userId);
+      const url = (body.url?.trim() || memory.strategic.website_url?.trim() || "").trim();
+      if (!url) {
+        throw new BadRequestError("Provide a website URL to fill business information.");
+      }
+
+      const proposed = await this.websiteIngest.ingestAndPropose(url);
+      if (!proposed) {
+        throw new BadRequestError(
+          "Could not read that website. Check the URL and try again, or fill the fields manually."
+        );
+      }
+
+      const patch = proposalToMemoryPatch(proposed.proposal, proposed.url);
+      const strategicPatch = {
+        ...((patch.strategic as Record<string, unknown>) || {}),
+        website_url: proposed.url,
+      };
+
+      let updated;
+      if (env.orchestrator.strategicIntelligenceEnabled) {
+        updated = await this.businessKnowledge.applyStrategicPatch(
+          siteId,
+          userId,
+          {
+            strategic: strategicPatch,
+            preferences: patch.preferences as Record<string, unknown> | undefined,
+            ...(typeof patch.memory_summary === "string" ? { memory_summary: patch.memory_summary } : {}),
+          },
+          "website_inferred"
+        );
+      } else {
+        const dotted: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(strategicPatch)) {
+          if (v !== undefined) dotted[`strategic.${k}`] = v;
+        }
+        if (patch.preferences && typeof patch.preferences === "object") {
+          for (const [k, v] of Object.entries(patch.preferences as Record<string, unknown>)) {
+            if (v !== undefined) dotted[`preferences.${k}`] = v;
+          }
+        }
+        if (typeof patch.memory_summary === "string") dotted.memory_summary = patch.memory_summary;
+        updated = await this.memoryRepository.update(siteId, dotted as never, userId);
+      }
+
+      const finalMemory = updated ?? (await this.memoryRepository.ensureForSite(siteId, userId));
+      await this.behavioralRuleService.logAudit({
+        siteId,
+        userId,
+        action: "patch",
+        patchKeys: ["from_website", proposed.url],
+        previousVersion: memory.version,
+        newVersion: finalMemory.version,
+      });
+
+      sendSuccess(res, "Business information filled from website", {
+        strategic: migrateStrategicMemory({
+          ...finalMemory.strategic,
+          website_url: proposed.url,
+        }),
+        preferences: finalMemory.preferences,
+        operational: finalMemory.operational,
+        memory_summary: finalMemory.memory_summary,
+        content_summary: finalMemory.content_summary,
+        behavioral_rules: this.behavioralRuleService.getActiveRules(finalMemory, 50),
+        strategy_state: finalMemory.strategy_state,
+        version: finalMemory.version,
+        website_url: proposed.url,
+        source: proposed.source,
+        summary: proposed.summary,
+      });
     } catch (error) {
       next(error);
     }

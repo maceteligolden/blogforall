@@ -67,6 +67,14 @@ export async function invokeSkillNode(
         skill_id: skillId,
         meta: { skill_run_id, status: "ok" },
       });
+      if (skillId === "writing" && writingAction === "draft" && (patch as { draft?: unknown }).draft) {
+        deps.onPhase?.({
+          phase: "draft_ready",
+          message: "Draft ready — opening results",
+          skill_id: skillId,
+          meta: { skill_run_id, status: "ok" },
+        });
+      }
       return {
         ...patch,
         skills_run_this_turn: state.skills_run_this_turn + 1,

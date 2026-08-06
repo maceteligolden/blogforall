@@ -56,6 +56,18 @@ export const orchestratorOnboardingChatBodySchema = z.object({
   message: z.string().min(1).max(8000),
 });
 
+/** Body for POST /sites/:siteId/orchestrator/threads/open — optional resume. */
+export const openThreadBodySchema = z
+  .object({
+    thread_id: z.string().min(1).optional(),
+  })
+  .default({});
+
+/** Body for POST /sites/:siteId/orchestrator/voice/tts */
+export const voiceTtsBodySchema = z.object({
+  text: z.string().min(1).max(2500),
+});
+
 export const orchestratorApprovalDecisionBodySchema = z.object({
   decision: z.enum(["approved", "rejected"]),
   note: z.string().max(4000).optional(),

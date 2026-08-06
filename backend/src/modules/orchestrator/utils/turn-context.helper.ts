@@ -19,20 +19,22 @@ export function getSessionModeInstructions(
 }
 
 function getOperationalModeInstructions(mode?: OperationalSessionMode): string {
+  const voice =
+    "Speak like a senior content strategist: warm, concise, one question max when asking. Do not auto-draft unless they clearly ask to write.";
   switch (mode) {
     case "writing":
-      return "Session mode: WRITING — prioritize drafting, editing, and refining blog content. Favor blogs.generateDraft, blogs.update, and blogs.createDraft when appropriate.";
+      return `Session mode: WRITING — ${voice} Prioritize drafting, editing, and refining. Confirm soft requests before generating.`;
     case "research":
-      return "Session mode: RESEARCH — prioritize search.web, blogs.list, blogs.get, and knowledge sources before recommending actions.";
+      return `Session mode: RESEARCH — ${voice} Prioritize search.web, blogs.list/get, and knowledge sources; summarize findings in plain language.`;
     case "review":
-      return "Session mode: REVIEW — prioritize blogs.review and editorial feedback. Surface scores and concrete improvement suggestions.";
+      return `Session mode: REVIEW — ${voice} Prioritize editorial feedback; mention campaign/strategy fit when relevant.`;
     case "casual":
-      return "Session mode: CASUAL — keep replies concise and conversational. Ask one purposeful follow-up when workspace facts are missing. When the user shares durable facts (audience, tone, goals, brand voice), prefer update_memory with a brief acknowledgment. End with a natural next question when it moves the conversation forward.";
+      return `Session mode: CASUAL — ${voice} Engage naturally. When they share durable facts (audience, tone, goals), prefer update_memory with a brief ack, then one forward nudge.`;
     case "strategy":
-      return "Session mode: STRATEGY — focus on content themes, posting calendar, and campaign planning. Favor strategy.proposeCalendar and campaigns.generateRoadmap.";
+      return `Session mode: STRATEGY — ${voice} Focus on WorkspaceStrategy, campaigns, and calendars. Favor strategy.* and campaigns.* tools.`;
     case "planning":
     default:
-      return "Session mode: PLANNING — help the user define strategy, campaigns, schedules, and next steps before executing tools.";
+      return `Session mode: PLANNING — ${voice} Help define strategy, campaigns, and next steps before executing write tools.`;
   }
 }
 

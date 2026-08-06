@@ -39,6 +39,7 @@ import {
   ScheduledUpcomingThisWeekTool,
 } from "./tools/scheduled.tools";
 import {
+  CampaignCreateTool,
   CampaignListTool,
   CampaignGetTool,
   CampaignGenerateRoadmapTool,
@@ -106,6 +107,7 @@ export class OrchestratorBootstrap {
     private readonly scheduledGet: ScheduledGetTool,
     private readonly scheduledUpcomingThisWeek: ScheduledUpcomingThisWeekTool,
     private readonly scheduledCancel: ScheduledCancelTool,
+    private readonly campaignCreate: CampaignCreateTool,
     private readonly campaignList: CampaignListTool,
     private readonly campaignGet: CampaignGetTool,
     private readonly campaignGenerateRoadmap: CampaignGenerateRoadmapTool,
@@ -152,6 +154,7 @@ export class OrchestratorBootstrap {
       this.scheduledGet,
       this.scheduledUpcomingThisWeek,
       this.scheduledCancel,
+      this.campaignCreate,
       this.campaignList,
       this.campaignGet,
       this.campaignGenerateRoadmap,

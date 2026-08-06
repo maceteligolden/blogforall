@@ -29,13 +29,34 @@ export async function persistNode(state: OrchestratorState, deps: PersistDeps): 
         });
     }
 
-    const sanitized = stripDisallowedCheckpointFields({
-      research_package: state.research_package,
-      draft: state.draft,
-    } as Record<string, unknown>);
+    // Checkpoint writers strip research_package via CHECKPOINT_DENYLIST.
+    // Do NOT return research_package: undefined here — that clears the live turn
+    // state before client tool_calls are built (empty research HITL card).
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+      body: JSON.stringify({
+        sessionId: "17457c",
+        runId: "post-fix",
+        hypothesisId: "H-PERSIST",
+        location: "persist.ts",
+        message: "persist keeping live research_package",
+        data: {
+          hadPackage: Boolean(state.research_package),
+          packageId: state.research_package_id ?? null,
+          factCount: state.research_package?.facts?.length ?? 0,
+          draftPresent: Boolean(state.draft),
+          denyListed: stripDisallowedCheckpointFields({
+            research_package: state.research_package,
+          } as Record<string, unknown>).research_package === undefined,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     return {
-      research_package: sanitized.research_package as OrchestratorState["research_package"],
       progress_events: [
         {
           type: "persist",

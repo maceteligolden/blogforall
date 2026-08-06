@@ -25,9 +25,12 @@ router.use(authMiddleware, validateParams(V.siteIdParamSchema));
 const controller = container.resolve(OrchestratorController);
 
 router.post("/chat", validateBody(V.orchestratorChatBodySchema), controller.chat);
+router.post("/chat/stream", validateBody(V.orchestratorChatBodySchema), controller.chatStream);
 router.post("/onboarding/chat", validateBody(V.orchestratorOnboardingChatBodySchema), controller.onboardingChat);
 router.post("/onboarding/start", controller.startOnboardingInterview);
+router.post("/voice/tts", validateBody(V.voiceTtsBodySchema), controller.voiceTts);
 
+router.post("/threads/open", validateBody(V.openThreadBodySchema), controller.openThread);
 router.get("/threads", validateQuery(V.threadListQuerySchema), controller.listThreads);
 router.get("/threads/:threadId", validateParams(V.threadIdParamSchema), controller.getThread);
 router.patch(

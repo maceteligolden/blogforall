@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { OrchestratorMessageRole } from "../../../shared/schemas/orchestrator-message.schema";
-
-const FIELD_BUSINESS = "What does your business do, in one sentence?";
+import { WEBSITE_ONBOARDING_QUESTION } from "../../../modules/orchestrator/utils/website-onboarding.helper";
 
 describe("OrchestratorService.startOnboardingInterview", () => {
-  // Lazy import after mocks would be ideal; here we construct with stubs.
   let OrchestratorService: typeof import("../../../modules/orchestrator/services/orchestrator.service").OrchestratorService;
 
   beforeEach(async () => {
@@ -77,25 +75,27 @@ describe("OrchestratorService.startOnboardingInterview", () => {
           percent: overrides.progressComplete ? 100 : 0,
           complete: Boolean(overrides.progressComplete),
         })),
-      } as never
+      } as never,
+      {} as never,
+      {} as never
     );
 
     return { service, createdMessages, thread };
   }
 
-  it("appends the first business_type question when memory is empty", async () => {
+  it("asks the website gate question when onboarding path is unset", async () => {
     const { service, createdMessages, thread } = buildService({});
     const result = await service.startOnboardingInterview("site-1", "user-1");
 
     expect(result.complete).toBe(false);
     expect(result.thread_id).toBe(thread._id);
     expect(createdMessages).toHaveLength(1);
-    expect(createdMessages[0].content).toContain(FIELD_BUSINESS);
-    expect(result.assistant_message?.content).toContain(FIELD_BUSINESS);
+    expect(createdMessages[0].content).toContain(WEBSITE_ONBOARDING_QUESTION);
+    expect(result.assistant_message?.content).toContain(WEBSITE_ONBOARDING_QUESTION);
   });
 
-  it("is idempotent when the same unanswered question is already the last assistant message", async () => {
-    const content = `Let's finish your workspace setup. I'll ask one thing at a time.\n\n${FIELD_BUSINESS}`;
+  it("is idempotent when the website question is already the last assistant message", async () => {
+    const content = `Let's set up your workspace.\n\n${WEBSITE_ONBOARDING_QUESTION}`;
     const { service, createdMessages } = buildService({
       history: [
         {
@@ -112,7 +112,7 @@ describe("OrchestratorService.startOnboardingInterview", () => {
     expect(result.complete).toBe(false);
     expect(createdMessages).toHaveLength(0);
     expect(result.assistant_message?.id).toBe("m1");
-    expect(result.assistant_message?.content).toContain(FIELD_BUSINESS);
+    expect(result.assistant_message?.content).toContain(WEBSITE_ONBOARDING_QUESTION);
   });
 
   it("returns complete without appending when setup progress is already done", async () => {
@@ -128,12 +128,12 @@ describe("OrchestratorService.startOnboardingInterview", () => {
     expect(result.assistant_message).toBeUndefined();
   });
 
-  it("asks the next missing field when some memory is already captured", async () => {
+  it("asks the next missing field when chat path is active and some memory is captured", async () => {
     const { service, createdMessages } = buildService({
       memory: {
+        onboarding_path: "secondary",
         strategic: {
-          business_type: "SaaS analytics",
-          target_audience: ["CMOs"],
+          business_description: "SaaS analytics for CMOs",
         },
         preferences: {},
       },
@@ -142,6 +142,6 @@ describe("OrchestratorService.startOnboardingInterview", () => {
     const result = await service.startOnboardingInterview("site-1", "user-1");
 
     expect(result.complete).toBe(false);
-    expect(createdMessages[0].content).toContain("How should your content sound");
+    expect(createdMessages[0].content).toContain("Is your business primarily B2B");
   });
 });

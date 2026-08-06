@@ -85,8 +85,11 @@ describe("email verification template", () => {
     expect(verify.subject).toContain("Verify");
     expect(verify.subject).not.toContain("password");
     expect(verify.html).toContain("Verify your email");
-    expect(verify.html).not.toContain("reset your Bloggr password");
+    expect(verify.html).not.toContain("password reset");
     expect(reset.subject).toContain("password reset");
     expect(reset.html).toContain("password reset");
+    expect(reset.html).toContain("Reset your password");
+    expect(verify.html).toContain("max-width: 600px");
+    expect(reset.html).toContain("max-width: 600px");
   });
 });

@@ -1,7 +1,4 @@
-"use client";
-
 import Image from "next/image";
-import { useEffect } from "react";
 import { cn } from "@/lib/utils/cn";
 
 /** Each variant maps to a unique demo asset — no screenshot reuse. */
@@ -47,76 +44,6 @@ export function ProductMock({
   const label = alt ?? LABELS[variant];
   const src = DEMO_SRC[variant];
 
-  // #region agent log
-  useEffect(() => {
-    const host = typeof window !== "undefined" ? window.location.host : "ssr";
-    const href = typeof window !== "undefined" ? window.location.href : "";
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "971eb1" },
-      body: JSON.stringify({
-        sessionId: "971eb1",
-        runId: "post-fix",
-        hypothesisId: "F",
-        location: "product-mock.tsx:mount",
-        message: "ProductMock mount",
-        data: { variant, src, host, href, unoptimized: true },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-
-    fetch(src, { method: "GET", cache: "no-store" })
-      .then(async (res) => {
-        const contentType = res.headers.get("content-type") || "";
-        const buf = new Uint8Array(await res.arrayBuffer());
-        const sig = Array.from(buf.slice(0, 8))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join(" ");
-        const isPng = sig.startsWith("89 50 4e 47");
-        const looksHtml =
-          contentType.includes("text/html") || new TextDecoder().decode(buf.slice(0, 20)).includes("<!DOCTYPE");
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "971eb1" },
-          body: JSON.stringify({
-            sessionId: "971eb1",
-            runId: "post-fix",
-            hypothesisId: looksHtml ? "A" : res.ok && isPng ? "F" : "B",
-            location: "product-mock.tsx:fetch-src",
-            message: "Raw /demos asset fetch result",
-            data: {
-              variant,
-              src,
-              status: res.status,
-              contentType,
-              byteLength: buf.byteLength,
-              sig,
-              isPng,
-              looksHtml,
-              host,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-      })
-      .catch((err) => {
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "971eb1" },
-          body: JSON.stringify({
-            sessionId: "971eb1",
-            runId: "post-fix",
-            hypothesisId: "B",
-            location: "product-mock.tsx:fetch-src-error",
-            message: "Raw /demos asset fetch threw",
-            data: { variant, src, error: String(err), host },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-      });
-  }, [variant, src]);
-  // #endregion
-
   return (
     <figure className={cn("relative group/mock", className)} aria-hidden={decorative || undefined}>
       <div
@@ -145,46 +72,6 @@ export function ProductMock({
             // Serve /public/demos directly — avoids Netlify/_next/image failing when
             // the optimizer cannot resolve standalone-build public assets.
             unoptimized
-            // #region agent log
-            onLoad={(e) => {
-              const img = e.currentTarget;
-              fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "971eb1" },
-                body: JSON.stringify({
-                  sessionId: "971eb1",
-                  runId: "post-fix",
-                  hypothesisId: "F",
-                  location: "product-mock.tsx:onLoad",
-                  message: "next/image loaded",
-                  data: {
-                    variant,
-                    src,
-                    currentSrc: img.currentSrc,
-                    naturalWidth: img.naturalWidth,
-                    naturalHeight: img.naturalHeight,
-                    host: typeof window !== "undefined" ? window.location.host : "",
-                  },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-            }}
-            onError={() => {
-              fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "971eb1" },
-                body: JSON.stringify({
-                  sessionId: "971eb1",
-                  runId: "post-fix",
-                  hypothesisId: "F",
-                  location: "product-mock.tsx:onError",
-                  message: "next/image failed to load",
-                  data: { variant, src, host: typeof window !== "undefined" ? window.location.host : "" },
-                  timestamp: Date.now(),
-                }),
-              }).catch(() => {});
-            }}
-            // #endregion
           />
           <div
             className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"

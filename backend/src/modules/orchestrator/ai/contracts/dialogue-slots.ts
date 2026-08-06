@@ -12,6 +12,7 @@ export const dialogueSlotsSchema = z.object({
   category_ids: z.array(z.string()).optional(),
   feedback: z.string().optional(),
   proceed_despite_strategy_warning: z.boolean().optional(),
+  research_approved: z.boolean().optional(),
   outline_approved: z.boolean().optional(),
   /** Editor-gate format before drafting narrative creates. */
   post_format: postFormatSchema.optional(),

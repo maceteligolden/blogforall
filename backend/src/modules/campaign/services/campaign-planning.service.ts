@@ -34,6 +34,31 @@ export class CampaignPlanningService {
       throw new NotFoundError("Campaign not found");
     }
 
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+      body: JSON.stringify({
+        sessionId: "17457c",
+        runId: "post-fix",
+        hypothesisId: "H-ROAD",
+        location: "campaign-planning.service.ts:planCampaign",
+        message: "plan campaign requested",
+        data: {
+          campaignId,
+          status: campaign.status,
+          lifecycle: campaign.lifecycle_status,
+          hasGoal: Boolean(campaign.goal?.trim()),
+          start: campaign.start_date instanceof Date ? campaign.start_date.toISOString() : String(campaign.start_date),
+          end: campaign.end_date instanceof Date ? campaign.end_date.toISOString() : String(campaign.end_date),
+          frequency: campaign.posting_frequency,
+          totalPlanned: campaign.total_posts_planned ?? null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
+
     await this.memoryRepository.ensureForCampaign(campaignId, siteId);
     const total = campaign.total_posts_planned ?? this.estimatePostCount(campaign);
     const topics = campaign.primary_topics?.length

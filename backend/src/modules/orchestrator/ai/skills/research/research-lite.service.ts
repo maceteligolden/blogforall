@@ -14,6 +14,7 @@ import { skipsHowToResearch, type PostFormat } from "../../contracts/post-format
 import type { ResearchPackage, ResearchPackageSummary } from "../../contracts/research-package";
 import { ArtifactStoreService } from "../../memory/artifact-store.service";
 import { buildResearchPackageFromNotes } from "./build-package";
+import { synthesizeResearchNotes } from "./synthesize-research-notes";
 
 export type ResearchLiteInput = {
   workspace_id: string;
@@ -32,6 +33,8 @@ export type ResearchLiteInput = {
   persist?: boolean;
   created_by?: string;
   thread_id?: string;
+  /** When true, ask the synthesizer for fresher / alternate angles. */
+  revise?: boolean;
 };
 
 export type ResearchLiteResult = {
@@ -121,17 +124,49 @@ export class ResearchLiteService {
     const extracted = extractUrls.length ? await this.tavily.extract(extractUrls, input.signal) : [];
     const byUrl = new Map(extracted.map((e) => [e.url, e]));
 
-    const notes = routed.map((n, i) => {
+    const sourceNotes = routed.map((n, i) => {
       const ex = n.url ? byUrl.get(n.url) : undefined;
       return {
         url: n.url || "",
         title: n.title,
-        snippet: ex?.text?.slice(0, 1200) || n.snippet,
-        claim: (ex?.text || n.snippet).slice(0, 400),
+        snippet: (ex?.text || n.snippet || "").slice(0, 1200),
+        claim: (ex?.text || n.snippet || "").slice(0, 400),
         question_id: `q${(i % Math.max(1, research_brief.must_answer.length)) + 1}`,
         source_kind: (ex ? "extract" : n.source === "user" ? "user" : "web") as "web" | "extract" | "user",
       };
     });
+
+    const { notes, synthesized, usedLlm } = await synthesizeResearchNotes({
+      topic,
+      notes: sourceNotes,
+      revise: input.revise,
+    });
+
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+      body: JSON.stringify({
+        sessionId: "17457c",
+        runId: "post-fix",
+        hypothesisId: "H-R",
+        location: "research-lite.service.ts",
+        message: "research notes synthesized",
+        data: {
+          topic,
+          usedLlm,
+          revise: Boolean(input.revise),
+          rawCount: sourceNotes.length,
+          factCount: synthesized.facts.length,
+          defCount: synthesized.definitions.length,
+          statCount: synthesized.statistics.length,
+          insightCount: synthesized.key_insights.length,
+          sample: synthesized.facts[0]?.slice(0, 80) ?? null,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     const built = buildResearchPackageFromNotes({
       workspace_id: input.workspace_id,
@@ -140,19 +175,52 @@ export class ResearchLiteService {
       audience: input.audience,
       search_intent: input.search_intent,
       notes,
-      max_sources: MVP_LOCKS.researchSourcesLiteMax,
+      max_sources: Math.max(MVP_LOCKS.researchSourcesLiteMax, notes.length),
       post_format: input.post_format,
       research_brief,
     });
 
+    // Attach key insights for the in-chat research card (not part of package schema).
+    (built.package as ResearchPackage & { key_insights?: string[] }).key_insights = synthesized.key_insights;
+    (built.summary as ResearchPackageSummary & { key_insights?: string[] }).key_insights =
+      synthesized.key_insights;
+
     let persisted = false;
+    let persistError: string | null = null;
     if (input.persist !== false && !needs_clarification) {
-      await this.artifacts.saveResearchPackage(built.package, {
-        created_by: input.created_by,
-        thread_id: input.thread_id,
-      });
-      persisted = true;
+      try {
+        const saved = await this.artifacts.saveResearchPackage(built.package, {
+          created_by: input.created_by,
+          thread_id: input.thread_id,
+        });
+        persisted = Boolean(saved.package_id);
+      } catch (err) {
+        persistError = err instanceof Error ? err.message : String(err);
+      }
     }
+
+    // #region agent log
+    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+      body: JSON.stringify({
+        sessionId: "17457c",
+        runId: "post-fix",
+        hypothesisId: "H-SAVE",
+        location: "research-lite.service.ts:save",
+        message: "research package persist result",
+        data: {
+          packageId: built.package.id,
+          workspaceId: built.package.workspace_id,
+          persisted,
+          persistError,
+          sourceCount: built.package.sources.length,
+          factCount: built.package.facts.length,
+        },
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+    // #endregion
 
     return { ...built, persisted, research_brief, needs_clarification: false };
   }

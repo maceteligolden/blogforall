@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Sparkles } from "lucide-react";
+import { Globe, Plus, Trash2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import {
   type BusinessModel,
   type CompetitorEntry,
   type CustomerPersona,
+  type WorkspaceMemoryResponse,
   type WorkspaceStrategic,
 } from "@/lib/api/services/memory.service";
 import { useAuthStore } from "@/lib/store/auth.store";
@@ -105,7 +106,10 @@ export function BusinessProfileForm() {
   const [goals, setGoals] = useState("");
   const [seo, setSeo] = useState("");
   const [channels, setChannels] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [fillMessage, setFillMessage] = useState<string | null>(null);
+  const [fillError, setFillError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: currentSiteId ? QUERY_KEYS.WORKSPACE_MEMORY(currentSiteId) : [],
@@ -113,9 +117,9 @@ export function BusinessProfileForm() {
     enabled: !!currentSiteId,
   });
 
-  useEffect(() => {
-    if (!data || hydrated) return;
-    const s = data.strategic;
+  const applyMemoryToForm = (memory: WorkspaceMemoryResponse) => {
+    const s = memory.strategic;
+    setWebsiteUrl(s.website_url || "");
     setIndustries((s.industries ?? []).join(", "));
     setBusinessModel(s.business_model ?? "");
     setBusinessDescription(s.business_description || s.business_type || "");
@@ -132,7 +136,7 @@ export function BusinessProfileForm() {
     );
     setBrandVoice(s.brand_voice || "");
     setBrandNegatives(s.brand_negatives || "");
-    setTone(data.preferences.tone || "");
+    setTone(memory.preferences.tone || "");
     setCompetitors(
       s.competitors?.length
         ? s.competitors.map((c) => ({ name: c.name || "", notes: c.notes || "" }))
@@ -143,13 +147,45 @@ export function BusinessProfileForm() {
     setGoals((s.business_goals ?? []).join(", "));
     setSeo((s.seo_priorities ?? []).join(", "));
     setChannels((s.publishing_channels ?? []).join(", "));
+  };
+
+  useEffect(() => {
+    if (!data || hydrated) return;
+    applyMemoryToForm(data);
     setHydrated(true);
   }, [data, hydrated]);
+
+  const fillFromWebsiteMutation = useMutation({
+    mutationFn: () => {
+      const url = websiteUrl.trim() || data?.strategic.website_url?.trim() || "";
+      if (!url) {
+        throw new Error("Enter a website URL to fill business information.");
+      }
+      return MemoryService.fillFromWebsite(currentSiteId as string, url);
+    },
+    onSuccess: (result) => {
+      applyMemoryToForm(result);
+      setWebsiteUrl(result.website_url || result.strategic.website_url || websiteUrl);
+      queryClient.setQueryData(QUERY_KEYS.WORKSPACE_MEMORY(currentSiteId as string), result);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.WORKSPACE_MEMORY(currentSiteId as string) });
+      setFillError(null);
+      setFillMessage("Business information filled from the website. Review and save any edits.");
+      setTimeout(() => setFillMessage(null), 5000);
+    },
+    onError: (err: unknown) => {
+      const message =
+        (err as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Could not fill from website. Try another URL or edit fields manually.";
+      setFillMessage(null);
+      setFillError(message);
+    },
+  });
 
   const saveMutation = useMutation({
     mutationFn: () => {
       const strategic: Partial<WorkspaceStrategic> = {
-        website_url: data?.strategic.website_url,
+        website_url: websiteUrl.trim() || data?.strategic.website_url,
         industries: splitCsv(industries),
         business_model: businessModel || undefined,
         business_description: businessDescription.trim() || undefined,
@@ -222,28 +258,54 @@ export function BusinessProfileForm() {
           Business data saved.
         </div>
       )}
+      {fillMessage && (
+        <div className="rounded-md border border-green-800 bg-green-900/20 p-3 text-sm text-green-400">
+          {fillMessage}
+        </div>
+      )}
+      {fillError && (
+        <div className="rounded-md border border-red-800 bg-red-900/20 p-3 text-sm text-red-400">{fillError}</div>
+      )}
       {saveMutation.isError && (
         <div className="rounded-md border border-red-800 bg-red-900/20 p-3 text-sm text-red-400">
           Could not save business data. Try again.
         </div>
       )}
 
-      {data.strategic.website_url && (
-        <div className="rounded-lg border border-gray-800 bg-gray-900/50 p-4">
-          <Label className="text-gray-300">Website</Label>
-          <p className="mt-1 break-all text-sm text-gray-400">
-            <a
-              href={data.strategic.website_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
-            >
-              {data.strategic.website_url}
-            </a>
+      <section className="rounded-lg border border-gray-800 bg-gray-900/50 p-6 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-white">Fill from website</h2>
+          <p className="mt-1 text-sm text-gray-400">
+            {websiteUrl.trim() || data.strategic.website_url
+              ? "Use your workspace website to extract and fill business information below."
+              : "Add a website URL so we can extract and fill business information for this workspace."}
           </p>
-          <p className="mt-1 text-xs text-gray-500">Ask the AI in chat to refresh business context from a URL.</p>
         </div>
-      )}
+        <div>
+          <Label className="text-gray-300">Website URL</Label>
+          <Input
+            className="mt-1 border-gray-700 bg-gray-800"
+            value={websiteUrl}
+            onChange={(e) => {
+              setWebsiteUrl(e.target.value);
+              setFillError(null);
+            }}
+            placeholder="https://example.com"
+          />
+        </div>
+        <Button
+          type="button"
+          onClick={() => fillFromWebsiteMutation.mutate()}
+          disabled={fillFromWebsiteMutation.isPending || !(websiteUrl.trim() || data.strategic.website_url)}
+          className="bg-primary text-white hover:bg-primary/90"
+        >
+          <Globe className="mr-2 h-4 w-4" />
+          {fillFromWebsiteMutation.isPending ? "Reading website…" : "Fill business info from website"}
+        </Button>
+        {!(websiteUrl.trim() || data.strategic.website_url) && (
+          <p className="text-xs text-amber-400/90">Enter a URL above to enable filling from the website.</p>
+        )}
+      </section>
 
       <SectionCard
         title="Overview"

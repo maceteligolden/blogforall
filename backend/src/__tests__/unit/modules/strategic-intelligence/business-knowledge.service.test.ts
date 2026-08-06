@@ -159,16 +159,10 @@ describe("BusinessKnowledgeService", () => {
 
     await service.projectHotKeys("site1", "user1");
     expect(workspaceMemory.update).toHaveBeenCalled();
-    const updateArg = workspaceMemory.update.mock.calls[0][1] as {
-      strategic: {
-        business_description?: string;
-        customers?: Array<{ who: string }>;
-        competitors?: Array<{ name: string }>;
-      };
-    };
-    expect(updateArg.strategic.business_description).toBe("We help teams ship content");
-    expect(updateArg.strategic.customers?.[0]?.who).toBe("Founders");
-    expect(updateArg.strategic.competitors?.[0]?.name).toBe("Acme");
+    const updateArg = workspaceMemory.update.mock.calls[0][1] as Record<string, unknown>;
+    expect(updateArg["strategic.business_description"]).toBe("We help teams ship content");
+    expect((updateArg["strategic.customers"] as Array<{ who: string }>)?.[0]?.who).toBe("Founders");
+    expect((updateArg["strategic.competitors"] as Array<{ name: string }>)?.[0]?.name).toBe("Acme");
   });
 
   it("listGaps excludes deprecated business.type", async () => {

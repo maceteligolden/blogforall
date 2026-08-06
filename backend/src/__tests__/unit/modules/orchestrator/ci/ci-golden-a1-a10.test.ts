@@ -83,14 +83,48 @@ describe("T3.4 CI golden utterances A1–A10", () => {
     expect(ctx.suggested_next_action).toBe("casual_reply");
   });
 
-  it("A7 soft suggestion → create_content action (not idle)", async () => {
+  it("A7 soft suggestion → clarify before write (not auto-draft)", async () => {
     const ctx = await ci.analyze({
       ...base,
       message: "We should probably write about remote onboarding.",
     });
     expect(ctx.workflow_intent).toBe("create_content");
-    expect(ctx.action_required).toBe(true);
-    expect(ctx.suggested_next_action).toBe("start_content_workflow");
+    expect(ctx.action_required).toBe(false);
+    expect(ctx.suggested_next_action).toBe("clarify");
+    expect(ctx.requires_clarification).toBe(true);
+    expect(ctx.clarification_question).toMatch(/draft|exploring/i);
+
+    const state = createInitialOrchestratorState({
+      turn_id: "t",
+      thread_id: "th",
+      workspace_id: "ws",
+      user_id: "u",
+      message: "We should probably write about remote onboarding.",
+      current_time_iso: "2026-07-27T00:00:00.000Z",
+      current_date_human: "Mon",
+      mode: "chat",
+    });
+    state.conversation_context = ctx;
+    const plan = planFromState(state);
+    expect(plan.skill_id).toBe("conversation");
+    expect(plan.workflow_stage).toBe("clarify");
+  });
+
+  it("doc22 discussion ≠ write", async () => {
+    const think = await ci.analyze({
+      ...base,
+      message: "What do you think about this idea for electric engines?",
+    });
+    expect(think.action_required).toBe(false);
+    expect(think.suggested_next_action).not.toBe("start_content_workflow");
+    expect(["explain", "casual_reply", "start_planning", "clarify"]).toContain(think.suggested_next_action);
+
+    const pros = await ci.analyze({
+      ...base,
+      message: "What are the pros and cons of weekly publishing?",
+    });
+    expect(pros.workflow_intent).toBe("explain");
+    expect(pros.suggested_next_action).toBe("explain");
   });
 
   it("A8 urgency cues raise urgency and shorten style", async () => {

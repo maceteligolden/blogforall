@@ -19,6 +19,7 @@
 | **v0.5 Architecture Freeze** | Hygiene (no stale understand/Review); locked MVP decisions (coverage_min, model routing, retrieve policy); [20](./20-go-to-market-architecture.md) ICP architecture |
 | **v0.5 Dialogue + section revise (2026-07-28)** | CI LLM-primary + storytelling/section-edit; Conversation skill; seed open draft for user-directed Writing revise (no Research package); results panel `blogs.update` sync; LTM MVP = preferences only — see [19](./19-conversation-intelligence.md), [09](./09-execution-flow.md), [18](./18-memory-manager.md) |
 | **v0.5 Strategic Intelligence (2026-07-29)** | Business Knowledge → WorkspaceStrategy → Campaign (Default) → Content; decision engine + learning loop; [21](./21-strategic-intelligence.md); ADR-015 |
+| **v0.5 AI Strategist Experience (2026-08-06)** | Tone, intent gate, proactive opener, hybrid writing stages, call-mode ElevenLabs streaming, single message lifecycle; [22](./22-ai-strategist-experience.md) |
 
 ---
 
@@ -85,6 +86,7 @@ User → Conversation Intelligence → LangGraph Orchestrator → Skills → Too
 | 14 | [14-mvp-and-roadmap.md](./14-mvp-and-roadmap.md) | MVP locks, roadmap, milestones |
 | **14b** | [20-go-to-market-architecture.md](./20-go-to-market-architecture.md) | **ICP / go-to-market architecture** |
 | **14c** | [21-strategic-intelligence.md](./21-strategic-intelligence.md) | **Strategic hierarchy, Default Campaign, decision engine** |
+| **14d** | [22-ai-strategist-experience.md](./22-ai-strategist-experience.md) | **Tone, intent gate, opener, hybrid write UI, call-mode TTS** |
 | 15 | [15-file-inventory.md](./15-file-inventory.md) | Every new/changed file + how it works |
 | — | [MIGRATION.md](./MIGRATION.md) | Phase map from dual stack → target |
 

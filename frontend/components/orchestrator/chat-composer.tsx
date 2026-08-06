@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Paperclip, Phone, Send, X } from "lucide-react";
+import { Mic, MicOff, Phone, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/cn";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
-import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
-import { BlogService } from "@/lib/api/services/blog.service";
-import { useAuthStore } from "@/lib/store/auth.store";
 import type { OrchestratorSelectionContext } from "@/lib/types/orchestrator-session.types";
 import { ChatModeSelector } from "./chat-mode-selector";
 
@@ -55,6 +52,7 @@ export interface ChatComposerProps {
   placeholder?: string;
   autoFocus?: boolean;
   className?: string;
+  /** @deprecated Knowledge from chat is Coming soon — prop ignored */
   onOpenKnowledgeBase?: () => void;
 }
 
@@ -63,12 +61,10 @@ export function ChatComposer({
   onChange,
   onSubmit,
   disabled = false,
-  placeholder = "Ask the workspace orchestrator...",
+  placeholder = "Ask your content strategist…",
   autoFocus = false,
   className,
-  onOpenKnowledgeBase,
 }: ChatComposerProps) {
-  const { currentSiteId } = useAuthStore();
   const {
     sessionMode,
     setSessionMode,
@@ -77,15 +73,12 @@ export function ChatComposer({
     setSelectionContext,
     composerFocusRef,
     pendingAttachments,
-    addPendingAttachment,
     removePendingAttachment,
     enterConversationMode,
     conversationMode,
   } = useOrchestrator();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isListening, setIsListening] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     composerFocusRef.current = () => textareaRef.current?.focus();
@@ -129,33 +122,6 @@ export function ChatComposer({
     } else {
       startListening();
       setIsListening(true);
-    }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length || !currentSiteId) return;
-    setUploading(true);
-    try {
-      for (const file of Array.from(files)) {
-        if (file.type.startsWith("image/")) {
-          const res = await BlogService.uploadImage(file);
-          const url = res.data?.data?.url ?? res.data?.url;
-          if (url) {
-            addPendingAttachment({
-              name: file.name,
-              url,
-              mime_type: file.type,
-            });
-          }
-        } else {
-          const uploaded = await OrchestratorService.uploadContextFile(currentSiteId, file);
-          addPendingAttachment(uploaded);
-        }
-      }
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -213,23 +179,6 @@ export function ChatComposer({
               onChange={setSessionMode}
               disabled={disabled}
             />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled || uploading}
-              aria-label="Attach file"
-              className="p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-gray-800 disabled:opacity-40"
-            >
-              <Paperclip className="w-4 h-4" />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,.txt,.md,.pdf,.doc,.docx"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
             {sttSupported && (
               <button
                 type="button"
@@ -244,15 +193,12 @@ export function ChatComposer({
                 {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
               </button>
             )}
-            {onOpenKnowledgeBase && (
-              <button
-                type="button"
-                onClick={onOpenKnowledgeBase}
-                className="hidden sm:inline px-1.5 py-1 text-[11px] text-gray-500 hover:text-primary transition-colors rounded-md hover:bg-gray-800"
-              >
-                Knowledge
-              </button>
-            )}
+            <span
+              className="hidden sm:inline px-1.5 py-1 text-[11px] text-gray-600 cursor-not-allowed select-none"
+              title="Knowledge base is coming soon"
+            >
+              Knowledge · Coming soon
+            </span>
           </div>
 
           <div className="flex items-center gap-1">
@@ -282,15 +228,7 @@ export function ChatComposer({
         </div>
       </form>
 
-      {onOpenKnowledgeBase && (
-        <button
-          type="button"
-          onClick={onOpenKnowledgeBase}
-          className="sm:hidden text-xs text-gray-500 hover:text-primary transition-colors"
-        >
-          Connect knowledge base
-        </button>
-      )}
+      <p className="sm:hidden text-xs text-gray-600">Knowledge · Coming soon</p>
     </div>
   );
 }

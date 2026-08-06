@@ -8,9 +8,6 @@ const EXPLICIT_DRAFT_NOW_RE =
 const WRITE_TOPIC_RE =
   /\b(?:draft|write|blog\s+post|article|post\s+about|generate\s+(?:a\s+)?(?:post|article|blog)|content\s+for|headline|paragraph)\b/i;
 
-const OUT_OF_SCOPE_RE =
-  /\b(?:publish|unpublish|schedule|reschedule|delete|remove\s+post|cancel\s+schedule|launch\s+campaign|create\s+campaign|category|categories|assign\s+category|duplicate\s+post|roadmap)\b/i;
-
 const RESEARCH_INTENT_RE =
   /\b(?:research|look\s+online|search\s+the\s+web|what(?:'s|\s+is)\s+online|find\s+out|look\s+up)\b/i;
 
@@ -29,9 +26,9 @@ export function isWriteTopicRequest(message: string): boolean {
   return WRITE_TOPIC_RE.test(text);
 }
 
-/** Commands that cannot run during a voice call (v1). */
-export function isOutOfScopeVoiceCommand(message: string): boolean {
-  return OUT_OF_SCOPE_RE.test(message.trim());
+/** @deprecated Voice has full parity — always false. Kept for test compatibility. */
+export function isOutOfScopeVoiceCommand(_message: string): boolean {
+  return false;
 }
 
 export function isResearchIntent(message: string): boolean {
@@ -42,24 +39,19 @@ export function isDiscussIntent(message: string): boolean {
   return DISCUSS_INTENT_RE.test(message.trim());
 }
 
-const VOICE_BASE_TOOLS = new Set(["search.web", "workspace.updateMemory"]);
-
-/** Tool names the supervisor may call during a voice conversation turn. */
-export function getVoiceAllowedToolNames(userMessage: string): Set<string> {
-  const allowed = new Set(VOICE_BASE_TOOLS);
-  if (isExplicitDraftNowRequest(userMessage)) {
-    allowed.add("blogs.generateDraft");
-    allowed.add("blogs.get");
-  }
-  return allowed;
+/** @deprecated Voice has full tool parity — returns empty set (no allowlist filtering). */
+export function getVoiceAllowedToolNames(_userMessage: string): Set<string> {
+  return new Set();
 }
 
-export function isVoiceToolAllowed(toolName: string, userMessage: string): boolean {
-  return getVoiceAllowedToolNames(userMessage).has(toolName);
+/** @deprecated Always allow — voice parity with text. */
+export function isVoiceToolAllowed(_toolName: string, _userMessage: string): boolean {
+  return true;
 }
 
+/** @deprecated Never decline to text — voice can execute the same tools. */
 export function buildVoiceDeclineReply(): string {
-  return "I can't do that on a voice call yet. End the call and continue in text chat, and I'll take care of it there.";
+  return "Got it — I'll handle that now.";
 }
 
 export function buildVoiceConversationInstructions(
@@ -70,40 +62,32 @@ export function buildVoiceConversationInstructions(
   const lines = [
     "# Voice call mode (ACTIVE)",
     "",
-    "The user is on a live voice call. Behave like a thoughtful collaborator on the phone — not a task runner.",
+    "The user is on a live voice call with **full product parity** — same tools as text chat (create, edit, publish, schedule, campaigns, strategy, approvals).",
     "",
     "Reply style:",
-    "- 2–4 short sentences max. One question only. No markdown, bullets, or links unless drafting just completed.",
-    "- Sound natural and curious. Probe before executing.",
+    "- 2–4 short sentences max for spoken delivery. One question only when asking.",
+    "- No markdown, bullets, or long links unless summarizing a completed draft.",
+    "- Sound natural. Never tell them to switch to text chat.",
     "",
-    `Session focus (${mode}): still applies to topic emphasis, but voice rules override aggressive tool use.`,
+    `Session focus (${mode}): still applies to topic emphasis.`,
     "",
   ];
 
-  if (isOutOfScopeVoiceCommand(options.userMessage)) {
+  if (isExplicitDraftNowRequest(options.userMessage)) {
     lines.push(
-      "The user's latest message requests an action outside voice-call scope. Respond with next: respond only — politely decline and suggest ending the call for text chat. Do NOT call tools."
-    );
-  } else if (isExplicitDraftNowRequest(options.userMessage)) {
-    lines.push(
-      "The user asked to create the draft now. If the topic and angle are clear from the conversation, you MAY call blogs.generateDraft once. If critical details are missing, ask one clarifying question first. Summarize briefly after — no long lists."
+      "The user asked to create the draft now. Proceed with the writing workflow when topic/angle are clear; ask one clarifying question only if blocked."
     );
   } else if (isWriteTopicRequest(options.userMessage)) {
     lines.push(
-      "The user mentioned writing content but has NOT asked to draft yet. Do NOT call blogs.generateDraft. Offer two paths: discuss the topic together, or research what's online (search.web). Ask which they prefer in one question."
+      "Writing intent — follow the same guided workflow as text (confirm soft intent if needed, then research/outline checkpoints)."
     );
   } else if (isResearchIntent(options.userMessage)) {
-    lines.push(
-      "User wants online research. Call search.web with a focused query, then summarize findings in plain speech and ask one follow-up question."
-    );
+    lines.push("User wants research — run research, then summarize findings briefly in speech.");
   } else if (isDiscussIntent(options.userMessage)) {
-    lines.push(
-      "User wants to discuss. Ask one probing question about their angle, audience fit, or opinion. Build on their last statement; do not call draft tools."
-    );
+    lines.push("User wants to discuss — converse; do not auto-start drafting.");
   } else {
     lines.push(
-      "Default: converse and probe. Use search.web only when they ask to research. Use blogs.generateDraft only after they explicitly say to write/create the draft now.",
-      "Blocked on voice calls: publish, schedule, delete, categories, campaigns, and other execution tools — decline and suggest text chat."
+      "Default: converse, guide, and use any workspace tools needed. Keep spoken replies short; put long content in the results panel."
     );
   }
 
@@ -139,7 +123,7 @@ function pickProbingQuestion(memory: WorkspaceMemory, userMessage: string): stri
 }
 
 /**
- * Shape assistant replies for TTS during voice calls.
+ * Shape assistant replies for TTS during voice calls (length only — no capability declines).
  */
 export function ensureVoiceConversationReply(
   reply: string | null | undefined,
@@ -153,7 +137,6 @@ export function ensureVoiceConversationReply(
     return { reply: fallback, repaired: true };
   }
 
-  // Cap length for spoken delivery (~300 chars), prefer keeping the last question
   const MAX = 320;
   if (text.length > MAX) {
     const qIdx = text.lastIndexOf("?");

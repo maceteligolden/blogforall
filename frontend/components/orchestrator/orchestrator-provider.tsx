@@ -29,6 +29,8 @@ interface OrchestratorContextValue {
   setDraftGenerating: (value: boolean) => void;
   /** Latest live workflow phase from realtime (cleared when turn completes). */
   livePhase: { phase: string; message: string; percent?: number } | null;
+  /** Phase history for the in-flight turn (cleared when turn completes). */
+  livePhaseHistory: Array<{ phase: string; message: string; percent?: number }>;
   clearLivePhase: () => void;
   activeDraftBlogId: string | null;
   setActiveDraftBlogId: (blogId: string | null) => void;
@@ -92,6 +94,9 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const [effectiveSessionMode, setEffectiveSessionMode] = useState<OperationalSessionMode>("casual");
   const [draftGenerating, setDraftGenerating] = useState(false);
   const [livePhase, setLivePhase] = useState<{ phase: string; message: string; percent?: number } | null>(null);
+  const [livePhaseHistory, setLivePhaseHistory] = useState<
+    Array<{ phase: string; message: string; percent?: number }>
+  >([]);
   const [activeDraftBlogId, setActiveDraftBlogId] = useState<string | null>(null);
   const [selectionContext, setSelectionContext] = useState<OrchestratorSelectionContext | null>(null);
   const composerFocusRef = useRef<(() => void) | null>(null);
@@ -129,6 +134,7 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
     setVoiceMode(false);
     setDraftGenerating(false);
     setLivePhase(null);
+    setLivePhaseHistory([]);
     setSelectionContext(null);
   }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional: thread switch only
 
@@ -146,10 +152,21 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       if (!p?.phase) return;
       // Ignore phases for other threads when one is active.
       if (threadId && p.threadId && p.threadId !== threadId) return;
-      setLivePhase({
+      const next = {
         phase: p.phase,
         message: p.message ?? p.phase,
         percent: p.percent,
+      };
+      setLivePhase(next);
+      setLivePhaseHistory((prev) => {
+        const last = prev[prev.length - 1];
+        // Coalesce percent-only updates on the same phase+message.
+        if (last && last.phase === next.phase && last.message === next.message) {
+          const copy = [...prev];
+          copy[copy.length - 1] = next;
+          return copy;
+        }
+        return [...prev, next];
       });
     }
   );
@@ -158,9 +175,13 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
     const tid = (envelope.payload as { threadId?: string } | undefined)?.threadId;
     if (threadId && tid && tid !== threadId) return;
     setLivePhase(null);
+    setLivePhaseHistory([]);
   });
 
-  const clearLivePhase = useCallback(() => setLivePhase(null), []);
+  const clearLivePhase = useCallback(() => {
+    setLivePhase(null);
+    setLivePhaseHistory([]);
+  }, []);
 
   const enterConversationMode = useCallback(() => {
     setConversationMode(true);
@@ -282,6 +303,7 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       draftGenerating,
       setDraftGenerating,
       livePhase,
+      livePhaseHistory,
       clearLivePhase,
       activeDraftBlogId,
       setActiveDraftBlogId,
@@ -322,6 +344,7 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       isWritingPinned,
       draftGenerating,
       livePhase,
+      livePhaseHistory,
       clearLivePhase,
       activeDraftBlogId,
       selectionContext,
@@ -356,7 +379,3 @@ export function useOrchestrator(): OrchestratorContextValue {
   return ctx;
 }
 
-/** @deprecated Use useOrchestrator */
-export function useAIPanel(): OrchestratorContextValue {
-  return useOrchestrator();
-}

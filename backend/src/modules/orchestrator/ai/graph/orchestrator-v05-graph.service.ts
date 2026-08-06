@@ -19,6 +19,9 @@ import { ContentStrategyService } from "../skills/strategy/content-strategy.serv
 import { WritingSkillService } from "../skills/writing/writing.service";
 import { ConversationSkillService } from "../skills/conversation/conversation.service";
 import { StrategicContextService } from "../services/strategic-context.service";
+import { CampaignService } from "../../../campaign/services/campaign.service";
+import { ResearchPackageRepository } from "../../repositories/research-package.repository";
+import { resolveResearchTopic } from "../skills/research/resolve-research-topic";
 import {
   buildOrchestratorGraph,
   invokeTurn,
@@ -28,6 +31,19 @@ import {
 import type { OrchestratorState } from "./state";
 import type { WorkflowMode } from "../contracts/enums";
 import { buildGroundedWritingPrompt, isPostFormat, type PostFormat } from "../contracts/post-format";
+import { buildVoiceConversationInstructions } from "../../utils/voice-conversation.helper";
+import {
+  isApproveLikeMessage,
+  isReviseOutlineMessage,
+  isReviseResearchMessage,
+  recoverWritingStateFromHistory,
+} from "../../utils/writing-hitl.helper";
+import {
+  advanceCampaignCollect,
+  recoverCampaignDraftFromHistory,
+  type CampaignDraftSlots,
+} from "../../utils/campaign-collect.helper";
+import type { ResearchPackageSummary } from "../contracts/research-package";
 
 function buildBlogPreviewUrl(blogId: string): string {
   const base = env.frontend.baseUrl.replace(/\/$/, "");
@@ -41,6 +57,169 @@ type DraftRecord = {
   meta?: { description?: string; keywords?: string[] };
   blog_id?: string;
 };
+
+/** Map skill progress events into client tool_calls (research package + outline for HITL cards). */
+function buildSkillToolCalls(
+  state: OrchestratorState,
+  phases: readonly WorkflowPhaseEvent[]
+): Array<{ tool: string; summary: string; output_data: Record<string, unknown> }> {
+  const moat = buildV05MoatSnapshot(state, phases);
+  return state.progress_events
+    .filter((e) => e.type === "invoke_skill")
+    .map((e) => {
+      const skill = String(e.meta?.skill_id ?? "skill");
+      const phase = typeof e.meta?.phase === "string" ? e.meta.phase : undefined;
+      const output_data: Record<string, unknown> = { ...(e.meta ?? {}) };
+
+      if (skill === "research") {
+        if (moat.research_summary) output_data.research_summary = moat.research_summary;
+        if (state.research_package_id) output_data.research_package_id = state.research_package_id;
+        // #region agent log
+        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+          body: JSON.stringify({
+            sessionId: "17457c",
+            runId: "post-fix",
+            hypothesisId: "H-PERSIST",
+            location: "orchestrator-v05-graph.service.ts:buildSkillToolCalls",
+            message: "research tool_call branch",
+            data: {
+              hasPackage: Boolean(state.research_package),
+              packageId: state.research_package_id ?? null,
+              factCount: state.research_package?.facts?.length ?? 0,
+              hasSummary: Boolean(moat.research_summary),
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {});
+        // #endregion
+        if (state.research_package) {
+          // Client card needs findings; keep payload bounded.
+          const pkg = state.research_package;
+          const keyInsights =
+            (Array.isArray(state.metadata?.research_key_insights) &&
+              (state.metadata.research_key_insights as string[])) ||
+            (Array.isArray((pkg as unknown as { key_insights?: string[] }).key_insights)
+              ? (pkg as unknown as { key_insights: string[] }).key_insights
+              : []);
+          const facts = pkg.facts.slice(0, 12).map((f) => ({
+            text: f.text,
+            ...(f.value ? { value: f.value } : {}),
+          }));
+          const definitions = pkg.definitions.slice(0, 8).map((f) => ({
+            text: f.text,
+            ...(f.value ? { value: f.value } : {}),
+          }));
+          const statistics = pkg.statistics.slice(0, 8).map((f) => ({
+            text: f.text,
+            ...(f.value ? { value: f.value } : {}),
+          }));
+          // Flatten findings to top-level so the chat card survives nested truncation.
+          output_data.topic = pkg.topic;
+          output_data.facts = facts;
+          output_data.definitions = definitions;
+          output_data.statistics = statistics;
+          output_data.sources = pkg.sources.slice(0, 10).map((s) => ({
+            id: s.id,
+            title: s.title,
+            url: s.url,
+          }));
+          output_data.research_package = {
+            id: pkg.id,
+            topic: pkg.topic,
+            depth: pkg.depth,
+            degraded: pkg.degraded,
+            facts,
+            definitions,
+            statistics,
+            sources: output_data.sources,
+            references: pkg.references.slice(0, 10),
+            coverage: pkg.coverage,
+            ...(keyInsights.length ? { key_insights: keyInsights.slice(0, 6) } : {}),
+          };
+          if (keyInsights.length) output_data.key_insights = keyInsights.slice(0, 6);
+          // #region agent log
+          fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+            body: JSON.stringify({
+              sessionId: "17457c",
+              runId: "post-fix",
+              hypothesisId: "H-UI",
+              location: "orchestrator-v05-graph.service.ts:buildSkillToolCalls",
+              message: "research tool_call payload",
+              data: {
+                topic: pkg.topic,
+                factCount: facts.length,
+                defCount: definitions.length,
+                statCount: statistics.length,
+                insightCount: keyInsights.length,
+                sample: facts[0]?.text?.slice(0, 80) ?? null,
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+          // #endregion
+        }
+        if (state.metadata?.writing_checkpoint === "research" || state.workflow_stage === "research") {
+          output_data.writing_checkpoint = "research";
+        }
+        return { tool: "research", summary: e.message ?? "research", output_data };
+      }
+
+      if (skill === "writing" && (phase === "outline" || state.outline) && !state.draft) {
+        output_data.action = "outline";
+        output_data.outline = state.outline;
+        output_data.writing_checkpoint = "outline";
+        if (state.research_package_id) output_data.research_package_id = state.research_package_id;
+        return { tool: "writing.outline", summary: e.message ?? "outline", output_data };
+      }
+
+      if (skill === "writing") {
+        output_data.action = phase === "improve" ? "revise" : "draft";
+      }
+      if (skill === "content_optimization" && moat.optimization) {
+        output_data.optimization = moat.optimization;
+      }
+
+      // Persist campaign collect progress for cross-turn recovery.
+      if (skill === "conversation" && state.metadata?.campaign_draft) {
+        return {
+          tool: "campaign.collect",
+          summary: e.message ?? "campaign collect",
+          output_data: {
+            ...output_data,
+            campaign_draft: state.metadata.campaign_draft,
+          },
+        };
+      }
+
+      return {
+        tool: skill,
+        summary: e.message ?? "skill",
+        output_data,
+      };
+    });
+}
+
+function buildClientFacingCampaignToolCalls(state: OrchestratorState): Array<{
+  tool: string;
+  summary: string;
+  output_data: Record<string, unknown>;
+}> {
+  const created = state.metadata?.created_campaign;
+  if (!created || typeof created !== "object") return [];
+  const c = created as Record<string, unknown>;
+  const name = typeof c.name === "string" ? c.name : "Campaign";
+  return [
+    {
+      tool: "campaigns.create",
+      summary: `Created campaign '${name}'.`,
+      output_data: c,
+    },
+  ];
+}
 
 /** Map v0.5 skill outputs into blogs.* tool_calls the left panel already understands. */
 function buildClientFacingBlogToolCalls(state: OrchestratorState): Array<{
@@ -114,8 +293,15 @@ export type V05GraphTurnInput = {
   message: string;
   mode?: WorkflowMode;
   recent_messages?: Array<{ role: "user" | "assistant"; content: string }>;
+  /** Full history (with tool_calls) for writing HITL / campaign draft recovery. */
+  history_messages?: Array<{
+    role: string;
+    tool_calls?: Array<{ tool: string; output_data?: Record<string, unknown> | null }>;
+  }>;
   /** Voice/call UI — CI prefers discuss-before-draft. */
   conversation_mode?: boolean;
+  /** Workspace brief product-steer lines for voice Conversation skill. */
+  voice_product_steer?: string;
   /** When already classified (ops peek), skip a second ci.analyze call. */
   conversation_context?: ConversationContext;
   /** Active draft / highlight from the results panel. */
@@ -153,7 +339,9 @@ export class OrchestratorV05GraphService {
     private readonly conversation: ConversationSkillService,
     private readonly blogService: BlogService,
     private readonly strategicContext: StrategicContextService,
-    private readonly firstPartyPriors: FirstPartyPriorsService
+    private readonly firstPartyPriors: FirstPartyPriorsService,
+    private readonly campaignService: CampaignService,
+    private readonly researchPackages: ResearchPackageRepository
   ) {}
 
   async runTurn(input: V05GraphTurnInput): Promise<V05GraphTurnResult> {
@@ -219,6 +407,73 @@ export class OrchestratorV05GraphService {
         };
       }
 
+      // Recover writing HITL + campaign draft from prior assistant tool_calls.
+      const recovered = recoverWritingStateFromHistory(input.history_messages ?? []);
+      // Always prefer the full persisted package (tool_call payloads are truncated for the card).
+      if (recovered.research_package_id) {
+        const pkg = await this.researchPackages
+          .findById(input.workspace_id, recovered.research_package_id)
+          .catch(() => null);
+        if (pkg) {
+          recovered.research_package = pkg as unknown as Record<string, unknown>;
+          recovered.research_summary = {
+            topic: pkg.topic,
+            depth: pkg.depth,
+            coverage_score: pkg.coverage.coverage_score,
+            source_count: pkg.sources.length,
+            contradiction_count: pkg.contradictions.length,
+            degraded: pkg.degraded,
+          };
+        }
+      }
+
+      const campaignDraftPrior =
+        recoverCampaignDraftFromHistory(input.history_messages ?? []) ??
+        (undefined as CampaignDraftSlots | undefined);
+
+      const campaignIntentNow =
+        conversation_context.workflow_intent === "create_campaign" ||
+        conversation_context.workflow_intent === "update_campaign" ||
+        conversation_context.workflow_intent === "learn_campaign" ||
+        conversation_context.workflow_intent === "discuss_campaign" ||
+        conversation_context.workflow_intent === "campaign_content" ||
+        conversation_context.workflow_intent === "campaign_performance";
+
+      // HITL approve/continue/revise — force create path even if CI called it casual.
+      // Skip when this turn is a campaign intent (stale research checkpoint must not hijack).
+      if (
+        !campaignIntentNow &&
+        recovered.writing_checkpoint &&
+        (isApproveLikeMessage(input.message) ||
+          isReviseResearchMessage(input.message) ||
+          isReviseOutlineMessage(input.message))
+      ) {
+        const slots_patch = {
+          ...(conversation_context.slots_patch ?? {}),
+          ...(recovered.writing_checkpoint === "research" &&
+          isApproveLikeMessage(input.message) &&
+          !isReviseResearchMessage(input.message)
+            ? { research_approved: true }
+            : {}),
+          ...(recovered.writing_checkpoint === "outline" &&
+          isApproveLikeMessage(input.message) &&
+          !isReviseOutlineMessage(input.message)
+            ? { outline_approved: true }
+            : {}),
+        };
+        conversation_context = {
+          ...conversation_context,
+          communicative_category: "request_action",
+          workflow_intent: "create_content",
+          suggested_next_action: "start_content_workflow",
+          action_required: true,
+          requires_clarification: false,
+          conversation_mode: "creation",
+          slots_patch,
+          communicative_rationale: `writing_hitl_${recovered.writing_checkpoint}:${conversation_context.communicative_rationale ?? ""}`,
+        };
+      }
+
       let seededDraft: DraftRecord | undefined;
       let seededBlogId: string | undefined = input.selection?.blog_id;
       if (seededBlogId) {
@@ -241,6 +496,21 @@ export class OrchestratorV05GraphService {
       deps.tracer = tracer;
       deps.onPhase = emit;
 
+      const voiceMeta: Record<string, unknown> = {};
+      if (input.conversation_mode) {
+        voiceMeta.voice_call = true;
+      }
+      if (input.voice_product_steer?.trim()) {
+        voiceMeta.voice_product_steer = input.voice_product_steer.trim();
+      }
+      // Do not seed stale writing checkpoints into campaign turns.
+      if (recovered.writing_checkpoint && !campaignIntentNow) {
+        voiceMeta.writing_checkpoint = recovered.writing_checkpoint;
+      }
+      if (campaignDraftPrior) {
+        voiceMeta.campaign_draft = campaignDraftPrior;
+      }
+
       const state = await invokeTurn(compiled, {
         turn_id,
         thread_id: input.thread_id,
@@ -251,7 +521,18 @@ export class OrchestratorV05GraphService {
         mode: input.mode ?? "chat",
         recent_messages: input.recent_messages,
         draft: seededDraft as Record<string, unknown> | undefined,
-        metadata: seededBlogId ? { blog_id: seededBlogId } : undefined,
+        research_package_id: campaignIntentNow ? undefined : recovered.research_package_id,
+        research_summary: campaignIntentNow
+          ? undefined
+          : (recovered.research_summary as ResearchPackageSummary | undefined),
+        research_package: campaignIntentNow
+          ? undefined
+          : (recovered.research_package as OrchestratorState["research_package"]),
+        outline: campaignIntentNow ? undefined : recovered.outline,
+        metadata: {
+          ...(seededBlogId ? { blog_id: seededBlogId } : {}),
+          ...voiceMeta,
+        },
         selection: input.selection
           ? {
               blog_id: input.selection.blog_id,
@@ -263,27 +544,38 @@ export class OrchestratorV05GraphService {
       deps.tracer = undefined;
       deps.onPhase = undefined;
 
-      const skillToolCalls = state.progress_events
-        .filter((e) => e.type === "invoke_skill")
-        .map((e) => {
-          const skill = String(e.meta?.skill_id ?? "skill");
-          const moat = buildV05MoatSnapshot(state, phases);
-          const output_data: Record<string, unknown> = { ...(e.meta ?? {}) };
-          if (skill === "research" && moat.research_summary) {
-            output_data.research_summary = moat.research_summary;
-          }
-          if (skill === "content_optimization" && moat.optimization) {
-            output_data.optimization = moat.optimization;
-          }
-          return {
-            tool: skill,
-            summary: e.message ?? "skill",
-            output_data,
-          };
-        });
-
+      const skillToolCalls = buildSkillToolCalls(state, phases);
       const clientBlogCalls = buildClientFacingBlogToolCalls(state);
-      const tool_calls = [...skillToolCalls, ...clientBlogCalls];
+      const clientCampaignCalls = buildClientFacingCampaignToolCalls(state);
+      const tool_calls = [...skillToolCalls, ...clientBlogCalls, ...clientCampaignCalls];
+
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+        body: JSON.stringify({
+          sessionId: "17457c",
+          runId: "post-fix",
+          hypothesisId: "H-A",
+          location: "orchestrator-v05-graph.service.ts:runTurn",
+          message: "turn tool_calls built",
+          data: {
+            intent: conversation_context.workflow_intent,
+            recoveredCheckpoint: recovered.writing_checkpoint ?? null,
+            recoveredResearchId: recovered.research_package_id ?? null,
+            seededBlogId: seededBlogId ?? null,
+            hasStateDraft: Boolean(state.draft),
+            writingCheckpointMeta: state.metadata?.writing_checkpoint ?? null,
+            skillTools: skillToolCalls.map((t) => t.tool),
+            blogTools: clientBlogCalls.map((t) => t.tool),
+            campaignTools: clientCampaignCalls.map((t) => t.tool),
+            stage: state.workflow_stage,
+            replyPreview: (state.reply ?? "").slice(0, 100),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
 
       turnSpan.end({
         status: "ok",
@@ -336,22 +628,24 @@ export class OrchestratorV05GraphService {
 
     registry.register("research", async (state, args) => {
       const depth = args.depth === "full" ? "full" : "lite";
-      const topic = state.slots.topic ?? state.message;
+      const topic = resolveResearchTopic(state);
       const post_format = isPostFormat(state.slots.post_format) ? state.slots.post_format : undefined;
       const onPhase = this.graphDeps?.onPhase;
       const first_party = await this.firstPartyPriors.load(state.workspace_id, topic).catch(() => undefined);
+      const revise = args.revise === true;
       const result = await this.research.run({
         workspace_id: state.workspace_id,
         topic,
         depth,
         post_format,
         allow_guess: depth === "lite",
-        personal_notes: state.message,
+        personal_notes: topic,
         first_party,
         persist: true,
         created_by: state.user_id,
         thread_id: state.thread_id,
         onPhase,
+        revise,
       });
       if (result.needs_clarification) {
         const q =
@@ -362,15 +656,22 @@ export class OrchestratorV05GraphService {
           patch: {
             reply: opts ? `${q}\nOptions: ${opts}` : q,
             pending_question: q,
+            slots: { ...state.slots, topic },
           },
         };
       }
+      const keyInsights = (result.package as { key_insights?: string[] }).key_insights;
       return {
         summary: `Research ${depth}: ${result.summary.source_count} sources`,
         patch: {
           research_package_id: result.package.id,
           research_summary: result.summary,
           research_package: result.package,
+          slots: { ...state.slots, topic },
+          metadata: {
+            ...(state.metadata ?? {}),
+            ...(keyInsights?.length ? { research_key_insights: keyInsights } : {}),
+          },
           artifacts_for_client: [{ kind: "research_package", id: result.package.id, title: result.package.topic }],
         },
       };
@@ -378,7 +679,18 @@ export class OrchestratorV05GraphService {
 
     registry.register("writing", async (state, args) => {
       const action = args.action === "revise" ? "revise" : args.action === "outline" ? "outline" : "draft";
-      const topic = state.slots.topic ?? state.message;
+      // Prefer a real topic slot; never ground the outline on HITL button text.
+      const topicFromSlot =
+        typeof state.slots.topic === "string" && state.slots.topic.trim() ? state.slots.topic.trim() : undefined;
+      const topicFromSummary =
+        typeof state.research_summary?.topic === "string" && state.research_summary.topic.trim()
+          ? state.research_summary.topic.trim()
+          : undefined;
+      const topicFromPkg =
+        typeof state.research_package?.topic === "string" && state.research_package.topic.trim()
+          ? state.research_package.topic.trim()
+          : undefined;
+      const topic = topicFromSlot || topicFromPkg || topicFromSummary || "the topic we researched";
       const post_format: PostFormat | undefined = isPostFormat(state.slots.post_format)
         ? state.slots.post_format
         : undefined;
@@ -386,6 +698,7 @@ export class OrchestratorV05GraphService {
         .filter((m) => m.role === "user")
         .map((m) => m.content.trim())
         .filter(Boolean)
+        .filter((c) => !/^(approve|revise|modify|continue)\b/i.test(c))
         .slice(-8)
         .join("\n");
       const groundedPrompt = buildGroundedWritingPrompt({
@@ -413,13 +726,42 @@ export class OrchestratorV05GraphService {
             : undefined) ?? (slice?.brand_voice ? `brand_voice: ${slice.brand_voice}` : undefined),
         post_format,
       };
+      let researchPackage = state.research_package;
+      if (!researchPackage && state.research_package_id) {
+        researchPackage =
+          (await this.researchPackages
+            .findById(state.workspace_id, state.research_package_id)
+            .catch(() => null)) ?? undefined;
+      }
+      // #region agent log
+      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+        body: JSON.stringify({
+          sessionId: "17457c",
+          runId: "post-fix",
+          hypothesisId: "H-A",
+          location: "orchestrator-v05-graph.service.ts:writing",
+          message: "writing skill package hydrate",
+          data: {
+            action,
+            topic,
+            packageId: state.research_package_id ?? null,
+            hadPackage: Boolean(state.research_package),
+            hydrated: Boolean(researchPackage),
+            factCount: researchPackage?.facts?.length ?? 0,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       const result = await this.writing.run({
         action,
         workspace_id: state.workspace_id,
         topic,
         prompt: groundedPrompt,
-        research_package_id: state.research_package_id,
-        research_package: state.research_package,
+        research_package_id: state.research_package_id ?? researchPackage?.id,
+        research_package: researchPackage,
         draft: state.draft as { title: string; content: string; excerpt: string } | undefined,
         optimization_plan: state.optimization_plan,
         feedback: typeof args.feedback === "string" ? args.feedback : undefined,
@@ -430,6 +772,12 @@ export class OrchestratorV05GraphService {
       const patch: Partial<OrchestratorState> = {
         quality_gate_passed: action === "revise" ? undefined : state.quality_gate_passed,
         optimize_count: action === "revise" ? state.optimize_count + 1 : state.optimize_count,
+        ...(researchPackage
+          ? {
+              research_package: researchPackage,
+              research_package_id: state.research_package_id ?? researchPackage.id,
+            }
+          : {}),
         artifacts_for_client: result.draft
           ? [{ kind: "draft", id: state.research_package_id ?? "draft", title: result.draft.title }]
           : result.outline
@@ -438,6 +786,7 @@ export class OrchestratorV05GraphService {
       };
       if (result.outline) {
         patch.outline = result.outline as unknown as Record<string, unknown>;
+        patch.metadata = { ...(state.metadata ?? {}), writing_checkpoint: "outline" };
       }
       if (result.draft) {
         const existingBlogId =
@@ -567,6 +916,90 @@ export class OrchestratorV05GraphService {
         purposeRaw === "clarify" || purposeRaw === "explain" || purposeRaw === "summarize" || purposeRaw === "warn"
           ? purposeRaw
           : "casual";
+      const metaPatch: Record<string, unknown> = { ...state.metadata };
+      const campaignIntent =
+        (typeof args.campaign_intent === "string" && args.campaign_intent) ||
+        state.conversation_context?.workflow_intent;
+      const campaignCollect =
+        args.campaign_collect === true ||
+        campaignIntent === "create_campaign" ||
+        campaignIntent === "learn_campaign" ||
+        campaignIntent === "update_campaign" ||
+        campaignIntent === "discuss_campaign" ||
+        campaignIntent === "campaign_content" ||
+        campaignIntent === "campaign_performance";
+
+      if (campaignCollect) {
+        const prior = (metaPatch.campaign_draft as CampaignDraftSlots | undefined) ?? {};
+        const slice = state.memory_views?.workspace_slice as
+          | {
+              brand_voice?: string;
+              target_audience?: string[];
+              business_goals?: string[];
+            }
+          | undefined;
+        const step = advanceCampaignCollect(state.message, prior, {
+          intent: String(campaignIntent ?? ""),
+          hints: {
+            brand_voice: slice?.brand_voice,
+            target_audience: slice?.target_audience,
+            business_goals: slice?.business_goals,
+            suggested_theme: slice?.business_goals?.[0] || slice?.target_audience?.[0],
+          },
+        });
+        if (step.status === "ask") {
+          metaPatch.campaign_draft = step.slots;
+          return {
+            summary: "Conversation (campaign_collect)",
+            patch: { reply: step.question, metadata: metaPatch },
+          };
+        }
+        if (step.status === "confirm") {
+          metaPatch.campaign_draft = step.slots;
+          return {
+            summary: "Conversation (campaign_confirm)",
+            patch: { reply: step.summary, metadata: metaPatch },
+          };
+        }
+        if (step.status === "discuss") {
+          metaPatch.campaign_draft = step.slots;
+          return {
+            summary: "Conversation (campaign_discuss)",
+            patch: { reply: step.reply, metadata: metaPatch },
+          };
+        }
+        if (step.status === "create") {
+          const created = await this.campaignService.createCampaign(
+            state.user_id,
+            state.workspace_id,
+            step.payload
+          );
+          const campaignId = created._id?.toString();
+          delete metaPatch.campaign_draft;
+          metaPatch.created_campaign = {
+            id: campaignId,
+            campaign_id: campaignId,
+            name: created.name,
+            goal: created.goal,
+            target_audience: created.target_audience,
+            start_date: created.start_date,
+            end_date: created.end_date,
+            posting_frequency: created.posting_frequency,
+          };
+          return {
+            summary: `Created campaign '${created.name}'`,
+            patch: {
+              reply: `Created campaign “${created.name}”. You can open it in the results panel or ask me to build a roadmap next.`,
+              metadata: metaPatch,
+              campaign_id: campaignId,
+              artifacts_for_client: campaignId
+                ? [{ kind: "campaign", id: campaignId, title: created.name }]
+                : [],
+            },
+          };
+        }
+      }
+
       const slice = state.memory_views?.workspace_slice as
         | {
             brand_voice?: string;
@@ -607,6 +1040,17 @@ export class OrchestratorV05GraphService {
       if (sessionSummary.trim()) {
         factBits.push(`session_summary: ${sessionSummary.slice(0, 800)}`);
       }
+      const steer = state.metadata?.voice_product_steer;
+      if (typeof steer === "string" && steer.trim()) {
+        factBits.push(steer.trim());
+      }
+      if (state.metadata?.voice_call === true) {
+        factBits.push(buildVoiceConversationInstructions("casual", { userMessage: state.message }));
+      }
+      // Collect → confirm → execute pattern for strategy/schedule conversational stubs.
+      factBits.push(
+        "entity_pattern: For new campaigns/strategies/schedules, collect required fields one at a time, summarize, ask confirm, then execute."
+      );
       const result = await this.conversation.run({
         purpose,
         user_message: state.message,
@@ -615,7 +1059,6 @@ export class OrchestratorV05GraphService {
         facts: factBits.join("\n") || undefined,
         brand_voice: slice?.brand_voice,
       });
-      const metaPatch: Record<string, unknown> = { ...state.metadata };
       if (typeof args.question === "string" && args.strategic) {
         if (String(args.question).includes("campaign")) {
           metaPatch.campaign_clarify_asked = true;

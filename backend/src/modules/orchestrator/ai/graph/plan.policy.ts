@@ -2,6 +2,51 @@ import { MVP_LOCKS } from "../contracts/mvp-locks";
 import { planResultSchema, type PlanResult } from "../contracts/plan-result";
 import type { OrchestratorState } from "./state";
 import { env } from "../../../../shared/config/env";
+import {
+  isApproveLikeMessage,
+  isApproveOutlineMessage,
+  isApproveResearchMessage,
+  isReviseOutlineMessage,
+  isReviseResearchMessage,
+  type WritingCheckpoint,
+} from "../../utils/writing-hitl.helper";
+
+const USER_ASKED_RESEARCH = /\b(?:research|look\s+(?:it\s+)?up|sources?|fact[\s-]?check)\b/i;
+
+function writingCheckpoint(state: OrchestratorState): WritingCheckpoint | undefined {
+  const raw = state.metadata?.writing_checkpoint;
+  if (raw === "research" || raw === "outline") return raw;
+  return undefined;
+}
+
+function researchApproved(state: OrchestratorState): boolean {
+  if (state.slots.research_approved === true) return true;
+  const checkpoint = writingCheckpoint(state);
+  if (checkpoint === "research" && (isApproveResearchMessage(state.message) || isApproveLikeMessage(state.message))) {
+    return !isReviseResearchMessage(state.message);
+  }
+  return false;
+}
+
+function outlineApproved(state: OrchestratorState): boolean {
+  if (state.slots.outline_approved === true) return true;
+  const checkpoint = writingCheckpoint(state);
+  if (checkpoint === "outline" && (isApproveOutlineMessage(state.message) || isApproveLikeMessage(state.message))) {
+    return !isReviseOutlineMessage(state.message);
+  }
+  return false;
+}
+
+function isCampaignIntent(intent: string | undefined): boolean {
+  return (
+    intent === "create_campaign" ||
+    intent === "update_campaign" ||
+    intent === "learn_campaign" ||
+    intent === "discuss_campaign" ||
+    intent === "campaign_content" ||
+    intent === "campaign_performance"
+  );
+}
 
 /**
  * Deterministic plan policy (M3) — no LLM.
@@ -13,12 +58,79 @@ export function planFromState(state: OrchestratorState): PlanResult {
   const ctx = state.conversation_context;
   const skillsLeft = state.max_skills_per_turn - state.skills_run_this_turn;
   const si = env.orchestrator.strategicIntelligenceEnabled;
+  const checkpoint = writingCheckpoint(state);
+
+  // #region agent log
+  fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
+    body: JSON.stringify({
+      sessionId: "17457c",
+      runId: "post-fix",
+      hypothesisId: "H-B",
+      location: "plan.policy.ts:planFromState",
+      message: "plan entry",
+      data: {
+        intent: ctx?.workflow_intent,
+        suggested: ctx?.suggested_next_action,
+        checkpoint,
+        hasResearch: Boolean(state.research_package_id),
+        hasOutline: Boolean(state.outline),
+        hasDraft: Boolean(state.draft),
+        hasReply: Boolean(state.reply?.trim()),
+        skillsLeft,
+        msg: (state.message ?? "").slice(0, 80),
+        isCampaign: isCampaignIntent(ctx?.workflow_intent),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   if (skillsLeft <= 0) {
     return planResultSchema.parse({
       next: "compose",
       rationale: "max_skills_per_turn reached; composing with current artifacts",
       workflow_stage: state.workflow_stage === "idle" ? "done" : state.workflow_stage,
+    });
+  }
+
+  // Campaign intents: conversational collect — never auto-run Research unless user asks.
+  if (isCampaignIntent(ctx?.workflow_intent)) {
+    const ranResearch = state.skills_run_this_turn > 0 && Boolean(state.research_package_id);
+    if (ranResearch && !USER_ASKED_RESEARCH.test(state.message)) {
+      return planResultSchema.parse({
+        next: "compose",
+        workflow_stage: "done",
+        rationale: "Campaign intent: research already ran once — compose/clarify, do not loop research",
+      });
+    }
+    if (USER_ASKED_RESEARCH.test(state.message) && !state.research_package_id) {
+      return planResultSchema.parse({
+        next: "invoke_skill",
+        skill_id: "research",
+        skill_args: { depth: "lite" },
+        workflow_stage: "research",
+        rationale: "Campaign intent but user explicitly asked for research",
+      });
+    }
+    if (state.reply?.trim()) {
+      return planResultSchema.parse({
+        next: "compose",
+        workflow_stage: "done",
+        rationale: "Campaign conversational reply ready",
+      });
+    }
+    return planResultSchema.parse({
+      next: "invoke_skill",
+      skill_id: "conversation",
+      skill_args: {
+        purpose: "clarify",
+        campaign_collect: true,
+        campaign_intent: ctx?.workflow_intent,
+      },
+      workflow_stage: "clarify",
+      rationale: "Campaign intent — Conversation skill collects fields (no research)",
     });
   }
 
@@ -47,7 +159,8 @@ export function planFromState(state: OrchestratorState): PlanResult {
     state.metadata?.strategic_top_gap_question &&
     !state.metadata?.strategic_gap_asked &&
     state.skills_run_this_turn === 0 &&
-    !state.draft
+    !state.draft &&
+    !checkpoint
   ) {
     return planResultSchema.parse({
       next: "invoke_skill",
@@ -70,7 +183,8 @@ export function planFromState(state: OrchestratorState): PlanResult {
     !state.campaign_id &&
     state.metadata?.needs_campaign_clarify === true &&
     !state.metadata?.campaign_clarify_asked &&
-    state.skills_run_this_turn === 0
+    state.skills_run_this_turn === 0 &&
+    !checkpoint
   ) {
     return planResultSchema.parse({
       next: "invoke_skill",
@@ -87,27 +201,31 @@ export function planFromState(state: OrchestratorState): PlanResult {
   }
 
   if (ctx?.suggested_next_action === "casual_reply" || ctx?.workflow_intent === "casual") {
-    if (state.reply?.trim()) {
+    // Don't treat HITL approve/continue as casual when a writing checkpoint is open.
+    if (!checkpoint) {
+      if (state.reply?.trim()) {
+        return planResultSchema.parse({
+          next: "compose",
+          workflow_stage: "done",
+          rationale: "Casual reply ready",
+        });
+      }
       return planResultSchema.parse({
-        next: "compose",
+        next: "invoke_skill",
+        skill_id: "conversation",
+        skill_args: { purpose: "casual" },
         workflow_stage: "done",
-        rationale: "Casual reply ready",
+        rationale: "Casual turn — Conversation skill",
       });
     }
-    return planResultSchema.parse({
-      next: "invoke_skill",
-      skill_id: "conversation",
-      skill_args: { purpose: "casual" },
-      workflow_stage: "done",
-      rationale: "Casual turn — Conversation skill",
-    });
   }
 
   if (
     (ctx?.suggested_next_action === "explain" || ctx?.workflow_intent === "explain") &&
     !state.research_package_id &&
     !state.draft &&
-    !state.strategy
+    !state.strategy &&
+    !checkpoint
   ) {
     if (state.reply?.trim()) {
       return planResultSchema.parse({
@@ -154,7 +272,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
         ctx?.conversation_mode === "editing" ||
         ctx?.conversation_mode === "feedback"));
 
-  if (userDirectedRevise) {
+  if (userDirectedRevise && !checkpoint) {
     if (!state.draft) {
       return planResultSchema.parse({
         next: "compose",
@@ -184,7 +302,10 @@ export function planFromState(state: OrchestratorState): PlanResult {
   }
 
   /** Optimize / review session — ADR-005: content_optimization only (never skill_id review). */
-  if (ctx?.workflow_intent === "optimize_content" || ctx?.suggested_next_action === "revise_current_artifact") {
+  if (
+    (ctx?.workflow_intent === "optimize_content" || ctx?.suggested_next_action === "revise_current_artifact") &&
+    !checkpoint
+  ) {
     if (!state.draft) {
       return planResultSchema.parse({
         next: "compose",
@@ -245,7 +366,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
   }
 
   // Brainstorm / idea chat without explicit start_planning → converse, don't auto-run strategy.
-  if (ctx?.communicative_category === "brainstorm" && !state.reply?.trim()) {
+  if (ctx?.communicative_category === "brainstorm" && !state.reply?.trim() && !checkpoint) {
     return planResultSchema.parse({
       next: "invoke_skill",
       skill_id: "conversation",
@@ -255,112 +376,147 @@ export function planFromState(state: OrchestratorState): PlanResult {
     });
   }
 
-  /** Strategist: strategy → research(full) → outline → write → optimize → improve* */
-  if (state.mode === "strategist_pipeline") {
-    if (!state.strategy) {
+  /** Shared writing HITL steps for strategist + quick_draft create paths. */
+  const planWritingPipeline = (opts: {
+    needStrategy: boolean;
+    researchDepth: "lite" | "full";
+    label: string;
+  }): PlanResult => {
+    if (opts.needStrategy && !state.strategy) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "content_strategy",
         skill_args: {},
         workflow_stage: "strategy",
-        rationale: "Strategist pipeline: Content Strategy first",
+        rationale: `${opts.label}: Content Strategy first`,
       });
     }
-    if (!state.research_package_id) {
+
+    // Revise research only once per turn (message stays "Revise the research" after skill runs).
+    const reviseResearchOnce =
+      isReviseResearchMessage(state.message) && state.skills_run_this_turn === 0;
+
+    if (!state.research_package_id || reviseResearchOnce) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "research",
-        skill_args: { depth: "full" },
+        skill_args: {
+          depth: opts.researchDepth,
+          ...(reviseResearchOnce ? { revise: true } : {}),
+        },
         workflow_stage: "research",
-        rationale: "Strategist pipeline: Research full package",
+        rationale: reviseResearchOnce
+          ? `${opts.label}: revise research`
+          : `${opts.label}: Research ${opts.researchDepth} package`,
       });
     }
-    if (!state.outline) {
+
+    // HITL pause after research (before outline).
+    if (!state.outline && !researchApproved(state)) {
+      return planResultSchema.parse({
+        next: "compose",
+        workflow_stage: "research",
+        rationale: `${opts.label}: HITL pause — await research approval`,
+        confirmation: {
+          action: "writing_research",
+          payload: { research_package_id: state.research_package_id },
+          summary: "Research is ready — review the findings below.",
+          kind: "research_approval",
+        },
+      });
+    }
+
+    const reviseOutlineOnce =
+      isReviseOutlineMessage(state.message) && state.skills_run_this_turn === 0;
+    if (!state.outline || reviseOutlineOnce) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "writing",
-        skill_args: { action: "outline" },
+        skill_args: {
+          action: "outline",
+          ...(reviseOutlineOnce ? { revise: true } : {}),
+        },
         workflow_stage: "outline",
-        rationale: "Strategist pipeline: outline before draft",
+        rationale: reviseOutlineOnce
+          ? `${opts.label}: modify outline`
+          : `${opts.label}: outline before draft`,
       });
     }
+
+    // HITL pause after outline (before draft).
+    if (!state.draft && !outlineApproved(state)) {
+      return planResultSchema.parse({
+        next: "compose",
+        workflow_stage: "outline",
+        rationale: `${opts.label}: HITL pause — await outline approval`,
+        confirmation: {
+          action: "writing_outline",
+          payload: { research_package_id: state.research_package_id },
+          summary: "Outline is ready — review the structure below.",
+          kind: "outline_approval",
+        },
+      });
+    }
+
     if (!state.draft) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "writing",
         skill_args: { action: "draft" },
         workflow_stage: "write",
-        rationale: "Strategist pipeline: draft from Package (no web search)",
+        rationale: `${opts.label}: draft from Package (no web search)`,
       });
     }
+
     if (state.quality_gate_passed === undefined) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "content_optimization",
         skill_args: {},
         workflow_stage: "optimize",
-        rationale: "Strategist pipeline: Content Optimization gate",
+        rationale: `${opts.label}: Content Optimization gate`,
       });
     }
+
     if (state.quality_gate_passed === false && state.optimize_count < MVP_LOCKS.optimizeMaxLoops) {
       return planResultSchema.parse({
         next: "invoke_skill",
         skill_id: "writing",
         skill_args: { action: "revise" },
         workflow_stage: "improve",
-        rationale: "Strategist pipeline: revise from OptimizationPlan",
+        rationale: `${opts.label}: revise from OptimizationPlan`,
       });
     }
+
     return planResultSchema.parse({
       next: "compose",
       workflow_stage: "done",
-      rationale: "Strategist pipeline complete; compose summary",
+      rationale: `${opts.label} complete; compose summary`,
+    });
+  };
+
+  /** Strategist: strategy → research(full) → outline HITL → write → optimize → improve* */
+  if (state.mode === "strategist_pipeline") {
+    return planWritingPipeline({
+      needStrategy: true,
+      researchDepth: "full",
+      label: "Strategist pipeline",
     });
   }
 
-  const createPath = state.mode === "quick_draft" || ctx?.workflow_intent === "create_content";
+  // Soft create / clarify-before-write is handled by the clarify branch above
+  // (`requires_clarification` or `suggested_next_action === "clarify"`).
+
+  const createPath =
+    state.mode === "quick_draft" ||
+    (ctx?.workflow_intent === "create_content" && ctx.suggested_next_action === "start_content_workflow") ||
+    Boolean(checkpoint && (researchApproved(state) || outlineApproved(state) || isReviseResearchMessage(state.message) || isReviseOutlineMessage(state.message)));
 
   if (createPath) {
-    if (!state.research_package_id) {
-      return planResultSchema.parse({
-        next: "invoke_skill",
-        skill_id: "research",
-        skill_args: { depth: "lite" },
-        workflow_stage: "research",
-        rationale: "Need Research lite package before Writing",
-      });
-    }
-    if (!state.draft) {
-      return planResultSchema.parse({
-        next: "invoke_skill",
-        skill_id: "writing",
-        skill_args: { action: "draft" },
-        workflow_stage: "write",
-        rationale: "Draft from Research Package (no web search)",
-      });
-    }
-    if (state.quality_gate_passed === undefined) {
-      return planResultSchema.parse({
-        next: "invoke_skill",
-        skill_id: "content_optimization",
-        skill_args: {},
-        workflow_stage: "optimize",
-        rationale: "Run Content Optimization gate",
-      });
-    }
-    if (state.quality_gate_passed === false && state.optimize_count < MVP_LOCKS.optimizeMaxLoops) {
-      return planResultSchema.parse({
-        next: "invoke_skill",
-        skill_id: "writing",
-        skill_args: { action: "revise" },
-        workflow_stage: "improve",
-        rationale: "Revise from OptimizationPlan (loop)",
-      });
-    }
-    return planResultSchema.parse({
-      next: "compose",
-      workflow_stage: "done",
-      rationale: "Create path complete; compose summary",
+    return planWritingPipeline({
+      needStrategy: false,
+      researchDepth: "lite",
+      label: "Create path",
     });
   }
 

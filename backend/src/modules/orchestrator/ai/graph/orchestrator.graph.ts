@@ -11,6 +11,7 @@ import { persistNode, type PersistDeps } from "./nodes/persist";
 import { createInitialOrchestratorState, OrchestratorStateAnnotation, type OrchestratorState } from "./state";
 import type { ConversationContext } from "../contracts/conversation-context";
 import type { WorkflowMode } from "../contracts/enums";
+import type { ResearchPackage, ResearchPackageSummary } from "../contracts/research-package";
 
 export type OrchestratorGraphDeps = LoadContextDeps &
   InvokeSkillDeps &
@@ -34,6 +35,11 @@ export type InvokeTurnInput = {
   recent_messages?: Array<{ role: "user" | "assistant"; content: string }>;
   /** Seeded from results-panel selection (active draft). */
   draft?: Record<string, unknown>;
+  /** Seeded from prior-turn writing HITL recovery. */
+  research_package_id?: string;
+  research_summary?: ResearchPackageSummary;
+  research_package?: ResearchPackage;
+  outline?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   selection?: { blog_id?: string; highlight?: string };
 };
@@ -98,6 +104,10 @@ export async function invokeTurn(
     intent: input.conversation_context.workflow_intent,
     recent_messages: input.recent_messages,
     draft: input.draft ?? initial.draft,
+    research_package_id: input.research_package_id ?? initial.research_package_id,
+    research_summary: input.research_summary ?? initial.research_summary,
+    research_package: input.research_package ?? initial.research_package,
+    outline: input.outline ?? initial.outline,
     metadata: input.metadata ?? initial.metadata,
     slots: {
       ...initial.slots,

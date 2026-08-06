@@ -32,9 +32,189 @@ function artifactLabel(tool: string): string {
     case "blogs.list":
     case "blog_list":
       return "Blog list";
+    case "campaigns.get":
+    case "campaigns.create":
+    case "campaigns.update":
+      return "Campaign";
+    case "strategy.get":
+    case "strategy.update":
+      return "Strategy";
     default:
       return tool.replace(/\./g, " · ");
   }
+}
+
+function strField(data: Record<string, unknown>, key: string): string | undefined {
+  const v = data[key];
+  return typeof v === "string" && v.trim() ? v : undefined;
+}
+
+function listField(data: Record<string, unknown>, key: string): string[] {
+  const v = data[key];
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+}
+
+function CampaignArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
+  const d = artifact.outputData;
+  const name = strField(d, "name") ?? "Campaign";
+  const goal = strField(d, "goal");
+  const audience = strField(d, "target_audience") ?? strField(d, "audience");
+  const status = strField(d, "status") ?? strField(d, "lifecycle_status");
+  const messaging = strField(d, "messaging");
+  const funnel = strField(d, "funnel_focus");
+  const themes = listField(d, "primary_topics").length
+    ? listField(d, "primary_topics")
+    : listField(d, "content_themes");
+  const kpis =
+    typeof d.success_metrics === "object" && d.success_metrics
+      ? listField(d.success_metrics as Record<string, unknown>, "kpis")
+      : [];
+  const start = strField(d, "start_date");
+  const end = strField(d, "end_date");
+  const frequency = strField(d, "posting_frequency");
+
+  return (
+    <Card className="bg-gray-900 border-gray-800 p-4 space-y-4">
+      <div>
+        <p className="text-[10px] uppercase tracking-wide text-gray-500">Campaign</p>
+        <h3 className="text-base font-semibold text-white mt-0.5">{name}</h3>
+        {status && <p className="text-xs text-primary mt-1 capitalize">{status.replace(/_/g, " ")}</p>}
+      </div>
+      {goal && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Objective</p>
+          <p className="text-sm text-gray-200 whitespace-pre-wrap">{goal}</p>
+        </div>
+      )}
+      {audience && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Audience</p>
+          <p className="text-sm text-gray-300">{audience}</p>
+        </div>
+      )}
+      {messaging && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Messaging</p>
+          <p className="text-sm text-gray-300 whitespace-pre-wrap">{messaging}</p>
+        </div>
+      )}
+      {themes.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Themes</p>
+          <ul className="text-sm text-gray-300 list-disc pl-4 space-y-0.5">
+            {themes.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {kpis.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">KPIs</p>
+          <ul className="text-sm text-gray-300 list-disc pl-4 space-y-0.5">
+            {kpis.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3 text-xs text-gray-400">
+        {funnel && (
+          <div>
+            <p className="uppercase tracking-wide text-gray-500 mb-0.5">Funnel</p>
+            <p className="text-gray-300 capitalize">{funnel.replace(/_/g, " ")}</p>
+          </div>
+        )}
+        {frequency && (
+          <div>
+            <p className="uppercase tracking-wide text-gray-500 mb-0.5">Cadence</p>
+            <p className="text-gray-300 capitalize">{frequency.replace(/_/g, " ")}</p>
+          </div>
+        )}
+        {start && (
+          <div>
+            <p className="uppercase tracking-wide text-gray-500 mb-0.5">Start</p>
+            <p className="text-gray-300">{start.slice(0, 10)}</p>
+          </div>
+        )}
+        {end && (
+          <div>
+            <p className="uppercase tracking-wide text-gray-500 mb-0.5">End</p>
+            <p className="text-gray-300">{end.slice(0, 10)}</p>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function StrategyArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
+  const d = artifact.outputData;
+  const purpose = strField(d, "purpose") ?? "Workspace strategy";
+  const audience = strField(d, "audience_summary");
+  const outcomes = listField(d, "long_term_outcomes");
+  const principles = listField(d, "principles");
+  const perception = listField(d, "perception_goals");
+  const constraints = listField(d, "constraints");
+  const version = typeof d.version === "number" ? d.version : undefined;
+
+  return (
+    <Card className="bg-gray-900 border-gray-800 p-4 space-y-4">
+      <div>
+        <p className="text-[10px] uppercase tracking-wide text-gray-500">
+          Strategy{version != null ? ` · v${version}` : ""}
+        </p>
+        <h3 className="text-base font-semibold text-white mt-0.5 leading-snug">{purpose}</h3>
+      </div>
+      {audience && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Audience</p>
+          <p className="text-sm text-gray-300 whitespace-pre-wrap">{audience}</p>
+        </div>
+      )}
+      {outcomes.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Outcomes</p>
+          <ul className="text-sm text-gray-300 list-disc pl-4 space-y-0.5">
+            {outcomes.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {principles.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Principles</p>
+          <ul className="text-sm text-gray-300 list-disc pl-4 space-y-0.5">
+            {principles.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {perception.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Perception goals</p>
+          <ul className="text-sm text-gray-300 list-disc pl-4 space-y-0.5">
+            {perception.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {constraints.length > 0 && (
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-1">Constraints</p>
+          <ul className="text-sm text-gray-300 list-disc pl-4 space-y-0.5">
+            {constraints.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 function isBlogListTool(tool: string): boolean {
@@ -353,6 +533,13 @@ function ArtifactContent({ artifact }: { artifact: OrchestratorArtifact }) {
     case "blogs.list":
     case "blog_list":
       return <BlogListArtifact artifact={artifact} />;
+    case "campaigns.get":
+    case "campaigns.create":
+    case "campaigns.update":
+      return <CampaignArtifact artifact={artifact} />;
+    case "strategy.get":
+    case "strategy.update":
+      return <StrategyArtifact artifact={artifact} />;
     default:
       return <GenericArtifact artifact={artifact} />;
   }
@@ -466,7 +653,15 @@ export function OrchestratorArtifactPanel({
           <div className="flex items-center gap-2 min-w-0">
             <Sparkles className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
             <span className="text-sm font-semibold truncate">
-              {isWritingPinned || isBlogDraft ? "Blog draft" : isBlogList ? "Blog list" : "Results"}
+              {isWritingPinned || isBlogDraft
+                ? "Blog draft"
+                : isBlogList
+                  ? "Blog list"
+                  : activeArtifact?.tool.startsWith("campaigns.")
+                    ? "Campaign"
+                    : activeArtifact?.tool.startsWith("strategy.")
+                      ? "Strategy"
+                      : "Results"}
             </span>
           </div>
           <div className="flex items-center gap-2 shrink-0">

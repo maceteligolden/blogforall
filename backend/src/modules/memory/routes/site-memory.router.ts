@@ -18,6 +18,10 @@ const generateStrategyBodySchema = z.object({
   horizon_weeks: z.number().min(1).max(12).optional(),
 });
 
+const fillFromWebsiteBodySchema = z.object({
+  url: z.string().min(1).max(2048).optional(),
+});
+
 const router = Router({ mergeParams: true });
 router.use(authMiddleware);
 
@@ -25,6 +29,12 @@ const controller = container.resolve(MemoryController);
 
 router.get("/", validateParams(siteIdParamSchema), controller.getMemory);
 router.patch("/", validateParams(siteIdParamSchema), validateBody(updateMemoryBodySchema), controller.updateMemory);
+router.post(
+  "/from-website",
+  validateParams(siteIdParamSchema),
+  validateBody(fillFromWebsiteBodySchema),
+  controller.fillFromWebsite
+);
 router.get("/strategy", validateParams(siteIdParamSchema), controller.getStrategy);
 router.post(
   "/strategy/generate",

@@ -1,5 +1,7 @@
 # Dashboard Agent — JARVIS-like UX & Personality
 
+> **Superseded (2026-08-06):** Canonical AI experience contract is [`docs/architecture/v0.5/22-ai-strategist-experience.md`](./architecture/v0.5/22-ai-strategist-experience.md). Keep this file as historical personality notes only.
+
 The dashboard assistant should feel like a **professional, proactive partner** (JARVIS-style): it greets the user by name, leads the conversation, and offers clear next steps so the user doesn’t have to know exactly what they need.
 
 ---

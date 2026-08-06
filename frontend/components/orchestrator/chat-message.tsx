@@ -12,6 +12,11 @@ export interface ChatMessageProps {
   toolName?: string;
   className?: string;
   artifactId?: string;
+  /** Tool that produced the artifact — gates "View draft" vs campaign/strategy CTAs. */
+  artifactTool?: string;
+  /** Only show View draft when a real blog id exists. */
+  hasDraftEntity?: boolean;
+  viewCtaLabel?: string | null;
   onViewArtifact?: (artifactId: string) => void;
   /** Doc 20 moat strip (package coverage + SEO/GAO). */
   moat?: V05MoatSnapshot | null;
@@ -43,11 +48,24 @@ export function ChatMessage({
   toolName,
   className,
   artifactId,
+  artifactTool,
+  hasDraftEntity = false,
+  viewCtaLabel,
   onViewArtifact,
   moat,
 }: ChatMessageProps) {
+  const cta =
+    viewCtaLabel ??
+    (artifactTool?.startsWith("blogs.") && hasDraftEntity
+      ? "View draft →"
+      : artifactTool?.startsWith("campaigns.")
+        ? "View campaign →"
+        : artifactTool?.startsWith("strategy.")
+          ? "View strategy →"
+          : null);
+
   if (role === "tool") {
-    const clickable = !!artifactId && !!onViewArtifact;
+    const clickable = !!artifactId && !!onViewArtifact && !!cta;
     return (
       <button
         type="button"
@@ -65,14 +83,14 @@ export function ChatMessage({
         <span className="font-mono">
           {toolName ? `${toolName} · ` : ""}
           {content}
-          {clickable && <span className="ml-2 text-primary font-sans not-italic">View result →</span>}
+          {clickable && <span className="ml-2 text-primary font-sans not-italic">{cta}</span>}
         </span>
       </button>
     );
   }
 
   const isUser = role === "user";
-  const assistantClickable = !isUser && !!artifactId && !!onViewArtifact;
+  const assistantClickable = !isUser && !!artifactId && !!onViewArtifact && !!cta;
 
   return (
     <div className={cn("flex items-start gap-3", isUser ? "flex-row-reverse" : "flex-row", className)}>
@@ -119,7 +137,7 @@ export function ChatMessage({
             {autoLinkBareUrls(content)}
           </ReactMarkdown>
           {moat && <MoatScoreStrip moat={moat} />}
-          <span className="mt-2 block text-xs text-primary">View blog draft →</span>
+          {cta && <span className="mt-2 block text-xs text-primary">{cta}</span>}
         </button>
       ) : (
         <div
