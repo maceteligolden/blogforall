@@ -1,4 +1,3 @@
-import { stripDisallowedCheckpointFields } from "../checkpoint-allowlist";
 import type { MemoryManagerService } from "../../memory/manager/memory-manager";
 import type { TurnTracer } from "../../observability/turn-tracer";
 import type { OrchestratorState } from "../state";
