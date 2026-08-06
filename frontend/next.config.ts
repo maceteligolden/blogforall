@@ -3,7 +3,10 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  output: "standalone",
+  // Standalone is for Docker/Node deploys. On Netlify it breaks serving of `public/`
+  // (including /demos/*), which is why landing screenshots 404 in the Netlify dev env
+  // while working locally — see Netlify Next runtime + output:standalone guidance.
+  ...(process.env.NETLIFY ? {} : { output: "standalone" as const }),
   async redirects() {
     return [
       {

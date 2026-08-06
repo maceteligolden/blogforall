@@ -1,5 +1,5 @@
-# If Base directory is `frontend`, prefer frontend/netlify.toml instead.
-# Do not set Next `output: "standalone"` on Netlify — it breaks /public assets.
+# Prefer this file when Netlify Base directory = frontend.
+# Standalone output is disabled on Netlify via next.config.ts (NETLIFY env).
 
 [build]
   command = "yarn build"
@@ -11,16 +11,23 @@
 [build.environment]
   NODE_VERSION = "22.23.1"
 
-# Ensure JS/CSS under _next/static are served with correct MIME types (avoids "refused to execute" errors)
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
     X-Content-Type-Options = "nosniff"
+
 [[headers]]
   for = "/_next/static/chunks/*"
   [headers.values]
     Content-Type = "application/javascript"
+
 [[headers]]
   for = "/_next/static/css/*"
   [headers.values]
     Content-Type = "text/css"
+
+[[headers]]
+  for = "/demos/*"
+  [headers.values]
+    Content-Type = "image/png"
+    Cache-Control = "public, max-age=86400"
