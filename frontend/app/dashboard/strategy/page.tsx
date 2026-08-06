@@ -51,10 +51,22 @@ function StrategyEditor({
             onSave({
               purpose,
               audience_summary: audience,
-              long_term_outcomes: outcomes.split("\n").map((s) => s.trim()).filter(Boolean),
-              principles: principles.split("\n").map((s) => s.trim()).filter(Boolean),
-              perception_goals: perception.split("\n").map((s) => s.trim()).filter(Boolean),
-              constraints: constraints.split("\n").map((s) => s.trim()).filter(Boolean),
+              long_term_outcomes: outcomes
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean),
+              principles: principles
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean),
+              perception_goals: perception
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean),
+              constraints: constraints
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean),
             })
           }
         >
@@ -207,8 +219,7 @@ export default function StrategyBoardPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (patch: Partial<WorkspaceStrategy>) =>
-      StrategicService.updateStrategy(currentSiteId as string, patch),
+    mutationFn: (patch: Partial<WorkspaceStrategy>) => StrategicService.updateStrategy(currentSiteId as string, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STRATEGIC_STRATEGY(currentSiteId as string) });
     },

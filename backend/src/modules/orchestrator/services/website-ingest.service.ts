@@ -111,7 +111,10 @@ ${ingest.text.slice(0, MAX_TEXT_CHARS)}`,
     }
   }
 
-  async ingestAndPropose(rawUrl: string, signal?: AbortSignal): Promise<{
+  async ingestAndPropose(
+    rawUrl: string,
+    signal?: AbortSignal
+  ): Promise<{
     url: string;
     proposal: WorkspaceOnboardingProposal;
     summary: string;
@@ -130,12 +133,12 @@ ${ingest.text.slice(0, MAX_TEXT_CHARS)}`,
 
   private normalizeProposal(raw: z.infer<typeof proposalSchema>): WorkspaceOnboardingProposal {
     const cleanList = (arr: string[] | null | undefined) =>
-      (arr ?? []).map((s) => s.trim()).filter(Boolean).slice(0, 20);
+      (arr ?? [])
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 20);
 
-    const wordCount =
-      raw.default_word_count != null
-        ? parseDefaultWordCount(raw.default_word_count)
-        : undefined;
+    const wordCount = raw.default_word_count != null ? parseDefaultWordCount(raw.default_word_count) : undefined;
 
     return {
       business_type: raw.business_type?.trim() || undefined,
@@ -159,10 +162,7 @@ ${ingest.text.slice(0, MAX_TEXT_CHARS)}`,
     };
   }
 
-  private async fetchPageText(
-    url: string,
-    signal?: AbortSignal
-  ): Promise<{ title?: string; text: string } | null> {
+  private async fetchPageText(url: string, signal?: AbortSignal): Promise<{ title?: string; text: string } | null> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     const onAbort = () => controller.abort();

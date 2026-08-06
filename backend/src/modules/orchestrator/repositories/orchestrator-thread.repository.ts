@@ -89,11 +89,7 @@ export class OrchestratorThreadRepository {
   /**
    * Auto-title only when still at the default source (never overwrite user/auto).
    */
-  async tryAutoRename(
-    threadId: string,
-    siteId: string,
-    title: string
-  ): Promise<OrchestratorThread | null> {
+  async tryAutoRename(threadId: string, siteId: string, title: string): Promise<OrchestratorThread | null> {
     return OrchestratorThreadModel.findOneAndUpdate(
       {
         _id: threadId,

@@ -61,7 +61,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   });
 
   const wizardComplete = wizardStatus?.stage === "complete";
-  const { data: sitesData, isLoading: sitesLoading, isFetched: sitesFetched } = useQuery({
+  const {
+    data: sitesData,
+    isLoading: sitesLoading,
+    isFetched: sitesFetched,
+  } = useQuery({
     queryKey: QUERY_KEYS.SITES,
     queryFn: () => SiteService.getSites(),
     retry: false,

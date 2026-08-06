@@ -80,16 +80,12 @@ Classify each item:
         if (item.type === "stable_fact" && item.field_path && item.value) {
           const mapped =
             env.orchestrator.strategicIntelligenceEnabled &&
-            (FIELD_PATH_TO_KEY[item.field_path] ||
-              FIELD_PATH_TO_KEY[item.field_path.replace(/^strategic\./, "")]);
+            (FIELD_PATH_TO_KEY[item.field_path] || FIELD_PATH_TO_KEY[item.field_path.replace(/^strategic\./, "")]);
           if (mapped) {
-            await this.businessKnowledge.upsertFromFieldPath(
-              input.siteId,
-              input.userId,
-              item.field_path,
-              item.value,
-              { source: "conversation", confidence: item.importance ?? 0.65 }
-            );
+            await this.businessKnowledge.upsertFromFieldPath(input.siteId, input.userId, item.field_path, item.value, {
+              source: "conversation",
+              confidence: item.importance ?? 0.65,
+            });
           } else {
             patch[item.field_path] = item.value;
           }

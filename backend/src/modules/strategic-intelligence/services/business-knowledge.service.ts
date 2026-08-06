@@ -190,9 +190,16 @@ export class BusinessKnowledgeService {
         try {
           const json = JSON.parse(value);
           if (Array.isArray(json)) parsed = json;
-          else parsed = value.split(",").map((s) => s.trim()).filter(Boolean);
+          else
+            parsed = value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
         } catch {
-          parsed = value.split(",").map((s) => s.trim()).filter(Boolean);
+          parsed = value
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
         }
       }
     }
@@ -360,16 +367,22 @@ export class BusinessKnowledgeService {
   async invalidateBelief(siteId: string, key: string, reason?: string): Promise<void> {
     const belief = await this.getBelief(siteId, key);
     if (!belief) return;
-    await this.upsertBelief(siteId, undefined, key, {
-      ...(typeof belief.value === "object" && belief.value && !Array.isArray(belief.value)
-        ? (belief.value as object)
-        : { prior: belief.value }),
-      invalidated_reason: reason ?? "contradicted",
-    }, {
-      confidence: 0,
-      importance: belief.metadata.importance,
-      source: "analytics",
-      status: "invalidated",
-    });
+    await this.upsertBelief(
+      siteId,
+      undefined,
+      key,
+      {
+        ...(typeof belief.value === "object" && belief.value && !Array.isArray(belief.value)
+          ? (belief.value as object)
+          : { prior: belief.value }),
+        invalidated_reason: reason ?? "contradicted",
+      },
+      {
+        confidence: 0,
+        importance: belief.metadata.importance,
+        source: "analytics",
+        status: "invalidated",
+      }
+    );
   }
 }

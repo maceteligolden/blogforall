@@ -5,11 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AuthSplitLayout } from "@/components/auth/auth-split-layout";
-import {
-  PlanContinueButton,
-  PlanSelectionGrid,
-  isFreePlan,
-} from "@/components/billing/plan-selection-cards";
+import { PlanContinueButton, PlanSelectionGrid, isFreePlan } from "@/components/billing/plan-selection-cards";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 import { AddCardDialog } from "@/components/billing/add-card-dialog";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
@@ -48,10 +44,7 @@ function PlansOnboardingContent() {
     setSelectedPlanId(free?._id ?? plans[0]._id);
   }, [plans, selectedPlanId]);
 
-  const selectedPlan = useMemo(
-    () => plans.find((p) => p._id === selectedPlanId),
-    [plans, selectedPlanId]
-  );
+  const selectedPlan = useMemo(() => plans.find((p) => p._id === selectedPlanId), [plans, selectedPlanId]);
 
   const goInvite = (siteId?: string) => {
     queryClient.setQueryData(["onboarding", "signup-wizard"], {
@@ -123,8 +116,7 @@ function PlansOnboardingContent() {
     setAddCardOpen(true);
   };
 
-  const loading =
-    wizardLoading || plansLoading || freeContinueMutation.isPending || paidContinueMutation.isPending;
+  const loading = wizardLoading || plansLoading || freeContinueMutation.isPending || paidContinueMutation.isPending;
 
   if (wizardLoading || plansLoading || !wizardStatus) {
     return (
@@ -173,12 +165,7 @@ function PlansOnboardingContent() {
       )}
 
       <div className="mt-8 flex justify-center sm:justify-start">
-        <PlanContinueButton
-          onClick={handleContinue}
-          loading={loading}
-          disabled={!selectedPlanId}
-          label={ctaLabel}
-        />
+        <PlanContinueButton onClick={handleContinue} loading={loading} disabled={!selectedPlanId} label={ctaLabel} />
       </div>
 
       <AddCardDialog

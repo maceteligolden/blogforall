@@ -240,8 +240,7 @@ export function OrchestratorChat({
           setRenameError(null);
         },
         onError: (err: unknown) => {
-          const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
-            ?.message;
+          const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
           setRenameError(apiMessage ?? "Could not rename conversation.");
         },
       }
@@ -346,8 +345,7 @@ export function OrchestratorChat({
           }
         : undefined);
     const sendStartedAt = Date.now();
-    const useOnboardingInterview =
-      setupInterviewActive || Boolean(threadQuery.data?.thread?.is_onboarding);
+    const useOnboardingInterview = setupInterviewActive || Boolean(threadQuery.data?.thread?.is_onboarding);
     try {
       const res: ChatTurnResponse = useOnboardingInterview
         ? await OrchestratorService.onboardingChat(currentSiteId, text)

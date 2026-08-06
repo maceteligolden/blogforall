@@ -14,11 +14,7 @@ function stepIndex(stage: Exclude<SignupWizardStage, "complete">): number {
   return STEPS.findIndex((s) => s.stage === stage);
 }
 
-export function SignupWizardProgress({
-  stage,
-}: {
-  stage: Exclude<SignupWizardStage, "complete">;
-}) {
+export function SignupWizardProgress({ stage }: { stage: Exclude<SignupWizardStage, "complete"> }) {
   const current = stepIndex(stage);
   const stepNumber = current + 1;
 

@@ -1552,8 +1552,7 @@ export class OrchestratorService {
         return this.buildSimpleResponse(thread, assistant, "onboarding");
       }
 
-      const reply =
-        "Please reply yes to apply the proposed profile, or no to set things up via chat instead.";
+      const reply = "Please reply yes to apply the proposed profile, or no to set things up via chat instead.";
       const assistant = await this.messageRepository.create({
         thread_id: threadId,
         site_id: siteId,
@@ -1661,8 +1660,7 @@ export class OrchestratorService {
         thread_id: threadId,
         site_id: siteId,
         role: OrchestratorMessageRole.ASSISTANT,
-        content:
-          "Reply yes to apply the proposed profile, no to discard it, or paste a different website URL.",
+        content: "Reply yes to apply the proposed profile, no to discard it, or paste a different website URL.",
       });
       await this.threadRepository.touch(threadId);
       return this.buildSimpleResponse(thread, assistant, "active", effectiveSessionMode);
@@ -1839,9 +1837,7 @@ export class OrchestratorService {
         {
           strategic,
           preferences,
-          ...(typeof basePatch.memory_summary === "string"
-            ? { memory_summary: basePatch.memory_summary }
-            : {}),
+          ...(typeof basePatch.memory_summary === "string" ? { memory_summary: basePatch.memory_summary } : {}),
           pending_proposal: null,
           context_refresh_active: false,
         } as never,
@@ -1859,8 +1855,7 @@ export class OrchestratorService {
 
     // Ensure completeOnboarding required fields exist.
     const businessType =
-      (typeof strategic.business_type === "string" && strategic.business_type.trim()) ||
-      "Business (from website)";
+      (typeof strategic.business_type === "string" && strategic.business_type.trim()) || "Business (from website)";
     const audience = Array.isArray(strategic.target_audience)
       ? (strategic.target_audience as string[]).filter((s) => typeof s === "string" && s.trim())
       : [];
@@ -1879,11 +1874,8 @@ export class OrchestratorService {
         brand_voice: brandVoice,
         business_goals: goals.length ? goals : ["Grow audience through content"],
         seo_priorities: Array.isArray(strategic.seo_priorities) ? strategic.seo_priorities : [],
-        publishing_channels: Array.isArray(strategic.publishing_channels)
-          ? strategic.publishing_channels
-          : [],
-        competitive_notes:
-          typeof strategic.competitive_notes === "string" ? strategic.competitive_notes : undefined,
+        publishing_channels: Array.isArray(strategic.publishing_channels) ? strategic.publishing_channels : [],
+        competitive_notes: typeof strategic.competitive_notes === "string" ? strategic.competitive_notes : undefined,
         website_url: websiteUrl,
       },
       preferences: {

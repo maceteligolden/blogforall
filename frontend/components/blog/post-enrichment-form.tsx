@@ -18,8 +18,7 @@ function linesToList(text: string): string[] {
 }
 
 export function PostEnrichmentForm({ value, onChange }: Props) {
-  const set = <K extends keyof PostEnrichment>(key: K, v: PostEnrichment[K]) =>
-    onChange({ ...value, [key]: v });
+  const set = <K extends keyof PostEnrichment>(key: K, v: PostEnrichment[K]) => onChange({ ...value, [key]: v });
 
   return (
     <div className="space-y-4">
@@ -110,9 +109,7 @@ export function PostEnrichmentForm({ value, onChange }: Props) {
           <select
             className="mt-1 w-full rounded-md bg-black border border-gray-700 text-white px-3 py-2 text-sm"
             value={value.length_preset || "medium"}
-            onChange={(e) =>
-              set("length_preset", e.target.value as PostEnrichment["length_preset"])
-            }
+            onChange={(e) => set("length_preset", e.target.value as PostEnrichment["length_preset"])}
           >
             <option value="short">Short (~800)</option>
             <option value="medium">Medium (~1500)</option>

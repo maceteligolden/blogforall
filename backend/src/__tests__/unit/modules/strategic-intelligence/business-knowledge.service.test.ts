@@ -57,13 +57,9 @@ describe("BusinessKnowledgeService", () => {
   });
 
   it("upsertFromFieldPath maps strategic.target_audience", async () => {
-    const saved = await service.upsertFromFieldPath(
-      "site1",
-      "user1",
-      "strategic.target_audience",
-      "founders, CTOs",
-      { source: "conversation" }
-    );
+    const saved = await service.upsertFromFieldPath("site1", "user1", "strategic.target_audience", "founders, CTOs", {
+      source: "conversation",
+    });
     expect(saved?.canonical_key).toBe("business.audience");
     expect(Array.isArray(saved?.value)).toBe(true);
   });

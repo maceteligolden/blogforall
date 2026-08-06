@@ -69,12 +69,7 @@ export class StrategicService {
     patch: Partial<
       Pick<
         WorkspaceStrategy,
-        | "purpose"
-        | "long_term_outcomes"
-        | "principles"
-        | "audience_summary"
-        | "perception_goals"
-        | "constraints"
+        "purpose" | "long_term_outcomes" | "principles" | "audience_summary" | "perception_goals" | "constraints"
       >
     >
   ) {
@@ -104,10 +99,7 @@ export class StrategicService {
     return res.data.data as StrategicDecisionResult;
   }
 
-  static async proposeDecisionAction(
-    siteId: string,
-    body: { kind: string; campaign_id?: string; accept?: boolean }
-  ) {
+  static async proposeDecisionAction(siteId: string, body: { kind: string; campaign_id?: string; accept?: boolean }) {
     const res = await apiClient.post(API_ENDPOINTS.STRATEGIC.DECISIONS_PROPOSE(siteId), body);
     return res.data.data as DecisionProposalResult;
   }

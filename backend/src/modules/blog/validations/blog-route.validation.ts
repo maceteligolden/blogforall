@@ -123,9 +123,7 @@ export const blogGenerationBodySchema = z.object({
   user_params: blogGenerationUserHintsSchema.optional(),
   campaign_id: z.string().optional(),
   keywords: z.array(z.string().max(100)).max(20).optional(),
-  post_type: z
-    .enum(["article", "tutorial", "how_to", "listicle", "opinion", "case_study"])
-    .optional(),
+  post_type: z.enum(["article", "tutorial", "how_to", "listicle", "opinion", "case_study"]).optional(),
   enrichment: postEnrichmentSchema.optional(),
   approved_outline: postOutlineSchema.optional(),
 });

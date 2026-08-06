@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { OrchestratorMessageRole } from "../../../shared/schemas/orchestrator-message.schema";
 
-const FIELD_BUSINESS =
-  "What does your business do, in one sentence?";
+const FIELD_BUSINESS = "What does your business do, in one sentence?";
 
 describe("OrchestratorService.startOnboardingInterview", () => {
   // Lazy import after mocks would be ideal; here we construct with stubs.
@@ -38,9 +37,7 @@ describe("OrchestratorService.startOnboardingInterview", () => {
       {} as never,
       {
         findOnboardingThread: jest.fn(async () =>
-          overrides.existingOnboardingThread === undefined
-            ? thread
-            : overrides.existingOnboardingThread
+          overrides.existingOnboardingThread === undefined ? thread : overrides.existingOnboardingThread
         ),
         create: jest.fn(async () => thread),
         markOnboardingComplete: jest.fn(async () => undefined),

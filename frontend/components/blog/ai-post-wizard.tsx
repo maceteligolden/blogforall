@@ -10,12 +10,7 @@ import { PostEnrichmentForm } from "@/components/blog/post-enrichment-form";
 import { OutlinePlanEditor } from "@/components/blog/outline-plan-editor";
 import { GenerationProgress, type GenerationStage } from "@/components/blog/generation-progress";
 import { BlogGenerationService, type GenerateBlogResponse } from "@/lib/api/services/blog-generation.service";
-import type {
-  AiWizardStep,
-  PostEnrichment,
-  PostOutline,
-  TopicSuggestion,
-} from "@/lib/types/interactive-post";
+import type { AiWizardStep, PostEnrichment, PostOutline, TopicSuggestion } from "@/lib/types/interactive-post";
 import { useCampaigns } from "@/lib/hooks/use-campaign";
 import type { Campaign } from "@/lib/api/services/campaign.service";
 import { Sparkles } from "lucide-react";
@@ -41,10 +36,7 @@ function mapStreamStage(event: string, data: unknown): GenerationStage | null {
 
 export function AiPostWizard({ onComplete, onError }: Props) {
   const { data: campaignsResponse } = useCampaigns();
-  const campaigns: Campaign[] = useMemo(
-    () => campaignsResponse?.data?.data || [],
-    [campaignsResponse]
-  );
+  const campaigns: Campaign[] = useMemo(() => campaignsResponse?.data?.data || [], [campaignsResponse]);
   const [step, setStep] = useState<AiWizardStep>("seed");
   const [seedIntent, setSeedIntent] = useState("");
   const [campaignFilter, setCampaignFilter] = useState("");
@@ -181,9 +173,7 @@ export function AiPostWizard({ onComplete, onError }: Props) {
       <AiPostWizardProgress step={step === "done" ? "generate" : step} />
 
       {error && (
-        <div className="rounded-md border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-300">
-          {error}
-        </div>
+        <div className="rounded-md border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-300">{error}</div>
       )}
 
       {step === "seed" && (

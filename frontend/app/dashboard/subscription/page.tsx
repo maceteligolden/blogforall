@@ -9,12 +9,7 @@ import { PaymentMethodsCard } from "@/components/billing/payment-methods-card";
 import { AddCardDialog } from "@/components/billing/add-card-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/modal";
-import {
-  useSubscription,
-  usePlans,
-  useChangePlan,
-  useCancelSubscription,
-} from "@/lib/hooks/use-subscription";
+import { useSubscription, usePlans, useChangePlan, useCancelSubscription } from "@/lib/hooks/use-subscription";
 import { BillingService } from "@/lib/api/services/billing.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
@@ -105,8 +100,7 @@ export default function SubscriptionPage() {
       });
     } catch (err: unknown) {
       const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Could not change plan.";
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Could not change plan.";
       toast({ title: "Error", description: message, variant: "error" });
     }
   };

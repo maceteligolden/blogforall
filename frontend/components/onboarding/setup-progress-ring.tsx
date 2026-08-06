@@ -129,9 +129,7 @@ export function SetupProgressRing() {
               </li>
             ))}
           </ul>
-          {incomplete.length > 0 && (
-            <p className="text-[11px] text-gray-500 mb-2">Next up: {incomplete[0].label}</p>
-          )}
+          {incomplete.length > 0 && <p className="text-[11px] text-gray-500 mb-2">Next up: {incomplete[0].label}</p>}
           <button
             type="button"
             onClick={() => void handleContinue()}

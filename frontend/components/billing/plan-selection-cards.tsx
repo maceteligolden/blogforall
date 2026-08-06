@@ -113,12 +113,7 @@ type PlanContinueButtonProps = {
   label?: string;
 };
 
-export function PlanContinueButton({
-  onClick,
-  disabled,
-  loading,
-  label = "Continue",
-}: PlanContinueButtonProps) {
+export function PlanContinueButton({ onClick, disabled, loading, label = "Continue" }: PlanContinueButtonProps) {
   return (
     <Button
       className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto min-w-[200px]"

@@ -65,11 +65,7 @@ export function SetupProgressBanner() {
         >
           {starting ? "Starting…" : "Continue with AI"}
         </Button>
-        <button
-          type="button"
-          onClick={dismiss}
-          className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1"
-        >
+        <button type="button" onClick={dismiss} className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1">
           Dismiss
         </button>
       </div>

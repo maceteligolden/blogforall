@@ -7,15 +7,14 @@ export const WEBSITE_PROPOSAL_CONFIRM_QUESTION =
   "Does this look right? Reply yes to apply it, or no to set things up via chat instead.";
 
 const URL_RE = /https?:\/\/[^\s<>"')\]]+/i;
-const BARE_DOMAIN_RE =
-  /(?:^|\s)((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})(?:\/[^\s]*)?/i;
+const BARE_DOMAIN_RE = /(?:^|\s)((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,})(?:\/[^\s]*)?/i;
 
 const NO_WEBSITE_RE =
   /\b(no\s+(website|site|url)|don'?t\s+have\s+(one|a\s+website|a\s+site)|no\s+i\s+don'?t|none|skip|n\/a)\b/i;
 
-const AFFIRM_RE = /^(yes|y|yeah|yep|correct|looks\s+good|confirm|apply|approve|ok|okay|sure|do\s+it|go\s+ahead)[.!]?\s*$/i;
-const REJECT_RE =
-  /^(no|n|nope|nah|wrong|reject|start\s+over|chat\s+instead|not\s+right|incorrect)[.!]?\s*$/i;
+const AFFIRM_RE =
+  /^(yes|y|yeah|yep|correct|looks\s+good|confirm|apply|approve|ok|okay|sure|do\s+it|go\s+ahead)[.!]?\s*$/i;
+const REJECT_RE = /^(no|n|nope|nah|wrong|reject|start\s+over|chat\s+instead|not\s+right|incorrect)[.!]?\s*$/i;
 
 const CONTEXT_REFRESH_INTENT_RE =
   /\b(update|refresh|revise|change|edit|redo)\b.{0,40}\b(business|brand|workspace|company|context|profile|memory|audience|voice|goals)\b|\b(business|brand)\s+context\b/i;

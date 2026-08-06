@@ -10,14 +10,7 @@ import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/works
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 import { TavilySearchService } from "../ai/tavily-search.service";
 
-export const INTERACTIVE_POST_TYPES = [
-  "article",
-  "tutorial",
-  "how_to",
-  "listicle",
-  "opinion",
-  "case_study",
-] as const;
+export const INTERACTIVE_POST_TYPES = ["article", "tutorial", "how_to", "listicle", "opinion", "case_study"] as const;
 
 export type InteractivePostType = (typeof INTERACTIVE_POST_TYPES)[number];
 
@@ -130,9 +123,7 @@ export class InteractivePostGenerationService {
     const count = Math.min(Math.max(input.count ?? 6, 3), 8);
     const { summary, campaigns } = await this.loadBusinessContext(input.siteId, input.userId);
 
-    const filteredCampaigns = input.campaign_id
-      ? campaigns.filter((c) => c.id === input.campaign_id)
-      : campaigns;
+    const filteredCampaigns = input.campaign_id ? campaigns.filter((c) => c.id === input.campaign_id) : campaigns;
 
     const campaignLines = (filteredCampaigns.length ? filteredCampaigns : campaigns)
       .slice(0, 8)
@@ -223,9 +214,7 @@ Rules:
 
     const researchBlock = [
       ...searchNotes.slice(0, 8).map((n, i) => `Search ${i + 1}. ${n.title}: ${n.snippet.slice(0, 300)}`),
-      ...extracted.map(
-        (e, i) => `Link ${i + 1}. ${e.title || e.url}: ${e.text.slice(0, 800)}`
-      ),
+      ...extracted.map((e, i) => `Link ${i + 1}. ${e.title || e.url}: ${e.text.slice(0, 800)}`),
     ].join("\n\n");
 
     const chat = createChatOpenAI({
@@ -279,9 +268,7 @@ Return working_title, thesis, 4–8 sections with heading + intent (what the sec
 
   buildContextPack(outline: PostOutline, enrichment?: PostEnrichment): string {
     const e = enrichment ?? {};
-    const sections = outline.sections
-      .map((s, i) => `${i + 1}. ${s.heading}: ${s.intent}`)
-      .join("\n");
+    const sections = outline.sections.map((s, i) => `${i + 1}. ${s.heading}: ${s.intent}`).join("\n");
     return [
       `APPROVED OUTLINE — follow closely.`,
       `Title: ${outline.working_title}`,
@@ -320,9 +307,7 @@ Return working_title, thesis, 4–8 sections with heading + intent (what the sec
 
     const strategic = memory?.strategic;
     const business_type = strategic?.business_type || "";
-    const target_audience = Array.isArray(strategic?.target_audience)
-      ? strategic!.target_audience.join(", ")
-      : "";
+    const target_audience = Array.isArray(strategic?.target_audience) ? strategic!.target_audience.join(", ") : "";
     const brand_voice = strategic?.brand_voice || "";
     const goals = Array.isArray(strategic?.business_goals) ? strategic!.business_goals.join("; ") : "";
 

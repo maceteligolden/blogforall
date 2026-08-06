@@ -450,10 +450,7 @@ export default function NewBlogPage() {
                     }}
                   />
                 ) : mode === "ai-generate" ? (
-                  <AiPostWizard
-                    onComplete={handleWizardComplete}
-                    onError={(message) => setError(message)}
-                  />
+                  <AiPostWizard onComplete={handleWizardComplete} onError={(message) => setError(message)} />
                 ) : (
                   <>
                     <div>

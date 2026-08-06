@@ -81,14 +81,14 @@ export class TavilySearchService {
    * Extract page content for one or more URLs via Tavily Extract.
    * Returns [] when disabled, unconfigured, or the API fails.
    */
-  async extract(
-    urls: string[],
-    signal?: AbortSignal
-  ): Promise<Array<{ url: string; title?: string; text: string }>> {
+  async extract(urls: string[], signal?: AbortSignal): Promise<Array<{ url: string; title?: string; text: string }>> {
     if (!BlogAiConfig.tavilyApiKey || !BlogAiConfig.enableWebSearch) {
       return [];
     }
-    const cleaned = urls.map((u) => u.trim()).filter(Boolean).slice(0, 5);
+    const cleaned = urls
+      .map((u) => u.trim())
+      .filter(Boolean)
+      .slice(0, 5);
     if (cleaned.length === 0) return [];
     if (signal?.aborted) return [];
 
@@ -106,11 +106,7 @@ export class TavilySearchService {
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        logger.warn(
-          "Tavily extract failed",
-          { status: res.status, body: text.slice(0, 200) },
-          "TavilySearchService"
-        );
+        logger.warn("Tavily extract failed", { status: res.status, body: text.slice(0, 200) }, "TavilySearchService");
         return [];
       }
 

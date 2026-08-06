@@ -35,10 +35,7 @@ describe("thread auto-title eligibility", () => {
   });
 
   it("skips onboarding and user/auto titled threads", () => {
-    const two = [
-      msg(OrchestratorMessageRole.USER, "a"),
-      msg(OrchestratorMessageRole.USER, "b"),
-    ];
+    const two = [msg(OrchestratorMessageRole.USER, "a"), msg(OrchestratorMessageRole.USER, "b")];
     expect(
       shouldAutoTitleThread(
         { is_onboarding: true, title: "Workspace onboarding", title_source: "default" } as OrchestratorThread,
@@ -46,10 +43,7 @@ describe("thread auto-title eligibility", () => {
       )
     ).toBe(false);
     expect(
-      shouldAutoTitleThread(
-        { is_onboarding: false, title: "My chat", title_source: "user" } as OrchestratorThread,
-        two
-      )
+      shouldAutoTitleThread({ is_onboarding: false, title: "My chat", title_source: "user" } as OrchestratorThread, two)
     ).toBe(false);
     expect(
       shouldAutoTitleThread(

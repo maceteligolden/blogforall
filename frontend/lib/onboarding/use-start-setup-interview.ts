@@ -81,16 +81,7 @@ export function useStartWorkspaceSetupInterview() {
         inFlight.current = false;
       }
     },
-    [
-      currentSiteId,
-      pathname,
-      router,
-      queryClient,
-      toast,
-      setThreadId,
-      focusComposer,
-      setSetupInterviewActive,
-    ]
+    [currentSiteId, pathname, router, queryClient, toast, setThreadId, focusComposer, setSetupInterviewActive]
   );
 
   return { startWorkspaceSetupInterview };

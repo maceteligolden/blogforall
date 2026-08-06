@@ -1,10 +1,4 @@
-export type InteractivePostType =
-  | "article"
-  | "tutorial"
-  | "how_to"
-  | "listicle"
-  | "opinion"
-  | "case_study";
+export type InteractivePostType = "article" | "tutorial" | "how_to" | "listicle" | "opinion" | "case_study";
 
 export type TopicSuggestion = {
   id: string;

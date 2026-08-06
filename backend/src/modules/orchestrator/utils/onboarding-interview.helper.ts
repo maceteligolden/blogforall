@@ -1,10 +1,7 @@
 import { OrchestratorMessageRole } from "../../../shared/schemas/orchestrator-message.schema";
 import type { OrchestratorMessage } from "../../../shared/schemas/orchestrator-message.schema";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
-import {
-  WEBSITE_ONBOARDING_QUESTION,
-  WEBSITE_PROPOSAL_CONFIRM_QUESTION,
-} from "./website-onboarding.helper";
+import { WEBSITE_ONBOARDING_QUESTION, WEBSITE_PROPOSAL_CONFIRM_QUESTION } from "./website-onboarding.helper";
 
 export type OnboardingFieldKey =
   | "business_type"
@@ -224,10 +221,7 @@ export function ensureOnboardingInterviewReply(
   }
 
   const ackRaw = stripQuestionSentences(trimmed);
-  const ack =
-    ackRaw && !DEAD_END_REPLIES.has(ackRaw.toLowerCase())
-      ? firstSentence(ackRaw)
-      : "Thanks for sharing.";
+  const ack = ackRaw && !DEAD_END_REPLIES.has(ackRaw.toLowerCase()) ? firstSentence(ackRaw) : "Thanks for sharing.";
 
   return {
     reply: `${ack}\n\n${nextQ}`,

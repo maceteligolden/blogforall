@@ -48,8 +48,7 @@ export class DecisionProposalService {
       contentIntent: true,
     });
     const decision =
-      ranked.decisions.find((d) => d.kind === input.kind) ??
-      (ranked.top?.kind === input.kind ? ranked.top : null);
+      ranked.decisions.find((d) => d.kind === input.kind) ?? (ranked.top?.kind === input.kind ? ranked.top : null);
 
     if (!decision) {
       throw new BadRequestError(`No decision of kind '${input.kind}' available`);
@@ -75,9 +74,7 @@ export class DecisionProposalService {
       decision.kind === "publish_awareness"
         ? `Awareness: ${campaign.goal.slice(0, 80)}`
         : `Planned: next content for ${campaign.name}`;
-    const objective =
-      decision.rationale ||
-      `Advance campaign “${campaign.name}” toward: ${campaign.goal}`;
+    const objective = decision.rationale || `Advance campaign “${campaign.name}” toward: ${campaign.goal}`;
     const prompt = `Write a blog post supporting the campaign goal: ${campaign.goal}. Focus on ${phase}. Audience: ${campaign.target_audience || "workspace audience"}.`;
 
     const draft = {

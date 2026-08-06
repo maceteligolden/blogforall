@@ -222,17 +222,10 @@ function InviteOnboardingContent() {
       )}
 
       <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        <Button
-          variant="outline"
-          className="flex-1 whitespace-nowrap border-gray-700"
-          onClick={() => finish(true)}
-        >
+        <Button variant="outline" className="flex-1 whitespace-nowrap border-gray-700" onClick={() => finish(true)}>
           Skip for now
         </Button>
-        <Button
-          className="flex-1 whitespace-nowrap bg-gray-700 hover:bg-gray-600"
-          onClick={() => finish(false)}
-        >
+        <Button className="flex-1 whitespace-nowrap bg-gray-700 hover:bg-gray-600" onClick={() => finish(false)}>
           Continue
         </Button>
       </div>

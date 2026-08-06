@@ -114,8 +114,7 @@ describe("onboarding interview one-field-at-a-time", () => {
   });
 
   it("flags multi-question replies as needing repair", () => {
-    const multi =
-      "Great. What does your business do? And who is your target audience? Also, what's your brand voice?";
+    const multi = "Great. What does your business do? And who is your target audience? Also, what's your brand voice?";
     expect(countQuestionMarks(multi)).toBeGreaterThan(1);
     expect(onboardingReplyNeedsFollowUp(multi)).toBe(true);
   });
@@ -149,12 +148,8 @@ describe("onboarding interview one-field-at-a-time", () => {
   });
 
   it("keeps a clean single-field reply unchanged", () => {
-    const clean =
-      "Got it on the prior point.\n\nWhat does your business do, in one sentence?";
-    const { reply, repaired } = ensureOnboardingInterviewReply(
-      clean,
-      emptyMemory({ onboarding_path: "secondary" })
-    );
+    const clean = "Got it on the prior point.\n\nWhat does your business do, in one sentence?";
+    const { reply, repaired } = ensureOnboardingInterviewReply(clean, emptyMemory({ onboarding_path: "secondary" }));
     expect(repaired).toBe(false);
     expect(reply).toBe(clean);
   });

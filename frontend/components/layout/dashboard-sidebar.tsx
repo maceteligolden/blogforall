@@ -106,8 +106,7 @@ export function DashboardSidebar({
           setRenameError(null);
         },
         onError: (err: unknown) => {
-          const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data
-            ?.message;
+          const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
           setRenameError(apiMessage ?? "Could not rename conversation.");
         },
       }

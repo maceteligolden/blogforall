@@ -36,9 +36,7 @@ export function TopicSuggestionList({ topics, selectedId, onSelect, loading }: P
               type="button"
               onClick={() => onSelect(topic)}
               className={`w-full text-left rounded-lg border p-4 transition-colors ${
-                selected
-                  ? "border-primary bg-primary/10"
-                  : "border-gray-800 bg-gray-950/40 hover:border-gray-600"
+                selected ? "border-primary bg-primary/10" : "border-gray-800 bg-gray-950/40 hover:border-gray-600"
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
