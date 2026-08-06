@@ -74,26 +74,6 @@ function buildSkillToolCalls(
       if (skill === "research") {
         if (moat.research_summary) output_data.research_summary = moat.research_summary;
         if (state.research_package_id) output_data.research_package_id = state.research_package_id;
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-          body: JSON.stringify({
-            sessionId: "17457c",
-            runId: "post-fix",
-            hypothesisId: "H-PERSIST",
-            location: "orchestrator-v05-graph.service.ts:buildSkillToolCalls",
-            message: "research tool_call branch",
-            data: {
-              hasPackage: Boolean(state.research_package),
-              packageId: state.research_package_id ?? null,
-              factCount: state.research_package?.facts?.length ?? 0,
-              hasSummary: Boolean(moat.research_summary),
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         if (state.research_package) {
           // Client card needs findings; keep payload bounded.
           const pkg = state.research_package;
@@ -139,28 +119,6 @@ function buildSkillToolCalls(
             ...(keyInsights.length ? { key_insights: keyInsights.slice(0, 6) } : {}),
           };
           if (keyInsights.length) output_data.key_insights = keyInsights.slice(0, 6);
-          // #region agent log
-          fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-            body: JSON.stringify({
-              sessionId: "17457c",
-              runId: "post-fix",
-              hypothesisId: "H-UI",
-              location: "orchestrator-v05-graph.service.ts:buildSkillToolCalls",
-              message: "research tool_call payload",
-              data: {
-                topic: pkg.topic,
-                factCount: facts.length,
-                defCount: definitions.length,
-                statCount: statistics.length,
-                insightCount: keyInsights.length,
-                sample: facts[0]?.text?.slice(0, 80) ?? null,
-              },
-              timestamp: Date.now(),
-            }),
-          }).catch(() => {});
-          // #endregion
         }
         if (state.metadata?.writing_checkpoint === "research" || state.workflow_stage === "research") {
           output_data.writing_checkpoint = "research";
@@ -428,8 +386,7 @@ export class OrchestratorV05GraphService {
       }
 
       const campaignDraftPrior =
-        recoverCampaignDraftFromHistory(input.history_messages ?? []) ??
-        (undefined as CampaignDraftSlots | undefined);
+        recoverCampaignDraftFromHistory(input.history_messages ?? []) ?? (undefined as CampaignDraftSlots | undefined);
 
       const campaignIntentNow =
         conversation_context.workflow_intent === "create_campaign" ||
@@ -548,34 +505,6 @@ export class OrchestratorV05GraphService {
       const clientBlogCalls = buildClientFacingBlogToolCalls(state);
       const clientCampaignCalls = buildClientFacingCampaignToolCalls(state);
       const tool_calls = [...skillToolCalls, ...clientBlogCalls, ...clientCampaignCalls];
-
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-        body: JSON.stringify({
-          sessionId: "17457c",
-          runId: "post-fix",
-          hypothesisId: "H-A",
-          location: "orchestrator-v05-graph.service.ts:runTurn",
-          message: "turn tool_calls built",
-          data: {
-            intent: conversation_context.workflow_intent,
-            recoveredCheckpoint: recovered.writing_checkpoint ?? null,
-            recoveredResearchId: recovered.research_package_id ?? null,
-            seededBlogId: seededBlogId ?? null,
-            hasStateDraft: Boolean(state.draft),
-            writingCheckpointMeta: state.metadata?.writing_checkpoint ?? null,
-            skillTools: skillToolCalls.map((t) => t.tool),
-            blogTools: clientBlogCalls.map((t) => t.tool),
-            campaignTools: clientCampaignCalls.map((t) => t.tool),
-            stage: state.workflow_stage,
-            replyPreview: (state.reply ?? "").slice(0, 100),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
 
       turnSpan.end({
         status: "ok",
@@ -729,32 +658,9 @@ export class OrchestratorV05GraphService {
       let researchPackage = state.research_package;
       if (!researchPackage && state.research_package_id) {
         researchPackage =
-          (await this.researchPackages
-            .findById(state.workspace_id, state.research_package_id)
-            .catch(() => null)) ?? undefined;
+          (await this.researchPackages.findById(state.workspace_id, state.research_package_id).catch(() => null)) ??
+          undefined;
       }
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-        body: JSON.stringify({
-          sessionId: "17457c",
-          runId: "post-fix",
-          hypothesisId: "H-A",
-          location: "orchestrator-v05-graph.service.ts:writing",
-          message: "writing skill package hydrate",
-          data: {
-            action,
-            topic,
-            packageId: state.research_package_id ?? null,
-            hadPackage: Boolean(state.research_package),
-            hydrated: Boolean(researchPackage),
-            factCount: researchPackage?.facts?.length ?? 0,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       const result = await this.writing.run({
         action,
         workspace_id: state.workspace_id,
@@ -969,11 +875,7 @@ export class OrchestratorV05GraphService {
           };
         }
         if (step.status === "create") {
-          const created = await this.campaignService.createCampaign(
-            state.user_id,
-            state.workspace_id,
-            step.payload
-          );
+          const created = await this.campaignService.createCampaign(state.user_id, state.workspace_id, step.payload);
           const campaignId = created._id?.toString();
           delete metaPatch.campaign_draft;
           metaPatch.created_campaign = {
@@ -992,9 +894,7 @@ export class OrchestratorV05GraphService {
               reply: `Created campaign “${created.name}”. You can open it in the results panel or ask me to build a roadmap next.`,
               metadata: metaPatch,
               campaign_id: campaignId,
-              artifacts_for_client: campaignId
-                ? [{ kind: "campaign", id: campaignId, title: created.name }]
-                : [],
+              artifacts_for_client: campaignId ? [{ kind: "campaign", id: campaignId, title: created.name }] : [],
             },
           };
         }

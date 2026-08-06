@@ -41,9 +41,7 @@ export function useOrchestratorArtifacts() {
   }, [threadQuery.data?.messages, liveArtifacts]);
 
   const hasArtifacts = artifacts.length > 0;
-  const hasViewableArtifacts = artifacts.some(
-    (a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a)
-  );
+  const hasViewableArtifacts = artifacts.some((a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a));
   // Only show when the panel was opened for a structured entity (blog/campaign/strategy).
   const showResultsPanel = hasViewableArtifacts && resultsPanelOpen;
 

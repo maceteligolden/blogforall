@@ -96,10 +96,7 @@ export async function synthesizeResearchNotes(input: {
       };
     }
     const synthesized = parsed.data;
-    if (
-      synthesized.facts.length + synthesized.definitions.length + synthesized.statistics.length ===
-      0
-    ) {
+    if (synthesized.facts.length + synthesized.definitions.length + synthesized.statistics.length === 0) {
       return {
         notes: applySynthesizedToNotes(input.notes, fallback),
         synthesized: fallback,
@@ -120,10 +117,7 @@ export async function synthesizeResearchNotes(input: {
   }
 }
 
-function applySynthesizedToNotes(
-  notes: ResearchNoteLike[],
-  synthesized: SynthesizedResearchNotes
-): ResearchNoteLike[] {
+function applySynthesizedToNotes(notes: ResearchNoteLike[], synthesized: SynthesizedResearchNotes): ResearchNoteLike[] {
   const claims = [
     ...synthesized.facts.map((t) => ({ text: t, kind: "fact" as const })),
     ...synthesized.definitions.map((t) => ({ text: t, kind: "definition" as const })),

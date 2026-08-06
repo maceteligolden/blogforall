@@ -25,11 +25,16 @@ export function isReviseOutlineMessage(message: string): boolean {
 }
 
 export function isApproveResearchMessage(message: string): boolean {
-  return APPROVE_RESEARCH.test(message.trim()) || (/^\s*continue\s*$/i.test(message.trim()) && !REVISE_RESEARCH.test(message));
+  return (
+    APPROVE_RESEARCH.test(message.trim()) ||
+    (/^\s*continue\s*$/i.test(message.trim()) && !REVISE_RESEARCH.test(message))
+  );
 }
 
 export function isApproveOutlineMessage(message: string): boolean {
-  return APPROVE_OUTLINE.test(message.trim()) || (/^\s*continue\s*$/i.test(message.trim()) && !REVISE_OUTLINE.test(message));
+  return (
+    APPROVE_OUTLINE.test(message.trim()) || (/^\s*continue\s*$/i.test(message.trim()) && !REVISE_OUTLINE.test(message))
+  );
 }
 
 export type RecoveredWritingState = {
@@ -103,9 +108,7 @@ export function recoverWritingStateFromHistory(messages: MessageLike[]): Recover
         data.outline
       ) {
         const ol =
-          data.outline && typeof data.outline === "object"
-            ? (data.outline as Record<string, unknown>)
-            : undefined;
+          data.outline && typeof data.outline === "object" ? (data.outline as Record<string, unknown>) : undefined;
         if (ol) outline = ol;
       }
     }

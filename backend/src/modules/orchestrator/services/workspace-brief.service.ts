@@ -102,8 +102,7 @@ export class WorkspaceBriefService {
     const deadlineMs = DEADLINE_DAYS * 24 * 60 * 60 * 1000;
     const campaignRisk = campaignsPage.data.find((c) => {
       const atRisk =
-        c.health_status === CampaignHealthStatus.AT_RISK ||
-        c.health_status === CampaignHealthStatus.UNDERPERFORMING;
+        c.health_status === CampaignHealthStatus.AT_RISK || c.health_status === CampaignHealthStatus.UNDERPERFORMING;
       const endingSoon =
         c.end_date instanceof Date &&
         c.end_date.getTime() > now &&
@@ -114,7 +113,8 @@ export class WorkspaceBriefService {
 
     const chips: string[] = [];
     if (missingOnboarding.length) chips.push("Finish brand setup");
-    if (pendingApprovalCount > 0) chips.push(`Review ${pendingApprovalCount} approval${pendingApprovalCount === 1 ? "" : "s"}`);
+    if (pendingApprovalCount > 0)
+      chips.push(`Review ${pendingApprovalCount} approval${pendingApprovalCount === 1 ? "" : "s"}`);
     if (draftCount > 0) chips.push(`Review ${draftCount} draft${draftCount === 1 ? "" : "s"}`);
     if (campaignRisk) chips.push(`Check ${campaignRisk.name}`);
     if (topGapQuestion) chips.push("Fill a knowledge gap");

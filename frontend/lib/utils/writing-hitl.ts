@@ -39,8 +39,7 @@ function asSources(raw: unknown): Source[] {
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const o = item as Record<string, unknown>;
-    const title =
-      typeof o.title === "string" ? o.title : typeof o.url === "string" ? o.url : "";
+    const title = typeof o.title === "string" ? o.title : typeof o.url === "string" ? o.url : "";
     if (!title.trim()) continue;
     out.push({
       title: title.trim(),
@@ -144,9 +143,7 @@ export function extractOutlineCardProps(
   output: Record<string, unknown>
 ): Omit<OutlineApprovalCardProps, "onApprove" | "onModify" | "onContinue" | "disabled" | "className"> | null {
   const outline =
-    output.outline && typeof output.outline === "object"
-      ? (output.outline as Record<string, unknown>)
-      : output;
+    output.outline && typeof output.outline === "object" ? (output.outline as Record<string, unknown>) : output;
 
   const title = typeof outline.title === "string" ? outline.title : undefined;
   const sectionsRaw = Array.isArray(outline.sections) ? outline.sections : [];

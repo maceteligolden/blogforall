@@ -14,7 +14,10 @@ import type { OrchestratorSessionMode } from "../utils/turn-context.helper";
 function splitReplyIntoSentences(text: string): string[] {
   const cleaned = text.replace(/\s+/g, " ").trim();
   if (!cleaned) return [];
-  const parts = cleaned.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  const parts = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   return parts.length > 0 ? parts : [cleaned];
 }
 

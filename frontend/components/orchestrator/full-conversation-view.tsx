@@ -219,9 +219,7 @@ export function FullConversationView({
                   <MicOff className="w-6 h-6" aria-hidden="true" />
                 )}
               </span>
-              <span className="text-xs text-gray-400 group-hover:text-gray-200">
-                {isListening ? "Mute" : "Unmute"}
-              </span>
+              <span className="text-xs text-gray-400 group-hover:text-gray-200">{isListening ? "Mute" : "Unmute"}</span>
             </button>
           )}
 

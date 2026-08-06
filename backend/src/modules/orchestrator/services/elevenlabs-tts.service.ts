@@ -41,11 +41,7 @@ export class ElevenLabsTtsService {
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      logger.warn(
-        "ElevenLabs TTS failed",
-        { status: res.status, body: errBody.slice(0, 200) },
-        "ElevenLabsTtsService"
-      );
+      logger.warn("ElevenLabs TTS failed", { status: res.status, body: errBody.slice(0, 200) }, "ElevenLabsTtsService");
       throw new BadRequestError(`ElevenLabs TTS failed (${res.status})`);
     }
 

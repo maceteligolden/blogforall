@@ -20,11 +20,7 @@ import { FullConversationView, type ConversationStatus } from "./full-conversati
 import { WritingStageRail } from "./writing-stage-rail";
 import { ResearchFindingsCard } from "./research-findings-card";
 import { OutlineApprovalCard } from "./outline-approval-card";
-import {
-  extractOutlineCardProps,
-  extractResearchCardProps,
-  findActiveWritingHitl,
-} from "@/lib/utils/writing-hitl";
+import { extractOutlineCardProps, extractResearchCardProps, findActiveWritingHitl } from "@/lib/utils/writing-hitl";
 import { useOrchestrator } from "./orchestrator-provider";
 import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
 import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
@@ -131,11 +127,7 @@ export function OrchestratorChat({
   const renameInputRef = useRef<HTMLInputElement>(null);
   const prevMessageCountRef = useRef(0);
   const { speak: browserSpeak, stop: stopBrowserSpeaking } = useSpeechSynthesis();
-  const {
-    speak: elevenSpeak,
-    stop: stopElevenSpeaking,
-    whenIdle: whenElevenIdle,
-  } = useElevenLabsTts(currentSiteId);
+  const { speak: elevenSpeak, stop: stopElevenSpeaking, whenIdle: whenElevenIdle } = useElevenLabsTts(currentSiteId);
   const lastSpokenRef = useRef<string | null>(null);
   const [convListening, setConvListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState("");
@@ -238,8 +230,7 @@ export function OrchestratorChat({
     if (openThreadInFlightRef.current) return;
 
     const needsNewThread = !threadId;
-    const threadLoadedEmpty =
-      !!threadId && threadQuery.isSuccess && (threadQuery.data?.messages?.length ?? 0) === 0;
+    const threadLoadedEmpty = !!threadId && threadQuery.isSuccess && (threadQuery.data?.messages?.length ?? 0) === 0;
     if (!needsNewThread && !threadLoadedEmpty) {
       // #region agent log
       fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
@@ -446,9 +437,7 @@ export function OrchestratorChat({
           return !msgs.some((p) => p.role === "user" && p.content === m.content);
         }
         if (m.role === "tool") {
-          return !msgs.some(
-            (p) => p.role === "tool" && p.tool_name === m.toolName && p.content === m.content
-          );
+          return !msgs.some((p) => p.role === "tool" && p.tool_name === m.toolName && p.content === m.content);
         }
         return true;
       })
@@ -464,9 +453,7 @@ export function OrchestratorChat({
       if (moat) threadMoatByAssistant.set(m._id, moat);
     }
     const persistedIds = new Set(msgs.map((m) => m._id));
-    const persistedContents = new Set(
-      msgs.filter((m) => m.role === "user").map((m) => m.content)
-    );
+    const persistedContents = new Set(msgs.filter((m) => m.role === "user").map((m) => m.content));
     const persisted: OptimisticMessage[] = msgs.map((m: OrchestratorMessage) => {
       const toolArtifactId =
         m.role === "tool" ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts) : undefined;
@@ -475,9 +462,7 @@ export function OrchestratorChat({
       const matched = artifactId ? artifacts.find((a) => a.id === artifactId) : undefined;
       const artifactTool =
         matched?.tool ??
-        (m.role === "assistant"
-          ? m.tool_calls?.find((c) => ENTITY_PANEL_TOOLS.has(c.tool))?.tool
-          : m.tool_name);
+        (m.role === "assistant" ? m.tool_calls?.find((c) => ENTITY_PANEL_TOOLS.has(c.tool))?.tool : m.tool_name);
       const hasDraft =
         !!matched && DRAFT_ARTIFACT_TOOLS.has(matched.tool) && !!extractBlogIdFromArtifactData(matched.outputData);
       return {
@@ -496,9 +481,7 @@ export function OrchestratorChat({
       if (persistedIds.has(m.id)) return false;
       if (m.id.startsWith("local-") && m.role === "user" && persistedContents.has(m.content)) return false;
       if (m.role === "tool") {
-        return !msgs.some(
-          (p) => p.role === "tool" && p.tool_name === m.toolName && p.content === m.content
-        );
+        return !msgs.some((p) => p.role === "tool" && p.tool_name === m.toolName && p.content === m.content);
       }
       return true;
     });
@@ -628,9 +611,7 @@ export function OrchestratorChat({
       }
       if (newLiveArtifacts.length > 0) {
         mergeLiveArtifacts(newLiveArtifacts);
-        const entityArts = newLiveArtifacts.filter(
-          (a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a)
-        );
+        const entityArts = newLiveArtifacts.filter((a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a));
         const preferred =
           [...entityArts].reverse().find((a) => DRAFT_ARTIFACT_TOOLS.has(a.tool)) ??
           [...entityArts].reverse().find((a) => a.tool === "blogs.review") ??

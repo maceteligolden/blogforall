@@ -216,28 +216,6 @@ export function advanceCampaignCollect(
   const slots: CampaignDraftSlots = { ...(prior ?? {}) };
   const intent = opts?.intent ?? "create_campaign";
 
-  // #region agent log
-  fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-    body: JSON.stringify({
-      sessionId: "17457c",
-      runId: "post-fix",
-      hypothesisId: "H-E",
-      location: "campaign-collect.helper.ts:advanceCampaignCollect",
-      message: "campaign collect entry",
-      data: {
-        intent,
-        priorKeys: Object.keys(prior ?? {}),
-        msg: message.slice(0, 80),
-        awaiting: Boolean(slots.awaiting_confirm),
-        hasHints: Boolean(opts?.hints),
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   if (
     intent === "learn_campaign" ||
     intent === "campaign_performance" ||

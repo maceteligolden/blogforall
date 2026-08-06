@@ -60,33 +60,6 @@ export function planFromState(state: OrchestratorState): PlanResult {
   const si = env.orchestrator.strategicIntelligenceEnabled;
   const checkpoint = writingCheckpoint(state);
 
-  // #region agent log
-  fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-    body: JSON.stringify({
-      sessionId: "17457c",
-      runId: "post-fix",
-      hypothesisId: "H-B",
-      location: "plan.policy.ts:planFromState",
-      message: "plan entry",
-      data: {
-        intent: ctx?.workflow_intent,
-        suggested: ctx?.suggested_next_action,
-        checkpoint,
-        hasResearch: Boolean(state.research_package_id),
-        hasOutline: Boolean(state.outline),
-        hasDraft: Boolean(state.draft),
-        hasReply: Boolean(state.reply?.trim()),
-        skillsLeft,
-        msg: (state.message ?? "").slice(0, 80),
-        isCampaign: isCampaignIntent(ctx?.workflow_intent),
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   if (skillsLeft <= 0) {
     return planResultSchema.parse({
       next: "compose",
@@ -393,8 +366,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
     }
 
     // Revise research only once per turn (message stays "Revise the research" after skill runs).
-    const reviseResearchOnce =
-      isReviseResearchMessage(state.message) && state.skills_run_this_turn === 0;
+    const reviseResearchOnce = isReviseResearchMessage(state.message) && state.skills_run_this_turn === 0;
 
     if (!state.research_package_id || reviseResearchOnce) {
       return planResultSchema.parse({
@@ -426,8 +398,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
       });
     }
 
-    const reviseOutlineOnce =
-      isReviseOutlineMessage(state.message) && state.skills_run_this_turn === 0;
+    const reviseOutlineOnce = isReviseOutlineMessage(state.message) && state.skills_run_this_turn === 0;
     if (!state.outline || reviseOutlineOnce) {
       return planResultSchema.parse({
         next: "invoke_skill",
@@ -437,9 +408,7 @@ export function planFromState(state: OrchestratorState): PlanResult {
           ...(reviseOutlineOnce ? { revise: true } : {}),
         },
         workflow_stage: "outline",
-        rationale: reviseOutlineOnce
-          ? `${opts.label}: modify outline`
-          : `${opts.label}: outline before draft`,
+        rationale: reviseOutlineOnce ? `${opts.label}: modify outline` : `${opts.label}: outline before draft`,
       });
     }
 
@@ -510,7 +479,13 @@ export function planFromState(state: OrchestratorState): PlanResult {
   const createPath =
     state.mode === "quick_draft" ||
     (ctx?.workflow_intent === "create_content" && ctx.suggested_next_action === "start_content_workflow") ||
-    Boolean(checkpoint && (researchApproved(state) || outlineApproved(state) || isReviseResearchMessage(state.message) || isReviseOutlineMessage(state.message)));
+    Boolean(
+      checkpoint &&
+      (researchApproved(state) ||
+        outlineApproved(state) ||
+        isReviseResearchMessage(state.message) ||
+        isReviseOutlineMessage(state.message))
+    );
 
   if (createPath) {
     return planWritingPipeline({

@@ -137,7 +137,9 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
       typeof state.metadata?.strategy_purpose === "string" && state.metadata.strategy_purpose.trim()
         ? ` Strategy focus: ${String(state.metadata.strategy_purpose).slice(0, 120)}.`
         : "";
-    parts.push(`Draft ready: “${title}”.${campaignHint}${strategyHint} Open it in the results panel when you want to edit.`);
+    parts.push(
+      `Draft ready: “${title}”.${campaignHint}${strategyHint} Open it in the results panel when you want to edit.`
+    );
   }
 
   if (state.optimization_plan) {

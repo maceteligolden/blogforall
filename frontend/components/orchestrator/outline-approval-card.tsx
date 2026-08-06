@@ -35,9 +35,7 @@ export function OutlineApprovalCard({
     >
       <div>
         <p className="text-[10px] uppercase tracking-widest text-sky-500/90">Outline ready</p>
-        <h3 className="text-sm font-semibold text-white mt-0.5">
-          {title?.trim() || "Proposed outline"}
-        </h3>
+        <h3 className="text-sm font-semibold text-white mt-0.5">{title?.trim() || "Proposed outline"}</h3>
         <p className="text-xs text-gray-400 mt-1">
           {headings.length ? `${headings.length} sections` : "Review the structure before drafting"}
         </p>
@@ -55,16 +53,13 @@ export function OutlineApprovalCard({
           ))}
         </ol>
       ) : (
-        <p className="text-sm text-gray-400">Outline headings weren’t available — continue to draft anyway, or modify.</p>
+        <p className="text-sm text-gray-400">
+          Outline headings weren’t available — continue to draft anyway, or modify.
+        </p>
       )}
 
       <div className="flex flex-wrap gap-2 pt-1">
-        <Button
-          size="sm"
-          onClick={onApprove}
-          disabled={disabled}
-          className="bg-primary text-white hover:bg-primary/90"
-        >
+        <Button size="sm" onClick={onApprove} disabled={disabled} className="bg-primary text-white hover:bg-primary/90">
           Approve Outline
         </Button>
         <Button

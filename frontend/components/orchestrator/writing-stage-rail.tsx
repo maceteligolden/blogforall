@@ -39,10 +39,7 @@ export function WritingStageRail({ phases, className }: WritingStageRailProps) {
 
   return (
     <div
-      className={cn(
-        "mx-4 md:mx-6 mb-2 rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2",
-        className
-      )}
+      className={cn("mx-4 md:mx-6 mb-2 rounded-lg border border-gray-800 bg-gray-950/80 px-3 py-2", className)}
       role="status"
       aria-live="polite"
     >
@@ -54,10 +51,7 @@ export function WritingStageRail({ phases, className }: WritingStageRailProps) {
           return (
             <li
               key={`${p.phase}-${i}-${p.message.slice(0, 24)}`}
-              className={cn(
-                "flex items-start gap-2 text-xs",
-                isLatest ? "text-gray-100" : "text-gray-500"
-              )}
+              className={cn("flex items-start gap-2 text-xs", isLatest ? "text-gray-100" : "text-gray-500")}
             >
               <span
                 className={cn(
@@ -69,9 +63,7 @@ export function WritingStageRail({ phases, className }: WritingStageRailProps) {
               <span className="min-w-0">
                 <span className="font-medium">{label}</span>
                 <span className="text-gray-400"> — {p.message}</span>
-                {p.percent != null && isLatest ? (
-                  <span className="text-gray-500"> ({p.percent}%)</span>
-                ) : null}
+                {p.percent != null && isLatest ? <span className="text-gray-500"> ({p.percent}%)</span> : null}
               </span>
             </li>
           );

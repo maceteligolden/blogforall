@@ -123,9 +123,7 @@ export function ResearchFindingsCard({
       <div className="flex items-start justify-between gap-3 min-w-0">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-widest text-emerald-500/90">Research ready</p>
-          <h3 className="text-sm font-semibold text-white mt-0.5 truncate">
-            {topic?.trim() || "Research findings"}
-          </h3>
+          <h3 className="text-sm font-semibold text-white mt-0.5 truncate">{topic?.trim() || "Research findings"}</h3>
           <p className="text-xs text-gray-400 mt-1">
             {typeof sourceCount === "number" ? `${sourceCount} sources` : `${sources.length} sources`}
             {typeof coverageScore === "number" ? ` · coverage ${(coverageScore * 100).toFixed(0)}%` : ""}
@@ -189,12 +187,7 @@ export function ResearchFindingsCard({
       </div>
 
       <div className="flex flex-wrap gap-2 pt-1">
-        <Button
-          size="sm"
-          onClick={onApprove}
-          disabled={disabled}
-          className="bg-primary text-white hover:bg-primary/90"
-        >
+        <Button size="sm" onClick={onApprove} disabled={disabled} className="bg-primary text-white hover:bg-primary/90">
           Approve Research
         </Button>
         <Button

@@ -94,9 +94,9 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const [effectiveSessionMode, setEffectiveSessionMode] = useState<OperationalSessionMode>("casual");
   const [draftGenerating, setDraftGenerating] = useState(false);
   const [livePhase, setLivePhase] = useState<{ phase: string; message: string; percent?: number } | null>(null);
-  const [livePhaseHistory, setLivePhaseHistory] = useState<
-    Array<{ phase: string; message: string; percent?: number }>
-  >([]);
+  const [livePhaseHistory, setLivePhaseHistory] = useState<Array<{ phase: string; message: string; percent?: number }>>(
+    []
+  );
   const [activeDraftBlogId, setActiveDraftBlogId] = useState<string | null>(null);
   const [selectionContext, setSelectionContext] = useState<OrchestratorSelectionContext | null>(null);
   const composerFocusRef = useRef<(() => void) | null>(null);
@@ -378,4 +378,3 @@ export function useOrchestrator(): OrchestratorContextValue {
   }
   return ctx;
 }
-

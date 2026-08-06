@@ -55,12 +55,7 @@ export const ENTITY_PANEL_TOOLS = new Set([
 /** @deprecated Use ENTITY_PANEL_TOOLS — kept as alias for gradual migration */
 export const VIEWABLE_ARTIFACT_TOOLS = ENTITY_PANEL_TOOLS;
 
-export const DRAFT_ARTIFACT_TOOLS = new Set([
-  "blogs.generateDraft",
-  "blogs.createDraft",
-  "blogs.update",
-  "blogs.get",
-]);
+export const DRAFT_ARTIFACT_TOOLS = new Set(["blogs.generateDraft", "blogs.createDraft", "blogs.update", "blogs.get"]);
 
 export const CAMPAIGN_PANEL_TOOLS = new Set(["campaigns.get", "campaigns.create", "campaigns.update"]);
 export const STRATEGY_PANEL_TOOLS = new Set(["strategy.get", "strategy.update"]);
