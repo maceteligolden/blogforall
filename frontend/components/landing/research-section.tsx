@@ -1,5 +1,5 @@
 import { Reveal } from "./reveal";
-import { ProductMock } from "./product-mock";
+import { IllustrationResearch } from "./illustrations";
 import { RESEARCH } from "@/lib/landing/landing-copy";
 
 export function ResearchSection() {
@@ -20,11 +20,10 @@ export function ResearchSection() {
           <p className="landing-caption">{RESEARCH.footnote}</p>
         </Reveal>
         <Reveal delayMs={60} className="lg:order-1">
-          <ProductMock
-            variant="research"
-            alt="Research sources panel with cited references"
-            annotation={RESEARCH.annotation}
-          />
+          <div>
+            <IllustrationResearch className="max-w-md mx-auto lg:mx-0" />
+            <p className="mt-3 text-center lg:text-left text-xs text-primary/90">{RESEARCH.annotation}</p>
+          </div>
         </Reveal>
       </div>
     </section>

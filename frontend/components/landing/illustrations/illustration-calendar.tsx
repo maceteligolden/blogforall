@@ -1,40 +1,97 @@
-/** Minimal calendar / schedule motif. */
-export function IllustrationCalendar({ className = "" }: { className?: string }) {
+import { cn } from "@/lib/utils/cn";
+import { IllustrationShell } from "./illustration-shell";
+
+/** Editorial calendar — month grid with scheduled posts and detail rail. */
+export function IllustrationCalendar({
+  className = "",
+  animated = true,
+}: {
+  className?: string;
+  animated?: boolean;
+}) {
   return (
-    <svg
-      className={`text-primary ${className}`}
-      viewBox="0 0 200 160"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden
-    >
-      <rect
-        x="32"
-        y="36"
-        width="136"
-        height="104"
-        rx="10"
-        className="stroke-gray-700"
-        strokeWidth="1.5"
-        fill="rgb(17 24 39 / 0.5)"
-      />
-      <path d="M32 56h136" className="stroke-gray-600" strokeWidth="1.2" />
-      <rect x="44" y="44" width="24" height="8" rx="2" className="fill-primary/35" />
-      <rect x="132" y="44" width="24" height="8" rx="2" className="fill-gray-600" />
-      {[0, 1, 2, 3].flatMap((row) =>
-        [0, 1, 2, 3].map((col) => (
-          <rect
-            key={`${row}-${col}`}
-            x={48 + col * 28}
-            y={68 + row * 22}
-            width="20"
-            height="16"
-            rx="3"
-            className={row === 1 && col === 2 ? "fill-primary/50 stroke-primary/80" : "fill-gray-800 stroke-gray-700"}
-            strokeWidth="1"
-          />
-        ))
-      )}
-    </svg>
+    <IllustrationShell className={className} animated={animated} wide>
+      <svg viewBox="0 0 320 200" className="h-full w-full" fill="none" aria-hidden>
+        <rect x="12" y="12" width="196" height="176" rx="14" className="fill-white/[0.04] stroke-white/12" strokeWidth="1" />
+        <rect x="12" y="12" width="196" height="32" rx="14" className="fill-primary/15" />
+        <rect x="12" y="32" width="196" height="12" className="fill-primary/15" />
+        <text x="110" y="32" textAnchor="middle" className="fill-white/75" fontSize="11" fontFamily="system-ui" fontWeight="600">
+          Content calendar
+        </text>
+
+        {/* Weekday labels */}
+        {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+          <text
+            key={`${d}-${i}`}
+            x={32 + i * 24}
+            y="58"
+            textAnchor="middle"
+            className="fill-white/30"
+            fontSize="7"
+            fontFamily="system-ui"
+          >
+            {d}
+          </text>
+        ))}
+
+        {/* Days */}
+        {Array.from({ length: 28 }).map((_, i) => {
+          const col = i % 7;
+          const row = Math.floor(i / 7);
+          const selected = i === 10;
+          const hasPost = i === 10 || i === 17 || i === 22;
+          return (
+            <g key={i} transform={`translate(${20 + col * 24} ${68 + row * 26})`}>
+              <rect
+                width="20"
+                height="20"
+                rx="5"
+                className={
+                  selected
+                    ? "fill-primary/25 stroke-primary"
+                    : "fill-white/[0.03] stroke-white/10"
+                }
+                strokeWidth="1"
+              />
+              <text x="10" y="13" textAnchor="middle" className="fill-white/45" fontSize="7" fontFamily="system-ui">
+                {i + 1}
+              </text>
+              {hasPost && (
+                <circle
+                  cx="10"
+                  cy="17"
+                  r="1.6"
+                  className={cn("fill-primary", selected && animated && "motion-safe:animate-landing-pulse-soft")}
+                />
+              )}
+            </g>
+          );
+        })}
+
+        {/* Detail panel */}
+        <rect x="220" y="12" width="88" height="176" rx="14" className="fill-white/[0.05] stroke-primary/25" strokeWidth="1" />
+        <text x="264" y="36" textAnchor="middle" className="fill-white/50" fontSize="8" fontFamily="system-ui">
+          Aug 11
+        </text>
+        <rect x="232" y="48" width="64" height="52" rx="10" className="fill-primary/15 stroke-primary/40" strokeWidth="1" />
+        <rect x="242" y="60" width="28" height="6" rx="3" className="fill-primary/80" />
+        <rect x="242" y="72" width="44" height="3" rx="1.5" className="fill-white/35" />
+        <rect x="242" y="80" width="36" height="2.5" rx="1" className="fill-white/15" />
+        <text x="242" y="96" className="fill-white/40" fontSize="7" fontFamily="system-ui">
+          5:00 PM
+        </text>
+
+        <rect x="232" y="112" width="64" height="40" rx="10" className="fill-white/[0.04] stroke-white/10" strokeWidth="1" />
+        <rect x="242" y="124" width="36" height="3" rx="1.5" className="fill-white/20" />
+        <rect x="242" y="132" width="28" height="2.5" rx="1" className="fill-white/10" />
+
+        <path
+          d="M208 90 H220"
+          className={cn("stroke-primary/60", animated && "motion-safe:animate-landing-dash-flow")}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </IllustrationShell>
   );
 }

@@ -22,7 +22,7 @@ export function MemorySection() {
         <Reveal delayMs={60}>
           <ProductMock
             variant="memory"
-            alt="Business memory showing remembered audience, USP, and objections"
+            alt="Workspace onboarding gathering business context from a website"
             annotation={MEMORY.annotation}
           />
         </Reveal>

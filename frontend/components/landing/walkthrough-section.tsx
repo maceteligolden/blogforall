@@ -6,6 +6,7 @@ import { StartFreeButton } from "./start-free-button";
 import { LANDING_CTAS, WALKTHROUGH } from "@/lib/landing/landing-copy";
 import { cn } from "@/lib/utils/cn";
 
+/** Unique screenshot per step — draft uses plan UI (not the hero conversational shot). */
 const STAGE_VARIANTS = ["goal", "context", "research", "draft", "calendar"] as const;
 
 export function WalkthroughSection() {

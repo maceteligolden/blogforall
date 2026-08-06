@@ -1,5 +1,5 @@
 import { Reveal } from "./reveal";
-import { ProductMock } from "./product-mock";
+import { IllustrationCampaign } from "./illustrations";
 import { StartFreeButton } from "./start-free-button";
 import { CAMPAIGNS } from "@/lib/landing/landing-copy";
 
@@ -23,11 +23,10 @@ export function CampaignsSection() {
             <StartFreeButton size="lg" />
           </Reveal>
           <Reveal delayMs={60}>
-            <ProductMock
-              variant="calendar"
-              alt="Publishing calendar with scheduled campaign posts"
-              annotation={CAMPAIGNS.annotation}
-            />
+            <div>
+              <IllustrationCampaign className="max-w-md mx-auto lg:ml-auto" />
+              <p className="mt-3 text-center lg:text-right text-xs text-primary/90">{CAMPAIGNS.annotation}</p>
+            </div>
           </Reveal>
         </div>
       </div>

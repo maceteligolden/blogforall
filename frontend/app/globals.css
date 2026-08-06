@@ -90,12 +90,112 @@
       opacity: 1;
     }
   }
+
+  @keyframes landing-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes landing-glow-breathe {
+    0%,
+    100% {
+      opacity: 0.55;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes landing-line-draw {
+    0% {
+      stroke-dashoffset: 48;
+    }
+    50% {
+      stroke-dashoffset: 0;
+    }
+    100% {
+      stroke-dashoffset: 48;
+    }
+  }
+
+  @keyframes landing-dash-flow {
+    to {
+      stroke-dashoffset: -64;
+    }
+  }
+
+  @keyframes landing-pulse-soft {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scale(0.92);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes landing-type-sweep {
+    0% {
+      transform: scaleX(0.15);
+      opacity: 0.35;
+    }
+    40% {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+    100% {
+      transform: scaleX(1);
+      opacity: 0.55;
+    }
+  }
+
+  .motion-safe\:animate-landing-float {
+    animation: landing-float 5.5s ease-in-out infinite;
+  }
+
+  .motion-safe\:animate-landing-glow-breathe {
+    animation: landing-glow-breathe 4.5s ease-in-out infinite;
+  }
+
+  .motion-safe\:animate-landing-line-draw {
+    stroke-dasharray: 48;
+    animation: landing-line-draw 3.2s ease-in-out infinite;
+  }
+
+  .motion-safe\:animate-landing-dash-flow {
+    stroke-dasharray: 6 10;
+    animation: landing-dash-flow 2.4s linear infinite;
+  }
+
+  .motion-safe\:animate-landing-pulse-soft {
+    animation: landing-pulse-soft 2.8s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .motion-safe\:animate-landing-type-sweep {
+    transform-origin: left center;
+    animation: landing-type-sweep 2.8s ease-in-out infinite;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .motion-safe\:animate-\[landing-hero-in_0\.8s_ease-out\],
   .motion-safe\:animate-\[landing-fade_0\.35s_ease-out\],
-  .motion-safe\:animate-\[landing-grid-breathe_12s_ease-in-out_infinite\] {
+  .motion-safe\:animate-\[landing-fade_0\.45s_ease-out\],
+  .motion-safe\:animate-\[landing-grid-breathe_12s_ease-in-out_infinite\],
+  .motion-safe\:animate-landing-float,
+  .motion-safe\:animate-landing-glow-breathe,
+  .motion-safe\:animate-landing-line-draw,
+  .motion-safe\:animate-landing-dash-flow,
+  .motion-safe\:animate-landing-pulse-soft,
+  .motion-safe\:animate-landing-type-sweep {
     animation: none !important;
   }
 }

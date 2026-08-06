@@ -10,17 +10,9 @@ export function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative min-h-0 lg:min-h-[78vh] flex items-center justify-center px-6 lg:px-8 py-16 lg:py-24 overflow-hidden scroll-mt-20"
+      className="relative flex flex-col items-center justify-center px-6 lg:px-8 pt-16 lg:pt-24 pb-12 lg:pb-20 overflow-hidden scroll-mt-20"
     >
       <Atmosphere />
-      <div
-        className="absolute inset-x-0 bottom-0 h-[42%] opacity-30 pointer-events-none [mask-image:linear-gradient(to_bottom,transparent,black_35%,transparent)]"
-        aria-hidden
-      >
-        <div className="max-w-5xl mx-auto px-8 translate-y-10">
-          <ProductMock variant="workspace" decorative className="scale-[0.95] origin-top" />
-        </div>
-      </div>
 
       <div className="relative max-w-3xl mx-auto text-center z-10">
         <p className="landing-eyebrow mb-4 font-display text-sm tracking-[0.2em]">{HERO.eyebrow}</p>
@@ -38,6 +30,16 @@ export function HeroSection() {
           </Link>
         </div>
         <p className="landing-caption text-gray-400 mt-6">{LANDING_CTAS.trustLine}</p>
+      </div>
+
+      <div className="relative z-10 w-full max-w-5xl mx-auto mt-12 lg:mt-16">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-[72px] motion-safe:animate-landing-glow-breathe" />
+        <ProductMock
+          variant="workspace"
+          alt="Bloggr workspace showing a conversation and a draft panel"
+          priority
+          className="motion-safe:animate-[landing-fade_0.45s_ease-out]"
+        />
       </div>
     </section>
   );

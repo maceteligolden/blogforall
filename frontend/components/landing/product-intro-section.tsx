@@ -1,5 +1,5 @@
 import { Reveal } from "./reveal";
-import { ProductMock } from "./product-mock";
+import { IllustrationWorkspace } from "./illustrations";
 import { PRODUCT_INTRO } from "@/lib/landing/landing-copy";
 
 export function ProductIntroSection() {
@@ -14,7 +14,10 @@ export function ProductIntroSection() {
           </div>
         </Reveal>
         <Reveal delayMs={60}>
-          <ProductMock variant="workspace" alt="Bloggr workspace showing a conversation and a draft panel" />
+          <div className="relative mx-auto max-w-lg">
+            <IllustrationWorkspace className="max-w-lg" />
+            <p className="mt-4 text-center text-xs text-primary/90">Conversation and draft, side by side</p>
+          </div>
         </Reveal>
       </div>
     </section>
