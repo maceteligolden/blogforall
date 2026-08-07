@@ -44,6 +44,7 @@ import { useRenameThread } from "@/lib/hooks/use-rename-thread";
 import { useSpeechSynthesis } from "@/lib/hooks/use-speech-synthesis";
 import { useElevenLabsTts } from "@/lib/hooks/use-elevenlabs-tts";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
+import { CHAT_ROLES, CONVERSATION_STATUS } from "@/lib/constants/orchestrator";
 
 interface PendingTurn {
   userText: string;
@@ -419,7 +420,7 @@ export function OrchestratorChat({
   };
 
   useEffect(() => {
-    const latest = threadQuery.data?.messages?.find((m) => m.role === "assistant" && m.pending_approval_id);
+    const latest = threadQuery.data?.messages?.find((m) => m.role === CHAT_ROLES.ASSISTANT && m.pending_approval_id);
     if (!latest) {
       setPendingApproval((prev) => (prev?.id ? null : prev));
     }
@@ -433,11 +434,11 @@ export function OrchestratorChat({
     setOptimisticMessages((prev) =>
       prev.filter((m) => {
         if (persistedIds.has(m.id)) return false;
-        if (m.id.startsWith("local-") && m.role === "user") {
-          return !msgs.some((p) => p.role === "user" && p.content === m.content);
+        if (m.id.startsWith("local-") && m.role === CHAT_ROLES.USER) {
+          return !msgs.some((p) => p.role === CHAT_ROLES.USER && p.content === m.content);
         }
-        if (m.role === "tool") {
-          return !msgs.some((p) => p.role === "tool" && p.tool_name === m.toolName && p.content === m.content);
+        if (m.role === CHAT_ROLES.TOOL) {
+          return !msgs.some((p) => p.role === CHAT_ROLES.TOOL && p.tool_name === m.toolName && p.content === m.content);
         }
         return true;
       })
@@ -448,40 +449,40 @@ export function OrchestratorChat({
     const msgs = threadQuery.data?.messages ?? [];
     const threadMoatByAssistant = new Map<string, V05MoatSnapshot>();
     for (const m of msgs) {
-      if (m.role !== "assistant") continue;
+        if (m.role !== CHAT_ROLES.ASSISTANT) continue;
       const moat = extractMoatSnapshot({ messages: [m] });
       if (moat) threadMoatByAssistant.set(m._id, moat);
     }
     const persistedIds = new Set(msgs.map((m) => m._id));
-    const persistedContents = new Set(msgs.filter((m) => m.role === "user").map((m) => m.content));
+    const persistedContents = new Set(msgs.filter((m) => m.role === CHAT_ROLES.USER).map((m) => m.content));
     const persisted: OptimisticMessage[] = msgs.map((m: OrchestratorMessage) => {
       const toolArtifactId =
-        m.role === "tool" ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts) : undefined;
-      const assistantArtifactId = m.role === "assistant" ? findArtifactIdForAssistantMessage(m, artifacts) : undefined;
+        m.role === CHAT_ROLES.TOOL ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts) : undefined;
+      const assistantArtifactId = m.role === CHAT_ROLES.ASSISTANT ? findArtifactIdForAssistantMessage(m, artifacts) : undefined;
       const artifactId = toolArtifactId ?? assistantArtifactId;
       const matched = artifactId ? artifacts.find((a) => a.id === artifactId) : undefined;
       const artifactTool =
         matched?.tool ??
-        (m.role === "assistant" ? m.tool_calls?.find((c) => ENTITY_PANEL_TOOLS.has(c.tool))?.tool : m.tool_name);
+        (m.role === CHAT_ROLES.ASSISTANT ? m.tool_calls?.find((c) => ENTITY_PANEL_TOOLS.has(c.tool))?.tool : m.tool_name);
       const hasDraft =
         !!matched && DRAFT_ARTIFACT_TOOLS.has(matched.tool) && !!extractBlogIdFromArtifactData(matched.outputData);
       return {
         id: m._id,
-        role: m.role === "system" ? "assistant" : m.role,
+        role: m.role === CHAT_ROLES.SYSTEM ? CHAT_ROLES.ASSISTANT : m.role,
         content: m.content,
         toolName: m.tool_name,
         artifactId,
         artifactTool,
         hasDraftEntity: hasDraft,
         viewCtaLabel: matched && artifactHasEntityId(matched) ? entityViewCtaLabel(matched.tool) : null,
-        moat: m.role === "assistant" ? (threadMoatByAssistant.get(m._id) ?? null) : null,
+        moat: m.role === CHAT_ROLES.ASSISTANT ? (threadMoatByAssistant.get(m._id) ?? null) : null,
       };
     });
     const pendingOptimistic = optimisticMessages.filter((m) => {
       if (persistedIds.has(m.id)) return false;
-      if (m.id.startsWith("local-") && m.role === "user" && persistedContents.has(m.content)) return false;
-      if (m.role === "tool") {
-        return !msgs.some((p) => p.role === "tool" && p.tool_name === m.toolName && p.content === m.content);
+      if (m.id.startsWith("local-") && m.role === CHAT_ROLES.USER && persistedContents.has(m.content)) return false;
+      if (m.role === CHAT_ROLES.TOOL) {
+        return !msgs.some((p) => p.role === CHAT_ROLES.TOOL && p.tool_name === m.toolName && p.content === m.content);
       }
       return true;
     });
@@ -515,7 +516,7 @@ export function OrchestratorChat({
     setLastTurnToolCalls([]);
     const userMsg: OptimisticMessage = {
       id: `local-${Date.now()}`,
-      role: "user",
+      role: CHAT_ROLES.USER,
       content: text,
     };
     setOptimisticMessages((prev) => [...prev, userMsg]);
@@ -666,7 +667,7 @@ export function OrchestratorChat({
         ...prev.filter((m) => m.id.startsWith("local-")),
         {
           id: res.assistant_message.id,
-          role: "assistant",
+          role: CHAT_ROLES.ASSISTANT,
           content: res.assistant_message.content,
           artifactId: panelArt?.id,
           artifactTool: panelArt?.tool,
@@ -805,20 +806,20 @@ export function OrchestratorChat({
   };
 
   const lastUserMessage = useMemo(() => {
-    return [...combinedMessages].reverse().find((m) => m.role === "user")?.content;
+    return [...combinedMessages].reverse().find((m) => m.role === CHAT_ROLES.USER)?.content;
   }, [combinedMessages]);
 
   const lastAssistantMessage = useMemo(() => {
-    return [...combinedMessages].reverse().find((m) => m.role === "assistant")?.content;
+    return [...combinedMessages].reverse().find((m) => m.role === CHAT_ROLES.ASSISTANT)?.content;
   }, [combinedMessages]);
 
   const conversationStatus: ConversationStatus = isSpeaking
-    ? "speaking"
+    ? CONVERSATION_STATUS.SPEAKING
     : pending
-      ? "thinking"
+      ? CONVERSATION_STATUS.THINKING
       : convListening
-        ? "listening"
-        : "idle";
+        ? CONVERSATION_STATUS.LISTENING
+        : CONVERSATION_STATUS.IDLE;
 
   const activeWritingHitl = useMemo(() => {
     if (lastTurnToolCalls.length) {
@@ -845,40 +846,6 @@ export function OrchestratorChat({
     activeWritingHitl?.kind === "research" ? extractResearchCardProps(activeWritingHitl.output) : null;
   const outlineCardProps =
     activeWritingHitl?.kind === "outline" ? extractOutlineCardProps(activeWritingHitl.output) : null;
-
-  // #region agent log
-  useEffect(() => {
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-      body: JSON.stringify({
-        sessionId: "17457c",
-        runId: "post-fix",
-        hypothesisId: "H-C",
-        location: "orchestrator-chat.tsx:hitl",
-        message: "hitl card state",
-        data: {
-          hitlKind: activeWritingHitl?.kind ?? null,
-          hasResearchCard: Boolean(researchCardProps),
-          hasOutlineCard: Boolean(outlineCardProps),
-          lastTools: lastTurnToolCalls.map((c) => c.tool),
-          conversationMode,
-          pending: Boolean(pending),
-          activeDraftBlogId,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }, [
-    activeWritingHitl?.kind,
-    researchCardProps,
-    outlineCardProps,
-    lastTurnToolCalls,
-    conversationMode,
-    pending,
-    activeDraftBlogId,
-  ]);
-  // #endregion
 
   if (conversationMode) {
     const voiceWorkflowActions =
@@ -1141,9 +1108,6 @@ export function OrchestratorChat({
               : "Ask your content strategist…"
           }
         />
-        <p className="mt-2 text-xs text-gray-500">
-          Destructive actions (delete, publish, unpublish) always ask for an in-chat confirmation before running.
-        </p>
       </div>
     </div>
   );

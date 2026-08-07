@@ -103,7 +103,7 @@ export class CampaignController {
       const { id } = req.validatedParams as { siteId: string; id: string };
       const siteId = this.siteId(req);
       const campaign = await this.campaignService.activateCampaign(id, siteId, userId);
-      sendSuccess(res, "Campaign activated successfully", campaign);
+      sendSuccess(res, "Campaign activated successfully", {userId, campaign});
     } catch (error) {
       next(error);
     }

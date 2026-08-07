@@ -7,6 +7,7 @@
     "build": "npm run lint && npm run format:check && tsc",
     "ci": "npm run build",
     "dev": "nodemon src/index.ts",
+    "dev:debug": "npm run build && node --inspect dist/src/index.js",
     "start": "node dist/src/index.js",
     "test": "jest ./src --passWithNoTests",
     "lint": "eslint \"src/**/*.ts\"",
