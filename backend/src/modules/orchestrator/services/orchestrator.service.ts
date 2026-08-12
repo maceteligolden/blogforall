@@ -342,7 +342,15 @@ export class OrchestratorService {
       },
       { siteId }
     );
-    if (decision === "approved") {
+    if (decided.action === "strategy_update") {
+      // orchestratorv2 HITL: resume LangGraph on the same thread_id
+      const { default: OrchestratorV2Service } = await import(
+        "../../orchestratorv2/orchestrator.service"
+      );
+      const { container } = await import("tsyringe");
+      const v2 = container.resolve(OrchestratorV2Service);
+      await v2.resumeStrategyApproval(decided, decision, note);
+    } else if (decision === "approved") {
       await this.executeApprovedAction(decided, userId);
     }
     return decided;

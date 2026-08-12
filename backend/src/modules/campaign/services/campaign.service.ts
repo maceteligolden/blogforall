@@ -283,7 +283,7 @@ export class CampaignService {
 
   async activateCampaign(campaignId: string, siteId: string, userId: string): Promise<Campaign> {
     const campaign = await this.getCampaignById(campaignId, siteId, userId);
-   
+
     if (campaign.status === CampaignStatus.ACTIVE) {
       return campaign;
     }

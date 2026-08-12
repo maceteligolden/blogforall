@@ -21,7 +21,6 @@ import referralRouter from "./modules/referral/routes/referral.router";
 import waitlistRouter from "./modules/waitlist/routes/waitlist.router";
 import siteMemoryRouter from "./modules/memory/routes/site-memory.router";
 import siteStrategicRouter from "./modules/strategic-intelligence/routes/site-strategic.router";
-
 const router = Router();
 
 // Auth routes

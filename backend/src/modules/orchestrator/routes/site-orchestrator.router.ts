@@ -1,6 +1,7 @@
 import { Router, type RequestHandler } from "express";
 import { container } from "tsyringe";
 import { OrchestratorController } from "../controllers/orchestrator.controller";
+import OrchestratorV2controller from "../../orchestratorv2/orchestrator.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 import { validateBody, validateParams, validateQuery } from "../../../shared/middlewares/validate.middleware";
 import * as V from "../validations/orchestrator-route.validation";
@@ -10,22 +11,18 @@ import { uploadContextSingle } from "../../../shared/middlewares/context-upload.
  * Workspace Orchestrator Agent router. Mounted at `/sites/:siteId/orchestrator`
  * so every endpoint is automatically tenant-scoped via the JWT + siteId param.
  *
- * v1 endpoints (stubbed; full behavior in Phase 2):
- *  - POST   /chat                       — conversational turn against the supervisor
- *  - POST   /onboarding/chat            — onboarding-mode turn (gates Site.status)
- *  - GET    /threads                    — list user's threads in this workspace
- *  - GET    /threads/:threadId          — fetch thread + messages
- *  - GET    /approvals                  — list pending/decided approvals
- *  - POST   /approvals/:approvalId/decide — approve or reject an approval
+ * Chat turns are handled by orchestratorv2. Threads/onboarding/approvals/knowledge
+ * remain on the v1 controller.
  */
 const router = Router({ mergeParams: true });
 
 router.use(authMiddleware, validateParams(V.siteIdParamSchema));
 
 const controller = container.resolve(OrchestratorController);
+const v2Controller = container.resolve(OrchestratorV2controller);
 
-router.post("/chat", validateBody(V.orchestratorChatBodySchema), controller.chat);
-router.post("/chat/stream", validateBody(V.orchestratorChatBodySchema), controller.chatStream);
+router.post("/chat", validateBody(V.orchestratorChatBodySchema), v2Controller.chat);
+router.post("/chat/stream", validateBody(V.orchestratorChatBodySchema), v2Controller.chatStream);
 router.post("/onboarding/chat", validateBody(V.orchestratorOnboardingChatBodySchema), controller.onboardingChat);
 router.post("/onboarding/start", controller.startOnboardingInterview);
 router.post("/voice/tts", validateBody(V.voiceTtsBodySchema), controller.voiceTts);

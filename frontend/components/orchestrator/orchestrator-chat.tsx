@@ -449,7 +449,7 @@ export function OrchestratorChat({
     const msgs = threadQuery.data?.messages ?? [];
     const threadMoatByAssistant = new Map<string, V05MoatSnapshot>();
     for (const m of msgs) {
-        if (m.role !== CHAT_ROLES.ASSISTANT) continue;
+      if (m.role !== CHAT_ROLES.ASSISTANT) continue;
       const moat = extractMoatSnapshot({ messages: [m] });
       if (moat) threadMoatByAssistant.set(m._id, moat);
     }
@@ -458,12 +458,15 @@ export function OrchestratorChat({
     const persisted: OptimisticMessage[] = msgs.map((m: OrchestratorMessage) => {
       const toolArtifactId =
         m.role === CHAT_ROLES.TOOL ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts) : undefined;
-      const assistantArtifactId = m.role === CHAT_ROLES.ASSISTANT ? findArtifactIdForAssistantMessage(m, artifacts) : undefined;
+      const assistantArtifactId =
+        m.role === CHAT_ROLES.ASSISTANT ? findArtifactIdForAssistantMessage(m, artifacts) : undefined;
       const artifactId = toolArtifactId ?? assistantArtifactId;
       const matched = artifactId ? artifacts.find((a) => a.id === artifactId) : undefined;
       const artifactTool =
         matched?.tool ??
-        (m.role === CHAT_ROLES.ASSISTANT ? m.tool_calls?.find((c) => ENTITY_PANEL_TOOLS.has(c.tool))?.tool : m.tool_name);
+        (m.role === CHAT_ROLES.ASSISTANT
+          ? m.tool_calls?.find((c) => ENTITY_PANEL_TOOLS.has(c.tool))?.tool
+          : m.tool_name);
       const hasDraft =
         !!matched && DRAFT_ARTIFACT_TOOLS.has(matched.tool) && !!extractBlogIdFromArtifactData(matched.outputData);
       return {
