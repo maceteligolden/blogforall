@@ -25,7 +25,7 @@ export function LaunchSection() {
 
       <div className="relative max-w-3xl mx-auto text-center">
         <span className="landing-eyebrow mb-4 block">Launch timeline</span>
-        <h2 className="landing-section-title text-white mb-4">We launch by mid July 2026.</h2>
+        <h2 className="landing-section-title text-white mb-4">Early access is opening soon.</h2>
         <p className="landing-body text-gray-400 max-w-xl mx-auto mb-8">
           Early access gets you founding-member pricing, a private beta invite, and a shot at lifetime access when you
           share Bloggr with your team.

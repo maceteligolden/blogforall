@@ -6,3 +6,4 @@ export { DifferenceSection } from "./difference-section";
 export { GenericAiSection } from "./generic-ai-section";
 export { AudienceSection } from "./audience-section";
 export { LaunchSection } from "./launch-section";
+export { WaitlistLandingPage } from "./waitlist-landing-page";

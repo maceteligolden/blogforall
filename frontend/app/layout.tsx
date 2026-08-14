@@ -5,6 +5,8 @@ import { QueryProvider } from "@/lib/providers/query-provider";
 import { AnalyticsProvider } from "@/lib/analytics/provider";
 import { IdentifyUserProvider } from "@/lib/analytics/identify-provider";
 import { ChunkErrorHandler } from "@/components/chunk-error-handler";
+import { LANDING_SEO, WAITLIST_SEO } from "@/lib/landing/landing-copy";
+import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -17,13 +19,14 @@ const montserrat = Montserrat({
   variable: "--font-sans",
 });
 
+const seo = IS_WAITLIST_MODE ? WAITLIST_SEO : LANDING_SEO;
+
 export const metadata: Metadata = {
   title: {
-    default: "Bloggr — AI content strategist that knows your business",
+    default: seo.title,
     template: "%s | Bloggr",
   },
-  description:
-    "Plan, research, write, and publish on-brand blog content through conversation—not endless prompts. Full access free.",
+  description: seo.description,
 };
 
 export default function RootLayout({
