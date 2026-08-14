@@ -144,16 +144,18 @@ export function LandingHeader() {
         )}
       >
         <div className="px-6 py-4 flex flex-col gap-1">
-          {navLinks.filter((link) => !("hideOnMobile" in link && link.hideOnMobile)).map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={closeMobile}
-              className="text-sm text-gray-400 hover:text-white transition-colors py-3 min-h-[44px] flex items-center"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks
+            .filter((link) => !("hideOnMobile" in link && link.hideOnMobile))
+            .map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={closeMobile}
+                className="text-sm text-gray-400 hover:text-white transition-colors py-3 min-h-[44px] flex items-center"
+              >
+                {link.label}
+              </Link>
+            ))}
           {!isAuthenticated &&
             (IS_WAITLIST_MODE ? (
               <Button
