@@ -6,8 +6,7 @@ export const LANDING_SEO = {
 
 export const WAITLIST_SEO = {
   title: "Bloggr — Get early access",
-  description:
-    "Get context-aware blog posts by talking about your business. Join the waitlist for early access.",
+  description: "Get context-aware blog posts by talking about your business. Join the waitlist for early access.",
 } as const;
 
 export const LANDING_CTAS = {
