@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FOOTER_TAGLINE, LANDING_CTAS } from "@/lib/landing/landing-copy";
+import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 import { useAuthStore } from "@/lib/store/auth.store";
 
 export function LandingFooter() {
@@ -24,16 +25,26 @@ export function LandingFooter() {
                   How it works
                 </Link>
               </li>
-              <li>
-                <Link href="/#why-bloggr" className="hover:text-white transition-colors">
-                  Why Bloggr
-                </Link>
-              </li>
-              <li>
-                <Link href="/#pricing" className="hover:text-white transition-colors">
-                  Pricing
-                </Link>
-              </li>
+              {IS_WAITLIST_MODE ? (
+                <li>
+                  <Link href="/#launch" className="hover:text-white transition-colors">
+                    Early access
+                  </Link>
+                </li>
+              ) : (
+                <>
+                  <li>
+                    <Link href="/#why-bloggr" className="hover:text-white transition-colors">
+                      Why Bloggr
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/#pricing" className="hover:text-white transition-colors">
+                      Pricing
+                    </Link>
+                  </li>
+                </>
+              )}
               <li>
                 <Link href="/docs" className="hover:text-white transition-colors">
                   Docs
@@ -59,20 +70,38 @@ export function LandingFooter() {
           <div>
             <h4 className="font-semibold mb-4 text-white">Account</h4>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li>
-                <Link
-                  href={isAuthenticated ? "/dashboard" : "/auth/signup"}
-                  className="hover:text-white transition-colors"
-                >
-                  {isAuthenticated ? LANDING_CTAS.dashboard : LANDING_CTAS.startFree}
-                </Link>
-              </li>
-              {!isAuthenticated && (
+              {isAuthenticated ? (
                 <li>
-                  <Link href="/auth/login" className="hover:text-white transition-colors">
-                    {LANDING_CTAS.logIn}
+                  <Link href="/dashboard" className="hover:text-white transition-colors">
+                    {LANDING_CTAS.dashboard}
                   </Link>
                 </li>
+              ) : IS_WAITLIST_MODE ? (
+                <>
+                  <li>
+                    <Link href="/#waitlist-hero" className="hover:text-white transition-colors">
+                      {LANDING_CTAS.getEarlyAccess}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/auth/login" className="hover:text-white transition-colors">
+                      {LANDING_CTAS.logIn}
+                    </Link>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <Link href="/auth/signup" className="hover:text-white transition-colors">
+                      {LANDING_CTAS.startFree}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/auth/login" className="hover:text-white transition-colors">
+                      {LANDING_CTAS.logIn}
+                    </Link>
+                  </li>
+                </>
               )}
             </ul>
           </div>

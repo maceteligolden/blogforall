@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LandingHeader } from "@/components/layout/landing-header";
 import { LandingFooter } from "@/components/layout/landing-footer";
+import { LANDING_CTAS } from "@/lib/landing/landing-copy";
+import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 
 export default function AboutPage() {
   return (
@@ -164,8 +166,10 @@ export default function AboutPage() {
             power their blogs.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/signup">
-              <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">Get Started Free</Button>
+            <Link href={IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup"}>
+              <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">
+                {IS_WAITLIST_MODE ? LANDING_CTAS.getEarlyAccess : "Get Started Free"}
+              </Button>
             </Link>
             <Link href="/contact">
               <Button

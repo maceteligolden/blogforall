@@ -4,6 +4,12 @@ export const LANDING_SEO = {
     "Plan, research, write, and publish on-brand blog content through conversation—not endless prompts. Full access free.",
 } as const;
 
+export const WAITLIST_SEO = {
+  title: "Bloggr — Get early access",
+  description:
+    "Get context-aware blog posts by talking about your business. Join the waitlist for early access.",
+} as const;
+
 export const LANDING_CTAS = {
   startFree: "Start free",
   startFreeFull: "Start free — full access",
@@ -15,6 +21,7 @@ export const LANDING_CTAS = {
   contact: "Contact us",
   readDocs: "Read the docs →",
   trustLine: "Full access on Free. No waitlist. No credit card.",
+  getEarlyAccess: "Get early access",
 } as const;
 
 export const HERO = {
