@@ -3,7 +3,8 @@
 #   docker compose -f docker-compose.prod.yml up -d
 #
 # Isolated via compose project name `bloggr-dev`, host ports 5005 / 27017.
-# Valkey is not published to the host — backend reaches it only on bloggr-dev-network.
+# Valkey is not published to the host — backend reaches it only on bloggr-dev-network
+# as redis://valkey-dev:6379 (separate from prod's valkey-prod).
 
 name: bloggr-dev
 
@@ -25,16 +26,16 @@ services:
       retries: 5
       start_period: 20s
 
-  valkey:
+  valkey-dev:
     image: valkey/valkey:8-alpine
-    container_name: bloggr-valkey
+    container_name: bloggr-valkey-dev
     volumes:
-      - valkey-data:/data
+      - valkey-data-dev:/data
     networks:
       - bloggr-dev-network
     restart: unless-stopped
     command: ["--save", "60", "1000"]
-    # No `ports:` — 6379 stays on the compose network only (hostname: valkey).
+    # No `ports:` — 6379 stays on the compose network only (hostname: valkey-dev).
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 10s
@@ -55,7 +56,7 @@ services:
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/blogforall}
       # Pinned to the compose service. Do not interpolate ${REDIS_URL} — that can
       # silently point the app at a public Redis instead of this stack's Valkey.
-      REDIS_URL: redis://valkey:6379
+      REDIS_URL: redis://valkey-dev:6379
       ACCESS_SECRET: ${ACCESS_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
@@ -106,7 +107,7 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
-      valkey:
+      valkey-dev:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5005/health"]
@@ -118,11 +119,12 @@ services:
 volumes:
   mongodb-data:
     driver: local
-  valkey-data:
+  valkey-data-dev:
     driver: local
   backend-uploads:
     driver: local
 
 networks:
   bloggr-dev-network:
+    name: bloggr-dev-network
     driver: bridge
