@@ -2,38 +2,26 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { AdminStatsService } from "../../../modules/admin/services/admin-stats.service";
 import { TokenLedgerRepository } from "../../../modules/token-ledger/repositories/token-ledger.repository";
 
-const mockUserCount = jest.fn<() => Promise<number>>();
+const mockUserCount = jest.fn<(roles: unknown) => Promise<number>>();
 const mockBlogCount = jest.fn<() => Promise<number>>();
 const mockTotalUsage = jest.fn<() => Promise<number>>();
-
-jest.mock("../../../shared/schemas/user.schema", () => ({
-  __esModule: true,
-  default: {
-    countDocuments: () => mockUserCount(),
-  },
-}));
-
-jest.mock("../../../shared/schemas/blog.schema", () => ({
-  __esModule: true,
-  default: {
-    countDocuments: () => mockBlogCount(),
-  },
-}));
-
-jest.mock("../../../modules/token-ledger/repositories/token-ledger.repository", () => ({
-  TokenLedgerRepository: jest.fn().mockImplementation(() => ({
-    getTotalUsageTokens: () => mockTotalUsage(),
-  })),
-}));
 
 describe("AdminStatsService", () => {
   let service: AdminStatsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AdminStatsService({
-      getTotalUsageTokens: () => mockTotalUsage(),
-    } as unknown as TokenLedgerRepository);
+    service = new AdminStatsService(
+      {
+        getTotalUsageTokens: () => mockTotalUsage(),
+      } as unknown as TokenLedgerRepository,
+      {
+        countByRole: mockUserCount,
+      } as never,
+      {
+        countAll: mockBlogCount,
+      } as never
+    );
   });
 
   it("returns aggregated dashboard counts", async () => {

@@ -37,6 +37,7 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: "5006"
       MONGODB_URI: ${MONGODB_URI:-}
+      DATABASE_URL: ${DATABASE_URL:-}
       # Pinned to the compose service. Do not interpolate ${REDIS_URL} — that can
       # silently point the app at a public Redis instead of this stack's Valkey.
       REDIS_URL: redis://bloggr-valkey-prod:6379

@@ -7,12 +7,9 @@ import { logger } from "../../../shared/utils/logger";
 import { CreateSiteInput, UpdateSiteInput, SiteWithMembers } from "../interfaces/site.interface";
 import { Site } from "../../../shared/schemas/site.schema";
 import { SiteMemberRole, SiteStatus } from "../../../shared/constants";
-import Blog from "../../../shared/schemas/blog.schema";
 import { env } from "../../../shared/config/env";
-import { ApiKeyRepository } from "../../api-key/repositories/api-key.repository";
 import type { SiteMember as SiteMemberType } from "../../../shared/schemas/site-member.schema";
-import { mongooseDocToPlain } from "../../../shared/utils/mongoose-plain.util";
-import SiteInvitation from "../../../shared/schemas/site-invitation.schema";
+import { deleteMongoAiBySiteId } from "../../../shared/utils/delete-mongo-ai-by-site";
 import { CampaignService } from "../../campaign/services/campaign.service";
 import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
@@ -23,7 +20,6 @@ export class SiteService {
     private siteRepository: SiteRepository,
     private siteMemberRepository: SiteMemberRepository,
     private subscriptionService: SubscriptionService,
-    private apiKeyRepository: ApiKeyRepository,
     private campaignService: CampaignService,
     private workspaceStrategyService: WorkspaceStrategyService,
     private businessKnowledgeService: BusinessKnowledgeService
@@ -36,19 +32,11 @@ export class SiteService {
     // Check plan limits before creating site
     await this.validateSiteCreationLimit(ownerId);
 
-    const site = await this.siteRepository.create({
+    const site = await this.siteRepository.createWithOwner(ownerId, {
       name: input.name,
       description: input.description,
       owner: ownerId,
-      // Chatless signup: workspace is usable immediately; checklist fills memory later.
       status: SiteStatus.ACTIVE,
-    });
-
-    // Automatically add owner as a member with OWNER role
-    await this.siteMemberRepository.create({
-      site_id: site._id!.toString(),
-      user_id: ownerId,
-      role: SiteMemberRole.OWNER,
     });
 
     logger.info("Site created", { siteId: site._id, ownerId, status: site.status }, "SiteService");
@@ -191,9 +179,8 @@ export class SiteService {
     const sitesWithMembers = await Promise.all(
       sites.map(async (site) => {
         const memberCount = await this.siteRepository.getMemberCount(site._id!.toString());
-        const siteObj = mongooseDocToPlain(site);
         return {
-          ...siteObj,
+          ...site,
           memberCount,
         } as SiteWithMembers;
       })
@@ -244,18 +231,8 @@ export class SiteService {
       throw new ForbiddenError("Only site owner can delete site");
     }
 
-    // Delete all blogs associated with the site
-    await Blog.deleteMany({ site_id: siteId });
-
-    await this.apiKeyRepository.deleteBySiteId(siteId);
-
-    // Delete all site members
-    await this.siteMemberRepository.deleteBySite(siteId);
-
-    await SiteInvitation.deleteMany({ site_id: siteId });
-
-    // Delete the site
     await this.siteRepository.delete(siteId);
+    await deleteMongoAiBySiteId(siteId);
 
     logger.info("Site deleted", { siteId, userId }, "SiteService");
   }

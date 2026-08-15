@@ -1,32 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { SignupWizardStage, SiteStatus } from "../../../shared/constants";
+import { OnboardingService } from "../../../modules/onboarding/services/onboarding.service";
 
 const mockUserFindById = jest.fn<() => Promise<Record<string, unknown> | null>>();
 const mockFindByOwner = jest.fn<() => Promise<Array<{ _id: string; status: SiteStatus }>>>();
 const mockFindByUser = jest.fn<() => Promise<Array<{ _id: string; status: SiteStatus }>>>();
 const mockUpdate = jest.fn<() => Promise<unknown>>();
 
-jest.mock("../../../shared/schemas/user.schema", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-  },
-}));
-
-import User from "../../../shared/schemas/user.schema";
-import { OnboardingService } from "../../../modules/onboarding/services/onboarding.service";
-
-const mockedUser = User as unknown as {
-  findById: typeof mockUserFindById;
-};
-
 describe("OnboardingService.getSignupWizardStatus", () => {
   let service: OnboardingService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedUser.findById = mockUserFindById;
     service = new OnboardingService(
       {} as never,
       {
@@ -36,7 +21,11 @@ describe("OnboardingService.getSignupWizardStatus", () => {
       } as never,
       {} as never,
       {} as never,
-      {} as never
+      {} as never,
+      {
+        findById: mockUserFindById,
+        update: jest.fn(),
+      } as never
     );
   });
 

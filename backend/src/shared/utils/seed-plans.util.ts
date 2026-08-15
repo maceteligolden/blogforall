@@ -1,32 +1,29 @@
 import { container } from "tsyringe";
-import { PlanModel } from "../schemas/plan.schema";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { db } from "../database";
+import { plans } from "../database/schema";
 import { StripeFacade } from "../facade/stripe.facade";
 import { env } from "../config/env";
 import { logger } from "./logger";
 
-/** Plan names that match the landing page; only these are kept active and seeded. */
 const LANDING_PLAN_NAMES = ["Free", "Starter", "Professional", "Enterprise"] as const;
 
-/** Daily AI token cap for the Free tier — synced on every boot for existing deployments. */
 export const FREE_PLAN_DAILY_TOKENS = 400_000;
 
-/**
- * Idempotently set Free plan dailyTokens so existing users pick up limit changes
- * without a manual Mongo migration.
- */
 export async function syncFreePlanTokenLimit(): Promise<void> {
   try {
-    const result = await PlanModel.updateOne(
-      { name: "Free" },
-      { $set: { "limits.dailyTokens": FREE_PLAN_DAILY_TOKENS } }
-    );
-    if (result.matchedCount === 0) {
+    const [existing] = await db
+      .select({ id: plans.id, limits: plans.limits })
+      .from(plans)
+      .where(eq(plans.name, "Free"))
+      .limit(1);
+    if (!existing) {
       logger.info('Plan "Free" not found; skip daily token sync', {}, "PlanSeeder");
       return;
     }
-    if (result.modifiedCount > 0) {
-      logger.info(`Synced Free plan dailyTokens to ${FREE_PLAN_DAILY_TOKENS}`, {}, "PlanSeeder");
-    }
+    const limits = { ...(existing.limits ?? {}), dailyTokens: FREE_PLAN_DAILY_TOKENS };
+    await db.update(plans).set({ limits, updated_at: new Date() }).where(eq(plans.id, existing.id));
+    logger.info(`Synced Free plan dailyTokens to ${FREE_PLAN_DAILY_TOKENS}`, {}, "PlanSeeder");
   } catch (error) {
     logger.error("Failed to sync Free plan daily token limit", error as Error, {}, "PlanSeeder");
   }
@@ -34,9 +31,16 @@ export async function syncFreePlanTokenLimit(): Promise<void> {
 
 export async function seedPlansIfNeeded(): Promise<void> {
   try {
-    await PlanModel.updateMany({ name: { $nin: LANDING_PLAN_NAMES } }, { $set: { isActive: false } });
+    await db
+      .update(plans)
+      .set({ isActive: false, updated_at: new Date() })
+      .where(notInArray(plans.name, [...LANDING_PLAN_NAMES]));
 
-    const activeCount = await PlanModel.countDocuments({ isActive: true, name: { $in: LANDING_PLAN_NAMES } });
+    const [countRow] = await db
+      .select({ value: sql<number>`count(*)` })
+      .from(plans)
+      .where(and(eq(plans.isActive, true), inArray(plans.name, [...LANDING_PLAN_NAMES])));
+    const activeCount = Number(countRow?.value ?? 0);
     const MIN_REQUIRED_PLANS = 4;
 
     if (activeCount >= MIN_REQUIRED_PLANS) {
@@ -123,9 +127,13 @@ export async function seedPlansIfNeeded(): Promise<void> {
 
     for (const planData of paidPlans) {
       try {
-        const existingPlan = await PlanModel.findOne({ name: planData.name });
+        const [existingPlan] = await db
+          .select({ id: plans.id })
+          .from(plans)
+          .where(eq(plans.name, planData.name))
+          .limit(1);
         if (existingPlan) {
-          await PlanModel.updateOne({ name: planData.name }, { $set: { isActive: true } });
+          await db.update(plans).set({ isActive: true, updated_at: new Date() }).where(eq(plans.name, planData.name));
           logger.info(`Plan "${planData.name}" already exists, ensured active`, {}, "PlanSeeder");
           continue;
         }
@@ -148,14 +156,13 @@ export async function seedPlansIfNeeded(): Promise<void> {
           }
         }
 
-        const plan = new PlanModel({
+        await db.insert(plans).values({
           ...planData,
           stripe_price_id: stripePriceId,
           currency: "usd",
         });
-        await plan.save();
         logger.info(
-          `✓ Created plan: ${planData.name}${stripePriceId ? ` (Stripe: ${stripePriceId})` : " (no Stripe)"}`,
+          `Created plan: ${planData.name}${stripePriceId ? ` (Stripe: ${stripePriceId})` : " (no Stripe)"}`,
           {},
           "PlanSeeder"
         );
@@ -180,25 +187,31 @@ export async function seedPlansIfNeeded(): Promise<void> {
     };
 
     try {
-      const existingFree = await PlanModel.findOne({ name: freePlanData.name });
+      const [existingFree] = await db
+        .select({ id: plans.id })
+        .from(plans)
+        .where(eq(plans.name, freePlanData.name))
+        .limit(1);
       if (existingFree) {
-        await PlanModel.updateOne(
-          { name: freePlanData.name },
-          { $set: { isActive: true, "limits.dailyTokens": FREE_PLAN_DAILY_TOKENS } }
-        );
+        await db
+          .update(plans)
+          .set({
+            isActive: true,
+            limits: freePlanData.limits,
+            updated_at: new Date(),
+          })
+          .where(eq(plans.name, freePlanData.name));
         logger.info(`Plan "Free" already exists, ensured active and token limit`, {}, "PlanSeeder");
       } else {
-        const freePlan = new PlanModel(freePlanData);
-        await freePlan.save();
-        logger.info(`✓ Created plan: Free`, {}, "PlanSeeder");
+        await db.insert(plans).values(freePlanData);
+        logger.info("Created plan: Free", {}, "PlanSeeder");
       }
     } catch (error) {
-      logger.error(`Failed to create free plan`, error as Error, {}, "PlanSeeder");
+      logger.error("Failed to create free plan", error as Error, {}, "PlanSeeder");
     }
 
-    logger.info("✅ Plan seeding completed!", {}, "PlanSeeder");
+    logger.info("Plan seeding completed", {}, "PlanSeeder");
   } catch (error) {
     logger.error("Error seeding plans", error as Error, {}, "PlanSeeder");
-    // Don't throw - allow server to start even if seeding fails
   }
 }

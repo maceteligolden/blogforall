@@ -1,5 +1,5 @@
 import { injectable } from "tsyringe";
-import User from "../../../shared/schemas/user.schema";
+import { UserRepository } from "../../auth/repositories/user.repository";
 import { SubscriptionService } from "../../subscription/services/subscription.service";
 import { BillingService } from "../../billing/services/billing.service";
 import { CardRepository } from "../../billing/repositories/card.repository";
@@ -77,7 +77,8 @@ export class OnboardingService {
     private siteRepository: SiteRepository,
     private authService: AuthService,
     private billingService: BillingService,
-    private cardRepository: CardRepository
+    private cardRepository: CardRepository,
+    private userRepository: UserRepository
   ) {}
 
   async getOnboardingStatus(userId: string): Promise<{
@@ -85,7 +86,7 @@ export class OnboardingService {
     hasCard: boolean;
     hasPlan: boolean;
   }> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -115,7 +116,7 @@ export class OnboardingService {
    * Resolve the current owner signup wizard stage from sites and user fields.
    */
   async getSignupWizardStatus(userId: string): Promise<SignupWizardStatus> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -197,7 +198,7 @@ export class OnboardingService {
    * Ensures free subscription and marks account onboarding complete (idempotent).
    */
   async ensureFreePlanAndCompleteOnboarding(userId: string): Promise<void> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -215,7 +216,7 @@ export class OnboardingService {
     }
 
     if (!user.onboarding_completed) {
-      await User.findByIdAndUpdate(userId, {
+      await this.userRepository.update(userId, {
         onboarding_completed: true,
         updated_at: new Date(),
       });
@@ -231,7 +232,7 @@ export class OnboardingService {
    * User confirmed free plan during signup wizard.
    */
   async completePlanSelection(userId: string): Promise<void> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -239,7 +240,7 @@ export class OnboardingService {
     await this.ensureFreePlanAndCompleteOnboarding(userId);
 
     if (!user.plan_selection_completed_at) {
-      await User.findByIdAndUpdate(userId, {
+      await this.userRepository.update(userId, {
         plan_selection_completed_at: new Date(),
         updated_at: new Date(),
       });
@@ -251,7 +252,7 @@ export class OnboardingService {
    * Complete onboarding with a paid plan and payment method.
    */
   async completeOnboarding(userId: string, planId: string, paymentMethodId: string): Promise<void> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -291,7 +292,7 @@ export class OnboardingService {
 
     await this.subscriptionService.changePlan(userId, planId);
 
-    await User.findByIdAndUpdate(userId, {
+    await this.userRepository.update(userId, {
       onboarding_completed: true,
       plan_selection_completed_at: user.plan_selection_completed_at ?? new Date(),
       updated_at: new Date(),
@@ -321,7 +322,7 @@ export class OnboardingService {
       return { should_show: false };
     }
 
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -345,14 +346,14 @@ export class OnboardingService {
   }
 
   async dismissInvitePrompt(userId: string): Promise<void> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
 
     const wasComplete = Boolean(user.workspace_invite_prompt_dismissed_at);
 
-    await User.findByIdAndUpdate(userId, {
+    await this.userRepository.update(userId, {
       workspace_invite_prompt_dismissed_at: new Date(),
       updated_at: new Date(),
     });

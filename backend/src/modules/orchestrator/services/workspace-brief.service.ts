@@ -1,5 +1,4 @@
 import { injectable } from "tsyringe";
-import Blog from "../../../shared/schemas/blog.schema";
 import { BlogStatus } from "../../../shared/constants";
 import { CampaignHealthStatus } from "../../../shared/constants/campaign.constant";
 import { OrchestratorApprovalStatus } from "../../../shared/schemas/orchestrator-approval.schema";
@@ -8,6 +7,7 @@ import { OrchestratorApprovalRepository } from "../repositories/orchestrator-app
 import { WorkspaceStrategyRepository } from "../../strategic-intelligence/repositories/workspace-strategy.repository";
 import { CampaignRepository } from "../../campaign/repositories/campaign.repository";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
+import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { listMissingRequiredOnboardingFields } from "../utils/onboarding-interview.helper";
 
 export type WorkspaceBriefPriority =
@@ -40,7 +40,8 @@ export class WorkspaceBriefService {
     private readonly strategyRepository: WorkspaceStrategyRepository,
     private readonly campaignRepository: CampaignRepository,
     private readonly approvalRepository: OrchestratorApprovalRepository,
-    private readonly knowledge: BusinessKnowledgeService
+    private readonly knowledge: BusinessKnowledgeService,
+    private readonly blogRepository: BlogRepository
   ) {}
 
   async buildBrief(siteId: string, userId: string): Promise<WorkspaceBrief> {
@@ -87,7 +88,7 @@ export class WorkspaceBriefService {
     });
     const pendingApprovalCount = pendingApprovals.length;
 
-    const draftCount = await Blog.countDocuments({ site_id: siteId, status: BlogStatus.DRAFT });
+    const draftCount = await this.blogRepository.countBySiteAndStatus(siteId, BlogStatus.DRAFT);
 
     let topGapQuestion: string | undefined;
     try {

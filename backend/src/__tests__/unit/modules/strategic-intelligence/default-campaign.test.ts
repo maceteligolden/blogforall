@@ -58,7 +58,12 @@ describe("CampaignService Default Campaign (Strategic Intelligence)", () => {
     const workspaceStrategy = {
       ensureStrategy: jest.fn().mockResolvedValue({ _id: "strat1", purpose: "test" } as never),
     };
-    service = new CampaignService(campaignRepository, scheduledPostRepository, workspaceStrategy as never);
+    service = new CampaignService(
+      campaignRepository,
+      scheduledPostRepository,
+      workspaceStrategy as never,
+      { assignUnboundCampaign: jest.fn() } as never
+    );
   });
 
   it("returns existing default campaign without creating", async () => {

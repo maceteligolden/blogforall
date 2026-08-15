@@ -1,25 +1,17 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-jest.mock("../../../shared/schemas/user.schema", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-    findByIdAndUpdate: jest.fn(),
-  },
-}));
-
-import User from "../../../shared/schemas/user.schema";
 import { BillingService } from "../../../modules/billing/services/billing.service";
 
 describe("BillingService restored paths", () => {
   const mockCreateSetupIntent = jest.fn<() => Promise<{ client_secret: string }>>();
   const mockFindByCustomerId = jest.fn<() => Promise<unknown[]>>();
+  const mockFindById = jest.fn<() => Promise<unknown>>();
 
   let service: BillingService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (User.findById as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({
+    mockFindById.mockResolvedValue({
       _id: "u1",
       email: "a@b.com",
       first_name: "A",
@@ -46,6 +38,10 @@ describe("BillingService restored paths", () => {
         findById: jest.fn(),
         delete: jest.fn(),
         setAllCardsNonDefault: jest.fn(),
+        update: jest.fn(),
+      } as never,
+      {
+        findById: mockFindById,
         update: jest.fn(),
       } as never
     );

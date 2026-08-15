@@ -25,6 +25,7 @@ export const env = {
   port: parseIntEnv(process.env.PORT, 3001),
 
   mongodbUri: (process.env.MONGODB_URI || "").trim(),
+  databaseUrl: (process.env.DATABASE_URL || "").trim(),
 
   jwt: {
     accessSecret: (process.env.ACCESS_SECRET || "").trim(),

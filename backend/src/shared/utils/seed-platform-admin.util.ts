@@ -1,7 +1,9 @@
-import User from "../schemas/user.schema";
 import { UserRole, UserPlan, isPlatformAdminRole } from "../constants";
 import { hashPassword } from "./password";
 import { logger } from "./logger";
+import { db } from "../database";
+import { users } from "../database/schema";
+import { eq } from "drizzle-orm";
 
 export interface SeedPlatformAdminInput {
   email?: string;
@@ -32,14 +34,14 @@ export async function seedPlatformAdminIfNeeded(input: SeedPlatformAdminInput): 
     return { status: "skipped", reason: "invalid_role" };
   }
 
-  const existing = await User.findOne({ email });
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
   if (existing) {
     logger.info("Platform admin seed skipped: account already exists", { email }, "SeedPlatformAdmin");
     return { status: "skipped", reason: "already_exists", email };
   }
 
   const hashedPassword = await hashPassword(password);
-  await User.create({
+  await db.insert(users).values({
     email,
     password: hashedPassword,
     first_name: firstName,
@@ -47,6 +49,7 @@ export async function seedPlatformAdminIfNeeded(input: SeedPlatformAdminInput): 
     role,
     plan: UserPlan.FREE,
     onboarding_completed: true,
+    email_verified: true,
   });
 
   logger.info("Platform admin created by seed", { email, role }, "SeedPlatformAdmin");

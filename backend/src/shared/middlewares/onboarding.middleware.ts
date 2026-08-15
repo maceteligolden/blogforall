@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import User from "../schemas/user.schema";
+import { container } from "tsyringe";
 import { UnauthorizedError } from "../errors";
+import { UserRepository } from "../../modules/auth/repositories/user.repository";
 
 /**
  * Middleware to check if user has completed onboarding
@@ -13,14 +14,12 @@ export const onboardingMiddleware = async (req: Request, res: Response, next: Ne
       return next(new UnauthorizedError("User not authenticated"));
     }
 
-    const user = await User.findById(userId);
+    const user = await container.resolve(UserRepository).findById(userId);
     if (!user) {
       return next(new UnauthorizedError("User not found"));
     }
 
-    // Check if onboarding is completed
     if (!user.onboarding_completed) {
-      // Return a flag that frontend can check
       res.status(403).json({
         success: false,
         message: "Onboarding required",

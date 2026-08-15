@@ -1,5 +1,4 @@
 import { injectable } from "tsyringe";
-import Site from "../../../shared/schemas/site.schema";
 import { UserRepository } from "../../auth/repositories/user.repository";
 import { hashPassword } from "../../../shared/utils/password";
 import { BadRequestError } from "../../../shared/errors";
@@ -8,6 +7,7 @@ import { logger } from "../../../shared/utils/logger";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { CategoryRepository } from "../../category/repositories/category.repository";
 import { TokenLedgerRepository } from "../../token-ledger/repositories/token-ledger.repository";
+import { SiteRepository } from "../../site/repositories/site.repository";
 import type {
   AdminDateRangeQueryInput,
   AdminPaginationQueryInput,
@@ -31,7 +31,8 @@ export class AdminUserService {
     private userRepository: UserRepository,
     private blogRepository: BlogRepository,
     private categoryRepository: CategoryRepository,
-    private tokenLedgerRepository: TokenLedgerRepository
+    private tokenLedgerRepository: TokenLedgerRepository,
+    private siteRepository: SiteRepository
   ) {}
 
   async createPlatformAdmin(input: CreatePlatformAdminInput): Promise<{
@@ -87,7 +88,7 @@ export class AdminUserService {
         from: dateRange.from ? new Date(dateRange.from) : undefined,
         to: dateRange.to ? new Date(dateRange.to) : undefined,
       }),
-      Site.find({ owner: { $in: userIds } }).select("_id owner"),
+      this.siteRepository.findOwnerIdsByUserIds(userIds),
     ]);
 
     const siteIds = ownedSites.map((s) => s._id!.toString());
