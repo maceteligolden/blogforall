@@ -4,9 +4,9 @@ import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
 import { BadRequestError, UnauthorizedError, NotFoundError, ForbiddenError } from "../../../shared/errors";
-import { UserPlan, UserRole, BlogStatus, isPlatformAdminRole } from "../../../shared/constants";
+import { UserPlan, UserRole, isPlatformAdminRole } from "../../../shared/constants";
 import { Site } from "../../../shared/schemas/site.schema";
-import Blog from "../../../shared/schemas/blog.schema";
+import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { logger } from "../../../shared/utils/logger";
 import {
   SignupInput,
@@ -49,7 +49,8 @@ export class AuthService {
     private siteService: SiteService,
     private notificationService: NotificationService,
     private referralService: ReferralService,
-    private siteInvitationService: SiteInvitationService
+    private siteInvitationService: SiteInvitationService,
+    private blogRepository: BlogRepository
   ) {}
 
   /**
@@ -394,10 +395,7 @@ export class AuthService {
     // Allow abandon while unverified or mid-wizard; block if any non-setup content exists.
     for (const site of ownedSites) {
       const siteId = site._id!.toString();
-      const publishedCount = await Blog.countDocuments({
-        site_id: siteId,
-        status: BlogStatus.PUBLISHED,
-      });
+      const publishedCount = await this.blogRepository.countPublishedBySite(siteId);
       if (publishedCount > 0) {
         throw new BadRequestError("Signup cannot be abandoned after content has been published");
       }

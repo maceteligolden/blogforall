@@ -25,6 +25,7 @@ export const env = {
   port: parseIntEnv(process.env.PORT, 3001),
 
   mongodbUri: (process.env.MONGODB_URI || "").trim(),
+  databaseUrl: (process.env.DATABASE_URL || "").trim(),
 
   jwt: {
     accessSecret: (process.env.ACCESS_SECRET || "").trim(),
@@ -237,7 +238,8 @@ export const env = {
     brevoSenderEmail: (process.env.BREVO_SENDER_EMAIL || process.env.SMTP_FROM || "noreply@bloggr.io").trim(),
     brevoSenderName: (process.env.BREVO_SENDER_NAME || "Bloggr").trim(),
     brevoWaitlistListId: parseIntEnv(process.env.BREVO_WAITLIST_LIST_ID, 0) || undefined,
-    redisUrl: process.env.REDIS_URL?.trim() ?? (NODE_ENV === "development" ? "" : "redis://localhost:6379"),
+    // Compose sets redis://bloggr-valkey-dev:6379 or redis://bloggr-valkey-prod:6379. Never default to localhost — inside Docker that is this container, not Valkey.
+    redisUrl: (process.env.REDIS_URL || "").trim(),
     retentionDaysRead: parseIntEnv(
       process.env.NOTIFICATION_RETENTION_DAYS_READ,
       NOTIFICATION_RETENTION_DAYS_READ_DEFAULT

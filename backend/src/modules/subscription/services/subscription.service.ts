@@ -6,7 +6,7 @@ import { Plan } from "../../../shared/schemas/plan.schema";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
 import { StripeFacade } from "../../../shared/facade/stripe.facade";
 import { SUBSCRIPTION_CONSTANTS } from "../../../shared/constants/subscription.constant";
-import User from "../../../shared/schemas/user.schema";
+import { UserRepository } from "../../auth/repositories/user.repository";
 import { CardRepository } from "../../billing/repositories/card.repository";
 import { isCardExpired } from "../../../shared/utils/card.util";
 import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
@@ -17,7 +17,8 @@ export class SubscriptionService {
     private subscriptionRepository: SubscriptionRepository,
     private planRepository: PlanRepository,
     private stripeFacade: StripeFacade,
-    private cardRepository: CardRepository
+    private cardRepository: CardRepository,
+    private userRepository: UserRepository
   ) {}
 
   /**
@@ -127,7 +128,7 @@ export class SubscriptionService {
    * Change subscription plan
    */
   async changePlan(userId: string, newPlanId: string): Promise<Subscription> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -363,7 +364,7 @@ export class SubscriptionService {
       return;
     }
 
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user || !user.stripe_customer_id) {
       return;
     }

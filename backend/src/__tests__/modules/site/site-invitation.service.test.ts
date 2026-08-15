@@ -2,31 +2,25 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { SiteInvitationService } from "../../../modules/site/services/site-invitation.service";
 import { SiteMemberRole, InvitationStatus } from "../../../shared/constants";
 
-jest.mock("../../../shared/schemas/user.schema", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-  },
-}));
-
-import User from "../../../shared/schemas/user.schema";
+// jest.Mock without a signature makes mockResolvedValue expect `never`.
+type AnyMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 
 describe("SiteInvitationService", () => {
   let service: SiteInvitationService;
   let mockInvitationRepository: {
-    findByToken: jest.Mock;
-    findById: jest.Mock;
-    findByEmail: jest.Mock;
-    create: jest.Mock;
-    updateStatus: jest.Mock;
-    rotateToken: jest.Mock;
-    findBySite: jest.Mock;
+    findByToken: AnyMock;
+    findById: AnyMock;
+    findByEmail: AnyMock;
+    create: AnyMock;
+    updateStatus: AnyMock;
+    rotateToken: AnyMock;
+    findBySite: AnyMock;
   };
-  let mockSiteRepository: { findById: jest.Mock; isOwner: jest.Mock };
-  let mockSiteMemberRepository: { findBySiteAndUser: jest.Mock; create: jest.Mock };
-  let mockUserRepository: { findByEmail: jest.Mock; findById: jest.Mock };
-  let mockNotificationService: { createAndSend: jest.Mock };
-  let mockReferralService: { ensureReferralCode: jest.Mock };
+  let mockSiteRepository: { findById: AnyMock; isOwner: AnyMock };
+  let mockSiteMemberRepository: { findBySiteAndUser: AnyMock; create: AnyMock };
+  let mockUserRepository: { findByEmail: AnyMock; findById: AnyMock };
+  let mockNotificationService: { createAndSend: AnyMock };
+  let mockReferralService: { ensureReferralCode: AnyMock };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -102,7 +96,7 @@ describe("SiteInvitationService", () => {
         invited_by: "inviter-id",
       });
       mockSiteRepository.findById.mockResolvedValue({ name: "Acme Workspace" });
-      (User.findById as jest.Mock).mockResolvedValue({
+      mockUserRepository.findById.mockResolvedValue({
         first_name: "Jane",
         last_name: "Doe",
       });

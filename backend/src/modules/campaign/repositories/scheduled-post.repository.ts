@@ -1,94 +1,144 @@
 import { injectable } from "tsyringe";
-import ScheduledPost, { ScheduledPost as ScheduledPostType } from "../../../shared/schemas/scheduled-post.schema";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { ScheduledPost as ScheduledPostType } from "../../../shared/schemas/scheduled-post.schema";
 import { ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
 import { ScheduledPostQueryFilters } from "../interfaces/scheduled-post.interface";
+import { db } from "../../../shared/database";
+import { scheduledPosts } from "../../../shared/database/schema";
+import { omitUndefined, withId, withIds } from "../../../shared/database/map-row";
 
 @injectable()
 export class ScheduledPostRepository {
+  private toEntity(row: typeof scheduledPosts.$inferSelect): ScheduledPostType {
+    return withId(row) as unknown as ScheduledPostType;
+  }
+
   async create(postData: Partial<ScheduledPostType>): Promise<ScheduledPostType> {
-    const post = new ScheduledPost(postData);
-    return post.save();
+    const { _id: _ignored, id: _idIgnored, ...rest } = postData as Partial<ScheduledPostType> & { id?: string };
+    const [row] = await db
+      .insert(scheduledPosts)
+      .values({
+        user_id: rest.user_id!,
+        site_id: rest.site_id!,
+        title: rest.title!,
+        scheduled_at: rest.scheduled_at!,
+        ...omitUndefined({
+          blog_id: rest.blog_id,
+          campaign_id: rest.campaign_id,
+          timezone: rest.timezone,
+          status: rest.status,
+          publish_attempts: rest.publish_attempts,
+          last_attempt_at: rest.last_attempt_at,
+          error_message: rest.error_message,
+          published_at: rest.published_at,
+          auto_generate: rest.auto_generate,
+          generation_prompt: rest.generation_prompt,
+          metadata: rest.metadata,
+          prepared_at: rest.prepared_at,
+          approved_at: rest.approved_at,
+          approved_by_user_id: rest.approved_by_user_id,
+          rework_comments: rest.rework_comments,
+          rework_round: rest.rework_round,
+        } as Record<string, unknown>),
+      })
+      .returning();
+    return this.toEntity(row);
   }
 
   async findById(id: string, siteId?: string): Promise<ScheduledPostType | null> {
-    const query: Record<string, unknown> = { _id: id };
+    const filters = [eq(scheduledPosts.id, id)];
     if (siteId) {
-      query.site_id = siteId;
+      filters.push(eq(scheduledPosts.site_id, siteId));
     }
-    return ScheduledPost.findOne(query);
+    const [row] = await db
+      .select()
+      .from(scheduledPosts)
+      .where(and(...filters))
+      .limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async findByBlog(blogId: string): Promise<ScheduledPostType[]> {
-    return ScheduledPost.find({ blog_id: blogId });
+    const rows = await db.select().from(scheduledPosts).where(eq(scheduledPosts.blog_id, blogId));
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   async findByCampaign(campaignId: string, siteId?: string): Promise<ScheduledPostType[]> {
-    const query: Record<string, unknown> = { campaign_id: campaignId };
+    const conditions = [eq(scheduledPosts.campaign_id, campaignId)];
     if (siteId) {
-      query.site_id = siteId;
+      conditions.push(eq(scheduledPosts.site_id, siteId));
     }
-    return ScheduledPost.find(query).sort({ scheduled_at: 1 });
+    const rows = await db
+      .select()
+      .from(scheduledPosts)
+      .where(and(...conditions))
+      .orderBy(asc(scheduledPosts.scheduled_at));
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   async findByUser(userId: string, siteId: string, filters?: ScheduledPostQueryFilters): Promise<ScheduledPostType[]> {
-    const query: Record<string, unknown> = { user_id: userId, site_id: siteId };
+    const conditions = [eq(scheduledPosts.user_id, userId), eq(scheduledPosts.site_id, siteId)];
 
     if (filters?.campaign_id) {
-      query.campaign_id = filters.campaign_id;
+      conditions.push(eq(scheduledPosts.campaign_id, filters.campaign_id));
     }
     if (filters?.status) {
-      query.status = filters.status;
+      conditions.push(eq(scheduledPosts.status, filters.status));
     }
     if (filters?.scheduled_at_from) {
-      query.scheduled_at = {
-        ...((query.scheduled_at as Record<string, unknown>) || {}),
-        $gte: filters.scheduled_at_from,
-      };
+      conditions.push(gte(scheduledPosts.scheduled_at, filters.scheduled_at_from));
     }
     if (filters?.scheduled_at_to) {
-      query.scheduled_at = {
-        ...((query.scheduled_at as Record<string, unknown>) || {}),
-        $lte: filters.scheduled_at_to,
-      };
+      conditions.push(lte(scheduledPosts.scheduled_at, filters.scheduled_at_to));
     }
 
-    return ScheduledPost.find(query).sort({ scheduled_at: 1 });
+    const rows = await db
+      .select()
+      .from(scheduledPosts)
+      .where(and(...conditions))
+      .orderBy(asc(scheduledPosts.scheduled_at));
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   async findAll(siteId: string, filters?: ScheduledPostQueryFilters): Promise<PaginatedResponse<ScheduledPostType>> {
     const page = filters?.page || 1;
     const limit = filters?.limit || 10;
-    const skip = (page - 1) * limit;
+    const offset = (page - 1) * limit;
 
-    const query: Record<string, unknown> = { site_id: siteId };
+    const conditions = [eq(scheduledPosts.site_id, siteId)];
 
     if (filters?.campaign_id) {
-      query.campaign_id = filters.campaign_id;
+      conditions.push(eq(scheduledPosts.campaign_id, filters.campaign_id));
     }
     if (filters?.status) {
-      query.status = filters.status;
+      conditions.push(eq(scheduledPosts.status, filters.status));
     }
     if (filters?.scheduled_at_from) {
-      query.scheduled_at = {
-        ...((query.scheduled_at as Record<string, unknown>) || {}),
-        $gte: filters.scheduled_at_from,
-      };
+      conditions.push(gte(scheduledPosts.scheduled_at, filters.scheduled_at_from));
     }
     if (filters?.scheduled_at_to) {
-      query.scheduled_at = {
-        ...((query.scheduled_at as Record<string, unknown>) || {}),
-        $lte: filters.scheduled_at_to,
-      };
+      conditions.push(lte(scheduledPosts.scheduled_at, filters.scheduled_at_to));
     }
 
-    const [data, total] = await Promise.all([
-      ScheduledPost.find(query).sort({ scheduled_at: 1 }).skip(skip).limit(limit),
-      ScheduledPost.countDocuments(query),
+    const where = and(...conditions);
+    const [rows, totalRows] = await Promise.all([
+      db
+        .select()
+        .from(scheduledPosts)
+        .where(where)
+        .orderBy(asc(scheduledPosts.scheduled_at))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ value: sql<number>`count(*)` })
+        .from(scheduledPosts)
+        .where(where),
     ]);
+    const total = Number(totalRows[0]?.value ?? 0);
 
     return {
-      data,
+      data: withIds(rows) as unknown as ScheduledPostType[],
       pagination: {
         page,
         limit,
@@ -99,22 +149,37 @@ export class ScheduledPostRepository {
   }
 
   async update(id: string, siteId: string, updateData: Partial<ScheduledPostType>): Promise<ScheduledPostType | null> {
-    return ScheduledPost.findOneAndUpdate({ _id: id, site_id: siteId }, { $set: updateData }, { new: true });
+    const { _id: _ignored, id: _idIgnored, ...rest } = updateData as Partial<ScheduledPostType> & { id?: string };
+    const [row] = await db
+      .update(scheduledPosts)
+      .set({ ...omitUndefined(rest as Record<string, unknown>), updated_at: new Date() })
+      .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.site_id, siteId)))
+      .returning();
+    return row ? this.toEntity(row) : null;
   }
 
   async delete(id: string, siteId: string): Promise<boolean> {
-    const result = await ScheduledPost.deleteOne({ _id: id, site_id: siteId });
-    return result.deletedCount > 0;
+    const rows = await db
+      .delete(scheduledPosts)
+      .where(and(eq(scheduledPosts.id, id), eq(scheduledPosts.site_id, siteId)))
+      .returning({ id: scheduledPosts.id });
+    return rows.length > 0;
   }
 
   async findPendingPosts(limit: number = 100): Promise<ScheduledPostType[]> {
     const now = new Date();
-    return ScheduledPost.find({
-      status: { $in: [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED] },
-      scheduled_at: { $lte: now },
-    })
-      .sort({ scheduled_at: 1 })
+    const rows = await db
+      .select()
+      .from(scheduledPosts)
+      .where(
+        and(
+          inArray(scheduledPosts.status, [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED]),
+          lte(scheduledPosts.scheduled_at, now)
+        )
+      )
+      .orderBy(asc(scheduledPosts.scheduled_at))
       .limit(limit);
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   /**
@@ -126,13 +191,19 @@ export class ScheduledPostRepository {
    */
   async findDueForPreparation(leadTimeMs: number, limit: number = 50): Promise<ScheduledPostType[]> {
     const horizon = new Date(Date.now() + leadTimeMs);
-    return ScheduledPost.find({
-      status: { $in: [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED] },
-      scheduled_at: { $lte: horizon },
-      $or: [{ prepared_at: { $exists: false } }, { prepared_at: null }],
-    })
-      .sort({ scheduled_at: 1 })
+    const rows = await db
+      .select()
+      .from(scheduledPosts)
+      .where(
+        and(
+          inArray(scheduledPosts.status, [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED]),
+          lte(scheduledPosts.scheduled_at, horizon),
+          isNull(scheduledPosts.prepared_at)
+        )
+      )
+      .orderBy(asc(scheduledPosts.scheduled_at))
       .limit(limit);
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   /**
@@ -143,13 +214,19 @@ export class ScheduledPostRepository {
    */
   async findReadyForPublication(limit: number = 100): Promise<ScheduledPostType[]> {
     const now = new Date();
-    return ScheduledPost.find({
-      status: ScheduledPostStatus.AWAITING_APPROVAL,
-      approved_at: { $exists: true, $ne: null },
-      scheduled_at: { $lte: now },
-    })
-      .sort({ scheduled_at: 1 })
+    const rows = await db
+      .select()
+      .from(scheduledPosts)
+      .where(
+        and(
+          eq(scheduledPosts.status, ScheduledPostStatus.AWAITING_APPROVAL),
+          isNotNull(scheduledPosts.approved_at),
+          lte(scheduledPosts.scheduled_at, now)
+        )
+      )
+      .orderBy(asc(scheduledPosts.scheduled_at))
       .limit(limit);
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   /**
@@ -158,13 +235,20 @@ export class ScheduledPostRepository {
    * up "what needs your sign-off this week" across all workspaces.
    */
   async findPendingApprovalsInWindow(from: Date, to: Date, limit: number = 500): Promise<ScheduledPostType[]> {
-    return ScheduledPost.find({
-      status: ScheduledPostStatus.AWAITING_APPROVAL,
-      $or: [{ approved_at: { $exists: false } }, { approved_at: null }],
-      scheduled_at: { $gte: from, $lte: to },
-    })
-      .sort({ user_id: 1, site_id: 1, scheduled_at: 1 })
+    const rows = await db
+      .select()
+      .from(scheduledPosts)
+      .where(
+        and(
+          eq(scheduledPosts.status, ScheduledPostStatus.AWAITING_APPROVAL),
+          isNull(scheduledPosts.approved_at),
+          gte(scheduledPosts.scheduled_at, from),
+          lte(scheduledPosts.scheduled_at, to)
+        )
+      )
+      .orderBy(asc(scheduledPosts.user_id), asc(scheduledPosts.site_id), asc(scheduledPosts.scheduled_at))
       .limit(limit);
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   /**
@@ -173,24 +257,24 @@ export class ScheduledPostRepository {
    * or null if a concurrent worker already prepared it.
    */
   async markPrepared(id: string, siteId: string, update: { blog_id?: string }): Promise<ScheduledPostType | null> {
-    return ScheduledPost.findOneAndUpdate(
-      {
-        _id: id,
-        site_id: siteId,
-        status: { $in: [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED] },
-      },
-      {
-        $set: {
-          ...update,
-          status: ScheduledPostStatus.AWAITING_APPROVAL,
-          prepared_at: new Date(),
-          updated_at: new Date(),
-          // Clear any prior error so retries don't carry old context forward.
-          error_message: undefined,
-        },
-      },
-      { new: true }
-    );
+    const [row] = await db
+      .update(scheduledPosts)
+      .set({
+        ...omitUndefined(update as Record<string, unknown>),
+        status: ScheduledPostStatus.AWAITING_APPROVAL,
+        prepared_at: new Date(),
+        updated_at: new Date(),
+        error_message: null,
+      })
+      .where(
+        and(
+          eq(scheduledPosts.id, id),
+          eq(scheduledPosts.site_id, siteId),
+          inArray(scheduledPosts.status, [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED])
+        )
+      )
+      .returning();
+    return row ? this.toEntity(row) : null;
   }
 
   /**
@@ -198,21 +282,22 @@ export class ScheduledPostRepository {
    * not currently AWAITING_APPROVAL (e.g. already approved on another tab).
    */
   async markApproved(id: string, siteId: string, approverUserId: string): Promise<ScheduledPostType | null> {
-    return ScheduledPost.findOneAndUpdate(
-      {
-        _id: id,
-        site_id: siteId,
-        status: ScheduledPostStatus.AWAITING_APPROVAL,
-      },
-      {
-        $set: {
-          approved_at: new Date(),
-          approved_by_user_id: approverUserId,
-          updated_at: new Date(),
-        },
-      },
-      { new: true }
-    );
+    const [row] = await db
+      .update(scheduledPosts)
+      .set({
+        approved_at: new Date(),
+        approved_by_user_id: approverUserId,
+        updated_at: new Date(),
+      })
+      .where(
+        and(
+          eq(scheduledPosts.id, id),
+          eq(scheduledPosts.site_id, siteId),
+          eq(scheduledPosts.status, ScheduledPostStatus.AWAITING_APPROVAL)
+        )
+      )
+      .returning();
+    return row ? this.toEntity(row) : null;
   }
 
   /**
@@ -227,89 +312,109 @@ export class ScheduledPostRepository {
     comments: string,
     requesterUserId: string
   ): Promise<ScheduledPostType | null> {
-    return ScheduledPost.findOneAndUpdate(
-      {
-        _id: id,
-        site_id: siteId,
-        status: ScheduledPostStatus.AWAITING_APPROVAL,
-      },
-      {
-        $set: {
-          status: ScheduledPostStatus.REWORK_REQUESTED,
-          rework_comments: comments,
-          approved_at: undefined,
-          approved_by_user_id: requesterUserId,
-          prepared_at: undefined,
-          updated_at: new Date(),
-        },
-        $inc: { rework_round: 1 },
-      },
-      { new: true }
-    );
+    const [row] = await db
+      .update(scheduledPosts)
+      .set({
+        status: ScheduledPostStatus.REWORK_REQUESTED,
+        rework_comments: comments,
+        approved_at: null,
+        approved_by_user_id: requesterUserId,
+        prepared_at: null,
+        updated_at: new Date(),
+        rework_round: sql`${scheduledPosts.rework_round} + 1`,
+      })
+      .where(
+        and(
+          eq(scheduledPosts.id, id),
+          eq(scheduledPosts.site_id, siteId),
+          eq(scheduledPosts.status, ScheduledPostStatus.AWAITING_APPROVAL)
+        )
+      )
+      .returning();
+    return row ? this.toEntity(row) : null;
   }
 
   async findByDateRange(siteId: string, startDate: Date, endDate: Date): Promise<ScheduledPostType[]> {
-    return ScheduledPost.find({
-      site_id: siteId,
-      scheduled_at: {
-        $gte: startDate,
-        $lte: endDate,
-      },
-    })
-      .populate("blog_id", "title slug status excerpt")
-      .populate("campaign_id", "name goal")
-      .sort({ scheduled_at: 1 });
+    const rows = await db
+      .select()
+      .from(scheduledPosts)
+      .where(
+        and(
+          eq(scheduledPosts.site_id, siteId),
+          gte(scheduledPosts.scheduled_at, startDate),
+          lte(scheduledPosts.scheduled_at, endDate)
+        )
+      )
+      .orderBy(asc(scheduledPosts.scheduled_at));
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   async markAsPublished(id: string, publishedAt: Date): Promise<void> {
-    await ScheduledPost.updateOne(
-      { _id: id },
-      {
-        $set: {
-          status: ScheduledPostStatus.PUBLISHED,
-          published_at: publishedAt,
-        },
-      }
-    );
+    await db
+      .update(scheduledPosts)
+      .set({
+        status: ScheduledPostStatus.PUBLISHED,
+        published_at: publishedAt,
+        updated_at: new Date(),
+      })
+      .where(eq(scheduledPosts.id, id));
   }
 
   async markAsFailed(id: string, errorMessage: string): Promise<void> {
-    await ScheduledPost.updateOne(
-      { _id: id },
-      {
-        $set: {
-          status: ScheduledPostStatus.FAILED,
-          error_message: errorMessage,
-          last_attempt_at: new Date(),
-        },
-        $inc: { publish_attempts: 1 },
-      }
-    );
+    await db
+      .update(scheduledPosts)
+      .set({
+        status: ScheduledPostStatus.FAILED,
+        error_message: errorMessage,
+        last_attempt_at: new Date(),
+        publish_attempts: sql`${scheduledPosts.publish_attempts} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(scheduledPosts.id, id));
   }
 
   async incrementAttempts(id: string): Promise<void> {
-    await ScheduledPost.updateOne(
-      { _id: id },
-      {
-        $set: { last_attempt_at: new Date() },
-        $inc: { publish_attempts: 1 },
-      }
-    );
+    await db
+      .update(scheduledPosts)
+      .set({
+        last_attempt_at: new Date(),
+        publish_attempts: sql`${scheduledPosts.publish_attempts} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(scheduledPosts.id, id));
   }
 
   async countByCampaign(campaignId: string, status?: ScheduledPostStatus): Promise<number> {
-    const query: Record<string, unknown> = { campaign_id: campaignId };
+    const conditions = [eq(scheduledPosts.campaign_id, campaignId)];
     if (status) {
-      query.status = status;
+      conditions.push(eq(scheduledPosts.status, status));
     }
-    return ScheduledPost.countDocuments(query);
+    const [row] = await db
+      .select({ value: sql<number>`count(*)` })
+      .from(scheduledPosts)
+      .where(and(...conditions));
+    return Number(row?.value ?? 0);
   }
 
   async isBlogScheduled(blogId: string): Promise<boolean> {
-    const count = await ScheduledPost.countDocuments({
-      blog_id: blogId,
-      status: { $in: [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED] },
-    });
-    return count > 0;
+    const [row] = await db
+      .select({ value: sql<number>`count(*)` })
+      .from(scheduledPosts)
+      .where(
+        and(
+          eq(scheduledPosts.blog_id, blogId),
+          inArray(scheduledPosts.status, [ScheduledPostStatus.PENDING, ScheduledPostStatus.SCHEDULED])
+        )
+      );
+    return Number(row?.value ?? 0) > 0;
+  }
+
+  async assignUnboundCampaign(siteId: string, campaignId: string): Promise<number> {
+    const rows = await db
+      .update(scheduledPosts)
+      .set({ campaign_id: campaignId, updated_at: new Date() })
+      .where(and(eq(scheduledPosts.site_id, siteId), isNull(scheduledPosts.campaign_id)))
+      .returning({ id: scheduledPosts.id });
+    return rows.length;
   }
 }

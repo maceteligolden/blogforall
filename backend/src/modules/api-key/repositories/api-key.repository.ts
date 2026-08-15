@@ -1,8 +1,9 @@
 import { injectable } from "tsyringe";
-import mongoose from "mongoose";
-import WorkspaceApiKey from "../../../shared/schemas/workspace-api-key.schema";
+import { and, desc, eq } from "drizzle-orm";
 import { generateApiKey } from "../../../shared/utils/api-key";
 import { encryptWorkspaceApiKeySecret } from "../../../shared/utils/workspace-api-key-crypto";
+import { db } from "../../../shared/database";
+import { workspaceApiKeys } from "../../../shared/database/schema";
 
 @injectable()
 export class ApiKeyRepository {
@@ -14,8 +15,8 @@ export class ApiKeyRepository {
     const keyPair = generateApiKey();
     const secret_encrypted = encryptWorkspaceApiKeySecret(keyPair.secretKey);
 
-    await WorkspaceApiKey.create({
-      site_id: new mongoose.Types.ObjectId(siteId),
+    await db.insert(workspaceApiKeys).values({
+      site_id: siteId,
       user_id: userId,
       name,
       accessKeyId: keyPair.accessKeyId,
@@ -43,31 +44,32 @@ export class ApiKeyRepository {
       isActive: boolean;
     }>
   > {
-    const keys = await WorkspaceApiKey.find({
-      site_id: new mongoose.Types.ObjectId(siteId),
-    })
-      .sort({ createdAt: -1 })
-      .lean();
+    const keys = await db
+      .select()
+      .from(workspaceApiKeys)
+      .where(eq(workspaceApiKeys.site_id, siteId))
+      .orderBy(desc(workspaceApiKeys.createdAt));
+
     return keys.map((k) => ({
       name: k.name,
       accessKeyId: k.accessKeyId,
       secret_encrypted: k.secret_encrypted,
       createdAt: k.createdAt,
-      lastUsed: k.lastUsed,
+      lastUsed: k.lastUsed ?? undefined,
       isActive: k.isActive,
     }));
   }
 
   async deleteBySiteAndAccessKey(siteId: string, accessKeyId: string): Promise<boolean> {
-    const res = await WorkspaceApiKey.deleteOne({
-      site_id: new mongoose.Types.ObjectId(siteId),
-      accessKeyId,
-    });
-    return res.deletedCount > 0;
+    const rows = await db
+      .delete(workspaceApiKeys)
+      .where(and(eq(workspaceApiKeys.site_id, siteId), eq(workspaceApiKeys.accessKeyId, accessKeyId)))
+      .returning({ id: workspaceApiKeys.id });
+    return rows.length > 0;
   }
 
   async deleteBySiteId(siteId: string): Promise<void> {
-    await WorkspaceApiKey.deleteMany({ site_id: new mongoose.Types.ObjectId(siteId) });
+    await db.delete(workspaceApiKeys).where(eq(workspaceApiKeys.site_id, siteId));
   }
 
   async findByAccessKeyId(accessKeyId: string): Promise<{
@@ -79,24 +81,28 @@ export class ApiKeyRepository {
       isActive: boolean;
     };
   } | null> {
-    const doc = await WorkspaceApiKey.findOne({ accessKeyId }).lean();
-    if (!doc) return null;
+    const [row] = await db
+      .select()
+      .from(workspaceApiKeys)
+      .where(eq(workspaceApiKeys.accessKeyId, accessKeyId))
+      .limit(1);
+    if (!row) return null;
 
     return {
-      siteId: doc.site_id.toString(),
-      userId: doc.user_id,
+      siteId: row.site_id,
+      userId: row.user_id,
       apiKey: {
-        accessKeyId: doc.accessKeyId,
-        hashedSecret: doc.hashedSecret,
-        isActive: doc.isActive,
+        accessKeyId: row.accessKeyId,
+        hashedSecret: row.hashedSecret,
+        isActive: row.isActive,
       },
     };
   }
 
   async updateLastUsed(siteId: string, accessKeyId: string): Promise<void> {
-    await WorkspaceApiKey.updateOne(
-      { site_id: new mongoose.Types.ObjectId(siteId), accessKeyId },
-      { $set: { lastUsed: new Date() } }
-    );
+    await db
+      .update(workspaceApiKeys)
+      .set({ lastUsed: new Date() })
+      .where(and(eq(workspaceApiKeys.site_id, siteId), eq(workspaceApiKeys.accessKeyId, accessKeyId)));
   }
 }

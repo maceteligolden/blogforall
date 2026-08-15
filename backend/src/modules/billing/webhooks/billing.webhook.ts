@@ -118,7 +118,11 @@ export class BillingWebhook {
       logger.info(`Applied pending plan change for subscription ${subscriptionId}`, {}, "BillingWebhook");
     }
 
-    await this.subscriptionRepository.update(subscription._id!, updateData);
+    await this.subscriptionRepository.updateWithUserPlan(
+      subscription._id!,
+      updateData,
+      await this.userPlanForSubscription(subscription.userId, updateData.planId ?? subscription.planId)
+    );
 
     logger.info(`Payment succeeded for subscription ${subscriptionId}`, {}, "BillingWebhook");
   }
@@ -186,7 +190,11 @@ export class BillingWebhook {
     updateData.status = status;
     updateData.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end || false;
 
-    await this.subscriptionRepository.update(subscription._id!, updateData);
+    await this.subscriptionRepository.updateWithUserPlan(
+      subscription._id!,
+      updateData,
+      await this.userPlanForSubscription(subscription.userId, updateData.planId ?? subscription.planId)
+    );
 
     logger.info(`Subscription updated: ${stripeSubscription.id}`, {}, "BillingWebhook");
   }
@@ -205,16 +213,29 @@ export class BillingWebhook {
     const now = new Date();
     const TIME_IN_MS = SUBSCRIPTION_CONSTANTS.FREE_PLAN_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
-    await this.subscriptionRepository.update(subscription._id!, {
-      planId: freePlan._id!,
-      status: SubscriptionStatus.FREE,
-      currentPeriodStart: now,
-      currentPeriodEnd: new Date(now.getTime() + TIME_IN_MS),
-      providerSubscriptionId: undefined,
-      paymentProvider: undefined,
-      cancelAtPeriodEnd: false,
-    });
+    await this.subscriptionRepository.updateWithUserPlan(
+      subscription._id!,
+      {
+        planId: freePlan._id!,
+        status: SubscriptionStatus.FREE,
+        currentPeriodStart: now,
+        currentPeriodEnd: new Date(now.getTime() + TIME_IN_MS),
+        providerSubscriptionId: undefined,
+        paymentProvider: undefined,
+        cancelAtPeriodEnd: false,
+      },
+      { userId: subscription.userId, plan: "free" }
+    );
 
     logger.info(`Subscription deleted and downgraded to free: ${stripeSubscription.id}`, {}, "BillingWebhook");
+  }
+
+  private async userPlanForSubscription(
+    userId: string,
+    planId: string
+  ): Promise<{ userId: string; plan: string } | undefined> {
+    const plan = await this.planRepository.findById(planId);
+    if (!plan?.name) return undefined;
+    return { userId, plan: plan.name.toLowerCase() };
   }
 }

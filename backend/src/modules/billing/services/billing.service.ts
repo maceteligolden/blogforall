@@ -1,10 +1,10 @@
 import { injectable } from "tsyringe";
 import type Stripe from "stripe";
-import User from "../../../shared/schemas/user.schema";
-import type { Card } from "../../../shared/schemas/card.schema";
 import { StripeFacade } from "../../../shared/facade/stripe.facade";
 import { CardRepository } from "../repositories/card.repository";
+import { UserRepository } from "../../auth/repositories/user.repository";
 import { BadRequestError, NotFoundError } from "../../../shared/errors";
+import type { Card } from "../../../shared/schemas/card.schema";
 
 export type UserInvoiceSummary = {
   id: string | undefined;
@@ -48,14 +48,15 @@ export type UserInvoiceDetails = {
 export class BillingService {
   constructor(
     private stripeFacade: StripeFacade,
-    private cardRepository: CardRepository
+    private cardRepository: CardRepository,
+    private userRepository: UserRepository
   ) {}
 
   /**
    * Initialize add card process - creates setup intent
    */
   async initializeAddCard(userId: string): Promise<{ client_secret: string }> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -66,7 +67,7 @@ export class BillingService {
         user.email,
         `${user.first_name} ${user.last_name}`.trim()
       );
-      await User.findByIdAndUpdate(userId, {
+      await this.userRepository.update(userId, {
         stripe_customer_id: customer.id,
       });
       user.stripe_customer_id = customer.id;
@@ -91,7 +92,7 @@ export class BillingService {
    * Confirm and save card after setup intent is confirmed
    */
   async confirmCard(userId: string, paymentMethodId: string): Promise<Card> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user || !user.stripe_customer_id) {
       throw new NotFoundError("User not found or no Stripe customer");
     }
@@ -132,7 +133,7 @@ export class BillingService {
    * Fetch all user cards
    */
   async fetchUserCards(userId: string): Promise<Card[]> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user || !user.stripe_customer_id) {
       return [];
     }
@@ -150,7 +151,7 @@ export class BillingService {
       throw new NotFoundError("Card not found");
     }
 
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user || card.stripe_customer_id !== user.stripe_customer_id) {
       throw new BadRequestError("Unauthorized");
     }
@@ -175,7 +176,7 @@ export class BillingService {
       throw new NotFoundError("Card not found");
     }
 
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user || card.stripe_customer_id !== user.stripe_customer_id) {
       throw new BadRequestError("Unauthorized");
     }
@@ -197,7 +198,7 @@ export class BillingService {
    * Get invoice history for user
    */
   async getInvoiceHistory(userId: string, limit: number = 10): Promise<UserInvoiceSummary[]> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user || !user.stripe_customer_id) {
       return [];
     }
@@ -224,7 +225,7 @@ export class BillingService {
    * Get invoice details
    */
   async getInvoiceDetails(userId: string, invoiceId: string): Promise<UserInvoiceDetails> {
-    const user = await User.findById(userId);
+    const user = await this.userRepository.findById(userId);
     if (!user || !user.stripe_customer_id) {
       throw new NotFoundError("User not found or no Stripe customer");
     }

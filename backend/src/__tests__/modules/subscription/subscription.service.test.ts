@@ -2,13 +2,6 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { BadRequestError } from "../../../shared/errors";
 import { SubscriptionStatus } from "../../../shared/schemas/subscription.schema";
 
-jest.mock("../../../shared/schemas/user.schema", () => ({
-  __esModule: true,
-  default: {
-    findById: jest.fn(),
-  },
-}));
-
 jest.mock("../../../shared/analytics/posthog.server", () => ({
   captureServerEvent: jest.fn(),
   ServerAnalyticsEvents: {
@@ -16,7 +9,6 @@ jest.mock("../../../shared/analytics/posthog.server", () => ({
   },
 }));
 
-import User from "../../../shared/schemas/user.schema";
 import { SubscriptionService } from "../../../modules/subscription/services/subscription.service";
 
 describe("SubscriptionService restored paid paths", () => {
@@ -31,11 +23,6 @@ describe("SubscriptionService restored paid paths", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (User.findById as unknown as { mockResolvedValue: (v: unknown) => void }).mockResolvedValue({
-      _id: "u1",
-      stripe_customer_id: "cus_1",
-    });
-
     service = new SubscriptionService(
       {
         findByUserId: mockFindByUserId,
@@ -63,6 +50,9 @@ describe("SubscriptionService restored paid paths", () => {
       } as never,
       {
         findDefaultCard: mockFindDefaultCard,
+      } as never,
+      {
+        findById: jest.fn(async () => ({ _id: "u1", stripe_customer_id: "cus_1" })),
       } as never
     );
   });

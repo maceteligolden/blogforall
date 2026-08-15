@@ -2,7 +2,9 @@
 #   docker compose up -d
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Isolated via compose project name `bloggr-prod`, host ports 5006 / 6380, and prod-only volumes/network.
+# Isolated via compose project name `bloggr-prod`, host port 5006, and prod-only volumes/network.
+# Valkey is not published to the host. Service key stays `valkey` (Dokploy).
+# Isolation from dev: container bloggr-valkey-prod, network bloggr-prod-network.
 
 name: bloggr-prod
 
@@ -10,14 +12,13 @@ services:
   valkey:
     image: valkey/valkey:8-alpine
     container_name: bloggr-valkey-prod
-    ports:
-      - "6380:6379"
     volumes:
       - valkey-data-prod:/data
     networks:
-      - bloggr-network
+      - bloggr-prod-network
     restart: unless-stopped
     command: ["--save", "60", "1000"]
+    # No `ports:` — 6379 stays on the compose network only.
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 10s
@@ -36,7 +37,10 @@ services:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: "5006"
       MONGODB_URI: ${MONGODB_URI:-}
-      REDIS_URL: ${REDIS_URL:-redis://valkey:6379}
+      DATABASE_URL: ${DATABASE_URL:-}
+      # Pinned to the compose service. Do not interpolate ${REDIS_URL} — that can
+      # silently point the app at a public Redis instead of this stack's Valkey.
+      REDIS_URL: redis://bloggr-valkey-prod:6379
       ACCESS_SECRET: ${ACCESS_SECRET}
       REFRESH_SECRET: ${REFRESH_SECRET}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
@@ -80,7 +84,7 @@ services:
     volumes:
       - backend-uploads-prod:/app/uploads
     networks:
-      - bloggr-network
+      - bloggr-prod-network
     restart: unless-stopped
     depends_on:
       valkey:
@@ -99,5 +103,6 @@ volumes:
     driver: local
 
 networks:
-  bloggr-network:
+  bloggr-prod-network:
+    name: bloggr-prod-network
     driver: bridge

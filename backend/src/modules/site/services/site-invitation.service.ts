@@ -16,8 +16,7 @@ import {
 } from "../interfaces/site-invitation.interface";
 import { SiteInvitation } from "../../../shared/schemas/site-invitation.schema";
 import { InvitationStatus, SiteMemberRole } from "../../../shared/constants";
-import Site, { type Site as SiteDocument } from "../../../shared/schemas/site.schema";
-import User from "../../../shared/schemas/user.schema";
+import type { Site as SiteDocument } from "../../../shared/schemas/site.schema";
 import { env } from "../../../shared/config/env";
 import {
   NotificationChannel,
@@ -139,15 +138,12 @@ export class SiteInvitationService {
       throw new BadRequestError("You are already a member of this site");
     }
 
-    // Add user as member
-    await this.siteMemberRepository.create({
-      site_id: invitation.site_id,
-      user_id: userId,
+    await this.invitationRepository.acceptAtomically({
+      token,
+      siteId: invitation.site_id,
+      userId,
       role: invitation.role,
     });
-
-    // Update invitation status
-    await this.invitationRepository.updateStatus(token, InvitationStatus.ACCEPTED, new Date());
 
     // Notify inviter (in-app)
     await this.notifyInviterResponse(invitation, user, "accepted");
@@ -259,9 +255,8 @@ export class SiteInvitationService {
     // Populate site information
     const invitationsWithSite = await Promise.all(
       invitations.map(async (invitation) => {
-        const site = await Site.findById(invitation.site_id);
-        const doc = invitation as { toObject?: () => Record<string, unknown> } & SiteInvitation;
-        const invObj = doc.toObject ? doc.toObject() : { ...invitation };
+        const site = await this.siteRepository.findById(invitation.site_id);
+        const invObj = { ...invitation };
         return {
           ...invObj,
           site: site
@@ -307,7 +302,7 @@ export class SiteInvitationService {
     }
 
     const site = await this.siteRepository.findById(invitation.site_id);
-    const inviter = await User.findById(invitation.invited_by);
+    const inviter = await this.userRepository.findById(invitation.invited_by);
     const inviterName = inviter
       ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member"
       : "A team member";
@@ -437,7 +432,7 @@ export class SiteInvitationService {
     hasAccount: boolean
   ): Promise<void> {
     try {
-      const inviter = await User.findById(invitedBy);
+      const inviter = await this.userRepository.findById(invitedBy);
       const inviterName = inviter
         ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member"
         : "A team member";
@@ -494,7 +489,7 @@ export class SiteInvitationService {
     recipientUserId: string
   ): Promise<void> {
     try {
-      const inviter = await User.findById(invitedBy);
+      const inviter = await this.userRepository.findById(invitedBy);
       const inviterName = inviter
         ? `${inviter.first_name} ${inviter.last_name}`.trim() || "A team member"
         : "A team member";

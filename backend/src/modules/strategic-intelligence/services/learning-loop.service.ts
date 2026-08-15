@@ -7,7 +7,7 @@ import { randomUUID } from "crypto";
 import type { MemoryRecord } from "../../orchestrator/ai/contracts/memory-record";
 import { logger } from "../../../shared/utils/logger";
 import { env } from "../../../shared/config/env";
-import Blog from "../../../shared/schemas/blog.schema";
+import { BlogRepository } from "../../blog/repositories/blog.repository";
 
 const MAX_CONFIRM_DELTA = 0.08;
 const ENGAGEMENT_VIEWS_CONFIRM = 50;
@@ -22,7 +22,8 @@ export class LearningLoopService {
     private readonly knowledge: BusinessKnowledgeService,
     private readonly intelligence: CampaignIntelligenceService,
     private readonly records: MemoryRecordRepository,
-    private readonly campaigns: CampaignRepository
+    private readonly campaigns: CampaignRepository,
+    private readonly blogs: BlogRepository
   ) {}
 
   async onBlogPublished(siteId: string, blogId: string, campaignId?: string): Promise<void> {
@@ -48,7 +49,7 @@ export class LearningLoopService {
   async onBlogStatsUpdated(siteId: string, blogId: string): Promise<void> {
     if (!env.orchestrator.strategicIntelligenceEnabled) return;
     try {
-      const blog = await Blog.findOne({ _id: blogId, site_id: siteId }).lean();
+      const blog = await this.blogs.findById(blogId, siteId);
       if (!blog) return;
       const views = blog.views ?? 0;
       const likes = blog.likes ?? 0;

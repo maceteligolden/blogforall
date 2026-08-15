@@ -14,15 +14,17 @@ import {
 } from "../interfaces/site-member.interface";
 import { SiteMember } from "../../../shared/schemas/site-member.schema";
 import { SiteMemberRole } from "../../../shared/constants";
-import User from "../../../shared/schemas/user.schema";
-import Blog from "../../../shared/schemas/blog.schema";
+import { UserRepository } from "../../auth/repositories/user.repository";
+import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { buildCapabilitiesPayload, type SiteCapabilitiesPayload } from "../../../shared/utils/site-permissions.util";
 
 @injectable()
 export class SiteMemberService {
   constructor(
     private siteMemberRepository: SiteMemberRepository,
-    private siteRepository: SiteRepository
+    private siteRepository: SiteRepository,
+    private userRepository: UserRepository,
+    private blogRepository: BlogRepository
   ) {}
 
   /**
@@ -59,7 +61,7 @@ export class SiteMemberService {
     }
 
     // Check if user exists
-    const user = await User.findById(input.user_id);
+    const user = await this.userRepository.findById(input.user_id);
     if (!user) {
       throw new NotFoundError("User not found");
     }
@@ -103,11 +105,10 @@ export class SiteMemberService {
     const membersWithUser = await Promise.all(
       members.map(async (member) => {
         const [user, postsCount] = await Promise.all([
-          User.findById(member.user_id),
-          Blog.countDocuments({ site_id: siteId, author: member.user_id }),
+          this.userRepository.findById(member.user_id),
+          this.blogRepository.countBySiteAndAuthor(siteId, member.user_id),
         ]);
-        const doc = member as SiteMember & { toObject?: () => Record<string, unknown> };
-        const memberObj = doc.toObject ? doc.toObject() : { ...member };
+        const memberObj = { ...member };
         return {
           ...memberObj,
           posts_count: postsCount,

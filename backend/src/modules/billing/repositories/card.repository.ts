@@ -1,39 +1,78 @@
 import { injectable } from "tsyringe";
-import { CardModel, Card } from "../../../shared/schemas/card.schema";
+import { and, desc, eq } from "drizzle-orm";
+import { Card } from "../../../shared/schemas/card.schema";
+import { db } from "../../../shared/database";
+import { cards } from "../../../shared/database/schema";
+import { omitUndefined, withId, withIds } from "../../../shared/database/map-row";
 
 @injectable()
 export class CardRepository {
+  private toEntity(row: typeof cards.$inferSelect): Card {
+    return withId(row) as unknown as Card;
+  }
+
   async create(cardData: Partial<Card>): Promise<Card> {
-    const card = new CardModel(cardData);
-    return card.save();
+    const [row] = await db
+      .insert(cards)
+      .values({
+        stripe_card_token: cardData.stripe_card_token!,
+        last_digits: cardData.last_digits!,
+        expire_date: cardData.expire_date!,
+        type: cardData.type!,
+        stripe_customer_id: cardData.stripe_customer_id!,
+        is_default: cardData.is_default ?? false,
+      })
+      .returning();
+    return this.toEntity(row);
   }
 
   async findById(id: string): Promise<Card | null> {
-    return CardModel.findById(id);
+    const [row] = await db.select().from(cards).where(eq(cards.id, id)).limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async findByStripeToken(stripeCardToken: string): Promise<Card | null> {
-    return CardModel.findOne({ stripe_card_token: stripeCardToken });
+    const [row] = await db.select().from(cards).where(eq(cards.stripe_card_token, stripeCardToken)).limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async findByCustomerId(stripeCustomerId: string): Promise<Card[]> {
-    return CardModel.find({ stripe_customer_id: stripeCustomerId }).sort({ is_default: -1, created_at: -1 });
+    const rows = await db
+      .select()
+      .from(cards)
+      .where(eq(cards.stripe_customer_id, stripeCustomerId))
+      .orderBy(desc(cards.is_default), desc(cards.created_at));
+    return withIds(rows) as unknown as Card[];
   }
 
   async findDefaultCard(stripeCustomerId: string): Promise<Card | null> {
-    return CardModel.findOne({ stripe_customer_id: stripeCustomerId, is_default: true });
+    const [row] = await db
+      .select()
+      .from(cards)
+      .where(and(eq(cards.stripe_customer_id, stripeCustomerId), eq(cards.is_default, true)))
+      .limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async update(id: string, updateData: Partial<Card>): Promise<Card | null> {
-    return CardModel.findByIdAndUpdate(id, updateData, { new: true });
+    const { _id: _ignored, id: _idIgnored, ...rest } = updateData as Partial<Card> & { id?: string };
+    const [row] = await db
+      .update(cards)
+      .set({ ...omitUndefined(rest as Record<string, unknown>), updated_at: new Date() })
+      .where(eq(cards.id, id))
+      .returning();
+    return row ? this.toEntity(row) : null;
   }
 
   async setAllCardsNonDefault(stripeCustomerId: string): Promise<void> {
-    await CardModel.updateMany({ stripe_customer_id: stripeCustomerId }, { is_default: false });
+    await db
+      .update(cards)
+      .set({ is_default: false, updated_at: new Date() })
+      .where(eq(cards.stripe_customer_id, stripeCustomerId));
   }
 
   async delete(id: string): Promise<boolean> {
-    const result = await CardModel.findByIdAndDelete(id);
-    return !!result;
+    const rows = await db.delete(cards).where(eq(cards.id, id)).returning({ id: cards.id });
+    return rows.length > 0;
   }
 }

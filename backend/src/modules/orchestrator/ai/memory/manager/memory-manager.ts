@@ -1,11 +1,11 @@
 import { randomUUID } from "crypto";
 import { injectable } from "tsyringe";
 import type { WorkspaceMemory } from "../../../../../shared/schemas/workspace-memory.schema";
-import User from "../../../../../shared/schemas/user.schema";
 import { ContextPackBuilderService } from "../../../../memory/services/context-pack-builder.service";
 import { MemoryExtractionService } from "../../../../memory/services/memory-extraction.service";
 import { MemoryRecordRepository } from "../../../repositories/memory-record.repository";
 import { WorkspaceMemoryRepository } from "../../../repositories/workspace-memory.repository";
+import { UserRepository } from "../../../../auth/repositories/user.repository";
 import {
   memoryCandidateSchema,
   memoryRecordSchema,
@@ -71,7 +71,8 @@ export class MemoryManagerService {
     private readonly packs: ContextPackBuilderService,
     private readonly extraction: MemoryExtractionService,
     private readonly workspaceMemory: WorkspaceMemoryRepository,
-    private readonly memoryRecords: MemoryRecordRepository
+    private readonly memoryRecords: MemoryRecordRepository,
+    private readonly userRepository: UserRepository
   ) {}
 
   async retrieve(ctx: RetrievalContext): Promise<MemoryRetrievalResult> {
@@ -93,7 +94,7 @@ export class MemoryManagerService {
     let company_role: string | undefined;
     let company_role_detail: string | undefined;
     if (ctx.user_id) {
-      const user = await User.findById(ctx.user_id).select("company_role company_role_detail").lean();
+      const user = await this.userRepository.findById(ctx.user_id);
       company_role = user?.company_role;
       company_role_detail = user?.company_role_detail;
       if (company_role) {

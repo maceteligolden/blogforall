@@ -114,11 +114,12 @@ describe("T2.2 MemoryManagerService", () => {
       ensureForSite: jest.fn(async () => ({
         site_id: "ws_1",
         strategic: {
+          business_description: "A workspace for founders",
           brand_voice: "clear",
           target_audience: ["founders"],
           business_goals: ["growth"],
           seo_priorities: [],
-          publishing_channels: [],
+          publishing_channels: ["blog"],
         },
         preferences: { tone: "friendly" },
       })),
@@ -127,7 +128,13 @@ describe("T2.2 MemoryManagerService", () => {
       listByLayer: jest.fn(async () => []),
       upsert: jest.fn(async (r: unknown) => r),
     };
-    mm = new MemoryManagerService(packs as any, extraction as any, workspaceMemory as any, memoryRecords as any);
+    mm = new MemoryManagerService(
+      packs as any,
+      extraction as any,
+      workspaceMemory as any,
+      memoryRecords as any,
+      { findById: jest.fn(async () => null) } as any
+    );
   });
 
   it("retrieve builds pack with chat_light → planning and includeVectors false", async () => {

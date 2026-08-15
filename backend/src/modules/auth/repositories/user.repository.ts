@@ -1,29 +1,63 @@
 import { injectable } from "tsyringe";
-import User, { User as UserType } from "../../../shared/schemas/user.schema";
+import { and, desc, eq, gt, ilike, inArray, or, sql } from "drizzle-orm";
+import { User as UserType } from "../../../shared/schemas/user.schema";
 import { UserRole } from "../../../shared/constants";
+import { db } from "../../../shared/database";
+import { users } from "../../../shared/database/schema";
+import { omitUndefined, withId, withIds } from "../../../shared/database/map-row";
 
 @injectable()
 export class UserRepository {
+  private toEntity(row: typeof users.$inferSelect): UserType {
+    return withId(row) as unknown as UserType;
+  }
+
   async create(userData: Partial<UserType>): Promise<UserType> {
-    const user = new User(userData);
-    return user.save();
+    const [row] = await db
+      .insert(users)
+      .values({
+        email: userData.email!.toLowerCase(),
+        password: userData.password!,
+        first_name: userData.first_name!,
+        last_name: userData.last_name!,
+        phone_number: userData.phone_number,
+        role: userData.role ?? UserRole.USER,
+        plan: userData.plan,
+        sessionToken: userData.sessionToken,
+        stripe_customer_id: userData.stripe_customer_id,
+        onboarding_completed: userData.onboarding_completed ?? false,
+        terms_accepted_at: userData.terms_accepted_at,
+        terms_version: userData.terms_version,
+        referral_code: userData.referral_code,
+        referred_by_user_id: userData.referred_by_user_id,
+        email_verified: userData.email_verified ?? false,
+        company_role: userData.company_role,
+        company_role_detail: userData.company_role_detail,
+        show_welcome_tour: userData.show_welcome_tour ?? false,
+      })
+      .returning();
+    return this.toEntity(row);
   }
 
   async findByEmail(email: string): Promise<UserType | null> {
-    return User.findOne({ email: email.toLowerCase() });
+    const [row] = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async findByReferralCode(code: string): Promise<UserType | null> {
-    return User.findOne({ referral_code: code.toUpperCase() });
+    const [row] = await db.select().from(users).where(eq(users.referral_code, code.toUpperCase())).limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async findById(id: string): Promise<UserType | null> {
-    return User.findById(id);
+    const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async findByIds(ids: string[]): Promise<UserType[]> {
     if (!ids.length) return [];
-    return User.find({ _id: { $in: ids } });
+    const rows = await db.select().from(users).where(inArray(users.id, ids));
+    return withIds(rows) as unknown as UserType[];
   }
 
   async findUsersForAdminList(input: {
@@ -32,105 +66,160 @@ export class UserRepository {
     search?: string;
   }): Promise<{ data: UserType[]; total: number }> {
     const { page, limit, search } = input;
-    const skip = (page - 1) * limit;
-    const query: Record<string, unknown> = { role: UserRole.USER };
+    const offset = (page - 1) * limit;
+    const filters = [eq(users.role, UserRole.USER)];
     if (search) {
-      query.$or = [
-        { email: { $regex: search, $options: "i" } },
-        { first_name: { $regex: search, $options: "i" } },
-        { last_name: { $regex: search, $options: "i" } },
-      ];
+      filters.push(
+        or(
+          ilike(users.email, `%${search}%`),
+          ilike(users.first_name, `%${search}%`),
+          ilike(users.last_name, `%${search}%`)
+        )!
+      );
     }
-
-    const [data, total] = await Promise.all([
-      User.find(query).sort({ created_at: -1 }).skip(skip).limit(limit),
-      User.countDocuments(query),
+    const where = and(...filters);
+    const [data, totalRows] = await Promise.all([
+      db.select().from(users).where(where).orderBy(desc(users.created_at)).limit(limit).offset(offset),
+      db
+        .select({ value: sql<number>`count(*)` })
+        .from(users)
+        .where(where),
     ]);
-    return { data, total };
+    return { data: withIds(data) as unknown as UserType[], total: Number(totalRows[0]?.value ?? 0) };
+  }
+
+  async countByRole(roles: UserRole | UserRole[]): Promise<number> {
+    const list = Array.isArray(roles) ? roles : [roles];
+    const [row] = await db
+      .select({ value: sql<number>`count(*)` })
+      .from(users)
+      .where(inArray(users.role, list));
+    return Number(row?.value ?? 0);
   }
 
   async update(id: string, updateData: Partial<UserType>): Promise<UserType | null> {
-    updateData.updated_at = new Date();
-    return User.findByIdAndUpdate(id, updateData, { new: true });
+    const { _id: _ignored, id: _idIgnored, ...rest } = updateData as Partial<UserType> & { id?: string };
+    const [row] = await db
+      .update(users)
+      .set({ ...omitUndefined(rest as Record<string, unknown>), updated_at: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return row ? this.toEntity(row) : null;
   }
 
   async updateSessionToken(id: string, token: string | null): Promise<void> {
-    await User.findByIdAndUpdate(id, { sessionToken: token, updated_at: new Date() });
+    await db.update(users).set({ sessionToken: token, updated_at: new Date() }).where(eq(users.id, id));
   }
 
   async findByResetToken(hashedToken: string): Promise<UserType | null> {
-    return User.findOne({
-      resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: new Date() },
-    });
+    const [row] = await db
+      .select()
+      .from(users)
+      .where(and(eq(users.resetPasswordToken, hashedToken), gt(users.resetPasswordExpires, new Date())))
+      .limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async setResetCode(id: string, hashedCode: string, expiresAt: Date): Promise<void> {
-    await User.findByIdAndUpdate(id, {
-      resetPasswordToken: hashedCode,
-      resetPasswordExpires: expiresAt,
-      resetPasswordAttempts: 0,
-      updated_at: new Date(),
-    });
+    await db
+      .update(users)
+      .set({
+        resetPasswordToken: hashedCode,
+        resetPasswordExpires: expiresAt,
+        resetPasswordAttempts: 0,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, id));
   }
 
   async incrementResetAttempts(id: string): Promise<number> {
-    const updated = await User.findByIdAndUpdate(
-      id,
-      { $inc: { resetPasswordAttempts: 1 }, updated_at: new Date() },
-      { new: true }
-    );
-    return updated?.resetPasswordAttempts ?? 0;
+    const [row] = await db
+      .update(users)
+      .set({
+        resetPasswordAttempts: sql`${users.resetPasswordAttempts} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning({ resetPasswordAttempts: users.resetPasswordAttempts });
+    return row?.resetPasswordAttempts ?? 0;
   }
 
   async clearResetCode(id: string): Promise<void> {
-    await User.findByIdAndUpdate(id, {
-      $set: { resetPasswordAttempts: 0, updated_at: new Date() },
-      $unset: { resetPasswordToken: "", resetPasswordExpires: "" },
-    });
+    await db
+      .update(users)
+      .set({
+        resetPasswordAttempts: 0,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, id));
   }
 
   async setEmailVerificationCode(id: string, hashedCode: string, expiresAt: Date): Promise<void> {
-    await User.findByIdAndUpdate(id, {
-      email_verification_token: hashedCode,
-      email_verification_expires: expiresAt,
-      email_verification_attempts: 0,
-      updated_at: new Date(),
-    });
+    await db
+      .update(users)
+      .set({
+        email_verification_token: hashedCode,
+        email_verification_expires: expiresAt,
+        email_verification_attempts: 0,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, id));
   }
 
   async incrementEmailVerificationAttempts(id: string): Promise<number> {
-    const updated = await User.findByIdAndUpdate(
-      id,
-      { $inc: { email_verification_attempts: 1 }, updated_at: new Date() },
-      { new: true }
-    );
-    return updated?.email_verification_attempts ?? 0;
+    const [row] = await db
+      .update(users)
+      .set({
+        email_verification_attempts: sql`${users.email_verification_attempts} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning({ email_verification_attempts: users.email_verification_attempts });
+    return row?.email_verification_attempts ?? 0;
   }
 
   async clearEmailVerificationCode(id: string): Promise<void> {
-    await User.findByIdAndUpdate(id, {
-      $set: { email_verification_attempts: 0, updated_at: new Date() },
-      $unset: { email_verification_token: "", email_verification_expires: "" },
-    });
+    await db
+      .update(users)
+      .set({
+        email_verification_attempts: 0,
+        email_verification_token: null,
+        email_verification_expires: null,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, id));
   }
 
   async markEmailVerified(id: string): Promise<void> {
-    await User.findByIdAndUpdate(id, {
-      $set: { email_verified: true, email_verification_attempts: 0, updated_at: new Date() },
-      $unset: { email_verification_token: "", email_verification_expires: "" },
-    });
+    await db
+      .update(users)
+      .set({
+        email_verified: true,
+        email_verification_attempts: 0,
+        email_verification_token: null,
+        email_verification_expires: null,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, id));
   }
 
   async updatePassword(id: string, hashedPassword: string): Promise<void> {
-    await User.findByIdAndUpdate(id, {
-      $set: { password: hashedPassword, resetPasswordAttempts: 0, updated_at: new Date() },
-      $unset: { resetPasswordToken: "", resetPasswordExpires: "" },
-    });
+    await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        resetPasswordAttempts: 0,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        updated_at: new Date(),
+      })
+      .where(eq(users.id, id));
   }
 
   async deleteById(id: string): Promise<boolean> {
-    const result = await User.findByIdAndDelete(id);
-    return !!result;
+    const rows = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
+    return rows.length > 0;
   }
 }

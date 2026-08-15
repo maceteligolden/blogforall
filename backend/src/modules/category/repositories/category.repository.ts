@@ -1,10 +1,17 @@
 import { injectable } from "tsyringe";
-import Category, { Category as CategoryType } from "../../../shared/schemas/category.schema";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { Category as CategoryType } from "../../../shared/schemas/category.schema";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
-import { mongooseDocToPlain } from "../../../shared/utils/mongoose-plain.util";
+import { db } from "../../../shared/database";
+import { categories } from "../../../shared/database/schema";
+import { omitUndefined, withId, withIds } from "../../../shared/database/map-row";
 
 @injectable()
 export class CategoryRepository {
+  private toEntity(row: typeof categories.$inferSelect): CategoryType {
+    return withId(row) as unknown as CategoryType;
+  }
+
   private generateSlug(name: string): string {
     return name
       .toLowerCase()
@@ -19,11 +26,15 @@ export class CategoryRepository {
     let counter = 1;
 
     while (true) {
-      const existingCategory = await Category.findOne({
-        site_id: siteId,
-        slug: uniqueSlug,
-        ...(excludeId ? { _id: { $ne: excludeId } } : {}),
-      });
+      const filters = [eq(categories.site_id, siteId), eq(categories.slug, uniqueSlug)];
+      if (excludeId) {
+        filters.push(ne(categories.id, excludeId));
+      }
+      const [existingCategory] = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(and(...filters))
+        .limit(1);
 
       if (!existingCategory) {
         break;
@@ -39,93 +50,132 @@ export class CategoryRepository {
     const siteId = categoryData.site_id as string;
     const name = categoryData.name as string;
 
-    // Generate slug
     const baseSlug = this.generateSlug(name);
     const slug = await this.ensureUniqueSlug(baseSlug, siteId);
 
-    // Validate parent exists if provided
     if (categoryData.parent) {
-      const parent = await Category.findOne({ _id: categoryData.parent, site_id: siteId });
+      const [parent] = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(and(eq(categories.id, categoryData.parent), eq(categories.site_id, siteId)))
+        .limit(1);
       if (!parent) {
         throw new NotFoundError("Parent category not found");
       }
     }
 
-    const category = new Category({
-      ...categoryData,
-      slug,
-    });
-    return category.save();
+    const { _id: _ignored, id: _idIgnored, ...rest } = categoryData as Partial<CategoryType> & { id?: string };
+    const [row] = await db
+      .insert(categories)
+      .values({
+        site_id: siteId,
+        name,
+        slug,
+        ...omitUndefined({
+          description: rest.description,
+          parent: rest.parent,
+          color: rest.color,
+          is_active: rest.is_active,
+        } as Record<string, unknown>),
+      })
+      .returning();
+    return this.toEntity(row);
   }
 
   async findById(id: string, siteId: string): Promise<CategoryType | null> {
-    return Category.findOne({ _id: id, site_id: siteId });
+    const [row] = await db
+      .select()
+      .from(categories)
+      .where(and(eq(categories.id, id), eq(categories.site_id, siteId)))
+      .limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async findBySite(siteId: string, filters?: { is_active?: boolean }): Promise<CategoryType[]> {
-    const query: Record<string, unknown> = { site_id: siteId };
+    const conditions = [eq(categories.site_id, siteId)];
     if (filters?.is_active !== undefined) {
-      query.is_active = filters.is_active;
+      conditions.push(eq(categories.is_active, filters.is_active));
     }
-    return Category.find(query).sort({ name: 1 });
+    const rows = await db
+      .select()
+      .from(categories)
+      .where(and(...conditions))
+      .orderBy(asc(categories.name));
+    return withIds(rows) as unknown as CategoryType[];
   }
 
   async countBySiteIds(siteIds: string[]): Promise<Record<string, number>> {
     if (!siteIds.length) return {};
-    const rows = await Category.aggregate<{ _id: string; count: number }>([
-      { $match: { site_id: { $in: siteIds } } },
-      { $group: { _id: "$site_id", count: { $sum: 1 } } },
-    ]);
+    const rows = await db
+      .select({ site_id: categories.site_id, count: sql<number>`count(*)` })
+      .from(categories)
+      .where(inArray(categories.site_id, siteIds))
+      .groupBy(categories.site_id);
     return rows.reduce<Record<string, number>>((acc, row) => {
-      acc[row._id] = row.count;
+      acc[row.site_id] = Number(row.count);
       return acc;
     }, {});
   }
 
   async findBySlug(slug: string, siteId: string): Promise<CategoryType | null> {
-    return Category.findOne({ slug, site_id: siteId });
+    const [row] = await db
+      .select()
+      .from(categories)
+      .where(and(eq(categories.slug, slug), eq(categories.site_id, siteId)))
+      .limit(1);
+    return row ? this.toEntity(row) : null;
   }
 
   async findChildren(parentId: string, siteId: string): Promise<CategoryType[]> {
-    return Category.find({ parent: parentId, site_id: siteId }).sort({ name: 1 });
+    const rows = await db
+      .select()
+      .from(categories)
+      .where(and(eq(categories.parent, parentId), eq(categories.site_id, siteId)))
+      .orderBy(asc(categories.name));
+    return withIds(rows) as unknown as CategoryType[];
   }
 
   async update(id: string, siteId: string, updateData: Partial<CategoryType>): Promise<CategoryType | null> {
-    // If name is being updated, regenerate slug
     if (updateData.name) {
       const baseSlug = this.generateSlug(updateData.name);
       updateData.slug = await this.ensureUniqueSlug(baseSlug, siteId, id);
     }
 
-    // Validate parent exists if provided
     if (updateData.parent) {
       if (updateData.parent === id) {
         throw new BadRequestError("Category cannot be its own parent");
       }
-      const parent = await Category.findOne({ _id: updateData.parent, site_id: siteId });
+      const [parent] = await db
+        .select({ id: categories.id })
+        .from(categories)
+        .where(and(eq(categories.id, updateData.parent), eq(categories.site_id, siteId)))
+        .limit(1);
       if (!parent) {
         throw new NotFoundError("Parent category not found");
       }
 
-      // Check for circular references
       const wouldCreateCycle = await this.wouldCreateCycle(id, updateData.parent, siteId);
       if (wouldCreateCycle) {
         throw new BadRequestError("Cannot create circular category reference");
       }
     }
 
-    updateData.updated_at = new Date();
-    return Category.findOneAndUpdate({ _id: id, site_id: siteId }, updateData, { new: true });
+    const { _id: _ignored, id: _idIgnored, ...rest } = updateData as Partial<CategoryType> & { id?: string };
+    const [row] = await db
+      .update(categories)
+      .set({ ...omitUndefined(rest as Record<string, unknown>), updated_at: new Date() })
+      .where(and(eq(categories.id, id), eq(categories.site_id, siteId)))
+      .returning();
+    return row ? this.toEntity(row) : null;
   }
 
   async delete(id: string, siteId: string): Promise<void> {
-    // Check if category has children
     const children = await this.findChildren(id, siteId);
     if (children.length > 0) {
       throw new BadRequestError("Cannot delete category with child categories");
     }
 
-    await Category.findOneAndDelete({ _id: id, site_id: siteId });
+    await db.delete(categories).where(and(eq(categories.id, id), eq(categories.site_id, siteId)));
   }
 
   private async wouldCreateCycle(categoryId: string, newParentId: string, siteId: string): Promise<boolean> {
@@ -134,32 +184,33 @@ export class CategoryRepository {
 
     while (currentParentId) {
       if (visited.has(currentParentId)) {
-        return true; // Cycle detected
+        return true;
       }
       visited.add(currentParentId);
 
-      const parent = await Category.findOne({ _id: currentParentId, site_id: siteId });
+      const [parent] = await db
+        .select()
+        .from(categories)
+        .where(and(eq(categories.id, currentParentId), eq(categories.site_id, siteId)))
+        .limit(1);
       if (!parent || !parent.parent) {
         break;
       }
-      currentParentId = parent.parent as string | null | undefined;
+      currentParentId = parent.parent;
     }
 
     return false;
   }
 
-  async buildTree(categories: CategoryType[]): Promise<Array<CategoryType & { children?: CategoryType[] }>> {
+  async buildTree(categoryList: CategoryType[]): Promise<Array<CategoryType & { children?: CategoryType[] }>> {
     const categoryMap = new Map<string, CategoryType & { children?: CategoryType[] }>();
     const rootCategories: Array<CategoryType & { children?: CategoryType[] }> = [];
 
-    // Create map of all categories
-    categories.forEach((cat) => {
-      const catObj = mongooseDocToPlain(cat);
-      categoryMap.set(cat._id!.toString(), { ...catObj, children: [] });
+    categoryList.forEach((cat) => {
+      categoryMap.set(cat._id!.toString(), { ...cat, children: [] });
     });
 
-    // Build tree structure
-    categories.forEach((cat) => {
+    categoryList.forEach((cat) => {
       const category = categoryMap.get(cat._id!.toString());
       if (!category) return;
 

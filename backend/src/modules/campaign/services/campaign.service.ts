@@ -10,8 +10,6 @@ import {
   CampaignWithStats,
 } from "../interfaces/campaign.interface";
 import { Campaign } from "../../../shared/schemas/campaign.schema";
-import Blog from "../../../shared/schemas/blog.schema";
-import ScheduledPost from "../../../shared/schemas/scheduled-post.schema";
 import {
   CampaignStatus,
   ScheduledPostStatus,
@@ -25,14 +23,15 @@ import {
 import { PaginatedResponse } from "../../../shared/interfaces";
 import { env } from "../../../shared/config/env";
 import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
-import CampaignModel from "../../../shared/schemas/campaign.schema";
+import { BlogRepository } from "../../blog/repositories/blog.repository";
 
 @injectable()
 export class CampaignService {
   constructor(
     private campaignRepository: CampaignRepository,
     private scheduledPostRepository: ScheduledPostRepository,
-    private workspaceStrategy: WorkspaceStrategyService
+    private workspaceStrategy: WorkspaceStrategyService,
+    private blogRepository: BlogRepository
   ) {}
 
   private async resolveStrategyId(siteId: string, userId: string, pinned?: string): Promise<string | undefined> {
@@ -104,18 +103,11 @@ export class CampaignService {
   async backfillContentToDefault(siteId: string, userId: string): Promise<{ blogs: number; scheduled: number }> {
     const def = await this.ensureDefaultCampaign(siteId, userId);
     const id = def._id!.toString();
-    const blogRes = await Blog.updateMany(
-      { site_id: siteId, $or: [{ campaign_id: { $exists: false } }, { campaign_id: null }, { campaign_id: "" }] },
-      { $set: { campaign_id: id } }
-    );
-    const schedRes = await ScheduledPost.updateMany(
-      { site_id: siteId, $or: [{ campaign_id: { $exists: false } }, { campaign_id: null }, { campaign_id: "" }] },
-      { $set: { campaign_id: id } }
-    );
-    return {
-      blogs: blogRes.modifiedCount ?? 0,
-      scheduled: schedRes.modifiedCount ?? 0,
-    };
+    const [blogs, scheduled] = await Promise.all([
+      this.blogRepository.assignUnboundCampaign(siteId, id),
+      this.scheduledPostRepository.assignUnboundCampaign(siteId, id),
+    ]);
+    return { blogs, scheduled };
   }
 
   /** Backfill strategy_id on campaigns missing it (inherit active WorkspaceStrategy). */
@@ -123,11 +115,7 @@ export class CampaignService {
     if (!env.orchestrator.strategicIntelligenceEnabled) return 0;
     const strategyId = await this.resolveStrategyId(siteId, userId);
     if (!strategyId) return 0;
-    const res = await CampaignModel.updateMany(
-      { site_id: siteId, $or: [{ strategy_id: { $exists: false } }, { strategy_id: null }, { strategy_id: "" }] },
-      { $set: { strategy_id: strategyId } }
-    );
-    return res.modifiedCount ?? 0;
+    return this.campaignRepository.assignUnboundStrategy(siteId, strategyId);
   }
 
   async createCampaign(userId: string, siteId: string, input: CreateCampaignInput): Promise<Campaign> {
