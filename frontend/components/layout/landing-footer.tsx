@@ -83,11 +83,6 @@ export function LandingFooter() {
                       {LANDING_CTAS.getEarlyAccess}
                     </Link>
                   </li>
-                  <li>
-                    <Link href="/auth/login" className="hover:text-white transition-colors">
-                      {LANDING_CTAS.logIn}
-                    </Link>
-                  </li>
                 </>
               ) : (
                 <>
