@@ -57,9 +57,7 @@ export function formatBlogUnpublishDraft(args: Record<string, unknown>): string 
 export function formatBlogScheduleDraft(args: Record<string, unknown>): string {
   const id = typeof args.id === "string" ? args.id : "";
   const when = typeof args.scheduled_at === "string" ? args.scheduled_at : "";
-  return [`Schedule this blog post?`, id ? `Post: ${id}` : "", when ? `When: ${when}` : ""]
-    .filter(Boolean)
-    .join("\n");
+  return [`Schedule this blog post?`, id ? `Post: ${id}` : "", when ? `When: ${when}` : ""].filter(Boolean).join("\n");
 }
 
 export function formatBlogUnscheduleDraft(args: Record<string, unknown>): string {
@@ -83,7 +81,7 @@ export function createBlogTools(ctx: BlogToolContext) {
         items.length
           ? `Found ${result.pagination.total} blog posts. Showing ${items.length}: ${items.map((b) => b.title).join("; ")}`
           : "No blog posts match that filter.",
-        { blogs: items, total: result.pagination.total },
+        { blogs: items, total: result.pagination.total }
       );
     },
     {
@@ -95,7 +93,7 @@ export function createBlogTools(ctx: BlogToolContext) {
         search: z.string().max(200).optional(),
         limit: z.number().int().min(1).max(20).optional(),
       }),
-    },
+    }
   );
 
   const blogs_get = tool(
@@ -113,9 +111,7 @@ export function createBlogTools(ctx: BlogToolContext) {
         return toolResult("Pass id or title to open a blog post.");
       }
       const result = await blogs.getAllBlogs(ctx.siteId, { search: title, limit: 5, page: 1 });
-      const match =
-        result.data.find((row) => row.title.trim().toLowerCase() === title.toLowerCase()) ||
-        result.data[0];
+      const match = result.data.find((row) => row.title.trim().toLowerCase() === title.toLowerCase()) || result.data[0];
       if (!match?._id) {
         return toolResult(`No blog post matched "${title}".`);
       }
@@ -128,12 +124,13 @@ export function createBlogTools(ctx: BlogToolContext) {
     },
     {
       name: "blogs_get",
-      description: "Open an existing blog post by id or title. Use for review, publish, or schedule — not to write a new post.",
+      description:
+        "Open an existing blog post by id or title. Use for review, publish, or schedule — not to write a new post.",
       schema: z.object({
         id: z.string().optional(),
         title: z.string().max(400).optional(),
       }),
-    },
+    }
   );
 
   const blogs_publish = tool(
@@ -149,7 +146,7 @@ export function createBlogTools(ctx: BlogToolContext) {
       description:
         "Publish an existing evergreen blog post now. Campaign posts must go through schedule review. HITL-gated.",
       schema: z.object({ id: z.string().min(1) }),
-    },
+    }
   );
 
   const blogs_unpublish = tool(
@@ -161,7 +158,7 @@ export function createBlogTools(ctx: BlogToolContext) {
       name: "blogs_unpublish",
       description: "Unpublish an existing blog post. HITL-gated.",
       schema: z.object({ id: z.string().min(1) }),
-    },
+    }
   );
 
   const blogs_schedule = tool(
@@ -189,7 +186,7 @@ export function createBlogTools(ctx: BlogToolContext) {
         scheduled_at: z.string().min(1),
         timezone: z.string().max(64).optional(),
       }),
-    },
+    }
   );
 
   const blogs_unschedule = tool(
@@ -201,7 +198,7 @@ export function createBlogTools(ctx: BlogToolContext) {
       name: "blogs_unschedule",
       description: "Cancel a scheduled publish for an existing blog post. HITL-gated.",
       schema: z.object({ id: z.string().min(1) }),
-    },
+    }
   );
 
   return [blogs_list, blogs_get, blogs_publish, blogs_unpublish, blogs_schedule, blogs_unschedule];

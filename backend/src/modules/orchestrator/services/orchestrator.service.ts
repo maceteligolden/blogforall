@@ -355,9 +355,7 @@ export class OrchestratorService {
       decided.action === "blogs_unschedule"
     ) {
       // orchestratorv2 HITL: resume LangGraph on the same thread_id
-      const { default: OrchestratorV2Service } = await import(
-        "../../orchestratorv2/orchestrator.service"
-      );
+      const { default: OrchestratorV2Service } = await import("../../orchestratorv2/orchestrator.service");
       const { container } = await import("tsyringe");
       const v2 = container.resolve(OrchestratorV2Service);
       await v2.resumeHitlApproval(decided, decision, note);

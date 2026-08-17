@@ -161,7 +161,8 @@ function CreateSitePageContent() {
         </div>
 
         <p className="text-xs text-gray-500">
-          Next we&apos;ll generate Content Strategy from your website, then I&apos;ll read it back in chat — does this sound like you?
+          Next we&apos;ll generate Content Strategy from your website, then I&apos;ll read it back in chat — does this
+          sound like you?
         </p>
 
         <Button

@@ -286,11 +286,7 @@ describe("T4.1 strategist_pipeline staging path", () => {
     });
 
     expect(out.mode).toBe("strategist_pipeline");
-    expect(skillOrder).toEqual([
-      "content_strategy",
-      "research",
-      "writing:outline",
-    ]);
+    expect(skillOrder).toEqual(["content_strategy", "research", "writing:outline"]);
     expect(out.skills_run_this_turn).toBe(3);
     expect(out.skills_run_this_turn).toBeLessThanOrEqual(MVP_LOCKS.maxSkillsPerTurn);
     expect(out.strategy).toBeTruthy();
@@ -300,12 +296,6 @@ describe("T4.1 strategist_pipeline staging path", () => {
     expect(out.plan?.confirmation?.kind).toBe("outline_approval");
 
     const phaseNames = phases.map((p) => p.phase);
-    expect(phaseNames).toEqual(
-      expect.arrayContaining([
-        "strategy",
-        "research",
-        "outline",
-      ])
-    );
+    expect(phaseNames).toEqual(expect.arrayContaining(["strategy", "research", "outline"]));
   });
 });

@@ -32,11 +32,7 @@ export function getNotificationHref(notification: NotificationItem): string | nu
     return `/invitations/accept?token=${encodeURIComponent(payload.token)}`;
   }
 
-  if (
-    (type === "scheduled_post_review" || type === "scheduled_post_reworked") &&
-    campaignId &&
-    blogId
-  ) {
+  if ((type === "scheduled_post_review" || type === "scheduled_post_reworked") && campaignId && blogId) {
     return `/dashboard/posts/${blogId}`;
   }
 

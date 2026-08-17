@@ -38,10 +38,7 @@ export class OrchestratorApprovalRepository {
     }).sort({ requested_at: -1 });
   }
 
-  async findPendingCampaignRoadmap(
-    siteId: string,
-    campaignId: string
-  ): Promise<OrchestratorApproval | null> {
+  async findPendingCampaignRoadmap(siteId: string, campaignId: string): Promise<OrchestratorApproval | null> {
     return OrchestratorApprovalModel.findOne({
       site_id: siteId,
       kind: OrchestratorApprovalKind.CAMPAIGN_ROADMAP_APPROVAL,

@@ -73,7 +73,7 @@ export class BlogGenerationGraphService {
   constructor(
     private readonly tavilySearch: TavilySearchService,
     private readonly researchGraph: ResearchGraphService,
-    private readonly artifacts: ArtifactStoreService,
+    private readonly artifacts: ArtifactStoreService
   ) {}
 
   assertConfigured(): void {
@@ -600,7 +600,7 @@ Return structured output matching the schema.`;
         logger.warn(
           "Research graph failed in blog generation; falling back to search",
           { error: String(error) },
-          "BlogGenerationGraphService",
+          "BlogGenerationGraphService"
         );
       }
     }

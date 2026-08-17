@@ -27,8 +27,7 @@ export async function notifyApprovalCreatedInApp(
       : Number(approval.payload?.rework_round ?? 0);
 
   const isScheduleReview = approval.kind === OrchestratorApprovalKind.SCHEDULED_POST_REVIEW;
-  const campaignId =
-    typeof approval.payload?.campaign_id === "string" ? approval.payload.campaign_id : undefined;
+  const campaignId = typeof approval.payload?.campaign_id === "string" ? approval.payload.campaign_id : undefined;
   const isCampaignDraft = isScheduleReview && Boolean(campaignId);
   const type = isScheduleReview
     ? reworkRound > 0

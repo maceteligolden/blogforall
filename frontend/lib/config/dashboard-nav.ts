@@ -1,12 +1,4 @@
-import {
-  Calendar,
-  FileText,
-  FolderOpen,
-  LayoutDashboard,
-  ShieldAlert,
-  Megaphone,
-  Compass,
-} from "lucide-react";
+import { Calendar, FileText, FolderOpen, LayoutDashboard, ShieldAlert, Megaphone, Compass } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface DashboardNavItem {

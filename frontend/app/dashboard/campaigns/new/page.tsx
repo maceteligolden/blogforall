@@ -241,7 +241,8 @@ function NewCampaignPageContent() {
           </Button>
           <h1 className="text-3xl font-display text-white">Create campaign</h1>
           <p className="text-gray-400 mt-2">
-            Advanced fallback. Named campaigns usually start in chat. This form is for when you already know the parameters.
+            Advanced fallback. Named campaigns usually start in chat. This form is for when you already know the
+            parameters.
           </p>
         </div>
 
@@ -340,7 +341,9 @@ function NewCampaignPageContent() {
                   className="mt-1 flex min-h-[80px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
                   maxLength={2000}
                 />
-                <p className="mt-1 text-xs text-gray-500">We use this as the campaign intent for planning and drafts.</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  We use this as the campaign intent for planning and drafts.
+                </p>
               </div>
 
               <div>

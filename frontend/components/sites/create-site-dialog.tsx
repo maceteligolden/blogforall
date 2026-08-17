@@ -42,7 +42,8 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
       toast({
         variant: "success",
         title: "Workspace ready",
-        description: "We're generating Content Strategy from your website. Chat can help you refine it when it's ready.",
+        description:
+          "We're generating Content Strategy from your website. Chat can help you refine it when it's ready.",
       });
       router.push("/dashboard");
     },

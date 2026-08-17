@@ -18,7 +18,10 @@ import {
 import type { CampaignRoadmapItemSnapshot, RoadmapPostType } from "../../../shared/schemas/campaign-roadmap.schema";
 import type { CampaignTopicSuggestion } from "../../orchestratorv2/research/research.types";
 import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
-import { formatContentStrategyForPrompt, isContentStrategyReady } from "../../../shared/types/content-strategy.document";
+import {
+  formatContentStrategyForPrompt,
+  isContentStrategyReady,
+} from "../../../shared/types/content-strategy.document";
 import { CampaignRoadmapService } from "./campaign-roadmap.service";
 
 @injectable()
@@ -31,7 +34,7 @@ export class CampaignPlanningService {
     private approvalRepository: OrchestratorApprovalRepository,
     private researchGraph: ResearchGraphService,
     private workspaceStrategy: WorkspaceStrategyService,
-    private roadmapService: CampaignRoadmapService,
+    private roadmapService: CampaignRoadmapService
   ) {}
 
   /**
@@ -54,13 +57,14 @@ export class CampaignPlanningService {
     await this.memoryRepository.ensureForCampaign(campaignId, siteId);
     const estimated = campaign.is_default
       ? Math.min(campaign.total_posts_planned ?? 12, 12)
-      : campaign.total_posts_planned ?? this.estimatePostCount(campaign);
+      : (campaign.total_posts_planned ?? this.estimatePostCount(campaign));
     const total = Math.min(Math.max(1, estimated), MAX_CAMPAIGN_PLANNED_POSTS);
-    let topics: CampaignTopicSuggestion[] = (campaign.primary_topics?.length
-      ? campaign.primary_topics
-      : campaign.ai_strategy?.content_themes?.length
-        ? campaign.ai_strategy.content_themes
-        : [campaign.goal.slice(0, 80)]
+    let topics: CampaignTopicSuggestion[] = (
+      campaign.primary_topics?.length
+        ? campaign.primary_topics
+        : campaign.ai_strategy?.content_themes?.length
+          ? campaign.ai_strategy.content_themes
+          : [campaign.goal.slice(0, 80)]
     ).map((title) => this.topicFromTitle(title, campaign.goal));
     let researchPackageId: string | undefined;
     try {
@@ -88,7 +92,7 @@ export class CampaignPlanningService {
       logger.warn(
         "Campaign roadmap research failed; using existing topics",
         { campaignId, error: String(error) },
-        "CampaignPlanningService",
+        "CampaignPlanningService"
       );
     }
 

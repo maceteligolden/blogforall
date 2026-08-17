@@ -29,10 +29,7 @@ import { OrchestratorApprovalRepository } from "../orchestrator/repositories/orc
 import { SiteService } from "../site/services/site.service";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../shared/errors";
 import { env } from "../../shared/config/env";
-import {
-  serializeApproval,
-  type ChatTurnResponse,
-} from "../orchestrator/interfaces/orchestrator.interface";
+import { serializeApproval, type ChatTurnResponse } from "../orchestrator/interfaces/orchestrator.interface";
 import type { OrchestratorThread } from "../../shared/schemas/orchestrator-thread.schema";
 import { OrchestratorMessageRole } from "../../shared/schemas/orchestrator-message.schema";
 import {
@@ -77,14 +74,7 @@ export type OrchestratorV2ChatInput = {
   }>;
 };
 
-const OPERATIONAL_MODES = new Set([
-  "planning",
-  "writing",
-  "research",
-  "review",
-  "casual",
-  "strategy",
-]);
+const OPERATIONAL_MODES = new Set(["planning", "writing", "research", "review", "casual", "strategy"]);
 
 const AGENT_INVOKE_CONFIG = { recursionLimit: 80 } as const;
 
@@ -104,7 +94,7 @@ type AgentGraphSnapshot = {
 type AgentGraph = {
   invoke: (
     input: unknown,
-    config: AgentGraphConfig,
+    config: AgentGraphConfig
   ) => Promise<Record<string, unknown> & { messages?: Array<Record<string, unknown>> }>;
   getState: (config: AgentGraphConfig) => Promise<AgentGraphSnapshot>;
   updateState: (config: AgentGraphConfig, values: unknown) => Promise<unknown>;
@@ -138,15 +128,13 @@ function payloadHitlRequests(payload: Record<string, unknown> | undefined): Hitl
 
 function hangingHitlRequests(
   snapshot: AgentGraphSnapshot | null,
-  payload?: Record<string, unknown>,
+  payload?: Record<string, unknown>
 ): HitlActionRequest[] {
   for (const task of snapshot?.tasks ?? []) {
     for (const item of task.interrupts ?? []) {
       const record = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
       const value =
-        record.value && typeof record.value === "object"
-          ? (record.value as Record<string, unknown>)
-          : record;
+        record.value && typeof record.value === "object" ? (record.value as Record<string, unknown>) : record;
       const requests = value.actionRequests;
       if (Array.isArray(requests) && requests.length > 0) {
         return requests as HitlActionRequest[];
@@ -164,7 +152,7 @@ function hangingHitlRequests(
         call &&
         typeof call === "object" &&
         typeof (call as { name?: string }).name === "string" &&
-        V2_HITL_ACTIONS.has((call as { name: string }).name),
+        V2_HITL_ACTIONS.has((call as { name: string }).name)
     ) as Array<{ name: string }>;
     if (hitl.length > 0) {
       return hitl.map((call) => ({ name: call.name }));
@@ -265,20 +253,18 @@ function numberField(data: unknown, key: string): number | undefined {
 function recordField(data: unknown, key: string): Record<string, unknown> {
   if (!data || typeof data !== "object") return {};
   const value = (data as Record<string, unknown>)[key];
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-function researchToolData(
-  toolCalls: ChatTurnResponse["tool_calls"],
-): Record<string, unknown> | null {
-  const call = [...toolCalls].reverse().find(
-    (item) =>
-      item.tool === "writing.requestResearch" ||
-      item.tool === "research" ||
-      Boolean(stringField(item.output_data, "report_markdown")),
-  );
+function researchToolData(toolCalls: ChatTurnResponse["tool_calls"]): Record<string, unknown> | null {
+  const call = [...toolCalls]
+    .reverse()
+    .find(
+      (item) =>
+        item.tool === "writing.requestResearch" ||
+        item.tool === "research" ||
+        Boolean(stringField(item.output_data, "report_markdown"))
+    );
   if (!call?.output_data || typeof call.output_data !== "object") return null;
   return call.output_data as Record<string, unknown>;
 }
@@ -306,14 +292,10 @@ function writingConfirmPayload(args: {
   if (!topic) return null;
   const report = stringField(research, "report_markdown") || args.assistantContent.trim();
   const researchSummary =
-    stringField(research, "spoken_summary") ||
-    stringField(source, "research_summary") ||
-    report.slice(0, 4000);
+    stringField(research, "spoken_summary") || stringField(source, "research_summary") || report.slice(0, 4000);
   return {
     package_id:
-      stringField(research, "package_id") ||
-      stringField(source, "package_id") ||
-      stringField(hitlArgs, "package_id"),
+      stringField(research, "package_id") || stringField(source, "package_id") || stringField(hitlArgs, "package_id"),
     topic,
     intent:
       stringField(research, "intent") ||
@@ -337,18 +319,13 @@ function writingConfirmPayload(args: {
       numberField(hitlArgs, "sequence_index") ??
       args.focus?.roadmap_sequence_index,
     research_summary: researchSummary.slice(0, 4000),
-    angle:
-      stringField(brief, "angle") ||
-      stringField(source, "angle") ||
-      stringField(hitlArgs, "angle"),
+    angle: stringField(brief, "angle") || stringField(source, "angle") || stringField(hitlArgs, "angle"),
     must_include:
       stringField(brief, "must_include") ||
       stringField(source, "must_include") ||
       stringField(hitlArgs, "must_include"),
     must_avoid:
-      stringField(brief, "must_avoid") ||
-      stringField(source, "must_avoid") ||
-      stringField(hitlArgs, "must_avoid"),
+      stringField(brief, "must_avoid") || stringField(source, "must_avoid") || stringField(hitlArgs, "must_avoid"),
     cta: stringField(brief, "cta") || stringField(source, "cta") || stringField(hitlArgs, "cta"),
     audience_notes:
       stringField(brief, "audience_notes") ||
@@ -361,22 +338,16 @@ function writingConfirmPayload(args: {
   };
 }
 
-function preferResearchReport(
-  assistantContent: string,
-  toolCalls: ChatTurnResponse["tool_calls"],
-): string {
+function preferResearchReport(assistantContent: string, toolCalls: ChatTurnResponse["tool_calls"]): string {
   const confirm = [...toolCalls].reverse().find((call) => call.tool === "writing.confirmResearch");
   const confirmBlogId = stringField(confirm?.output_data, "blog_id");
   const report = stringField(
-    [...toolCalls].reverse().find((call) => Boolean(stringField(call.output_data, "report_markdown")))
-      ?.output_data,
-    "report_markdown",
+    [...toolCalls].reverse().find((call) => Boolean(stringField(call.output_data, "report_markdown")))?.output_data,
+    "report_markdown"
   );
   if (confirmBlogId) {
     const trimmed = assistantContent.trim();
-    const drafting =
-      confirm?.summary?.trim() ||
-      "Drafting has started. I'll notify you when it's ready to edit.";
+    const drafting = confirm?.summary?.trim() || "Drafting has started. I'll notify you when it's ready to edit.";
     if (
       !trimmed ||
       trimmed.startsWith("{") ||
@@ -386,9 +357,9 @@ function preferResearchReport(
     }
     return trimmed;
   }
-  const research = [...toolCalls].reverse().find(
-    (call) => call.tool === "research" || Boolean(stringField(call.output_data, "report_markdown")),
-  );
+  const research = [...toolCalls]
+    .reverse()
+    .find((call) => call.tool === "research" || Boolean(stringField(call.output_data, "report_markdown")));
   const researchReport = stringField(research?.output_data, "report_markdown") || report;
   if (!researchReport) {
     const trimmed = assistantContent.trim();
@@ -407,7 +378,7 @@ function preferResearchReport(
 
 function hasStartedDraft(toolCalls: ChatTurnResponse["tool_calls"]): boolean {
   return toolCalls.some(
-    (call) => call.tool === "writing.confirmResearch" && Boolean(stringField(call.output_data, "blog_id")),
+    (call) => call.tool === "writing.confirmResearch" && Boolean(stringField(call.output_data, "blog_id"))
   );
 }
 
@@ -461,7 +432,7 @@ function hasWritingFocus(focus?: ThreadFocusInput | OrchestratorThread["focus"])
 
 function mergeFocus(
   existing: OrchestratorThread["focus"] | undefined,
-  incoming: ThreadFocusInput | undefined,
+  incoming: ThreadFocusInput | undefined
 ): OrchestratorThread["focus"] | undefined {
   if (!incoming && !existing) return existing;
   const merged: OrchestratorThread["focus"] = {
@@ -504,7 +475,7 @@ function toTextContent(content: unknown): string {
 
 function resolveSessionMode(
   sessionMode?: ClientSessionMode,
-  focus?: ThreadFocusInput | OrchestratorThread["focus"],
+  focus?: ThreadFocusInput | OrchestratorThread["focus"]
 ): ChatTurnResponse["active_session_mode"] {
   if (sessionMode && OPERATIONAL_MODES.has(sessionMode)) {
     return sessionMode as ChatTurnResponse["active_session_mode"];
@@ -515,9 +486,7 @@ function resolveSessionMode(
   return "casual";
 }
 
-function extractInterrupt(
-  result: Record<string, unknown>,
-): Interrupt<HITLRequest> | undefined {
+function extractInterrupt(result: Record<string, unknown>): Interrupt<HITLRequest> | undefined {
   const interrupts = result.__interrupt__;
   if (!Array.isArray(interrupts) || interrupts.length === 0) {
     return undefined;
@@ -536,12 +505,8 @@ function classifyHitlReply(message: string): "approve" | "reject" | "continue" {
   return "continue";
 }
 
-function snapshotHasInterrupt(snapshot: {
-  tasks?: Array<{ interrupts?: unknown[] }>;
-}): boolean {
-  return (snapshot.tasks ?? []).some(
-    (task) => Array.isArray(task.interrupts) && task.interrupts.length > 0,
-  );
+function snapshotHasInterrupt(snapshot: { tasks?: Array<{ interrupts?: unknown[] }> }): boolean {
+  return (snapshot.tasks ?? []).some((task) => Array.isArray(task.interrupts) && task.interrupts.length > 0);
 }
 
 function parseToolPayload(content: unknown): {
@@ -554,10 +519,7 @@ function parseToolPayload(content: unknown): {
     const parsed = JSON.parse(text) as unknown;
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       const obj = parsed as Record<string, unknown>;
-      const summary =
-        typeof obj.summary === "string" && obj.summary.trim()
-          ? obj.summary
-          : text;
+      const summary = typeof obj.summary === "string" && obj.summary.trim() ? obj.summary : text;
       return { summary, output_data: obj };
     }
   } catch {
@@ -566,9 +528,7 @@ function parseToolPayload(content: unknown): {
   return { summary: text };
 }
 
-function extractClientToolCalls(
-  messages: Array<Record<string, unknown>>,
-): ChatTurnResponse["tool_calls"] {
+function extractClientToolCalls(messages: Array<Record<string, unknown>>): ChatTurnResponse["tool_calls"] {
   const calls: ChatTurnResponse["tool_calls"] = [];
   for (const message of messages) {
     const role =
@@ -577,11 +537,7 @@ function extractClientToolCalls(
         : String(message.role ?? message.type ?? "");
     if (role !== "tool") continue;
     const rawName =
-      typeof message.name === "string"
-        ? message.name
-        : typeof message.tool_name === "string"
-          ? message.tool_name
-          : "";
+      typeof message.name === "string" ? message.name : typeof message.tool_name === "string" ? message.tool_name : "";
     const clientName = TOOL_NAME_TO_CLIENT[rawName];
     if (!clientName) continue;
     const { summary, output_data } = parseToolPayload(message.content);
@@ -596,7 +552,6 @@ function extractClientToolCalls(
 
 @singleton()
 export default class OrchestratorV2Service {
-
   constructor(
     private readonly threadRepository: OrchestratorThreadRepository,
     private readonly messageRepository: OrchestratorMessageRepository,
@@ -604,7 +559,7 @@ export default class OrchestratorV2Service {
     private readonly siteService: SiteService,
     private readonly realtimeService: RealtimeService,
     private readonly notificationService: NotificationService,
-    private readonly userRepository: UserRepository,
+    private readonly userRepository: UserRepository
   ) {}
 
   async chat(input: OrchestratorV2ChatInput): Promise<ChatTurnResponse> {
@@ -654,11 +609,7 @@ export default class OrchestratorV2Service {
     });
 
     await this.threadRepository.touch(resolvedThreadId);
-    await this.messageRepository.pruneThreadToMaxKeep(
-      resolvedThreadId,
-      siteId,
-      env.orchestrator.maxThreadMessages,
-    );
+    await this.messageRepository.pruneThreadToMaxKeep(resolvedThreadId, siteId, env.orchestrator.maxThreadMessages);
 
     return {
       thread_id: resolvedThreadId,
@@ -668,12 +619,9 @@ export default class OrchestratorV2Service {
         created_at: assistant.created_at,
       },
       tool_calls: toolCalls,
-      pending_approval: pendingApproval
-        ? serializeApproval(pendingApproval)
-        : null,
+      pending_approval: pendingApproval ? serializeApproval(pendingApproval) : null,
       active_session_mode: activeSessionMode,
-      session_mode_source:
-        sessionMode && sessionMode !== "auto" ? "explicit" : "inferred",
+      session_mode_source: sessionMode && sessionMode !== "auto" ? "explicit" : "inferred",
       workspace_status: "active",
       onboarding_completed: false,
     };
@@ -686,7 +634,7 @@ export default class OrchestratorV2Service {
   async resumeHitlApproval(
     approval: OrchestratorApproval,
     decision: "approved" | "rejected",
-    note?: string,
+    note?: string
   ): Promise<void> {
     if (!V2_HITL_ACTIONS.has(approval.action)) {
       return;
@@ -734,8 +682,7 @@ export default class OrchestratorV2Service {
       note,
     });
     const confirmHanging = hanging.some((request) => request.name === "writing_confirm_research");
-    const programmaticConfirm =
-      approval.action === "writing_confirm_research" && !confirmHanging;
+    const programmaticConfirm = approval.action === "writing_confirm_research" && !confirmHanging;
 
     try {
       let result: Record<string, unknown> & { messages: Array<Record<string, unknown>> } = {
@@ -749,10 +696,7 @@ export default class OrchestratorV2Service {
       if (decision === "approved" && approval.action === "writing_confirm_research") {
         const resumeCalls = extractClientToolCalls(result.messages ?? []);
         if (programmaticConfirm || !hasStartedDraft(resumeCalls)) {
-          draftFallback = await startBoundWritingDraft(
-            { siteId, userId, threadId },
-            approval.payload ?? {},
-          );
+          draftFallback = await startBoundWritingDraft({ siteId, userId, threadId }, approval.payload ?? {});
         }
         let guard = 0;
         while (interruptActionName(result) === "writing_confirm_research" && guard < 2) {
@@ -770,7 +714,7 @@ export default class OrchestratorV2Service {
                 ],
               },
             }),
-            config,
+            config
           );
         }
       }
@@ -829,7 +773,7 @@ export default class OrchestratorV2Service {
           draftFallback?.topic ||
           stringField(
             [...toolCalls].reverse().find((call) => call.tool === "writing.confirmResearch")?.output_data,
-            "topic",
+            "topic"
           ) ||
           "this post";
         content = await followUpAfterDraftStarted(siteId, topic);
@@ -839,13 +783,9 @@ export default class OrchestratorV2Service {
           thread_id: threadId,
           site_id: siteId,
           role: OrchestratorMessageRole.ASSISTANT,
-          content:
-            content ||
-            "I've prepared the next step. Please approve or reject it to continue.",
+          content: content || "I've prepared the next step. Please approve or reject it to continue.",
           pending_approval_id:
-            hasStartedDraft(toolCalls) || draftFallback
-              ? undefined
-              : pendingApproval?._id?.toString(),
+            hasStartedDraft(toolCalls) || draftFallback ? undefined : pendingApproval?._id?.toString(),
           tool_calls: toolCalls.map((call) => ({
             tool: call.tool,
             input: {},
@@ -869,14 +809,14 @@ export default class OrchestratorV2Service {
         "Failed to resume HITL",
         err,
         { siteId, threadId, approvalId: approval._id?.toString() },
-        "OrchestratorV2Service",
+        "OrchestratorV2Service"
       );
       await this.approvalRepository.revertToPending(approval._id!.toString(), siteId);
       if (error instanceof BadRequestError) {
         throw error;
       }
       throw new BadRequestError(
-        err.message || "Could not apply that decision. Ask to update the campaign again, then confirm.",
+        err.message || "Could not apply that decision. Ask to update the campaign again, then confirm."
       );
     }
   }
@@ -885,7 +825,7 @@ export default class OrchestratorV2Service {
   async resumeStrategyApproval(
     approval: OrchestratorApproval,
     decision: "approved" | "rejected",
-    note?: string,
+    note?: string
   ): Promise<void> {
     return this.resumeHitlApproval(approval, decision, note);
   }
@@ -940,7 +880,7 @@ export default class OrchestratorV2Service {
               note: args.message,
             }),
           }),
-          config,
+          config
         );
         await this.closePendingThreadHitl(args.threadId, args.siteId, args.userId, intent);
         return this.turnFromResult(resumed, {
@@ -960,18 +900,14 @@ export default class OrchestratorV2Service {
             note: "User continued the conversation without confirming. Do not retry the same write unless they ask again.",
           }),
         }),
-        config,
+        config
       );
       await this.closePendingThreadHitl(args.threadId, args.siteId, args.userId, "reject");
     } else if (snapshot) {
       await this.healDanglingToolCalls(agent, config, snapshot);
     }
 
-    const result = await this.invokeGraph(
-      agent,
-      { messages: [{ role: "user", content: args.message }] },
-      config,
-    );
+    const result = await this.invokeGraph(agent, { messages: [{ role: "user", content: args.message }] }, config);
     return this.turnFromResult(result, {
       siteId: args.siteId,
       userId: args.userId,
@@ -982,7 +918,7 @@ export default class OrchestratorV2Service {
   private async invokeGraph(
     agent: AgentGraph,
     input: { messages: Array<{ role: string; content: string }> } | Command,
-    config: AgentGraphConfig,
+    config: AgentGraphConfig
   ) {
     return (await agent.invoke(input, config)) as Record<string, unknown> & {
       messages: Array<Record<string, unknown>>;
@@ -991,7 +927,7 @@ export default class OrchestratorV2Service {
 
   private async turnFromResult(
     result: Record<string, unknown> & { messages: Array<Record<string, unknown>> },
-    createApprovalFor?: { siteId: string; userId: string; threadId: string },
+    createApprovalFor?: { siteId: string; userId: string; threadId: string }
   ): Promise<{
     assistantContent: string;
     pendingApproval: OrchestratorApproval | null;
@@ -1003,11 +939,8 @@ export default class OrchestratorV2Service {
       const hitl = interrupt.value;
       const requests = Array.isArray(hitl.actionRequests) ? hitl.actionRequests : [];
       const actionName = primaryHitlAction(requests as HitlActionRequest[], "strategy_update");
-      const action =
-        requests.find((item) => item?.name === actionName) ?? requests[0];
-      const lastMessageContent = toTextContent(
-        result.messages?.[result.messages.length - 1]?.content,
-      );
+      const action = requests.find((item) => item?.name === actionName) ?? requests[0];
+      const lastMessageContent = toTextContent(result.messages?.[result.messages.length - 1]?.content);
       if (actionName === "writing_confirm_research" && hasStartedDraft(toolCalls)) {
         return {
           assistantContent:
@@ -1017,8 +950,7 @@ export default class OrchestratorV2Service {
           toolCalls,
         };
       }
-      const summary =
-        action?.description?.trim() || hitlFallbackSummary(actionName);
+      const summary = action?.description?.trim() || hitlFallbackSummary(actionName);
 
       const pendingApproval = await this.approvalRepository.create({
         site_id: createApprovalFor.siteId,
@@ -1051,7 +983,7 @@ export default class OrchestratorV2Service {
     return {
       assistantContent: preferResearchReport(
         toTextContent(result.messages[result.messages.length - 1]?.content),
-        toolCalls,
+        toolCalls
       ),
       pendingApproval: null,
       toolCalls,
@@ -1062,7 +994,7 @@ export default class OrchestratorV2Service {
     threadId: string,
     siteId: string,
     userId: string,
-    intent: "approve" | "reject",
+    intent: "approve" | "reject"
   ): Promise<void> {
     const pending = await this.approvalRepository.findPendingForThread(threadId, siteId);
     if (!pending?._id || !V2_HITL_ACTIONS.has(pending.action)) {
@@ -1072,10 +1004,8 @@ export default class OrchestratorV2Service {
     await this.approvalRepository.decide(
       approvalId,
       siteId,
-      intent === "approve"
-        ? OrchestratorApprovalStatus.APPROVED
-        : OrchestratorApprovalStatus.REJECTED,
-      userId,
+      intent === "approve" ? OrchestratorApprovalStatus.APPROVED : OrchestratorApprovalStatus.REJECTED,
+      userId
     );
     await this.approvalRepository.markExecuted(approvalId, siteId, {
       ok: intent === "approve",
@@ -1089,13 +1019,12 @@ export default class OrchestratorV2Service {
   private async healDanglingToolCalls(
     agent: AgentGraph,
     config: AgentGraphConfig,
-    snapshot: AgentGraphSnapshot,
+    snapshot: AgentGraphSnapshot
   ): Promise<void> {
     const messages = snapshot.values?.messages ?? [];
     const answered = new Set<string>();
     for (const message of messages) {
-      const id =
-        typeof message.tool_call_id === "string" ? message.tool_call_id : undefined;
+      const id = typeof message.tool_call_id === "string" ? message.tool_call_id : undefined;
       const role =
         typeof message.getType === "function"
           ? (message.getType as () => string)()
@@ -1120,9 +1049,7 @@ export default class OrchestratorV2Service {
       }
     }
 
-    const dangling = lastToolCalls.filter(
-      (call) => typeof call.id === "string" && call.id && !answered.has(call.id),
-    );
+    const dangling = lastToolCalls.filter((call) => typeof call.id === "string" && call.id && !answered.has(call.id));
     if (dangling.length === 0) {
       return;
     }
@@ -1135,7 +1062,7 @@ export default class OrchestratorV2Service {
               "Cancelled because the previous tool call was left unanswered. Continue with the user's latest message.",
             tool_call_id: call.id as string,
             name: call.name,
-          }),
+          })
       ),
     });
   }
@@ -1152,7 +1079,7 @@ export default class OrchestratorV2Service {
   }) {
     if (!env.orchestrator.openaiApiKey) {
       throw new BadRequestError(
-        "Workspace orchestrator is not configured. Set ORCHESTRATOR_OPENAI_API_KEY or OPENAI_API_KEY in the server environment.",
+        "Workspace orchestrator is not configured. Set ORCHESTRATOR_OPENAI_API_KEY or OPENAI_API_KEY in the server environment."
       );
     }
 
@@ -1193,24 +1120,17 @@ export default class OrchestratorV2Service {
   private rethrowAgentError(error: unknown, siteId: string, threadId: string): never {
     if (error instanceof PIIDetectionError) {
       throw new BadRequestError(
-        "That message contains sensitive data I can't process. Remove API keys or secrets and try again.",
+        "That message contains sensitive data I can't process. Remove API keys or secrets and try again."
       );
     }
     if (error instanceof GraphRecursionError) {
-      logger.error(
-        "Orchestrator v2 hit graph recursion limit",
-        error,
-        { siteId, threadId },
-        "OrchestratorV2Service",
-      );
-      throw new BadRequestError(
-        "I got stuck working through that request. Please try again with a shorter message.",
-      );
+      logger.error("Orchestrator v2 hit graph recursion limit", error, { siteId, threadId }, "OrchestratorV2Service");
+      throw new BadRequestError("I got stuck working through that request. Please try again with a shorter message.");
     }
     const message = error instanceof Error ? error.message : String(error);
     if (/INVALID_TOOL_RESULTS|tool_call_id/i.test(message)) {
       throw new BadRequestError(
-        "This conversation got stuck on a previous approval. Start a new thread and ask to update the campaign again.",
+        "This conversation got stuck on a previous approval. Start a new thread and ask to update the campaign again."
       );
     }
     throw error;
@@ -1223,10 +1143,7 @@ export default class OrchestratorV2Service {
       this.userRepository.findById(userId),
     ]);
 
-    const userName = [user?.first_name, user?.last_name]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
+    const userName = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim();
 
     return {
       userId,
@@ -1273,7 +1190,7 @@ export default class OrchestratorV2Service {
         summary: approval.summary,
         threadId: approval.thread_id,
       },
-      { siteId },
+      { siteId }
     );
     void notifyApprovalCreatedInApp(this.notificationService, approval);
   }
@@ -1282,7 +1199,7 @@ export default class OrchestratorV2Service {
     siteId: string,
     userId: string,
     threadId: string | undefined,
-    incomingFocus?: ThreadFocusInput,
+    incomingFocus?: ThreadFocusInput
   ): Promise<OrchestratorThread> {
     if (threadId) {
       const found = await this.threadRepository.findById(threadId, siteId);
@@ -1300,9 +1217,7 @@ export default class OrchestratorV2Service {
       return found;
     }
 
-    const title = incomingFocus?.topic
-      ? incomingFocus.topic.slice(0, 80)
-      : "New conversation";
+    const title = incomingFocus?.topic ? incomingFocus.topic.slice(0, 80) : "New conversation";
     return this.threadRepository.create({
       site_id: siteId,
       user_id: userId,

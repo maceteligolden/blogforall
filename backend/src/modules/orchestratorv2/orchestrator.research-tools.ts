@@ -19,7 +19,7 @@ function toolResult(summary: string, data: Record<string, unknown> = {}): string
 function emitPhase(
   realtime: RealtimeService,
   ctx: ResearchToolContext,
-  event: { phase: string; message: string; percent?: number },
+  event: { phase: string; message: string; percent?: number }
 ) {
   if (!ctx.threadId) return;
   realtime.emitToUser(
@@ -33,7 +33,7 @@ function emitPhase(
       percent: event.percent,
       skill_id: "research",
     },
-    { siteId: ctx.siteId },
+    { siteId: ctx.siteId }
   );
 }
 
@@ -43,17 +43,12 @@ export function createResearchTools(ctx: ResearchToolContext) {
   const realtime = container.resolve(RealtimeService);
 
   const research_run = tool(
-    async (input: {
-      question: string;
-      depth?: ResearchDepth;
-      purpose?: ResearchPurpose;
-    }) => {
+    async (input: { question: string; depth?: ResearchDepth; purpose?: ResearchPurpose }) => {
       const question = input.question.trim();
       if (!question) {
         throw new Error("question is required");
       }
-      const depth: ResearchDepth =
-        input.depth === "lite" ? "lite" : input.depth === "full" ? "full" : "full";
+      const depth: ResearchDepth = input.depth === "lite" ? "lite" : input.depth === "full" ? "full" : "full";
       const result = await research.run({
         workspace_id: ctx.siteId,
         question,
@@ -87,7 +82,7 @@ export function createResearchTools(ctx: ResearchToolContext) {
         depth: z.enum(["lite", "full"]).optional(),
         purpose: z.enum(["general", "post", "campaign", "strategy", "discussion"]).optional(),
       }),
-    },
+    }
   );
 
   const research_get = tool(
@@ -119,7 +114,7 @@ export function createResearchTools(ctx: ResearchToolContext) {
       schema: z.object({
         package_id: z.string().min(1),
       }),
-    },
+    }
   );
 
   return [research_run, research_get];

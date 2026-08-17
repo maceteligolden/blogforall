@@ -339,7 +339,10 @@ export function coalesceContentStrategyDocument(
     supporting_messages: list(primary.narrative.supporting_messages, fallback.narrative.supporting_messages),
     proof_points: list(primary.narrative.proof_points, fallback.narrative.proof_points),
     claims_we_can_make: list(primary.narrative.claims_we_can_make, fallback.narrative.claims_we_can_make),
-    claims_we_must_not_make: list(primary.narrative.claims_we_must_not_make, fallback.narrative.claims_we_must_not_make),
+    claims_we_must_not_make: list(
+      primary.narrative.claims_we_must_not_make,
+      fallback.narrative.claims_we_must_not_make
+    ),
     editorial_pov: str(primary.narrative.editorial_pov, fallback.narrative.editorial_pov),
   };
   merged.content_franchise = {
@@ -450,9 +453,7 @@ export function ensureContentStrategyCompleteness(doc: ContentStrategyDocument):
     d.narrative.claims_we_can_make = [d.positioning.value_proposition].filter(Boolean);
   }
   if (!d.narrative.claims_we_must_not_make.length) {
-    d.narrative.claims_we_must_not_make = [
-      "Do not invent pricing, guarantees, client names, or unstated credentials",
-    ];
+    d.narrative.claims_we_must_not_make = ["Do not invent pricing, guarantees, client names, or unstated credentials"];
   }
   if (!d.content_franchise.pillars.length) {
     d.content_franchise.pillars = [
@@ -565,9 +566,18 @@ export function documentFromStrategicMemory(
 ): ContentStrategyDocument {
   const s = migrateStrategicMemory(strategicRaw);
   const primaryWho =
-    s.customers.map((c) => c.label || c.who).filter(Boolean).join("; ") || s.target_audience.join(", ");
-  const pains = s.customers.map((c) => c.pain_points).filter(Boolean).join("; ");
-  const success = s.customers.map((c) => c.success).filter(Boolean).join("; ");
+    s.customers
+      .map((c) => c.label || c.who)
+      .filter(Boolean)
+      .join("; ") || s.target_audience.join(", ");
+  const pains = s.customers
+    .map((c) => c.pain_points)
+    .filter(Boolean)
+    .join("; ");
+  const success = s.customers
+    .map((c) => c.success)
+    .filter(Boolean)
+    .join("; ");
   const doc = emptyContentStrategyDocument();
   doc.north_star.what_we_are = (s.business_description || s.business_type || "").trim();
   doc.north_star.what_we_sell = s.business_model || "";
@@ -589,9 +599,7 @@ export function documentFromStrategicMemory(
   doc.narrative.core_message = (s.business_description || "").slice(0, 800);
   doc.narrative.editorial_pov = s.brand_voice || "";
   doc.narrative.supporting_messages = s.business_goals.slice(0, 4);
-  doc.narrative.claims_we_must_not_make = s.brand_negatives
-    ? [s.brand_negatives]
-    : [];
+  doc.narrative.claims_we_must_not_make = s.brand_negatives ? [s.brand_negatives] : [];
   if (s.seo_priorities.length) {
     doc.content_franchise.pillars = s.seo_priorities.slice(0, 6).map((name) => ({
       name,
@@ -611,7 +619,10 @@ export function documentFromStrategicMemory(
   doc.voice.voice = s.brand_voice || "";
   doc.voice.tone_range = s.brand_voice || "";
   doc.voice.words_to_avoid = s.brand_negatives
-    ? s.brand_negatives.split(/[,;]/).map((w) => w.trim()).filter(Boolean)
+    ? s.brand_negatives
+        .split(/[,;]/)
+        .map((w) => w.trim())
+        .filter(Boolean)
     : [];
   doc.conversion.desired_action = s.business_goals[0] || "";
   doc.guardrails.never = s.brand_negatives ? [s.brand_negatives] : [];
@@ -637,9 +648,9 @@ export function documentHasSubstance(doc: ContentStrategyDocument | undefined): 
   if (!doc) return false;
   return Boolean(
     doc.north_star.what_we_are.trim() ||
-      doc.positioning.statement.trim() ||
-      doc.audience.primary.who.trim() ||
-      doc.narrative.core_message.trim()
+    doc.positioning.statement.trim() ||
+    doc.audience.primary.who.trim() ||
+    doc.narrative.core_message.trim()
   );
 }
 
@@ -734,10 +745,7 @@ export function diffContentStrategyDocuments(
   return changes;
 }
 
-export function formatContentStrategyDiff(
-  before: ContentStrategyDocument,
-  after: ContentStrategyDocument
-): string {
+export function formatContentStrategyDiff(before: ContentStrategyDocument, after: ContentStrategyDocument): string {
   const changes = diffContentStrategyDocuments(before, after);
   if (!changes.length) {
     return "Proposed Content Strategy update:\n- (no field changes detected)\n\nApprove to apply, or reject to keep the current strategy.";
@@ -756,7 +764,9 @@ export function formatContentStrategyDiff(
 }
 
 export function averageSectionConfidence(map: ContentStrategySectionConfidenceMap | undefined): number {
-  const values = Object.values(map ?? {}).map((s) => s.confidence).filter((n) => Number.isFinite(n));
+  const values = Object.values(map ?? {})
+    .map((s) => s.confidence)
+    .filter((n) => Number.isFinite(n));
   if (!values.length) return 0.4;
   return Math.min(1, Math.max(0, values.reduce((a, b) => a + b, 0) / values.length));
 }

@@ -9,7 +9,10 @@ import { CampaignService } from "../../campaign/services/campaign.service";
 import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/workspace-memory.repository";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
-import { formatContentStrategyForPrompt, isContentStrategyReady } from "../../../shared/types/content-strategy.document";
+import {
+  formatContentStrategyForPrompt,
+  isContentStrategyReady,
+} from "../../../shared/types/content-strategy.document";
 import { TavilySearchService } from "../ai/tavily-search.service";
 import { ResearchGraphService } from "../../orchestratorv2/research/research-graph.service";
 import { coerceContentArchetype, outlinePromptForArchetype } from "../ai/contracts/content-archetype";
@@ -17,10 +20,7 @@ import { formatStyleProfileForPrompt, resolveStyleProfile } from "../ai/contract
 import { buildResearchBrief, formatResearchBriefForPrompt } from "../ai/contracts/research-brief";
 import { FirstPartyPriorsService } from "../ai/first-party-priors.service";
 import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
-import {
-  formatBusinessContextForPrompt,
-  formatBusinessOneLiner,
-} from "../../../shared/utils/format-business-context";
+import { formatBusinessContextForPrompt, formatBusinessOneLiner } from "../../../shared/utils/format-business-context";
 import type { Campaign } from "../../../shared/schemas/campaign.schema";
 import type { BlogUserGenerationParams } from "../ai/types";
 
@@ -295,9 +295,7 @@ Rules:
       researchBlock = "";
     }
     const extracted = urls.length ? await this.tavily.extract(urls) : [];
-    const extra = extracted
-      .map((e) => `- ${e.title || e.url}: ${e.text.slice(0, 400)}`)
-      .join("\n");
+    const extra = extracted.map((e) => `- ${e.title || e.url}: ${e.text.slice(0, 400)}`).join("\n");
     if (extra) {
       researchBlock = `${researchBlock}\n\nUser-provided sources:\n${extra}`;
     }
@@ -448,23 +446,18 @@ Return working_title, thesis, sections with heading + intent matching the archet
       reason: z.string(),
     });
     const structured = chat.withStructuredOutput(AlignmentSchema);
-    const constraintText = [
-      strategyBlock,
-      campaign ? this.formatCampaignConstraintBlock(campaign) : "",
-    ]
+    const constraintText = [strategyBlock, campaign ? this.formatCampaignConstraintBlock(campaign) : ""]
       .filter(Boolean)
       .join("\n\n");
     const result = await structured.invoke([
       new SystemMessage(
-        "Judge whether this draft stays inside the Content Strategy and campaign. Refuse if it targets a different audience, fights the strategy or campaign goal, or uses a conflicting CTA. Be strict.",
+        "Judge whether this draft stays inside the Content Strategy and campaign. Refuse if it targets a different audience, fights the strategy or campaign goal, or uses a conflicting CTA. Be strict."
       ),
-      new HumanMessage(
-        `${constraintText}\n\nTITLE: ${input.title}\n\nDRAFT:\n${input.content.slice(0, 6000)}`,
-      ),
+      new HumanMessage(`${constraintText}\n\nTITLE: ${input.title}\n\nDRAFT:\n${input.content.slice(0, 6000)}`),
     ]);
     if (!result.aligned) {
       throw new BadRequestError(
-        result.reason || "This draft does not stay within the Content Strategy. Adjust the brief and try again.",
+        result.reason || "This draft does not stay within the Content Strategy. Adjust the brief and try again."
       );
     }
   }

@@ -77,10 +77,7 @@ function proposedDocumentFromArgs(
   return parseContentStrategyDocument(next);
 }
 
-export async function formatStrategyUpdateDraft(
-  args: Record<string, unknown>,
-  siteId?: string
-): Promise<string> {
+export async function formatStrategyUpdateDraft(args: Record<string, unknown>, siteId?: string): Promise<string> {
   if (!siteId) {
     return "Proposed Content Strategy update. Approve to apply, or reject to keep the current strategy.";
   }

@@ -119,15 +119,10 @@ export function buildRoleAwareSystemPrompt(args: {
       "Speak as a strategist collaborating with an engineer: be precise, structured, and practical; connect content strategy to product/docs when relevant.",
     agency:
       "Speak as a strategist partnering with an agency operator: focus on client goals, reusable frameworks, delivery cadence, and clear next steps.",
-    other:
-      "Speak as a senior content strategist: clear, practical, and collaborative.",
+    other: "Speak as a senior content strategist: clear, practical, and collaborative.",
   };
 
-  const tone =
-    roleTone[role] ??
-    (detail
-      ? `Speak as a strategist advising a ${role} (${detail}).`
-      : roleTone.other);
+  const tone = roleTone[role] ?? (detail ? `Speak as a strategist advising a ${role} (${detail}).` : roleTone.other);
 
   const mode = (args.sessionMode || "casual").toLowerCase();
   const modeNudge =
@@ -137,11 +132,11 @@ export function buildRoleAwareSystemPrompt(args: {
         ? "Session mode: planning. Prefer loading the campaigns skill when discussing campaigns, calendars, or posting plans. Read with campaign_list / campaign_get. If the user asks something not in memory, load research and run research_run (lite). Before campaign_create, research audience/market/topics (lite), then propose parameters. campaign_create, campaign_update, and campaign_schedule_additional_posts require human approval."
         : mode === "research"
           ? "Session mode: research. Load the research skill and run research_run with depth full. Your reply is the markdown report (findings, confidence, contradictions, recommendation, sources as links). Do not wrap it in a code fence. Do not show HTML or JSON."
-        : mode === "writing"
-          ? "Session mode: writing. Load the writing skill. We only write blog posts. Discuss the bound topic first. writing_request_research is HITL 1 — after they approve, that tool runs full research. Your reply is the report. Then stop — the UI collects Continue (HITL 2). Never call both HITL tools in the same turn. Never call research_run for this post. Keep the roadmap topic unless a new angle still serves the campaign goal and Content Strategy. There is no outline approval. If a draft blog_id is bound, use writing_revise_draft — but if the user named a different roadmap topic, bind that topic and do not keep writing the previous post."
-        : mode === "review"
-          ? "Session mode: review. Prioritize editorial feedback on existing drafts. If a factual claim is unsupported, load research rather than guessing."
-        : "Session mode: casual. Brainstorm freely; do not push campaign writes unless the user asks to lock something in. If they state a durable fact about the business (audience, CTA, never-mention, voice), load content_strategy and propose a HITL patch. If they ask a factual question that is not in memory, load research. If they are clearly talking about a campaign, load campaigns and keep it conversational. If they want to write, that means a blog post — load writing. If they want to publish or schedule an existing post, load posts.";
+          : mode === "writing"
+            ? "Session mode: writing. Load the writing skill. We only write blog posts. Discuss the bound topic first. writing_request_research is HITL 1 — after they approve, that tool runs full research. Your reply is the report. Then stop — the UI collects Continue (HITL 2). Never call both HITL tools in the same turn. Never call research_run for this post. Keep the roadmap topic unless a new angle still serves the campaign goal and Content Strategy. There is no outline approval. If a draft blog_id is bound, use writing_revise_draft — but if the user named a different roadmap topic, bind that topic and do not keep writing the previous post."
+            : mode === "review"
+              ? "Session mode: review. Prioritize editorial feedback on existing drafts. If a factual claim is unsupported, load research rather than guessing."
+              : "Session mode: casual. Brainstorm freely; do not push campaign writes unless the user asks to lock something in. If they state a durable fact about the business (audience, CTA, never-mention, voice), load content_strategy and propose a HITL patch. If they ask a factual question that is not in memory, load research. If they are clearly talking about a campaign, load campaigns and keep it conversational. If they want to write, that means a blog post — load writing. If they want to publish or schedule an existing post, load posts.";
 
   const lengthRule =
     mode === "research"
@@ -151,28 +146,31 @@ export function buildRoleAwareSystemPrompt(args: {
   const conversationRule =
     mode === "research"
       ? ""
-      : "Talk like a colleague, not a form. Lead with your take, then ask one concrete question they can answer in a sentence — a choice, a story, or a yes/no on that take. Never ask abstract interview prompts such as \"What specific aspect…?\", \"Any other details?\", \"Who is the target audience?\", or \"What else should I know?\". If you already have enough to move, don't ask — propose the next step. ";
+      : 'Talk like a colleague, not a form. Lead with your take, then ask one concrete question they can answer in a sentence — a choice, a story, or a yes/no on that take. Never ask abstract interview prompts such as "What specific aspect…?", "Any other details?", "Who is the target audience?", or "What else should I know?". If you already have enough to move, don\'t ask — propose the next step. ';
 
   const voiceRule = args.conversationMode
     ? `${buildVoiceConversationInstructions(
         (args.sessionMode as "planning" | "writing" | "research" | "review" | "casual" | "strategy" | undefined) ??
           "casual",
-        { userMessage: args.userMessage || "" },
+        { userMessage: args.userMessage || "" }
       )} After writing research, speak spoken_summary (2–4 sentences). Keep URLs and the full report in the written transcript only. `
     : "";
 
   const focus = args.focus;
-  const focusBlock = focus && (focus.topic || focus.blog_id || focus.campaign_id)
-    ? ` Conversation focus (bound — do not guess a different campaign or post): ${[
-        focus.topic ? `topic "${focus.topic}"` : "",
-        focus.intent ? `intent: ${focus.intent}` : "",
-        focus.campaign_id ? `campaign_id ${focus.campaign_id}` : "",
-        focus.roadmap_sequence_index != null ? `roadmap item ${focus.roadmap_sequence_index}` : "",
-        focus.blog_id ? `draft blog_id ${focus.blog_id}` : "",
-      ]
-        .filter(Boolean)
-        .join("; ")}. Load writing. Keep this topic unless a new framing still serves the campaign goal and Content Strategy. Do not call research_run — writing_request_research is the HITL to start research. `
-    : "";
+  const focusBlock =
+    focus && (focus.topic || focus.blog_id || focus.campaign_id)
+      ? ` Conversation focus (bound — do not guess a different campaign or post): ${[
+          focus.topic ? `topic "${focus.topic}"` : "",
+          focus.intent ? `intent: ${focus.intent}` : "",
+          focus.campaign_id ? `campaign_id ${focus.campaign_id}` : "",
+          focus.roadmap_sequence_index != null ? `roadmap item ${focus.roadmap_sequence_index}` : "",
+          focus.blog_id ? `draft blog_id ${focus.blog_id}` : "",
+        ]
+          .filter(Boolean)
+          .join(
+            "; "
+          )}. Load writing. Keep this topic unless a new framing still serves the campaign goal and Content Strategy. Do not call research_run — writing_request_research is the HITL to start research. `
+      : "";
 
   return (
     "You are a content strategist partnering with people across an organization " +

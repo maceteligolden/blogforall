@@ -102,7 +102,17 @@ export function useStartWritingThread() {
         endWritingKickoff();
       }
     },
-    [currentSiteId, pathname, router, queryClient, toast, setThreadId, focusComposer, beginWritingKickoff, endWritingKickoff]
+    [
+      currentSiteId,
+      pathname,
+      router,
+      queryClient,
+      toast,
+      setThreadId,
+      focusComposer,
+      beginWritingKickoff,
+      endWritingKickoff,
+    ]
   );
 
   return { startWritingThread };

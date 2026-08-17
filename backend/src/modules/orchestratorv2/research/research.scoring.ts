@@ -31,10 +31,17 @@ const TIER4_HINTS = ["listicle", "best-of", "top-10", "aggregator", "buzzfeed", 
 
 export function classifySourceTier(url: string, title = ""): SourceTier {
   const hay = `${url} ${title}`.toLowerCase();
-  if (TIER1_HOSTS.some((h) => hay.includes(h)) || hay.includes("/docs") || hay.includes("github.com") && hay.includes("/blob")) {
+  if (
+    TIER1_HOSTS.some((h) => hay.includes(h)) ||
+    hay.includes("/docs") ||
+    (hay.includes("github.com") && hay.includes("/blob"))
+  ) {
     return 1;
   }
-  if (TIER3_HOSTS.some((h) => hay.includes(h)) || hay.includes("github.com") && (hay.includes("/issues") || hay.includes("/discussions"))) {
+  if (
+    TIER3_HOSTS.some((h) => hay.includes(h)) ||
+    (hay.includes("github.com") && (hay.includes("/issues") || hay.includes("/discussions")))
+  ) {
     return 3;
   }
   if (TIER4_HINTS.some((h) => hay.includes(h))) {
@@ -54,13 +61,7 @@ export function scoreDocument(doc: {
   const recency = 0.7;
   const primaryEvidence = doc.tier === 1 ? 1 : doc.extracted_text && doc.extracted_text.length > 800 ? 0.7 : 0.4;
   const independence = doc.tier <= 2 ? 0.8 : 0.4;
-  return (
-    authority * 0.3 +
-    relevance * 0.3 +
-    recency * 0.15 +
-    primaryEvidence * 0.15 +
-    independence * 0.1
-  );
+  return authority * 0.3 + relevance * 0.3 + recency * 0.15 + primaryEvidence * 0.15 + independence * 0.1;
 }
 
 export function hostnameOf(url: string): string {
@@ -89,16 +90,16 @@ export function evaluateStopping(args: {
   criticThreshold: number;
   sourceQualityThreshold: number;
 }): StoppingSnapshot {
-  const allQuestionsCovered =
-    args.subquestions.length === 0 || args.subquestions.every((q) => q.covered);
+  const allQuestionsCovered = args.subquestions.length === 0 || args.subquestions.every((q) => q.covered);
   const evidenced = args.claims.filter((c) => c.kind === "fact" || c.kind === "statistic" || c.kind === "definition");
   const majorClaimsHaveEvidence =
     evidenced.length === 0 || evidenced.every((c) => c.source_ids.length > 0 && c.confidence >= 0.4);
   const important = evidenced.filter((c) => c.confidence >= 0.6);
   const importantClaimsHaveMultipleSources =
-    important.length === 0 || important.filter((c) => c.source_ids.length >= 2).length >= Math.ceil(important.length * 0.5);
+    important.length === 0 ||
+    important.filter((c) => c.source_ids.length >= 2).length >= Math.ceil(important.length * 0.5);
   const contradictionsResolved = args.claims.every(
-    (c) => c.contradicting_evidence.length === 0 || c.confidence <= 0.7 || c.verified,
+    (c) => c.contradicting_evidence.length === 0 || c.confidence <= 0.7 || c.verified
   );
   const meanQuality =
     args.documents.length === 0

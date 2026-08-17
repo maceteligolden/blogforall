@@ -54,15 +54,7 @@ function Field({
   );
 }
 
-function Section({
-  title,
-  confidence,
-  children,
-}: {
-  title: string;
-  confidence?: number;
-  children: ReactNode;
-}) {
+function Section({ title, confidence, children }: { title: string; confidence?: number; children: ReactNode }) {
   return (
     <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-4 sm:p-5 space-y-3">
       <div className="flex items-baseline justify-between gap-2">
@@ -221,8 +213,18 @@ export function ContentStrategyEditor({
           return {
             name: name || row,
             authority_thesis: thesis || "",
-            in_scope: inScope ? inScope.split(",").map((s) => s.trim()).filter(Boolean) : [],
-            out_of_scope: outScope ? outScope.split(",").map((s) => s.trim()).filter(Boolean) : [],
+            in_scope: inScope
+              ? inScope
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
+            out_of_scope: outScope
+              ? outScope
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean)
+              : [],
           };
         }),
       },
@@ -356,7 +358,13 @@ export function ContentStrategyEditor({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Core message" value={coreMessage} onChange={setCoreMessage} className="sm:col-span-2" />
             <Field label="Editorial point of view" value={pov} onChange={setPov} className="sm:col-span-2" />
-            <Field label="Supporting messages" hint="One per line" value={supporting} onChange={setSupporting} rows={3} />
+            <Field
+              label="Supporting messages"
+              hint="One per line"
+              value={supporting}
+              onChange={setSupporting}
+              rows={3}
+            />
             <Field label="Proof points" hint="One per line" value={proof} onChange={setProof} rows={3} />
             <Field label="Claims we can make" value={canClaim} onChange={setCanClaim} rows={3} />
             <Field label="Claims we must not make" value={mustNot} onChange={setMustNot} rows={3} />

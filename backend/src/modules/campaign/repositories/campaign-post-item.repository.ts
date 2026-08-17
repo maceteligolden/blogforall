@@ -60,11 +60,7 @@ export class CampaignPostItemRepository {
     return withIds(rows) as unknown as CampaignPostItem[];
   }
 
-  async findBySequence(
-    campaignId: string,
-    siteId: string,
-    sequenceIndex: number
-  ): Promise<CampaignPostItem | null> {
+  async findBySequence(campaignId: string, siteId: string, sequenceIndex: number): Promise<CampaignPostItem | null> {
     const [row] = await db
       .select()
       .from(campaignPostItems)

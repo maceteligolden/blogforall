@@ -133,9 +133,9 @@ export function isContentStrategyReady(strategy?: WorkspaceStrategy | null): boo
   const d = strategy.document;
   return Boolean(
     d?.north_star?.what_we_are?.trim() ||
-      d?.positioning?.statement?.trim() ||
-      d?.audience?.primary?.who?.trim() ||
-      strategy.purpose?.trim()
+    d?.positioning?.statement?.trim() ||
+    d?.audience?.primary?.who?.trim() ||
+    strategy.purpose?.trim()
   );
 }
 
@@ -229,7 +229,10 @@ export class StrategicService {
   }
 
   static async regenerateStrategy(siteId: string, websiteUrl?: string) {
-    const res = await apiClient.post(API_ENDPOINTS.STRATEGIC.STRATEGY_REGENERATE(siteId), websiteUrl ? { website_url: websiteUrl } : {});
+    const res = await apiClient.post(
+      API_ENDPOINTS.STRATEGIC.STRATEGY_REGENERATE(siteId),
+      websiteUrl ? { website_url: websiteUrl } : {}
+    );
     const raw = res.data.data as WorkspaceStrategy;
     return {
       ...raw,

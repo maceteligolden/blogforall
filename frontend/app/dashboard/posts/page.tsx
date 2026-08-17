@@ -81,10 +81,7 @@ export default function BlogsPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-display text-white">My Posts</h1>
         <div className="flex items-center gap-2">
-          <Button
-            className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => void startWritingThread({})}
-          >
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => void startWritingThread({})}>
             Write a post
           </Button>
           <button
@@ -185,10 +182,7 @@ export default function BlogsPage() {
           <p className="text-gray-400 mb-4">
             {searchQuery ? "No posts found matching your search." : "No posts yet — start from a conversation."}
           </p>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => void startWritingThread({})}
-          >
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => void startWritingThread({})}>
             Write a post
           </Button>
         </div>
@@ -223,9 +217,9 @@ export default function BlogsPage() {
                             ? "bg-amber-900/30 text-amber-400 border border-amber-800"
                             : blog.status === "generating"
                               ? "bg-primary/15 text-primary border border-primary/40"
-                            : blog.status === "draft"
-                              ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
-                              : "bg-gray-800 text-gray-400 border border-gray-700"
+                              : blog.status === "draft"
+                                ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
+                                : "bg-gray-800 text-gray-400 border border-gray-700"
                       }`}
                     >
                       {blog.status}
@@ -340,9 +334,9 @@ export default function BlogsPage() {
                               ? "bg-amber-900/30 text-amber-400 border border-amber-800"
                               : blog.status === "generating"
                                 ? "bg-primary/15 text-primary border border-primary/40"
-                              : blog.status === "draft"
-                                ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
-                                : "bg-gray-800 text-gray-400 border border-gray-700"
+                                : blog.status === "draft"
+                                  ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
+                                  : "bg-gray-800 text-gray-400 border border-gray-700"
                         }`}
                       >
                         {blog.status}

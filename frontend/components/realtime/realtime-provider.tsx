@@ -89,58 +89,61 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS });
         void queryClient.invalidateQueries({
           predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            query.queryKey[0] === "campaigns" &&
-            query.queryKey[2] === "roadmap",
+            Array.isArray(query.queryKey) && query.queryKey[0] === "campaigns" && query.queryKey[2] === "roadmap",
         });
       }),
-      client.on(REALTIME_EVENTS.SCHEDULED_POST_PREPARED, (envelope: RealtimeEnvelope<{
-        scheduledPostId?: string;
-        blogId?: string;
-      }>) => {
-        const scheduledPostId = envelope.payload?.scheduledPostId;
-        const blogId = envelope.payload?.blogId;
-        if (scheduledPostId && blogId) {
-          queryClient.setQueriesData(
-            {
-              predicate: (query) =>
-                Array.isArray(query.queryKey) &&
-                query.queryKey[0] === "campaigns" &&
-                query.queryKey[2] === "roadmap",
-            },
-            (old: unknown) => {
-              const payload = old as {
-                current?: { items?: Array<{ scheduled_post_id?: string; blog_id?: string; draft_status?: string }> };
-              } | undefined;
-              if (!payload?.current?.items) return old;
-              return {
-                ...payload,
-                current: {
-                  ...payload.current,
-                  items: payload.current.items.map((item) =>
-                    item.scheduled_post_id === scheduledPostId
-                      ? { ...item, blog_id: blogId, draft_status: "draft_ready" }
-                      : item
-                  ),
-                },
-              };
-            }
-          );
+      client.on(
+        REALTIME_EVENTS.SCHEDULED_POST_PREPARED,
+        (
+          envelope: RealtimeEnvelope<{
+            scheduledPostId?: string;
+            blogId?: string;
+          }>
+        ) => {
+          const scheduledPostId = envelope.payload?.scheduledPostId;
+          const blogId = envelope.payload?.blogId;
+          if (scheduledPostId && blogId) {
+            queryClient.setQueriesData(
+              {
+                predicate: (query) =>
+                  Array.isArray(query.queryKey) && query.queryKey[0] === "campaigns" && query.queryKey[2] === "roadmap",
+              },
+              (old: unknown) => {
+                const payload = old as
+                  | {
+                      current?: {
+                        items?: Array<{ scheduled_post_id?: string; blog_id?: string; draft_status?: string }>;
+                      };
+                    }
+                  | undefined;
+                if (!payload?.current?.items) return old;
+                return {
+                  ...payload,
+                  current: {
+                    ...payload.current,
+                    items: payload.current.items.map((item) =>
+                      item.scheduled_post_id === scheduledPostId
+                        ? { ...item, blog_id: blogId, draft_status: "draft_ready" }
+                        : item
+                    ),
+                  },
+                };
+              }
+            );
+          }
+          void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS });
+          void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS });
+          void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
+          void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS_UNREAD_COUNT });
+          void queryClient.invalidateQueries({
+            predicate: (query) =>
+              Array.isArray(query.queryKey) && query.queryKey[0] === "campaigns" && query.queryKey[2] === "roadmap",
+          });
+          if (currentSiteId) {
+            void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_APPROVALS(currentSiteId) });
+          }
         }
-        void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS });
-        void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS });
-        void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
-        void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS_UNREAD_COUNT });
-        void queryClient.invalidateQueries({
-          predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            query.queryKey[0] === "campaigns" &&
-            query.queryKey[2] === "roadmap",
-        });
-        if (currentSiteId) {
-          void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_APPROVALS(currentSiteId) });
-        }
-      }),
+      ),
       client.on(REALTIME_EVENTS.BLOG_STATUS_CHANGED, (envelope: RealtimeEnvelope<{ blogId?: string }>) => {
         const blogId = envelope.payload?.blogId;
         if (blogId) {
@@ -151,9 +154,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTIFICATIONS });
         void queryClient.invalidateQueries({
           predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            query.queryKey[0] === "campaigns" &&
-            query.queryKey[2] === "roadmap",
+            Array.isArray(query.queryKey) && query.queryKey[0] === "campaigns" && query.queryKey[2] === "roadmap",
         });
       }),
       client.on(REALTIME_EVENTS.STRATEGY_STATUS_CHANGED, () => {

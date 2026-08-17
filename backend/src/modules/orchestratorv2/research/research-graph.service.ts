@@ -11,12 +11,7 @@ import { TavilySearchService } from "../../blog/ai/tavily-search.service";
 import { ArtifactStoreService } from "../../orchestrator/ai/memory/artifact-store.service";
 import { AGENT_MODEL } from "../orchestrator.constants";
 import { mapGraphToPackage, packageSummary } from "./research-package.mapper";
-import {
-  classifySourceTier,
-  evaluateStopping,
-  hostnameOf,
-  scoreDocument,
-} from "./research.scoring";
+import { classifySourceTier, evaluateStopping, hostnameOf, scoreDocument } from "./research.scoring";
 import type {
   CampaignTopicSuggestion,
   ResearchBriefState,
@@ -41,7 +36,7 @@ const PlanSchema = z.object({
       z.object({
         question: z.string(),
         category: z.string(),
-      }),
+      })
     )
     .min(3)
     .max(10),
@@ -64,7 +59,7 @@ const ClaimsSchema = z.object({
         evidence: z.string(),
         subquestion_index: z.number().int().nonnegative().nullable(),
         confidence: z.number().min(0).max(1),
-      }),
+      })
     )
     .max(20),
 });
@@ -76,7 +71,7 @@ const VerifySchema = z.object({
       confidence: z.number().min(0).max(1),
       verified: z.boolean(),
       contradicting_evidence: z.string().nullable(),
-    }),
+    })
   ),
 });
 
@@ -90,7 +85,7 @@ const FindingsSchema = z.object({
         confidence: z.enum(["high", "medium", "low"]),
         implication: z.string(),
         limitation: z.string(),
-      }),
+      })
     )
     .min(1)
     .max(8),
@@ -134,7 +129,7 @@ const RoadmapTopicsSchema = z.object({
           "thought_leadership",
         ]),
         campaign_support: z.string().min(1),
-      }),
+      })
     )
     .min(1)
     .max(20),
@@ -194,12 +189,7 @@ const ResearchState = Annotation.Root({
 
 const phaseStore = new AsyncLocalStorage<NonNullable<ResearchGraphInput["onPhase"]>>();
 
-function emitPhase(event: {
-  phase: string;
-  message: string;
-  percent?: number;
-  skill_id?: string;
-}) {
+function emitPhase(event: { phase: string; message: string; percent?: number; skill_id?: string }) {
   phaseStore.getStore()?.({ skill_id: "research", ...event });
 }
 
@@ -209,7 +199,8 @@ function emptyBrief(question: string): ResearchBriefState {
     objectives: ["Answer the question with sourced evidence"],
     constraints: [],
     decision_criteria: ["Reliability", "Recency", "Relevance"],
-    source_strategy: "Prefer primary documentation, then reputable analysis, then community reports of real-world issues.",
+    source_strategy:
+      "Prefer primary documentation, then reputable analysis, then community reports of real-world issues.",
   };
 }
 
@@ -219,7 +210,7 @@ export class ResearchGraphService {
 
   constructor(
     private readonly tavily: TavilySearchService,
-    private readonly artifacts: ArtifactStoreService,
+    private readonly artifacts: ArtifactStoreService
   ) {}
 
   async run(input: ResearchGraphInput): Promise<ResearchGraphResult> {
@@ -301,7 +292,7 @@ export class ResearchGraphService {
         claims: result.claims.length,
         degraded: result.degraded,
       },
-      "ResearchGraphService",
+      "ResearchGraphService"
     );
 
     return {
@@ -334,9 +325,7 @@ export class ResearchGraphService {
       signal: input.signal,
     });
     const fallbackAbout = (title: string) =>
-      input.campaign_goal
-        ? `A post that supports the campaign goal: ${input.campaign_goal}`
-        : title;
+      input.campaign_goal ? `A post that supports the campaign goal: ${input.campaign_goal}` : title;
     const fromFindings = (titles: string[]): CampaignTopicSuggestion[] =>
       titles.map((title) => ({
         title,
@@ -349,7 +338,10 @@ export class ResearchGraphService {
       }));
     const chat = this.chat();
     if (!chat) {
-      const fallback = research.findings.map((f) => f.title).filter(Boolean).slice(0, input.count);
+      const fallback = research.findings
+        .map((f) => f.title)
+        .filter(Boolean)
+        .slice(0, input.count);
       return {
         topics: fromFindings(fallback.length ? fallback : [input.question.slice(0, 80)]),
         package_id: research.package_id,
@@ -359,11 +351,9 @@ export class ResearchGraphService {
     const structured = chat.withStructuredOutput(RoadmapTopicsSchema);
     const out = await structured.invoke([
       new SystemMessage(
-        "Propose distinct blog/post topics from the research. Each topic needs a publishable title, a 1-2 sentence about summary, 3-6 keywords, a post_type, and how it supports the campaign. No numbering.",
+        "Propose distinct blog/post topics from the research. Each topic needs a publishable title, a 1-2 sentence about summary, 3-6 keywords, a post_type, and how it supports the campaign. No numbering."
       ),
-      new HumanMessage(
-        `Need ${input.count} topics.\n\n${research.report_markdown.slice(0, 6000)}`,
-      ),
+      new HumanMessage(`Need ${input.count} topics.\n\n${research.report_markdown.slice(0, 6000)}`),
     ]);
     return {
       topics: out.topics.slice(0, input.count).map((topic) => ({
@@ -431,22 +421,22 @@ export class ResearchGraphService {
     if (!chat) {
       return {
         brief: emptyBrief(state.question),
-        subquestions: [
-          { id: "q1", question: state.question, category: "core", covered: false },
-        ],
+        subquestions: [{ id: "q1", question: state.question, category: "core", covered: false }],
         discovery_queries: [state.question],
         degraded: true,
       };
     }
     try {
-      const out = await chat.withStructuredOutput(PlanSchema).invoke([
-        new SystemMessage(
-          "You are a research planner. Turn the user request into a research brief. Decompose into subquestions across technology, cost, operations, security, and product fit when relevant. Prefer primary sources.",
-        ),
-        new HumanMessage(
-          `Question: ${state.question}\nAudience: ${state.audience}\nPurpose: ${state.purpose}\nDepth: ${state.depth}`,
-        ),
-      ]);
+      const out = await chat
+        .withStructuredOutput(PlanSchema)
+        .invoke([
+          new SystemMessage(
+            "You are a research planner. Turn the user request into a research brief. Decompose into subquestions across technology, cost, operations, security, and product fit when relevant. Prefer primary sources."
+          ),
+          new HumanMessage(
+            `Question: ${state.question}\nAudience: ${state.audience}\nPurpose: ${state.purpose}\nDepth: ${state.depth}`
+          ),
+        ]);
       return {
         brief: {
           research_question: out.research_question,
@@ -475,7 +465,7 @@ export class ResearchGraphService {
     const { documents, searches } = await this.searchQueries(
       state,
       state.discovery_queries.slice(0, maxQueries),
-      "discover",
+      "discover"
     );
     const chat = this.chat();
     if (!chat || documents.length === 0) {
@@ -491,12 +481,14 @@ export class ResearchGraphService {
         .slice(0, 8)
         .map((d, i) => `${i + 1}. ${d.title}: ${d.snippet.slice(0, 280)}`)
         .join("\n");
-      const out = await chat.withStructuredOutput(TerminologySchema).invoke([
-        new SystemMessage(
-          "Extract domain terminology and better search queries from discovery snippets. Do not answer the research question yet.",
-        ),
-        new HumanMessage(`Question: ${state.question}\n\nSnippets:\n${snippetBlock}`),
-      ]);
+      const out = await chat
+        .withStructuredOutput(TerminologySchema)
+        .invoke([
+          new SystemMessage(
+            "Extract domain terminology and better search queries from discovery snippets. Do not answer the research question yet."
+          ),
+          new HumanMessage(`Question: ${state.question}\n\nSnippets:\n${snippetBlock}`),
+        ]);
       return {
         documents,
         searches: [...state.searches, ...searches],
@@ -559,17 +551,19 @@ export class ResearchGraphService {
     const sourceBlock = corpus
       .map(
         (d, i) =>
-          `SOURCE ${i} [${hostnameOf(d.url)} tier ${d.tier}]\nTitle: ${d.title}\nURL: ${d.url}\n${(d.extracted_text || d.snippet).slice(0, 1800)}`,
+          `SOURCE ${i} [${hostnameOf(d.url)} tier ${d.tier}]\nTitle: ${d.title}\nURL: ${d.url}\n${(d.extracted_text || d.snippet).slice(0, 1800)}`
       )
       .join("\n\n");
     const sqBlock = state.subquestions.map((q, i) => `${i}. ${q.question}`).join("\n");
     try {
-      const out = await chat.withStructuredOutput(ClaimsSchema).invoke([
-        new SystemMessage(
-          "Extract atomic factual claims relevant to the research questions. Classify each as fact, statistic, definition, limitation, interpretation, or opinion. Cite source_index from the numbered sources. Do not invent URLs or numbers.",
-        ),
-        new HumanMessage(`Question: ${state.question}\nSubquestions:\n${sqBlock}\n\n${sourceBlock}`),
-      ]);
+      const out = await chat
+        .withStructuredOutput(ClaimsSchema)
+        .invoke([
+          new SystemMessage(
+            "Extract atomic factual claims relevant to the research questions. Classify each as fact, statistic, definition, limitation, interpretation, or opinion. Cite source_index from the numbered sources. Do not invent URLs or numbers."
+          ),
+          new HumanMessage(`Question: ${state.question}\nSubquestions:\n${sqBlock}\n\n${sourceBlock}`),
+        ]);
       const claims: ResearchClaim[] = out.claims.map((c, i) => {
         const doc = corpus[Math.min(c.source_index, corpus.length - 1)];
         const sq =
@@ -618,12 +612,14 @@ export class ResearchGraphService {
         .map((d) => `- ${d.title}: ${d.snippet.slice(0, 220)}`)
         .join("\n");
       const claimBlock = important.map((c, i) => `${i}. ${c.claim}`).join("\n");
-      const out = await chat.withStructuredOutput(VerifySchema).invoke([
-        new SystemMessage(
-          "Verify claims against independent snippets. Lower confidence if only vendor marketing supports them. Note contradictions.",
-        ),
-        new HumanMessage(`Claims:\n${claimBlock}\n\nIndependent snippets:\n${snippet || "(none)"}`),
-      ]);
+      const out = await chat
+        .withStructuredOutput(VerifySchema)
+        .invoke([
+          new SystemMessage(
+            "Verify claims against independent snippets. Lower confidence if only vendor marketing supports them. Note contradictions."
+          ),
+          new HumanMessage(`Claims:\n${claimBlock}\n\nIndependent snippets:\n${snippet || "(none)"}`),
+        ]);
       const claims = state.claims.map((c) => ({ ...c }));
       for (const update of out.updates) {
         const target = important[update.claim_index];
@@ -665,12 +661,14 @@ export class ResearchGraphService {
     }
     try {
       const snippet = documents.map((d) => `- ${d.title}: ${d.snippet.slice(0, 240)}`).join("\n");
-      const out = await chat.withStructuredOutput(ClaimsSchema).invoke([
-        new SystemMessage(
-          "Extract claims that would weaken or contradict the current conclusion. Prefer limitations and production problems.",
-        ),
-        new HumanMessage(`Current question: ${state.question}\n\nCounter snippets:\n${snippet}`),
-      ]);
+      const out = await chat
+        .withStructuredOutput(ClaimsSchema)
+        .invoke([
+          new SystemMessage(
+            "Extract claims that would weaken or contradict the current conclusion. Prefer limitations and production problems."
+          ),
+          new HumanMessage(`Current question: ${state.question}\n\nCounter snippets:\n${snippet}`),
+        ]);
       const extra: ResearchClaim[] = out.claims.map((c, i) => {
         const doc = documents[Math.min(c.source_index, documents.length - 1)];
         return {
@@ -744,14 +742,16 @@ export class ResearchGraphService {
       };
     }
     try {
-      const out = await chat.withStructuredOutput(FindingsSchema).invoke([
-        new SystemMessage(
-          "Synthesize research into decision-useful findings. Separate facts from interpretations and opinions. Each finding needs implication, limitation, and confidence. End with a recommendation that answers the original question.",
-        ),
-        new HumanMessage(
-          `Question: ${state.question}\nObjectives: ${state.brief.objectives.join("; ")}\nCriteria: ${state.brief.decision_criteria.join("; ")}\n\nClaims:\n${claimBlock || "(none)"}`,
-        ),
-      ]);
+      const out = await chat
+        .withStructuredOutput(FindingsSchema)
+        .invoke([
+          new SystemMessage(
+            "Synthesize research into decision-useful findings. Separate facts from interpretations and opinions. Each finding needs implication, limitation, and confidence. End with a recommendation that answers the original question."
+          ),
+          new HumanMessage(
+            `Question: ${state.question}\nObjectives: ${state.brief.objectives.join("; ")}\nCriteria: ${state.brief.decision_criteria.join("; ")}\n\nClaims:\n${claimBlock || "(none)"}`
+          ),
+        ]);
       return {
         findings: out.findings.map((f, i) => ({
           id: `f_${i + 1}`,
@@ -806,14 +806,16 @@ export class ResearchGraphService {
       };
     }
     try {
-      const out = await chat.withStructuredOutput(CritiqueSchema).invoke([
-        new SystemMessage(
-          "You are a research critic. Answer: Did we answer the original question? Do important claims have evidence? Did we look for contradictions? What don't we know? How confident should we be?",
-        ),
-        new HumanMessage(
-          `Question: ${state.question}\nRecommendation: ${state.recommendation}\nFindings: ${state.findings.map((f) => f.finding).join(" | ")}\nUnknowns: ${state.unknowns.join("; ")}\nSources: ${state.documents.length}\nClaims: ${state.claims.length}`,
-        ),
-      ]);
+      const out = await chat
+        .withStructuredOutput(CritiqueSchema)
+        .invoke([
+          new SystemMessage(
+            "You are a research critic. Answer: Did we answer the original question? Do important claims have evidence? Did we look for contradictions? What don't we know? How confident should we be?"
+          ),
+          new HumanMessage(
+            `Question: ${state.question}\nRecommendation: ${state.recommendation}\nFindings: ${state.findings.map((f) => f.finding).join(" | ")}\nUnknowns: ${state.unknowns.join("; ")}\nSources: ${state.documents.length}\nClaims: ${state.claims.length}`
+          ),
+        ]);
       const critic: ResearchCriticNotes = {
         answered_original: out.answered_original,
         important_claims_evidenced: out.important_claims_evidenced,
@@ -862,17 +864,22 @@ export class ResearchGraphService {
     const fallback = this.fallbackReport(state, sources);
     const chat = this.chat();
     if (!chat) {
-      return { report_markdown: fallback, spoken_summary: state.recommendation.slice(0, 400) || fallback.slice(0, 400) };
+      return {
+        report_markdown: fallback,
+        spoken_summary: state.recommendation.slice(0, 400) || fallback.slice(0, 400),
+      };
     }
     try {
-      const out = await chat.withStructuredOutput(ReportSchema).invoke([
-        new SystemMessage(
-          "Write a research report in Markdown for a human reader. No HTML, no code fences wrapping the whole report, no JSON, no tool names. Structure: Executive summary, research question, key findings (each with evidence, confidence, implication), contradictory evidence, uncertainties, recommendation, sources as markdown links. spoken_summary must be 2–4 spoken sentences: conclusion plus one caveat, no URLs.",
-        ),
-        new HumanMessage(
-          `Question: ${state.question}\nRecommendation: ${state.recommendation}\nFindings JSON: ${JSON.stringify(state.findings).slice(0, 5000)}\nUnknowns: ${state.unknowns.join("; ")}\nCritic: ${state.critic?.confidence_statement ?? ""}\nSources:\n${sources}`,
-        ),
-      ]);
+      const out = await chat
+        .withStructuredOutput(ReportSchema)
+        .invoke([
+          new SystemMessage(
+            "Write a research report in Markdown for a human reader. No HTML, no code fences wrapping the whole report, no JSON, no tool names. Structure: Executive summary, research question, key findings (each with evidence, confidence, implication), contradictory evidence, uncertainties, recommendation, sources as markdown links. spoken_summary must be 2–4 spoken sentences: conclusion plus one caveat, no URLs."
+          ),
+          new HumanMessage(
+            `Question: ${state.question}\nRecommendation: ${state.recommendation}\nFindings JSON: ${JSON.stringify(state.findings).slice(0, 5000)}\nUnknowns: ${state.unknowns.join("; ")}\nCritic: ${state.critic?.confidence_statement ?? ""}\nSources:\n${sources}`
+          ),
+        ]);
       return {
         report_markdown: out.report_markdown.replace(/```[\s\S]*?```/g, "").trim() || fallback,
         spoken_summary: out.spoken_summary.trim() || state.recommendation.slice(0, 400),
@@ -886,7 +893,7 @@ export class ResearchGraphService {
     const findings = state.findings
       .map(
         (f) =>
-          `### ${f.title}\n${f.finding}\n\nEvidence: ${f.evidence}\nConfidence: ${f.confidence}\nImplication: ${f.implication}\nLimitation: ${f.limitation}`,
+          `### ${f.title}\n${f.finding}\n\nEvidence: ${f.evidence}\nConfidence: ${f.confidence}\nImplication: ${f.implication}\nLimitation: ${f.limitation}`
       )
       .join("\n\n");
     return [
@@ -913,7 +920,7 @@ export class ResearchGraphService {
   private async searchQueries(
     state: GraphState,
     queries: string[],
-    phase: ResearchSearchRecord["phase"],
+    phase: ResearchSearchRecord["phase"]
   ): Promise<{ documents: ResearchDocument[]; searches: ResearchSearchRecord[] }> {
     const documents: ResearchDocument[] = [];
     const searches: ResearchSearchRecord[] = [];

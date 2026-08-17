@@ -12,15 +12,8 @@ import { z } from "zod";
 import { container } from "tsyringe";
 import { env } from "../../shared/config/env";
 import { createChatOpenAI } from "../../shared/ai/create-chat-openai";
-import {
-  createLoadSkillTool,
-  findSkillOwningTool,
-  SKILLS,
-} from "./orchestrator.skill";
-import {
-  createStrategyTools,
-  formatStrategyUpdateDraft,
-} from "./orchestrator.tool";
+import { createLoadSkillTool, findSkillOwningTool, SKILLS } from "./orchestrator.skill";
+import { createStrategyTools, formatStrategyUpdateDraft } from "./orchestrator.tool";
 import {
   createCampaignTools,
   formatCampaignCreateDraft,
@@ -44,15 +37,11 @@ import { LangChainMemoryRepository } from "./longterm-memory.repository";
 import { LongTermMemory } from "./orchestrator.validation";
 import { AGENT_MODEL } from "./orchestrator.constants";
 
-const skillsPrompt = SKILLS.map(
-  (skill) => `- **${skill.name}**: ${skill.description}`,
-).join("\n");
+const skillsPrompt = SKILLS.map((skill) => `- **${skill.name}**: ${skill.description}`).join("\n");
 
 const memoryRepository = container.resolve(LangChainMemoryRepository);
 
-const skillOwnedToolNames = new Set(
-  SKILLS.flatMap((skill) => skill.toolNames),
-);
+const skillOwnedToolNames = new Set(SKILLS.flatMap((skill) => skill.toolNames));
 
 export type LongTermMemoryMiddlewareIdentity = {
   userId: string;
@@ -96,11 +85,7 @@ function getMessageText(content: unknown): string {
   return String(content);
 }
 
-function getMessageRole(message: {
-  role?: string;
-  type?: string;
-  getType?: () => string;
-}): string | undefined {
+function getMessageRole(message: { role?: string; type?: string; getType?: () => string }): string | undefined {
   if (typeof message.getType === "function") {
     return message.getType();
   }
@@ -113,7 +98,7 @@ function getLatestUserQuery(
     type?: string;
     content?: unknown;
     getType?: () => string;
-  }>,
+  }>
 ): string {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
     const role = getMessageRole(messages[i]);
@@ -136,11 +121,7 @@ function formatIdentityBlock(identity: LongTermMemoryMiddlewareIdentity): string
     `- Workspace: ${identity.workspaceName || "Unknown"}`,
     `- User company role: ${
       identity.companyRole
-        ? `${identity.companyRole}${
-            identity.companyRoleDetail
-              ? ` (${identity.companyRoleDetail})`
-              : ""
-          }`
+        ? `${identity.companyRole}${identity.companyRoleDetail ? ` (${identity.companyRoleDetail})` : ""}`
         : "Unknown"
     }`,
     `- Workspace membership role: ${identity.memberRole || "Unknown"}`,
@@ -162,8 +143,7 @@ function formatMemoriesForPrompt(memories: LongTermMemory[]): string {
           ? memory.category
           : undefined;
 
-    const importance =
-      memory.importance != null ? ` importance=${memory.importance}` : "";
+    const importance = memory.importance != null ? ` importance=${memory.importance}` : "";
     const metaLabel = meta ? ` ${meta}` : "";
 
     return `- [${memory.type}${metaLabel}${importance}] ${memory.content}`;
@@ -184,7 +164,7 @@ function collectRegexHits(
   content: string,
   pattern: RegExp,
   replacement: (text: string) => string,
-  predicate?: (text: string) => boolean,
+  predicate?: (text: string) => boolean
 ): PiiHit[] {
   const hits: PiiHit[] = [];
   const re = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
@@ -235,13 +215,12 @@ function luhnOk(cardNumber: string): boolean {
 function redactPiiText(content: string, phase: PiiPhase): string {
   if (!content) return content;
 
-  const apiKeyHits = collectRegexHits(
-    content,
-    /(?:sk-[a-zA-Z0-9]{20,}|Bearer\s+[A-Za-z0-9\-._~+/]+=*)/,
-    () => "",
-  );
+  const apiKeyHits = collectRegexHits(content, /(?:sk-[a-zA-Z0-9]{20,}|Bearer\s+[A-Za-z0-9\-._~+/]+=*)/, () => "");
   if (apiKeyHits.length > 0) {
-    throw new PIIDetectionError("api_key", apiKeyHits.map((h) => ({ text: content.slice(h.start, h.end), start: h.start, end: h.end })));
+    throw new PIIDetectionError(
+      "api_key",
+      apiKeyHits.map((h) => ({ text: content.slice(h.start, h.end), start: h.start, end: h.end }))
+    );
   }
 
   const hits: PiiHit[] = [
@@ -250,34 +229,29 @@ function redactPiiText(content: string, phase: PiiPhase): string {
       content,
       /\b(?:\d{4}[-\s]?){3}\d{4}\b/,
       (text) => `****-****-****-${text.replace(/\D/g, "").slice(-4)}`,
-      luhnOk,
+      luhnOk
     ),
     ...(phase === "input"
       ? [
           ...collectRegexHits(
             content,
             /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/,
-            () => "[REDACTED_IP]",
+            () => "[REDACTED_IP]"
           ),
           ...collectRegexHits(
             content,
             /\b(?:[0-9A-Fa-f]{2}[:-]){5}(?:[0-9A-Fa-f]{2})\b/,
-            () => "[REDACTED_MAC_ADDRESS]",
+            () => "[REDACTED_MAC_ADDRESS]"
           ),
           ...collectRegexHits(content, /(?:https?:\/\/|www\.)[^\s<>"{}|\\^`[\]]+/gi, () => "[REDACTED_URL]"),
           ...collectRegexHits(
             content,
             /\+?\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}/,
-            (text) => `${"*".repeat(Math.max(0, text.length - 4))}${text.slice(-4)}`,
+            (text) => `${"*".repeat(Math.max(0, text.length - 4))}${text.slice(-4)}`
           ),
         ]
       : []),
-    ...collectRegexHits(
-      content,
-      /\b\d{3}-\d{2}-\d{4}\b/,
-      (text) => `<ssn_hash:${text.slice(-4)}>`,
-      isLikelySsn,
-    ),
+    ...collectRegexHits(content, /\b\d{3}-\d{2}-\d{4}\b/, (text) => `<ssn_hash:${text.slice(-4)}>`, isLikelySsn),
   ];
 
   return applyHits(content, hits);
@@ -290,7 +264,12 @@ function redactContent(content: unknown, phase: PiiPhase): unknown {
   if (Array.isArray(content)) {
     return content.map((block) => {
       if (typeof block === "string") return redactPiiText(block, phase);
-      if (block && typeof block === "object" && "text" in block && typeof (block as { text: unknown }).text === "string") {
+      if (
+        block &&
+        typeof block === "object" &&
+        "text" in block &&
+        typeof (block as { text: unknown }).text === "string"
+      ) {
         return { ...block, text: redactPiiText((block as { text: string }).text, phase) };
       }
       return block;
@@ -315,7 +294,7 @@ function createCombinedPiiMiddleware() {
               id: message.id,
               name: message.name,
             })
-          : message,
+          : message
       );
       const response = await handler({ ...request, messages });
       if (!AIMessage.isInstance(response)) return response;
@@ -395,9 +374,7 @@ function sanitizeWritingHitlToolCalls(response: AIMessage): AIMessage {
   const calls = response.tool_calls;
   const hasRequest = calls.some((call) => call.name === "writing_request_research");
   const hasConfirm = calls.some((call) => call.name === "writing_confirm_research");
-  let next = hasRequest && hasConfirm
-    ? calls.filter((call) => call.name !== "writing_confirm_research")
-    : calls;
+  let next = hasRequest && hasConfirm ? calls.filter((call) => call.name !== "writing_confirm_research") : calls;
   const seenHitl = new Set<string>();
   next = next.filter((call) => {
     if (call.name !== "writing_request_research" && call.name !== "writing_confirm_research") {
@@ -416,12 +393,7 @@ function sanitizeWritingHitlToolCalls(response: AIMessage): AIMessage {
   });
 }
 
-function createSkillMiddleware(args: {
-  siteId: string;
-  userId: string;
-  threadId?: string;
-  writingLoop?: boolean;
-}) {
+function createSkillMiddleware(args: { siteId: string; userId: string; threadId?: string; writingLoop?: boolean }) {
   const loadSkill = createLoadSkillTool();
   const allTools = [
     ...createStrategyTools(args),
@@ -430,9 +402,7 @@ function createSkillMiddleware(args: {
     ...createWritingTools(args),
     ...createBlogTools(args),
   ];
-  const skillToolByName = new Map(
-    allTools.map((t) => [t.name as string, t]),
-  );
+  const skillToolByName = new Map(allTools.map((t) => [t.name as string, t]));
 
   const toolsForSkill = (skillName: string) => {
     const skill = SKILLS.find((s) => s.name === skillName);
@@ -510,9 +480,7 @@ function createSkillMiddleware(args: {
 }
 
 const hitlReview = {
-  allowedDecisions: ["approve", "edit", "reject"] as Array<
-    "approve" | "edit" | "reject"
-  >,
+  allowedDecisions: ["approve", "edit", "reject"] as Array<"approve" | "edit" | "reject">,
 };
 
 function createSkillHitlMiddleware(ctx: { siteId: string }) {
@@ -521,85 +489,55 @@ function createSkillHitlMiddleware(ctx: { siteId: string }) {
       strategy_update: {
         ...hitlReview,
         description: async (toolCall) =>
-          formatStrategyUpdateDraft(
-            (toolCall.args ?? {}) as Record<string, unknown>,
-            ctx.siteId,
-          ),
+          formatStrategyUpdateDraft((toolCall.args ?? {}) as Record<string, unknown>, ctx.siteId),
       },
       campaign_create: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatCampaignCreateDraft(
-            (toolCall.args ?? {}) as Record<string, unknown>,
-          ),
+        description: (toolCall) => formatCampaignCreateDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       campaign_update: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatCampaignUpdateDraft(
-            (toolCall.args ?? {}) as Record<string, unknown>,
-          ),
+        description: (toolCall) => formatCampaignUpdateDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       campaign_schedule_additional_posts: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatCampaignScheduleDraft(
-            (toolCall.args ?? {}) as Record<string, unknown>,
-          ),
+        description: (toolCall) => formatCampaignScheduleDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       writing_request_research: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatWritingResearchDraft(
-            (toolCall.args ?? {}) as Record<string, unknown>,
-          ),
+        description: (toolCall) => formatWritingResearchDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       writing_confirm_research: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatWritingConfirmResearchDraft(
-            (toolCall.args ?? {}) as Record<string, unknown>,
-          ),
+        description: (toolCall) => formatWritingConfirmResearchDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       blogs_publish: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatBlogPublishDraft((toolCall.args ?? {}) as Record<string, unknown>),
+        description: (toolCall) => formatBlogPublishDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       blogs_unpublish: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatBlogUnpublishDraft((toolCall.args ?? {}) as Record<string, unknown>),
+        description: (toolCall) => formatBlogUnpublishDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       blogs_schedule: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatBlogScheduleDraft((toolCall.args ?? {}) as Record<string, unknown>),
+        description: (toolCall) => formatBlogScheduleDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       blogs_unschedule: {
         ...hitlReview,
-        description: (toolCall) =>
-          formatBlogUnscheduleDraft((toolCall.args ?? {}) as Record<string, unknown>),
+        description: (toolCall) => formatBlogUnscheduleDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
     },
     descriptionPrefix: "Pending approval",
   });
 }
 
-function createLongTermMemoryMiddleware(
-  identity: LongTermMemoryMiddlewareIdentity,
-) {
+function createLongTermMemoryMiddleware(identity: LongTermMemoryMiddlewareIdentity) {
   return createMiddleware({
     name: "longTermMemoryMiddleware",
     wrapModelCall: async (request, handler) => {
       const query = getLatestUserQuery(request.messages);
-      const memories = query
-        ? await memoryRepository.search(
-            query,
-            identity.userId,
-            identity.siteId,
-          )
-        : [];
+      const memories = query ? await memoryRepository.search(query, identity.userId, identity.siteId) : [];
 
       const identityBlock = formatIdentityBlock(identity);
       const memoryAddendum = formatMemoriesForPrompt(memories);
@@ -611,11 +549,7 @@ function createLongTermMemoryMiddleware(
       });
     },
     afterAgent: async (state) => {
-      await memoryRepository.processMemoryData(
-        { messages: state.messages },
-        identity.userId,
-        identity.siteId,
-      );
+      await memoryRepository.processMemoryData({ messages: state.messages }, identity.userId, identity.siteId);
       return;
     },
   });

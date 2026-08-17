@@ -232,22 +232,13 @@ export class CampaignRoadmapService {
     return roadmap;
   }
 
-  private async closePendingRoadmapApproval(
-    campaignId: string,
-    siteId: string,
-    userId: string
-  ): Promise<void> {
+  private async closePendingRoadmapApproval(campaignId: string, siteId: string, userId: string): Promise<void> {
     const pending = await this.approvalRepository.findPendingCampaignRoadmap(siteId, campaignId);
     if (!pending?._id) {
       return;
     }
     const approvalId = pending._id.toString();
-    await this.approvalRepository.decide(
-      approvalId,
-      siteId,
-      OrchestratorApprovalStatus.APPROVED,
-      userId
-    );
+    await this.approvalRepository.decide(approvalId, siteId, OrchestratorApprovalStatus.APPROVED, userId);
     await this.approvalRepository.markExecuted(approvalId, siteId, {
       ok: true,
       summary: "Campaign roadmap approved and schedule materialized.",

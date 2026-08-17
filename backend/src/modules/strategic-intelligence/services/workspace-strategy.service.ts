@@ -96,11 +96,7 @@ export class WorkspaceStrategyService {
     return this.createStub(siteId, userId, { generation_status: "failed", source: "stub" });
   }
 
-  async createGeneratingStub(
-    siteId: string,
-    userId: string,
-    websiteUrl?: string
-  ): Promise<WorkspaceStrategy> {
+  async createGeneratingStub(siteId: string, userId: string, websiteUrl?: string): Promise<WorkspaceStrategy> {
     const existing = await this.strategies.findActive(siteId);
     if (existing) {
       const updated = await this.strategies.updateActive(
@@ -361,20 +357,12 @@ export class WorkspaceStrategyService {
     };
   }
 
-  private emitStatus(
-    siteId: string,
-    userId: string,
-    status: ContentStrategyGenerationStatus,
-    error?: string
-  ): void {
+  private emitStatus(siteId: string, userId: string, status: ContentStrategyGenerationStatus, error?: string): void {
     void import("../../../shared/realtime/services/realtime.service")
       .then(({ RealtimeService }) => {
-        container.resolve(RealtimeService).emitToUser(
-          userId,
-          REALTIME_EVENTS.STRATEGY_STATUS_CHANGED,
-          { siteId, status, error },
-          { siteId }
-        );
+        container
+          .resolve(RealtimeService)
+          .emitToUser(userId, REALTIME_EVENTS.STRATEGY_STATUS_CHANGED, { siteId, status, error }, { siteId });
       })
       .catch((err) => {
         logger.warn("Content strategy realtime emit failed", { error: String(err) }, "WorkspaceStrategyService");

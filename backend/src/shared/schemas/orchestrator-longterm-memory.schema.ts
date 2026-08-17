@@ -1,10 +1,7 @@
 import { Schema, model } from "mongoose";
 import { env } from "../config/env";
 
-export type OrchestratorLongTermMemoryType =
-  | "semantic"
-  | "episodic"
-  | "procedural";
+export type OrchestratorLongTermMemoryType = "semantic" | "episodic" | "procedural";
 
 export interface OrchestratorLongTermMemoryDoc {
   id: string;
@@ -59,13 +56,10 @@ const orchestratorLongTermMemorySchema = new Schema<OrchestratorLongTermMemoryDo
   {
     timestamps: false,
     collection: "orchestrator_longterm_memories",
-  },
+  }
 );
 
 orchestratorLongTermMemorySchema.index({ siteId: 1, userId: 1 });
 orchestratorLongTermMemorySchema.index({ siteId: 1, userId: 1, type: 1 });
 
-export default model<OrchestratorLongTermMemoryDoc>(
-  "OrchestratorLongTermMemory",
-  orchestratorLongTermMemorySchema,
-);
+export default model<OrchestratorLongTermMemoryDoc>("OrchestratorLongTermMemory", orchestratorLongTermMemorySchema);

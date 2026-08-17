@@ -4,12 +4,7 @@ export type SourceTier = 1 | 2 | 3 | 4;
 
 export type ClaimKind = "fact" | "interpretation" | "opinion" | "statistic" | "definition" | "limitation";
 
-export type ResearchPurpose =
-  | "general"
-  | "post"
-  | "campaign"
-  | "strategy"
-  | "discussion";
+export type ResearchPurpose = "general" | "post" | "campaign" | "strategy" | "discussion";
 
 export interface ResearchSubquestion {
   id: string;
@@ -89,12 +84,7 @@ export interface ResearchGraphInput {
   created_by?: string;
   thread_id?: string;
   signal?: AbortSignal;
-  onPhase?: (event: {
-    phase: string;
-    message: string;
-    percent?: number;
-    skill_id?: string;
-  }) => void;
+  onPhase?: (event: { phase: string; message: string; percent?: number; skill_id?: string }) => void;
 }
 
 export interface ResearchGraphResult {

@@ -12,10 +12,7 @@ import { NotificationService } from "../notification/services/notification.servi
 import { RealtimeService, REALTIME_EVENTS } from "../../shared/realtime";
 import { BlogStatus } from "../../shared/constants";
 import { CampaignPostItemStatus } from "../../shared/constants/campaign.constant";
-import {
-  NotificationChannel,
-  NotificationType,
-} from "../../shared/constants/notification.constant";
+import { NotificationChannel, NotificationType } from "../../shared/constants/notification.constant";
 import type { OrchestratorThread } from "../../shared/schemas/orchestrator-thread.schema";
 import { logger } from "../../shared/utils/logger";
 import { ResearchGraphService } from "./research/research-graph.service";
@@ -55,7 +52,7 @@ function toolResult(summary: string, data: Record<string, unknown> = {}): string
 function emitResearchPhase(
   realtime: RealtimeService,
   ctx: WritingToolContext,
-  event: { phase: string; message: string; percent?: number },
+  event: { phase: string; message: string; percent?: number }
 ) {
   if (!ctx.threadId) return;
   realtime.emitToUser(
@@ -69,7 +66,7 @@ function emitResearchPhase(
       percent: event.percent,
       skill_id: "research",
     },
-    { siteId: ctx.siteId },
+    { siteId: ctx.siteId }
   );
 }
 
@@ -158,11 +155,7 @@ export async function followUpAfterDraftStarted(siteId: string, justStartedTopic
     const topics = await listNextDueTopics(siteId, 4);
     const next = topics.find((topic) => topic.title !== justStartedTopic);
     if (next) {
-      const when = next.overdue
-        ? "overdue"
-        : next.scheduled_at
-          ? `due ${next.scheduled_at.slice(0, 10)}`
-          : "up next";
+      const when = next.overdue ? "overdue" : next.scheduled_at ? `due ${next.scheduled_at.slice(0, 10)}` : "up next";
       return `${head}\n\nNext on ${next.campaign_name}: "${next.title}" (${when}). Want to start that, or talk through how the campaign is tracking?`;
     }
   } catch {
@@ -182,16 +175,19 @@ function formatFieldLines(args: Record<string, unknown>, keys: string[]): string
 }
 
 export function formatWritingResearchDraft(args: Record<string, unknown>): string {
-  return ["Ready to research this post:", ...formatFieldLines(args, [
-    "topic",
-    "intent",
-    "campaign_name",
-    "angle",
-    "must_include",
-    "must_avoid",
-    "cta",
-    "audience_notes",
-  ])].join("\n");
+  return [
+    "Ready to research this post:",
+    ...formatFieldLines(args, [
+      "topic",
+      "intent",
+      "campaign_name",
+      "angle",
+      "must_include",
+      "must_avoid",
+      "cta",
+      "audience_notes",
+    ]),
+  ].join("\n");
 }
 
 export function formatWritingConfirmResearchDraft(args: Record<string, unknown>): string {
@@ -213,10 +209,8 @@ function topicsMatch(a: string, b: string): boolean {
 
 function resolveFocus(thread: OrchestratorThread | null, args: Record<string, unknown>) {
   const focus = thread?.focus ?? {};
-  const campaignId =
-    (typeof args.campaign_id === "string" && args.campaign_id) || focus.campaign_id || "";
-  const sequence =
-    coerceSequence(args.sequence_index) ?? coerceSequence(focus.roadmap_sequence_index);
+  const campaignId = (typeof args.campaign_id === "string" && args.campaign_id) || focus.campaign_id || "";
+  const sequence = coerceSequence(args.sequence_index) ?? coerceSequence(focus.roadmap_sequence_index);
   const topic = (typeof args.topic === "string" && args.topic) || focus.topic || "";
   const intent = (typeof args.intent === "string" && args.intent) || focus.intent || "";
   const argBlogId = typeof args.blog_id === "string" && args.blog_id ? args.blog_id : "";
@@ -237,10 +231,7 @@ async function bindRoadmapDraft(input: {
 }): Promise<void> {
   if (!input.campaignId) return;
   const items = container.resolve(CampaignPostItemRepository);
-  let item =
-    input.sequence != null
-      ? await items.findBySequence(input.campaignId, input.siteId, input.sequence)
-      : null;
+  let item = input.sequence != null ? await items.findBySequence(input.campaignId, input.siteId, input.sequence) : null;
   if (!item) {
     const all = await items.findByCampaign(input.campaignId, input.siteId);
     item =
@@ -293,10 +284,7 @@ function fallbackAnalysis(topic: string, intent?: string): PromptAnalysis {
   };
 }
 
-async function loadResearchNotesForDraft(
-  siteId: string,
-  args: Record<string, unknown>,
-): Promise<ResearchNote[]> {
+async function loadResearchNotesForDraft(siteId: string, args: Record<string, unknown>): Promise<ResearchNote[]> {
   const notes: ResearchNote[] = [];
   const packageId = stringArg(args, "package_id");
   if (packageId) {
@@ -323,7 +311,7 @@ async function loadResearchNotesForDraft(
           packageId,
           error: error instanceof Error ? error.message : String(error),
         },
-        "WritingTools",
+        "WritingTools"
       );
     }
   }
@@ -347,7 +335,7 @@ function stringArg(args: Record<string, unknown>, key: string): string | undefin
 
 export async function startBoundWritingDraft(
   ctx: WritingToolContext,
-  args: Record<string, unknown>,
+  args: Record<string, unknown>
 ): Promise<{ blogId: string; topic: string; campaignId?: string }> {
   const threads = container.resolve(OrchestratorThreadRepository);
   const blogService = container.resolve(BlogService);
@@ -444,19 +432,14 @@ export async function startBoundWritingDraft(
             blogId,
             reason: analyzeError instanceof Error ? analyzeError.message : String(analyzeError),
           },
-          "WritingTools",
+          "WritingTools"
         );
         analysis = fallbackAnalysis(topic, intent);
       }
       if (!analysis.is_valid) {
         analysis = fallbackAnalysis(topic, intent);
       }
-      const generated = await generation.generateWithReviewFromNotes(
-        prompt,
-        analysis,
-        researchNotes,
-        userParams
-      );
+      const generated = await generation.generateWithReviewFromNotes(prompt, analysis, researchNotes, userParams);
       try {
         await interactive.assertDraftAlignsWithCampaign({
           siteId: ctx.siteId,
@@ -640,7 +623,7 @@ export function createWritingTools(ctx: WritingToolContext) {
               audience_notes: args.audience_notes,
               personal_notes: args.personal_notes,
             },
-          },
+          }
         );
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -648,7 +631,7 @@ export function createWritingTools(ctx: WritingToolContext) {
           "Writing research run failed after HITL approval",
           err,
           { siteId: ctx.siteId, threadId: ctx.threadId, topic },
-          "WritingTools",
+          "WritingTools"
         );
         return toolResult(
           `Research failed for "${topic}": ${err.message}. Stay in discussion and ask whether to retry writing_request_research.`,
@@ -658,7 +641,7 @@ export function createWritingTools(ctx: WritingToolContext) {
             campaign_id: resolved.campaignId,
             sequence_index: resolved.sequence,
             error: err.message,
-          },
+          }
         );
       }
     },

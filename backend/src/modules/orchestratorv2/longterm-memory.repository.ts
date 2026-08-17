@@ -26,12 +26,7 @@ const SEARCH_CANDIDATE_CAP = 200;
 export class LangChainMemoryRepository {
   constructor(private readonly embeddingService: EmbeddingService) {}
 
-  async search(
-    query: string,
-    userId: string,
-    siteId: string,
-    limit = 10,
-  ): Promise<LongTermMemory[]> {
+  async search(query: string, userId: string, siteId: string, limit = 10): Promise<LongTermMemory[]> {
     const trimmed = query.trim();
     if (!trimmed) {
       return this.list(userId, siteId, limit);
@@ -76,11 +71,7 @@ export class LangChainMemoryRepository {
       .filter((memory): memory is LongTermMemory => memory != null);
   }
 
-  async list(
-    userId: string,
-    siteId: string,
-    limit = 40,
-  ): Promise<LongTermMemory[]> {
+  async list(userId: string, siteId: string, limit = 40): Promise<LongTermMemory[]> {
     const docs = await OrchestratorLongTermMemoryModel.find({
       siteId,
       userId,
@@ -89,9 +80,7 @@ export class LangChainMemoryRepository {
       .limit(limit)
       .lean();
 
-    return docs
-      .map((doc) => this.parseDoc(doc))
-      .filter((memory): memory is LongTermMemory => memory != null);
+    return docs.map((doc) => this.parseDoc(doc)).filter((memory): memory is LongTermMemory => memory != null);
   }
 
   async save(memory: LongTermMemory): Promise<void> {
@@ -106,7 +95,7 @@ export class LangChainMemoryRepository {
     await OrchestratorLongTermMemoryModel.findOneAndUpdate(
       { id: memory.id, siteId: memory.siteId, userId: memory.userId },
       { $set: payload },
-      { upsert: true, new: true },
+      { upsert: true, new: true }
     );
   }
 
@@ -114,11 +103,7 @@ export class LangChainMemoryRepository {
     await this.save(memory);
   }
 
-  async delete(
-    userId: string,
-    siteId: string,
-    memoryId: string,
-  ): Promise<void> {
+  async delete(userId: string, siteId: string, memoryId: string): Promise<void> {
     await OrchestratorLongTermMemoryModel.deleteOne({
       id: memoryId,
       siteId,
@@ -126,48 +111,34 @@ export class LangChainMemoryRepository {
     });
   }
 
-  async processMemoryData(
-    state: MemoryProcessState,
-    userId: string,
-    siteId: string,
-  ): Promise<void> {
+  async processMemoryData(state: MemoryProcessState, userId: string, siteId: string): Promise<void> {
     const existing = await this.list(userId, siteId, 40);
     const existingById = new Map(existing.map((memory) => [memory.id, memory]));
 
     const model = new ChatOpenAI({ model: AGENT_MODEL });
-    const result = await model
-      .withStructuredOutput(memoryMutationSchema)
-      .invoke([
-        new SystemMessage(MEMORY_RECONCILIATION_PROMPT),
-        new HumanMessage(
-          `Existing memories (JSON):\n${JSON.stringify(
-            existing.map((memory) => ({
-              id: memory.id,
-              type: memory.type,
-              content: memory.content,
-              importance: memory.importance,
-              ...(memory.type === "semantic" || memory.type === "procedural"
-                ? { category: memory.category }
-                : {}),
-              ...(memory.type === "episodic"
-                ? { eventType: memory.eventType }
-                : {}),
-            })),
-            null,
-            2,
-          )}`,
-        ),
-        ...state.messages,
-      ]);
+    const result = await model.withStructuredOutput(memoryMutationSchema).invoke([
+      new SystemMessage(MEMORY_RECONCILIATION_PROMPT),
+      new HumanMessage(
+        `Existing memories (JSON):\n${JSON.stringify(
+          existing.map((memory) => ({
+            id: memory.id,
+            type: memory.type,
+            content: memory.content,
+            importance: memory.importance,
+            ...(memory.type === "semantic" || memory.type === "procedural" ? { category: memory.category } : {}),
+            ...(memory.type === "episodic" ? { eventType: memory.eventType } : {}),
+          })),
+          null,
+          2
+        )}`
+      ),
+      ...state.messages,
+    ]);
 
     await this.applyMutations(result, existingById, userId, siteId);
   }
 
-  private async listByImportance(
-    userId: string,
-    siteId: string,
-    limit: number,
-  ): Promise<LongTermMemory[]> {
+  private async listByImportance(userId: string, siteId: string, limit: number): Promise<LongTermMemory[]> {
     const docs = await OrchestratorLongTermMemoryModel.find({
       siteId,
       userId,
@@ -176,16 +147,14 @@ export class LangChainMemoryRepository {
       .limit(limit)
       .lean();
 
-    return docs
-      .map((doc) => this.parseDoc(doc))
-      .filter((memory): memory is LongTermMemory => memory != null);
+    return docs.map((doc) => this.parseDoc(doc)).filter((memory): memory is LongTermMemory => memory != null);
   }
 
   private async applyMutations(
     result: MemoryMutationResult,
     existingById: Map<string, LongTermMemory>,
     userId: string,
-    siteId: string,
+    siteId: string
   ): Promise<void> {
     for (const mutation of result.mutations) {
       if (mutation.action === "add") {
@@ -215,20 +184,14 @@ export class LangChainMemoryRepository {
 
   private applyUpdate(
     current: LongTermMemory,
-    mutation: Extract<
-      MemoryMutationResult["mutations"][number],
-      { action: "update" }
-    >,
+    mutation: Extract<MemoryMutationResult["mutations"][number], { action: "update" }>
   ): LongTermMemory {
     const now = new Date();
     const content = mutation.content ?? current.content;
     const importance = mutation.importance ?? current.importance;
 
     if (current.type === "semantic") {
-      const category =
-        mutation.category != null
-          ? (mutation.category as typeof current.category)
-          : current.category;
+      const category = mutation.category != null ? (mutation.category as typeof current.category) : current.category;
       return {
         ...current,
         content,
@@ -239,10 +202,7 @@ export class LangChainMemoryRepository {
     }
 
     if (current.type === "procedural") {
-      const category =
-        mutation.category != null
-          ? (mutation.category as typeof current.category)
-          : current.category;
+      const category = mutation.category != null ? (mutation.category as typeof current.category) : current.category;
       return {
         ...current,
         content,
@@ -261,11 +221,7 @@ export class LangChainMemoryRepository {
     };
   }
 
-  private createMemory(
-    candidate: MemoryCandidate,
-    userId: string,
-    siteId: string,
-  ): LongTermMemory {
+  private createMemory(candidate: MemoryCandidate, userId: string, siteId: string): LongTermMemory {
     const now = new Date();
 
     switch (candidate.type) {
@@ -311,10 +267,7 @@ export class LangChainMemoryRepository {
     }
   }
 
-  private toDocPayload(
-    memory: LongTermMemory,
-    embedding: number[],
-  ): Partial<OrchestratorLongTermMemoryDoc> {
+  private toDocPayload(memory: LongTermMemory, embedding: number[]): Partial<OrchestratorLongTermMemoryDoc> {
     const base: Partial<OrchestratorLongTermMemoryDoc> = {
       id: memory.id,
       userId: memory.userId,
@@ -344,9 +297,7 @@ export class LangChainMemoryRepository {
     return base;
   }
 
-  private parseDoc(
-    doc: OrchestratorLongTermMemoryDoc | Record<string, unknown>,
-  ): LongTermMemory | null {
+  private parseDoc(doc: OrchestratorLongTermMemoryDoc | Record<string, unknown>): LongTermMemory | null {
     const parsed = longTermMemorySchema.safeParse({
       id: doc.id,
       userId: doc.userId,

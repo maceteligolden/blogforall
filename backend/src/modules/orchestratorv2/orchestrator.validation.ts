@@ -23,24 +23,13 @@ const baseMemorySchema = z.object({
 export const semanticMemorySchema = baseMemorySchema.extend({
   type: z.literal("semantic"),
 
-  category: z
-    .enum(["identity", "business", "preference", "fact", "goal"])
-    .optional(),
+  category: z.enum(["identity", "business", "preference", "fact", "goal"]).optional(),
 });
 
 export const episodicMemorySchema = baseMemorySchema.extend({
   type: z.literal("episodic"),
 
-  eventType: z
-    .enum([
-      "interaction",
-      "decision",
-      "feedback",
-      "success",
-      "failure",
-      "milestone",
-    ])
-    .optional(),
+  eventType: z.enum(["interaction", "decision", "feedback", "success", "failure", "milestone"]).optional(),
 
   occurredAt: z.coerce.date(),
 });
@@ -48,15 +37,7 @@ export const episodicMemorySchema = baseMemorySchema.extend({
 export const proceduralMemorySchema = baseMemorySchema.extend({
   type: z.literal("procedural"),
 
-  category: z
-    .enum([
-      "preference",
-      "instruction",
-      "workflow",
-      "constraint",
-      "behavior",
-    ])
-    .optional(),
+  category: z.enum(["preference", "instruction", "workflow", "constraint", "behavior"]).optional(),
 });
 
 export const longTermMemorySchema = z.discriminatedUnion("type", [
@@ -78,40 +59,21 @@ const skillSchema = z.object({
 const semanticCandidateSchema = z.object({
   type: z.literal("semantic"),
   content: z.string(),
-  category: z.enum([
-    "identity",
-    "business",
-    "preference",
-    "fact",
-    "goal",
-  ]),
+  category: z.enum(["identity", "business", "preference", "fact", "goal"]),
   importance: z.number().min(0).max(1),
 });
 
 const episodicCandidateSchema = z.object({
   type: z.literal("episodic"),
   content: z.string(),
-  eventType: z.enum([
-    "interaction",
-    "decision",
-    "feedback",
-    "success",
-    "failure",
-    "milestone",
-  ]),
+  eventType: z.enum(["interaction", "decision", "feedback", "success", "failure", "milestone"]),
   importance: z.number().min(0).max(1),
 });
 
 const proceduralCandidateSchema = z.object({
   type: z.literal("procedural"),
   content: z.string(),
-  category: z.enum([
-    "preference",
-    "instruction",
-    "workflow",
-    "constraint",
-    "behavior",
-  ]),
+  category: z.enum(["preference", "instruction", "workflow", "constraint", "behavior"]),
   importance: z.number().min(0).max(1),
 });
 
@@ -147,23 +109,14 @@ const memoryMutationSchema = z.object({
             "behavior",
           ])
           .nullable(),
-        eventType: z
-          .enum([
-            "interaction",
-            "decision",
-            "feedback",
-            "success",
-            "failure",
-            "milestone",
-          ])
-          .nullable(),
+        eventType: z.enum(["interaction", "decision", "feedback", "success", "failure", "milestone"]).nullable(),
       }),
       z.object({
         action: z.literal("forget"),
         id: z.string(),
         reason: z.string().nullable(),
       }),
-    ]),
+    ])
   ),
 });
 
@@ -171,11 +124,4 @@ type MemoryMutationResult = z.infer<typeof memoryMutationSchema>;
 type MemoryCandidate = z.infer<typeof memoryCandidateSchema>;
 type Skill = z.infer<typeof skillSchema>;
 
-export {
-  Skill,
-  skillSchema,
-  MemoryCandidate,
-  memoryCandidateSchema,
-  MemoryMutationResult,
-  memoryMutationSchema,
-};
+export { Skill, skillSchema, MemoryCandidate, memoryCandidateSchema, MemoryMutationResult, memoryMutationSchema };

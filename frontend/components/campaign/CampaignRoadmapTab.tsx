@@ -39,13 +39,7 @@ type RoadmapPayload = {
   };
 };
 
-export function CampaignRoadmapTab({
-  campaignId,
-  campaignName,
-}: {
-  campaignId: string;
-  campaignName?: string;
-}) {
+export function CampaignRoadmapTab({ campaignId, campaignName }: { campaignId: string; campaignName?: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { startWritingThread } = useStartWritingThread();
@@ -138,10 +132,7 @@ export function CampaignRoadmapTab({
   const roadmap = data?.current;
   const items = roadmap?.items ?? [];
   const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-  const pageItems = useMemo(
-    () => items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-    [items, page]
-  );
+  const pageItems = useMemo(() => items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [items, page]);
 
   useEffect(() => {
     if (page > totalPages - 1) {
@@ -207,24 +198,20 @@ export function CampaignRoadmapTab({
               </span>
             </div>
             <p className="text-gray-300 text-sm">{roadmap.summary}</p>
-            {roadmap.narrative_arc && (
-              <p className="text-gray-400 text-sm mt-3">{roadmap.narrative_arc}</p>
-            )}
+            {roadmap.narrative_arc && <p className="text-gray-400 text-sm mt-3">{roadmap.narrative_arc}</p>}
             <ol className="mt-4 grid gap-2 sm:grid-cols-3">
               {(["awareness", "consideration", "conversion"] as const).map((phase, index) => {
                 const count = items.filter((item) => (item.narrative_phase || "awareness") === phase).length;
-                const labels = [
-                  "Gain attention",
-                  "Build consideration",
-                  "Drive conversion",
-                ];
+                const labels = ["Gain attention", "Build consideration", "Drive conversion"];
                 return (
                   <li key={phase} className="rounded-md border border-gray-800 bg-black/40 p-3">
                     <p className="text-xs uppercase tracking-wide text-gray-500">
                       {index + 1}. {phase}
                     </p>
                     <p className="text-sm text-white mt-1">{labels[index]}</p>
-                    <p className="text-xs text-gray-500 mt-1">{count} post{count === 1 ? "" : "s"}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {count} post{count === 1 ? "" : "s"}
+                    </p>
                   </li>
                 );
               })}
@@ -262,16 +249,10 @@ export function CampaignRoadmapTab({
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                     {item.scheduled_at && <span>{new Date(item.scheduled_at).toLocaleDateString()}</span>}
-                    {item.narrative_phase && (
-                      <span className="text-primary capitalize">{item.narrative_phase}</span>
-                    )}
+                    {item.narrative_phase && <span className="text-primary capitalize">{item.narrative_phase}</span>}
                   </div>
                   {roadmap.status === "approved" && (
-                    <DraftAction
-                      item={item}
-                      starting={false}
-                      onStart={() => startWriting(item)}
-                    />
+                    <DraftAction item={item} starting={false} onStart={() => startWriting(item)} />
                   )}
                 </div>
               </li>
@@ -308,15 +289,7 @@ export function CampaignRoadmapTab({
   );
 }
 
-function DraftAction({
-  item,
-  starting,
-  onStart,
-}: {
-  item: RoadmapItem;
-  starting: boolean;
-  onStart: () => void;
-}) {
+function DraftAction({ item, starting, onStart }: { item: RoadmapItem; starting: boolean; onStart: () => void }) {
   const drafting = (item.draft_status === "drafting" && Boolean(item.blog_id)) || starting;
   if (drafting) {
     return (

@@ -192,7 +192,7 @@ export function formatCampaignScheduleDraft(args: Record<string, unknown>): stri
 async function requireCampaignId(
   repo: CampaignRepository,
   ctx: CampaignToolContext,
-  raw: Record<string, unknown>,
+  raw: Record<string, unknown>
 ): Promise<string> {
   const resolved = await resolveCampaignIdForTool(repo, ctx.siteId, ctx.userId, raw);
   if (!resolved) {
@@ -239,7 +239,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       description:
         "List campaigns in this workspace (up to 20). Returns compact name/goal/status for you — paraphrase for the user.",
       schema: z.object({}),
-    },
+    }
   );
 
   const campaign_get = tool(
@@ -263,7 +263,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       description:
         "Read one campaign including goal, dates, health, and latest roadmap. Pass campaign_id or a unique name.",
       schema: campaignLookupSchema,
-    },
+    }
   );
 
   const campaign_create = tool(
@@ -288,17 +288,13 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       description:
         "Create a campaign. REQUIRED: name, goal, start_date, end_date. Optional: target_audience, description, posting_frequency, timezone, total_posts_planned, primary_topics. Research audience/market/topics first. Requires human approval. Show a plain-language proposal in chat before calling.",
       schema: createCampaignSchema,
-    },
+    }
   );
 
   const campaign_update = tool(
     async (input: z.infer<typeof updateCampaignSchema>) => {
       const parsed = updateCampaignSchema.parse(input);
-      const campaignId = await requireCampaignId(
-        campaignRepository,
-        ctx,
-        parsed as Record<string, unknown>,
-      );
+      const campaignId = await requireCampaignId(campaignRepository, ctx, parsed as Record<string, unknown>);
       const patch = {
         ...(parsed.name ? { name: parsed.name } : {}),
         ...(parsed.goal ? { goal: parsed.goal } : {}),
@@ -306,23 +302,14 @@ export function createCampaignTools(ctx: CampaignToolContext) {
         ...(parsed.description != null ? { description: parsed.description } : {}),
         ...(parsed.start_date ? { start_date: parseDate(parsed.start_date, "start") } : {}),
         ...(parsed.end_date ? { end_date: parseDate(parsed.end_date, "end") } : {}),
-        ...(parsed.posting_frequency
-          ? { posting_frequency: parsed.posting_frequency as PostFrequency }
-          : {}),
+        ...(parsed.posting_frequency ? { posting_frequency: parsed.posting_frequency as PostFrequency } : {}),
         ...(parsed.timezone ? { timezone: parsed.timezone } : {}),
-        ...(parsed.total_posts_planned != null
-          ? { total_posts_planned: parsed.total_posts_planned }
-          : {}),
+        ...(parsed.total_posts_planned != null ? { total_posts_planned: parsed.total_posts_planned } : {}),
       };
       if (Object.keys(patch).length === 0) {
         throw new Error("No campaign fields to update. Pass at least one field to change.");
       }
-      const campaign = await campaignService.updateCampaign(
-        campaignId,
-        ctx.siteId,
-        ctx.userId,
-        patch,
-      );
+      const campaign = await campaignService.updateCampaign(campaignId, ctx.siteId, ctx.userId, patch);
       return toolResult(`Updated campaign '${campaign.name}'.`, campaignEntityFields(campaign));
     },
     {
@@ -330,16 +317,12 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       description:
         "Patch campaign fields (name, goal, audience, dates, cadence). Requires campaign_id or a unique name. Requires human approval. Show a before→after draft in chat before calling.",
       schema: updateCampaignSchema,
-    },
+    }
   );
 
   const campaign_generate_roadmap = tool(
     async (input: z.infer<typeof campaignLookupSchema>) => {
-      const campaignId = await requireCampaignId(
-        campaignRepository,
-        ctx,
-        input as Record<string, unknown>,
-      );
+      const campaignId = await requireCampaignId(campaignRepository, ctx, input as Record<string, unknown>);
       const roadmap = await planningService.planCampaign(campaignId, ctx.siteId, ctx.userId, {
         threadId: ctx.threadId,
       });
@@ -351,7 +334,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
           version: roadmap.version,
           item_count: roadmap.items.length,
           summary: roadmap.summary,
-        },
+        }
       );
     },
     {
@@ -359,16 +342,12 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       description:
         "Generate a strategic content roadmap for an existing campaign. Replaces the current plan — existing roadmap posts and drafts tied to them are removed when the new roadmap is approved. Creates a roadmap approval in the campaign UI (not chat HITL). Pass campaign_id or a unique name.",
       schema: campaignLookupSchema,
-    },
+    }
   );
 
   const campaign_get_progress = tool(
     async (input: z.infer<typeof progressSchema>) => {
-      const campaignId = await requireCampaignId(
-        campaignRepository,
-        ctx,
-        input as Record<string, unknown>,
-      );
+      const campaignId = await requireCampaignId(campaignRepository, ctx, input as Record<string, unknown>);
       const report = await progressService.buildDailyReport(campaignId, ctx.siteId, input.date);
       return toolResult(truncate(report.narrative_summary || "Progress report ready.", 400), {
         campaign_id: campaignId,
@@ -381,33 +360,25 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       description:
         "Get the latest daily campaign progress report (metrics, risks, pending approvals). Pass campaign_id or a unique name.",
       schema: progressSchema,
-    },
+    }
   );
 
   const campaign_get_health = tool(
     async (input: z.infer<typeof campaignLookupSchema>) => {
-      const campaignId = await requireCampaignId(
-        campaignRepository,
-        ctx,
-        input as Record<string, unknown>,
-      );
+      const campaignId = await requireCampaignId(campaignRepository, ctx, input as Record<string, unknown>);
       const health = await healthService.persist(campaignId, ctx.siteId);
       const reasons = health.health_reasons.join(" ");
-      return toolResult(
-        `Health: ${health.health_status}.${reasons ? ` ${reasons}` : ""}`,
-        {
-          campaign_id: campaignId,
-          health_status: health.health_status,
-          health_reasons: health.health_reasons,
-        },
-      );
+      return toolResult(`Health: ${health.health_status}.${reasons ? ` ${reasons}` : ""}`, {
+        campaign_id: campaignId,
+        health_status: health.health_status,
+        health_reasons: health.health_reasons,
+      });
     },
     {
       name: "campaign_get_health",
-      description:
-        "Compute and persist current campaign health. Pass campaign_id or a unique name.",
+      description: "Compute and persist current campaign health. Pass campaign_id or a unique name.",
       schema: campaignLookupSchema,
-    },
+    }
   );
 
   const campaign_schedule_additional_posts = tool(
@@ -430,7 +401,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
           campaignRepository,
           ctx.siteId,
           ctx.userId,
-          parsed as Record<string, unknown>,
+          parsed as Record<string, unknown>
         );
         campaignId = resolved?.campaignId;
       }
@@ -446,7 +417,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
 
       if (!campaignId) {
         throw new Error(
-          "Could not determine campaign_id. Pass campaign_id, a unique name, or anchor_scheduled_post_id.",
+          "Could not determine campaign_id. Pass campaign_id, a unique name, or anchor_scheduled_post_id."
         );
       }
 
@@ -458,16 +429,14 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       if (!anchor) {
         const inCampaign = await scheduledPostRepository.findByCampaign(campaignId, ctx.siteId);
         const active = inCampaign.filter(
-          (p) =>
-            p.status !== ScheduledPostStatus.CANCELLED &&
-            p.status !== ScheduledPostStatus.PUBLISHED,
+          (p) => p.status !== ScheduledPostStatus.CANCELLED && p.status !== ScheduledPostStatus.PUBLISHED
         );
         anchor = active.sort((a, b) => a.scheduled_at.getTime() - b.scheduled_at.getTime())[0];
       }
 
       if (!anchor) {
         throw new Error(
-          "No anchor scheduled post found. Schedule the first post in the campaign, then call this tool again.",
+          "No anchor scheduled post found. Schedule the first post in the campaign, then call this tool again."
         );
       }
 
@@ -484,7 +453,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
         const at = addDaysPreserveTime(anchor.scheduled_at, i * intervalDays);
         if (at <= new Date()) {
           throw new Error(
-            `Computed schedule slot ${i} (${at.toISOString()}) is in the past. Use a later anchor or fewer intervals.`,
+            `Computed schedule slot ${i} (${at.toISOString()}) is in the past. Use a later anchor or fewer intervals.`
           );
         }
         const title = `${campaign.name} — follow-up ${i}`;
@@ -515,7 +484,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
           name: campaign.name,
           anchor_scheduled_post_id: anchor._id?.toString(),
           created,
-        },
+        }
       );
     },
     {
@@ -523,7 +492,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       description:
         "Schedule N additional campaign posts at fixed day intervals from an anchor post. Requires human approval. Creates auto_generate posts that still need pre-publish approval.",
       schema: scheduleAdditionalSchema,
-    },
+    }
   );
 
   return [

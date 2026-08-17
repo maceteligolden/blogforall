@@ -37,9 +37,10 @@ export class ThreadOpenerService {
 
     const brief = await this.workspaceBrief.buildBrief(siteId, userId);
     const nextTopics = await listNextDueTopics(siteId, 4).catch(() => [] as NextDueTopic[]);
-    const withTopics = (
-      result: Omit<ThreadOpenResult, "next_topics">
-    ): ThreadOpenResult => ({ ...result, next_topics: nextTopics });
+    const withTopics = (result: Omit<ThreadOpenResult, "next_topics">): ThreadOpenResult => ({
+      ...result,
+      next_topics: nextTopics,
+    });
 
     let thread;
     if (threadId) {

@@ -232,18 +232,18 @@ const SKILLS: Skill[] = [
   {
     name: "campaigns",
     description:
-        "Workspace campaigns: discuss and improve parameters (goal, audience, dates, cadence), then list, inspect, create, update, generate a roadmap, check health/progress, or schedule additional posts — with human approval before writes.",
-      content: CAMPAIGNS_PLAYBOOK,
-      toolNames: [
-        "campaign_list",
-        "campaign_get",
-        "campaign_create",
-        "campaign_update",
-        "campaign_generate_roadmap",
-        "campaign_get_progress",
-        "campaign_get_health",
-        "campaign_schedule_additional_posts",
-      ],
+      "Workspace campaigns: discuss and improve parameters (goal, audience, dates, cadence), then list, inspect, create, update, generate a roadmap, check health/progress, or schedule additional posts — with human approval before writes.",
+    content: CAMPAIGNS_PLAYBOOK,
+    toolNames: [
+      "campaign_list",
+      "campaign_get",
+      "campaign_create",
+      "campaign_update",
+      "campaign_generate_roadmap",
+      "campaign_get_progress",
+      "campaign_get_health",
+      "campaign_schedule_additional_posts",
+    ],
   },
   {
     name: "research",
@@ -257,26 +257,14 @@ const SKILLS: Skill[] = [
     description:
       "Weekly writing loop for blog posts: discuss a bound roadmap topic, HITL to start research, HITL to approve research, then background draft. Revise existing drafts with natural language. Keep the topic unless a new angle still serves the campaign and Content Strategy.",
     content: WRITING_PLAYBOOK,
-    toolNames: [
-      "writing_next_due",
-      "writing_request_research",
-      "writing_confirm_research",
-      "writing_revise_draft",
-    ],
+    toolNames: ["writing_next_due", "writing_request_research", "writing_confirm_research", "writing_revise_draft"],
   },
   {
     name: "posts",
     description:
       "Existing blog posts: list, open, publish, unpublish, or schedule. Never generate a new post here — that is the writing skill.",
     content: POSTS_PLAYBOOK,
-    toolNames: [
-      "blogs_list",
-      "blogs_get",
-      "blogs_publish",
-      "blogs_unpublish",
-      "blogs_schedule",
-      "blogs_unschedule",
-    ],
+    toolNames: ["blogs_list", "blogs_get", "blogs_publish", "blogs_unpublish", "blogs_schedule", "blogs_unschedule"],
   },
 ];
 
@@ -285,10 +273,7 @@ function createLoadSkillTool() {
     ({ skillName }: { skillName: string }) => {
       const skill = SKILLS.find((s) => s.name === skillName);
       if (skill) {
-        const toolsLine =
-          skill.toolNames.length > 0
-            ? `\n\nUnlocked tools: ${skill.toolNames.join(", ")}`
-            : "";
+        const toolsLine = skill.toolNames.length > 0 ? `\n\nUnlocked tools: ${skill.toolNames.join(", ")}` : "";
         return `Loaded skill: ${skillName}\n\n${skill.content}${toolsLine}`;
       }
       const available = SKILLS.map((s) => s.name).join(", ");
@@ -302,7 +287,7 @@ type of request. This unlocks that skill's tools for the rest of the turn.`,
       schema: z.object({
         skillName: z.string(),
       }),
-    },
+    }
   );
 }
 

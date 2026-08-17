@@ -273,8 +273,8 @@ export function AiPostWizard({ onQueued, onError }: Props) {
         }
       >
         <p className="text-sm text-gray-300">
-          The post is being written in the background. You can keep working — we&apos;ll notify you when it&apos;s
-          ready to edit.
+          The post is being written in the background. You can keep working — we&apos;ll notify you when it&apos;s ready
+          to edit.
         </p>
       </Modal>
     </div>

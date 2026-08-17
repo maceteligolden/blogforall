@@ -116,7 +116,7 @@ function CampaignDetailContent() {
   const scheduledPosts: ScheduledPostRow[] = Array.isArray(scheduledPostsResponse)
     ? (scheduledPostsResponse as ScheduledPostRow[])
     : Array.isArray((scheduledPostsResponse as { data?: unknown } | undefined)?.data)
-      ? ((scheduledPostsResponse as { data: ScheduledPostRow[] }).data)
+      ? (scheduledPostsResponse as { data: ScheduledPostRow[] }).data
       : [];
 
   const scheduleTotalPages = Math.max(1, Math.ceil(scheduledPosts.length / SCHEDULE_PAGE_SIZE));
@@ -289,10 +289,7 @@ function CampaignDetailContent() {
               </Button>
             )}
             {campaign.status === "active" && (
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => setShowPauseModal(true)}
-              >
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setShowPauseModal(true)}>
                 <Pause className="w-4 h-4 mr-2" />
                 Pause
               </Button>
@@ -405,9 +402,7 @@ function CampaignDetailContent() {
           </>
         )}
 
-        {tab === "roadmap" && (
-          <CampaignRoadmapTab campaignId={campaignId} campaignName={campaign.name} />
-        )}
+        {tab === "roadmap" && <CampaignRoadmapTab campaignId={campaignId} campaignName={campaign.name} />}
         {tab === "schedule" && scheduleSection}
         {tab === "progress" &&
           (progressLoading ? (

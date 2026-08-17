@@ -327,7 +327,9 @@ export default function EditCampaignPage() {
                   className="mt-1 flex min-h-[80px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
                   maxLength={2000}
                 />
-                <p className="mt-1 text-xs text-gray-500">We use this as the campaign intent for planning and drafts.</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  We use this as the campaign intent for planning and drafts.
+                </p>
               </div>
 
               <div>

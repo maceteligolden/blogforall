@@ -52,7 +52,7 @@ type ChatBody = {
 export default class OrchestratorV2controller {
   constructor(
     private orchestratorService: OrchestratorV2Service,
-    private elevenLabsTts: ElevenLabsTtsService,
+    private elevenLabsTts: ElevenLabsTtsService
   ) {}
 
   private siteId(req: Request): string {
@@ -87,11 +87,7 @@ export default class OrchestratorV2controller {
     }
   };
 
-  chatStream = async (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
+  chatStream = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = getJwtUserId(req);
       const siteId = this.siteId(req);
@@ -117,9 +113,7 @@ export default class OrchestratorV2controller {
       if (requestId) {
         res.setHeader("X-Request-Id", requestId);
       }
-      const flush = (res as Response & { flushHeaders?: () => void }).flushHeaders?.bind(
-        res,
-      );
+      const flush = (res as Response & { flushHeaders?: () => void }).flushHeaders?.bind(res);
       flush?.();
 
       const emit = (event: string, data: unknown) => {
@@ -143,9 +137,7 @@ export default class OrchestratorV2controller {
       res.end();
     } catch (error) {
       if (res.headersSent) {
-        res.write(
-          `event: error\ndata: ${JSON.stringify({ message: "Chat stream failed" })}\n\n`,
-        );
+        res.write(`event: error\ndata: ${JSON.stringify({ message: "Chat stream failed" })}\n\n`);
         res.end();
         return;
       }

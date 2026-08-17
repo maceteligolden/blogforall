@@ -3,11 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { SiteService } from "@/lib/api/services/site.service";
-import {
-  StrategicService,
-  isContentStrategyReady,
-  type WorkspaceStrategy,
-} from "@/lib/api/services/strategic.service";
+import { StrategicService, isContentStrategyReady, type WorkspaceStrategy } from "@/lib/api/services/strategic.service";
 import { ContentStrategyEditor, generationBanner } from "@/components/strategy/content-strategy-editor";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
@@ -31,16 +27,14 @@ export default function StrategyBoardPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (patch: Partial<WorkspaceStrategy>) =>
-      StrategicService.updateStrategy(currentSiteId as string, patch),
+    mutationFn: (patch: Partial<WorkspaceStrategy>) => StrategicService.updateStrategy(currentSiteId as string, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STRATEGIC_STRATEGY(currentSiteId as string) });
     },
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: (websiteUrl: string) =>
-      StrategicService.regenerateStrategy(currentSiteId as string, websiteUrl),
+    mutationFn: (websiteUrl: string) => StrategicService.regenerateStrategy(currentSiteId as string, websiteUrl),
     onSuccess: (data) => {
       queryClient.setQueryData(QUERY_KEYS.STRATEGIC_STRATEGY(currentSiteId as string), data);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.STRATEGIC_STRATEGY(currentSiteId as string) });

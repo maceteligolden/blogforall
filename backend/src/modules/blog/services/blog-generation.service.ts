@@ -17,7 +17,9 @@ function formatReviewAsFeedback(review: BlogReviewResult): string {
   for (const suggestion of suggestions.slice(0, 12)) {
     const original = (suggestion.original || "").replace(/\s+/g, " ").trim().slice(0, 120);
     const next = (suggestion.suggestion || "").replace(/\s+/g, " ").trim().slice(0, 160);
-    lines.push(`- [${suggestion.priority}] ${suggestion.explanation}${original ? ` — was: "${original}"` : ""}${next ? ` → ${next}` : ""}`);
+    lines.push(
+      `- [${suggestion.priority}] ${suggestion.explanation}${original ? ` — was: "${original}"` : ""}${next ? ` → ${next}` : ""}`
+    );
   }
   return lines.join("\n").trim();
 }

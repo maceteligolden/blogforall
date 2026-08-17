@@ -35,7 +35,8 @@ export function mapGraphToPackage(args: {
     url: d.url,
     title: d.title || d.url,
     snippet: d.snippet,
-    category: d.tier === 1 ? ("official_docs" as const) : d.tier === 3 ? ("other" as const) : ("engineering_blog" as const),
+    category:
+      d.tier === 1 ? ("official_docs" as const) : d.tier === 3 ? ("other" as const) : ("engineering_blog" as const),
     quality_score: d.quality_score,
     quality_rationale: `tier ${d.tier}`,
     freshness: "recent" as const,
@@ -58,9 +59,14 @@ export function mapGraphToPackage(args: {
   const definitions = args.claims.filter((c) => c.kind === "definition").map((c) => toFact(c, "definition"));
   const statistics = args.claims.filter((c) => c.kind === "statistic").map((c) => toFact(c, "statistic"));
   const limitations = args.claims.filter((c) => c.kind === "limitation").map((c) => toFact(c, "limitation"));
-  const opinions = args.claims.filter((c) => c.kind === "opinion" || c.kind === "interpretation").map((c) => toFact(c, "opinion"));
+  const opinions = args.claims
+    .filter((c) => c.kind === "opinion" || c.kind === "interpretation")
+    .map((c) => toFact(c, "opinion"));
   const facts = args.claims
-    .filter((c) => c.kind === "fact" || (!["definition", "statistic", "limitation", "opinion", "interpretation"].includes(c.kind)))
+    .filter(
+      (c) =>
+        c.kind === "fact" || !["definition", "statistic", "limitation", "opinion", "interpretation"].includes(c.kind)
+    )
     .map((c) => toFact(c, "fact"));
 
   const contradictions = args.claims
@@ -113,7 +119,7 @@ export function mapGraphToPackage(args: {
         from: `n_${sid}`,
         to: `n_${c.id}`,
         type: "supports" as const,
-      })),
+      }))
     ),
   };
 
@@ -161,9 +167,7 @@ export function mapGraphToPackage(args: {
       contradiction_count: contradictions.length,
     },
     degraded: args.degraded,
-    disclosure: args.degraded
-      ? "Web search returned limited sources. Treat findings as provisional."
-      : undefined,
+    disclosure: args.degraded ? "Web search returned limited sources. Treat findings as provisional." : undefined,
     brief: args.brief,
     searches: args.searches,
     documents: args.documents,

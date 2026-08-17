@@ -154,17 +154,14 @@ function CampaignArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
 
 function StrategyArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
   const d = artifact.outputData;
-  const document =
-    d.document && typeof d.document === "object" ? (d.document as Record<string, unknown>) : undefined;
+  const document = d.document && typeof d.document === "object" ? (d.document as Record<string, unknown>) : undefined;
   const northStar =
     document && typeof document.north_star === "object"
       ? strField(document.north_star as Record<string, unknown>, "what_we_are")
       : undefined;
   const purpose = northStar ?? strField(d, "purpose") ?? "Content Strategy";
   const audienceObj =
-    document && typeof document.audience === "object"
-      ? (document.audience as Record<string, unknown>)
-      : undefined;
+    document && typeof document.audience === "object" ? (document.audience as Record<string, unknown>) : undefined;
   const primary =
     audienceObj && typeof audienceObj.primary === "object"
       ? (audienceObj.primary as Record<string, unknown>)
@@ -679,8 +676,7 @@ export function OrchestratorArtifactPanel({
                 ? "Blog draft"
                 : isBlogList
                   ? "Blog list"
-                  : activeArtifact?.tool.startsWith("campaigns.") ||
-                      activeArtifact?.tool.startsWith("campaign_")
+                  : activeArtifact?.tool.startsWith("campaigns.") || activeArtifact?.tool.startsWith("campaign_")
                     ? "Campaign"
                     : activeArtifact?.tool.startsWith("strategy.")
                       ? "Strategy"
