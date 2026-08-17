@@ -294,8 +294,11 @@ export default function EditBlogPage() {
       setError("Pick a schedule date and time, or change status away from Scheduled.");
       return;
     }
+    const statusForUpdate =
+      formData.status === "scheduled" || formData.status === "generating" ? ("draft" as const) : formData.status;
     const blogDataForUpdate = {
-      ...(willScheduleLater ? { ...blogData, status: "draft" as const } : blogData),
+      ...blogData,
+      status: statusForUpdate,
       category: formData.category || undefined,
       featured_image: formData.featured_image || undefined,
     };
