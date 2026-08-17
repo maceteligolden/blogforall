@@ -1,4 +1,4 @@
-import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
+import { NotificationType } from "../../../shared/constants/notification.constant";
 import { OrchestratorApprovalKind } from "../../../shared/schemas/orchestrator-approval.schema";
 import type { OrchestratorApproval } from "../../../shared/schemas/orchestrator-approval.schema";
 import { notifyApprovalCreatedInApp } from "../../../shared/utils/notify-approval-created.util";
