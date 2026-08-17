@@ -140,7 +140,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
             required
           />
           <p className="mt-2 text-xs text-gray-500">
-            We'll generate Content Strategy from this website in the background.
+            We will generate Content Strategy from this website in the background.
           </p>
         </div>
       </form>
