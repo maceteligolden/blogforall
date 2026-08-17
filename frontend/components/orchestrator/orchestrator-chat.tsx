@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, PanelRight, Pencil, Plus, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,17 +11,18 @@ import { OrchestratorService } from "@/lib/api/services/orchestrator.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import type {
   ChatTurnResponse,
+  NextDueTopic,
   OrchestratorApproval,
   OrchestratorMessage,
+  ThreadFocus,
   V05MoatSnapshot,
 } from "@/lib/api/types/orchestrator.types";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
 import { FullConversationView, type ConversationStatus } from "./full-conversation-view";
 import { WritingStageRail } from "./writing-stage-rail";
-import { ResearchFindingsCard } from "./research-findings-card";
 import { OutlineApprovalCard } from "./outline-approval-card";
-import { extractOutlineCardProps, extractResearchCardProps, findActiveWritingHitl } from "@/lib/utils/writing-hitl";
+import { extractOutlineCardProps, findActiveWritingHitl } from "@/lib/utils/writing-hitl";
 import { useOrchestrator } from "./orchestrator-provider";
 import { useTokenUsage, useInvalidateTokenUsage } from "@/lib/hooks/use-token-usage";
 import { useTokenExhaustion } from "@/components/usage/token-exhaustion-provider";
@@ -45,6 +47,7 @@ import { useSpeechSynthesis } from "@/lib/hooks/use-speech-synthesis";
 import { useElevenLabsTts } from "@/lib/hooks/use-elevenlabs-tts";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
 import { CHAT_ROLES, CONVERSATION_STATUS } from "@/lib/constants/orchestrator";
+import { useStartWritingThread, writingLoopUserMessage } from "@/lib/writing/use-start-writing-thread";
 
 interface PendingTurn {
   userText: string;
@@ -104,9 +107,14 @@ export function OrchestratorChat({
     clearLivePhase,
     setupInterviewActive,
     setSetupInterviewActive,
+    writingKickoffPending,
+    writingKickoffLabel,
+    endWritingKickoff,
   } = useOrchestrator();
   const { artifacts, hasViewableArtifacts, showResultsPanel } = useOrchestratorArtifacts();
+  const { startWritingThread } = useStartWritingThread();
   const { currentSiteId } = useAuthStore();
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const { data: tokenUsage } = useTokenUsage();
   const invalidateTokenUsage = useInvalidateTokenUsage();
@@ -118,6 +126,8 @@ export function OrchestratorChat({
   const [pending, setPending] = useState<PendingTurn | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingApproval, setPendingApproval] = useState<OrchestratorApproval | null>(null);
+  const [nextTopics, setNextTopics] = useState<NextDueTopic[]>([]);
+  const [openerChips, setOpenerChips] = useState<string[]>([]);
   const [lastTurnToolCalls, setLastTurnToolCalls] = useState<
     Array<{ tool: string; summary: string; output_data?: Record<string, unknown> }>
   >([]);
@@ -210,96 +220,25 @@ export function OrchestratorChat({
 
   // Proactive opener: new thread or empty thread with 0 messages.
   useEffect(() => {
-    if (!currentSiteId || setupInterviewActive) {
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-        body: JSON.stringify({
-          sessionId: "17457c",
-          runId: "pre-fix",
-          hypothesisId: "H-D",
-          location: "orchestrator-chat.tsx:opener",
-          message: "opener skipped early",
-          data: { hasSite: !!currentSiteId, setupInterviewActive },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      return;
-    }
+    if (!currentSiteId || setupInterviewActive || writingKickoffPending) return;
     if (openThreadInFlightRef.current) return;
 
     const needsNewThread = !threadId;
     const threadLoadedEmpty = !!threadId && threadQuery.isSuccess && (threadQuery.data?.messages?.length ?? 0) === 0;
-    if (!needsNewThread && !threadLoadedEmpty) {
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-        body: JSON.stringify({
-          sessionId: "17457c",
-          runId: "pre-fix",
-          hypothesisId: "H-D",
-          location: "orchestrator-chat.tsx:opener",
-          message: "opener skipped not empty",
-          data: {
-            threadId,
-            isSuccess: threadQuery.isSuccess,
-            msgCount: threadQuery.data?.messages?.length ?? 0,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
-      return;
-    }
+    if (!needsNewThread && !threadLoadedEmpty) return;
 
     const key = needsNewThread ? `${currentSiteId}:new` : `${currentSiteId}:${threadId}`;
     if (openedThreadKeyRef.current === key) return;
 
     openThreadInFlightRef.current = true;
     openedThreadKeyRef.current = key;
-    // #region agent log
-    fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-      body: JSON.stringify({
-        sessionId: "17457c",
-        runId: "pre-fix",
-        hypothesisId: "H-D",
-        location: "orchestrator-chat.tsx:opener",
-        message: "opener calling openThread",
-        data: { key, needsNewThread, threadId },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     void OrchestratorService.openThread(currentSiteId, threadId ?? undefined)
       .then((res) => {
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-          body: JSON.stringify({
-            sessionId: "17457c",
-            runId: "pre-fix",
-            hypothesisId: "H-D",
-            location: "orchestrator-chat.tsx:opener",
-            message: "opener success",
-            data: {
-              thread_id: res.thread_id,
-              hasAssistant: Boolean(res.assistant_message?.content),
-              preview: (res.assistant_message?.content ?? "").slice(0, 80),
-              priority: res.priority,
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
         if (threadId !== res.thread_id) {
           setThreadId(res.thread_id);
         }
+        setNextTopics(res.next_topics ?? []);
+        setOpenerChips(res.chips ?? []);
         void queryClient.invalidateQueries({
           queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId),
         });
@@ -307,23 +246,7 @@ export function OrchestratorChat({
           queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, res.thread_id),
         });
       })
-      .catch((err) => {
-        // #region agent log
-        fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-          body: JSON.stringify({
-            sessionId: "17457c",
-            runId: "pre-fix",
-            hypothesisId: "H-D",
-            location: "orchestrator-chat.tsx:opener",
-            message: "opener failed",
-            data: { err: String(err) },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {});
-        // #endregion
-        // Allow retry on next relevant state change.
+      .catch(() => {
         openedThreadKeyRef.current = null;
       })
       .finally(() => {
@@ -335,6 +258,7 @@ export function OrchestratorChat({
     threadQuery.isSuccess,
     threadQuery.data?.messages?.length,
     setupInterviewActive,
+    writingKickoffPending,
     setThreadId,
     queryClient,
   ]);
@@ -420,11 +344,42 @@ export function OrchestratorChat({
   };
 
   useEffect(() => {
-    const latest = threadQuery.data?.messages?.find((m) => m.role === CHAT_ROLES.ASSISTANT && m.pending_approval_id);
-    if (!latest) {
-      setPendingApproval((prev) => (prev?.id ? null : prev));
+    const msgs = threadQuery.data?.messages;
+    if (!currentSiteId || !msgs?.length) return;
+    const latestId = [...msgs]
+      .reverse()
+      .find((m) => m.role === CHAT_ROLES.ASSISTANT && m.pending_approval_id)?.pending_approval_id;
+    if (!latestId) {
+      setPendingApproval((prev) => {
+        if (!prev?.id) return prev;
+        const persistedThisApproval = msgs.some((m) => m.pending_approval_id === prev.id);
+        if (!persistedThisApproval) return prev;
+        return null;
+      });
+      return;
     }
-  }, [threadQuery.data]);
+    let cancelled = false;
+    void OrchestratorService.listApprovals(currentSiteId, "pending").then((approvals) => {
+      if (cancelled) return;
+      const match = approvals.find((a) => a.id === latestId) ?? null;
+      setPendingApproval((prev) => {
+        if (match) return prev?.id === match.id ? prev : match;
+        if (prev?.id === latestId) return prev;
+        if (prev) return prev;
+        return {
+          id: latestId,
+          kind: "in_chat_confirmation",
+          action: "writing_confirm_research",
+          summary: "Approve this research to start the background draft?",
+          status: "pending",
+          requested_at: new Date().toISOString(),
+        };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [threadQuery.data, currentSiteId]);
 
   // Drop optimistic rows once the same turn is in persisted history (single message lifecycle).
   useEffect(() => {
@@ -510,6 +465,69 @@ export function OrchestratorChat({
     });
   }, [combinedMessages.length, pending]);
 
+  const handleHitlDecision = async (decision: "approved" | "rejected") => {
+    if (!currentSiteId || !pendingApproval?.id || pending) return;
+    setError(null);
+    setPending({
+      userText:
+        decision === "approved" && pendingApproval.action === "writing_request_research"
+          ? "Researching"
+          : decision === "approved"
+            ? "Confirm"
+            : "Cancel",
+    });
+    try {
+      await OrchestratorService.decideApproval(currentSiteId, pendingApproval.id, decision);
+      const [thread, approvals] = await Promise.all([
+        threadId ? OrchestratorService.getThread(currentSiteId, threadId) : Promise.resolve(null),
+        OrchestratorService.listApprovals(currentSiteId, "pending"),
+      ]);
+      if (thread && threadId) {
+        queryClient.setQueryData(QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, threadId), thread);
+        const latestAssistant = [...(thread.messages ?? [])]
+          .reverse()
+          .find((m) => m.role === CHAT_ROLES.ASSISTANT);
+        setLastTurnToolCalls(
+          (latestAssistant?.tool_calls ?? []).map((call) => ({
+            tool: call.tool,
+            summary: call.output_summary ?? "",
+            output_data: call.output_data,
+          }))
+        );
+      }
+      const nextApprovalId = [...(thread?.messages ?? [])]
+        .reverse()
+        .find((m) => m.role === CHAT_ROLES.ASSISTANT && m.pending_approval_id)?.pending_approval_id;
+      setPendingApproval(
+        nextApprovalId
+          ? (approvals.find((a) => a.id === nextApprovalId) ?? {
+              id: nextApprovalId,
+              kind: "in_chat_confirmation",
+              action: "writing_confirm_research",
+              summary: "Approve this research to start the background draft?",
+              status: "pending",
+              requested_at: new Date().toISOString(),
+            })
+          : null
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: QUERY_KEYS.ORCHESTRATOR_APPROVALS(currentSiteId),
+        }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_CAMPAIGNS }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CAMPAIGNS }),
+      ]);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } }; message?: string };
+      setError(err?.response?.data?.message ?? err?.message ?? "Could not record that decision.");
+    } finally {
+      setPending(null);
+    }
+  };
+
   const handleSend = async (overrideText?: string) => {
     if (!currentSiteId) return;
     const text = (overrideText ?? input).trim();
@@ -538,28 +556,58 @@ export function OrchestratorChat({
     }
 
     orchestratorTracker.messageSent({ thread_id: threadId ?? undefined });
+    const onPostEditor = pathname.startsWith("/dashboard/posts/");
     const effectiveSelectionContext =
       selectionContext ??
-      (activeDraftBlogId
+      (onPostEditor && activeDraftBlogId
         ? {
             blogId: activeDraftBlogId,
             blogTitle: "Current draft",
             referenceType: "blog" as const,
           }
         : undefined);
+    const isEmptyChat = !combinedMessages.some((m) => m.role === CHAT_ROLES.USER);
+    const emptyChatFocus: ThreadFocus | undefined =
+      isEmptyChat && nextTopics[0]
+        ? {
+            campaign_id: nextTopics[0].campaign_id,
+            roadmap_sequence_index: nextTopics[0].sequence_index,
+            topic: nextTopics[0].title,
+            intent: nextTopics[0].strategic_intent,
+          }
+        : undefined;
+    const threadFocus = threadQuery.data?.thread?.focus;
+    const boundFocus = emptyChatFocus ?? threadFocus;
+    const isWritingLoop = Boolean(
+      boundFocus?.topic || boundFocus?.campaign_id || boundFocus?.roadmap_sequence_index
+    );
     const useOnboardingInterview = setupInterviewActive || Boolean(threadQuery.data?.thread?.is_onboarding);
+    const messageToSend =
+      !useOnboardingInterview && isEmptyChat && isWritingLoop && nextTopics[0]
+        ? writingLoopUserMessage(
+            {
+              campaign_id: nextTopics[0].campaign_id,
+              campaign_name: nextTopics[0].campaign_name,
+              roadmap_sequence_index: nextTopics[0].sequence_index,
+              topic: nextTopics[0].title,
+              intent: nextTopics[0].strategic_intent,
+            },
+            text
+          )
+        : text;
     const chatOptions = {
-      sessionMode: explicitMode ?? sessionMode,
+      sessionMode: !useOnboardingInterview && isWritingLoop ? ("writing" as const) : ("auto" as const),
       attachments: pendingAttachments.length ? pendingAttachments : undefined,
       selectionContext: effectiveSelectionContext,
       conversationMode: conversationModeRef.current || undefined,
+      focus: emptyChatFocus,
     };
     try {
       let res: ChatTurnResponse;
       if (useOnboardingInterview) {
         res = await OrchestratorService.onboardingChat(currentSiteId, text);
       } else if (conversationModeRef.current) {
-        res = await OrchestratorService.chatStream(currentSiteId, text, threadId ?? undefined, {
+        res = await OrchestratorService.chatStream(currentSiteId, messageToSend, threadId ?? undefined, {
           ...chatOptions,
           conversationMode: true,
           onSentence: (sentence) => {
@@ -568,7 +616,7 @@ export function OrchestratorChat({
           },
         });
       } else {
-        res = await OrchestratorService.chat(currentSiteId, text, threadId ?? undefined, chatOptions);
+        res = await OrchestratorService.chat(currentSiteId, messageToSend, threadId ?? undefined, chatOptions);
       }
 
       if (res.active_session_mode) {
@@ -591,7 +639,9 @@ export function OrchestratorChat({
             outputData,
           });
           const blogId = extractBlogIdFromArtifactData(outputData);
-          if (blogId && DRAFT_ARTIFACT_TOOLS.has(call.tool)) {
+          if (blogId && call.tool === "writing.confirmResearch") {
+            // Background stub is not the conversation draft — keep discussing the next topic.
+          } else if (blogId && (DRAFT_ARTIFACT_TOOLS.has(call.tool) || call.tool === "blogs.update")) {
             setActiveDraftBlogId(blogId);
             const patched = patchBlogCacheFromToolOutput(queryClient, blogId, {
               ...outputData,
@@ -609,6 +659,14 @@ export function OrchestratorChat({
             }
           } else if (call.tool === "blogs.get" && blogId) {
             void queryClient.refetchQueries({ queryKey: QUERY_KEYS.BLOG(blogId) });
+          }
+          if (call.tool === "writing.confirmResearch" || call.tool === "blogs.update") {
+            void queryClient.invalidateQueries({
+              predicate: (query) =>
+                Array.isArray(query.queryKey) &&
+                query.queryKey[0] === "campaigns" &&
+                query.queryKey[2] === "roadmap",
+            });
           }
         }
         // Do not invent tool chat bubbles — persisted history (or assistant tool_calls) is source of truth.
@@ -641,30 +699,6 @@ export function OrchestratorChat({
       const panelArt = [...newLiveArtifacts]
         .reverse()
         .find((a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a));
-      // #region agent log
-      fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-        body: JSON.stringify({
-          sessionId: "17457c",
-          runId: "pre-fix",
-          hypothesisId: "H-A",
-          location: "orchestrator-chat.tsx:handleSend",
-          message: "cta assignment after turn",
-          data: {
-            tools: (res.tool_calls ?? []).map((c) => c.tool),
-            panelArtTool: panelArt?.tool ?? null,
-            panelArtId: panelArt?.id ?? null,
-            viewCta: panelArt ? entityViewCtaLabel(panelArt.tool) : null,
-            openedPanel: Boolean(
-              newLiveArtifacts.some((a) => ENTITY_PANEL_TOOLS.has(a.tool) && artifactHasEntityId(a))
-            ),
-            pendingApproval: res.pending_approval?.action ?? null,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       // Keep local user bubble until refetch; assistant only (no synthetic tool rows).
       setOptimisticMessages((prev) => [
         ...prev.filter((m) => m.id.startsWith("local-")),
@@ -760,7 +794,9 @@ export function OrchestratorChat({
   const handleNewThread = () => {
     clearLiveArtifacts();
     openedThreadKeyRef.current = null;
+    endWritingKickoff();
     setThreadId(null);
+    setActiveDraftBlogId(null);
     setSetupInterviewActive(false);
     setOptimisticMessages([]);
     setPendingApproval(null);
@@ -845,26 +881,18 @@ export function OrchestratorChat({
     return findActiveWritingHitl(threadQuery.data?.messages ?? []);
   }, [threadQuery.data?.messages, lastTurnToolCalls, threadId, currentSiteId]);
 
-  const researchCardProps =
-    activeWritingHitl?.kind === "research" ? extractResearchCardProps(activeWritingHitl.output) : null;
   const outlineCardProps =
     activeWritingHitl?.kind === "outline" ? extractOutlineCardProps(activeWritingHitl.output) : null;
 
   if (conversationMode) {
     const voiceWorkflowActions =
-      researchCardProps && !pending
+      outlineCardProps && !pending
         ? [
-            { label: "Approve research", onClick: () => void handleSend("Approve the research") },
-            { label: "Revise research", onClick: () => void handleSend("Revise the research") },
+            { label: "Approve outline", onClick: () => void handleSend("Approve the outline") },
+            { label: "Modify outline", onClick: () => void handleSend("Modify the outline") },
             { label: "Continue", onClick: () => void handleSend("Continue") },
           ]
-        : outlineCardProps && !pending
-          ? [
-              { label: "Approve outline", onClick: () => void handleSend("Approve the outline") },
-              { label: "Modify outline", onClick: () => void handleSend("Modify the outline") },
-              { label: "Continue", onClick: () => void handleSend("Continue") },
-            ]
-          : undefined;
+        : undefined;
 
     return (
       <div className={cn("flex flex-col min-w-0 h-full", className)}>
@@ -999,7 +1027,7 @@ export function OrchestratorChat({
         ref={scrollRef}
         className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 py-6 space-y-4 max-w-4xl w-full mx-auto [scrollbar-gutter:stable]"
       >
-        {!threadId && combinedMessages.length === 0 && (
+        {!threadId && combinedMessages.length === 0 && !writingKickoffPending && (
           <div className="text-center py-16">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 border border-primary/30 mb-4">
               <Sparkles className="w-7 h-7 text-primary" aria-hidden="true" />
@@ -1009,6 +1037,14 @@ export function OrchestratorChat({
               Ask me to draft a blog post, list scheduled content, create a category, or look up performance for this
               workspace. I&apos;ll confirm any destructive actions before running them.
             </p>
+          </div>
+        )}
+        {writingKickoffPending && combinedMessages.length === 0 && (
+          <div className="space-y-4">
+            {writingKickoffLabel && (
+              <ChatMessage role="user" content={writingKickoffLabel} />
+            )}
+            <ThinkingIndicator label="Starting the writing conversation" />
           </div>
         )}
         {threadQuery.isLoading && threadId && <p className="text-xs text-gray-500">Loading conversation…</p>}
@@ -1041,15 +1077,6 @@ export function OrchestratorChat({
         {error && (
           <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">{error}</div>
         )}
-        {researchCardProps && !pending && (
-          <ResearchFindingsCard
-            {...researchCardProps}
-            disabled={!!pending}
-            onApprove={() => handleSend("Approve the research")}
-            onRevise={() => handleSend("Revise the research")}
-            onContinue={() => handleSend("Continue")}
-          />
-        )}
         {outlineCardProps && !pending && (
           <OutlineApprovalCard
             {...outlineCardProps}
@@ -1061,7 +1088,14 @@ export function OrchestratorChat({
         )}
         {pendingApproval && (
           <div className="rounded-xl border border-yellow-700/60 bg-yellow-900/20 p-4">
-            <p className="text-sm font-medium text-yellow-100">Confirmation needed: {pendingApproval.action}</p>
+            <p className="text-sm font-medium text-yellow-100">
+              Confirmation needed:{" "}
+              {pendingApproval.action === "writing_request_research"
+                ? "Start research"
+                : pendingApproval.action === "writing_confirm_research"
+                  ? "Approve research"
+                  : pendingApproval.action.replace(/_/g, " ")}
+            </p>
             <p className="text-xs text-yellow-200/80 mt-1">{pendingApproval.summary}</p>
             <div className="flex gap-2 mt-3">
               <Button
@@ -1071,12 +1105,12 @@ export function OrchestratorChat({
                     decision: "approved",
                     tool_name: pendingApproval.action,
                   });
-                  handleSend("yes");
+                  void handleHitlDecision("approved");
                 }}
                 disabled={!!pending}
                 className="bg-primary text-white hover:bg-primary/90"
               >
-                Confirm
+                {pendingApproval.action === "writing_confirm_research" ? "Continue" : "Confirm"}
               </Button>
               <Button
                 size="sm"
@@ -1086,12 +1120,12 @@ export function OrchestratorChat({
                     decision: "rejected",
                     tool_name: pendingApproval.action,
                   });
-                  handleSend("no");
+                  void handleHitlDecision("rejected");
                 }}
                 disabled={!!pending}
                 className="border-gray-700 text-gray-200 hover:bg-gray-800"
               >
-                Cancel
+                {pendingApproval.action === "writing_confirm_research" ? "Reject" : "Cancel"}
               </Button>
             </div>
           </div>
@@ -1099,6 +1133,86 @@ export function OrchestratorChat({
       </div>
 
       <div className="px-4 md:px-6 py-3 border-t border-gray-800 max-w-4xl w-full mx-auto shrink-0">
+        {!pending &&
+          !writingKickoffPending &&
+          !input.trim() &&
+          !combinedMessages.some((m) => m.role === CHAT_ROLES.USER) &&
+          (nextTopics.length > 0 || openerChips.length > 0) && (
+          <div className="mb-3 space-y-2">
+            {nextTopics.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {nextTopics.slice(0, 4).map((topic) => (
+                  <button
+                    key={`${topic.campaign_id}-${topic.sequence_index}`}
+                    type="button"
+                    onClick={() => {
+                      setNextTopics((prev) =>
+                        prev.filter(
+                          (t) =>
+                            !(
+                              t.campaign_id === topic.campaign_id &&
+                              t.sequence_index === topic.sequence_index
+                            )
+                        )
+                      );
+                      void startWritingThread({
+                        campaign_id: topic.campaign_id,
+                        campaign_name: topic.campaign_name,
+                        roadmap_sequence_index: topic.sequence_index,
+                        topic: topic.title,
+                        intent: topic.strategic_intent,
+                        stayOnPage: true,
+                      });
+                    }}
+                    className="text-left rounded-lg border border-gray-800 bg-gray-900/70 px-3 py-2 hover:border-primary/50 hover:bg-gray-900"
+                  >
+                    <p className="text-sm font-medium text-white truncate">{topic.title}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                      {topic.campaign_name}
+                      {topic.overdue
+                        ? " · overdue"
+                        : topic.scheduled_at
+                          ? ` · due ${new Date(topic.scheduled_at).toLocaleDateString()}`
+                          : ""}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+            {openerChips.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {openerChips.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => {
+                      if (chip === "Write a post") {
+                        const first = nextTopics[0];
+                        void startWritingThread(
+                          first
+                            ? {
+                                campaign_id: first.campaign_id,
+                                campaign_name: first.campaign_name,
+                                roadmap_sequence_index: first.sequence_index,
+                                topic: first.title,
+                                intent: first.strategic_intent,
+                                stayOnPage: true,
+                              }
+                            : { stayOnPage: true }
+                        );
+                        return;
+                      }
+                      void handleSend(chip);
+                    }}
+                    className="text-xs px-2.5 py-1 rounded-full border border-gray-700 text-gray-300 hover:border-primary/50 hover:text-white"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <ChatComposer
           value={input}
           onChange={setInput}

@@ -14,7 +14,7 @@ export interface CampaignIntelligenceSnapshot {
   knowledge_gaps: string[];
   funnel_coverage: { awareness: number; consideration: number; conversion: number };
   unverified_assumptions: string[];
-  next_questions: string[];
+  next_questions: Array<{ key: string; question: string } | string>;
   progress_pct: number;
   success_probability: number;
   recommended_actions: string[];

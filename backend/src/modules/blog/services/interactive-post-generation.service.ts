@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { z } from "zod";
-import { HumanMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { createChatOpenAI } from "../../../shared/ai/create-chat-openai";
 import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant";
 import { BadRequestError } from "../../../shared/errors";
@@ -8,14 +8,21 @@ import { logger } from "../../../shared/utils/logger";
 import { CampaignService } from "../../campaign/services/campaign.service";
 import { WorkspaceMemoryRepository } from "../../orchestrator/repositories/workspace-memory.repository";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
+import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
+import { formatContentStrategyForPrompt, isContentStrategyReady } from "../../../shared/types/content-strategy.document";
 import { TavilySearchService } from "../ai/tavily-search.service";
+import { ResearchGraphService } from "../../orchestratorv2/research/research-graph.service";
 import { coerceContentArchetype, outlinePromptForArchetype } from "../ai/contracts/content-archetype";
 import { formatStyleProfileForPrompt, resolveStyleProfile } from "../ai/contracts/style-profile";
 import { buildResearchBrief, formatResearchBriefForPrompt } from "../ai/contracts/research-brief";
 import { FirstPartyPriorsService } from "../ai/first-party-priors.service";
-import { routeResearchNotes, formatRoutedNotesForPrompt } from "../ai/contracts/signal-router";
 import { migrateStrategicMemory } from "../../../shared/utils/migrate-strategic-memory";
-import { formatBusinessContextForPrompt, formatBusinessOneLiner } from "../../../shared/utils/format-business-context";
+import {
+  formatBusinessContextForPrompt,
+  formatBusinessOneLiner,
+} from "../../../shared/utils/format-business-context";
+import type { Campaign } from "../../../shared/schemas/campaign.schema";
+import type { BlogUserGenerationParams } from "../ai/types";
 
 export const INTERACTIVE_POST_TYPES = [
   "article",
@@ -121,9 +128,11 @@ function lengthPresetToWordCount(preset: "short" | "medium" | "long" | "pillar" 
 export class InteractivePostGenerationService {
   constructor(
     private readonly tavily: TavilySearchService,
+    private readonly researchGraph: ResearchGraphService,
     private readonly campaignService: CampaignService,
     private readonly workspaceMemory: WorkspaceMemoryRepository,
     private readonly businessKnowledge: BusinessKnowledgeService,
+    private readonly workspaceStrategy: WorkspaceStrategyService,
     private readonly firstPartyPriors: FirstPartyPriorsService
   ) {}
 
@@ -166,11 +175,21 @@ export class InteractivePostGenerationService {
       .filter(Boolean)
       .join(" ");
 
-    const notes = await this.tavily.search(researchQuery).catch(() => []);
-    const researchBlock = notes
-      .slice(0, 8)
-      .map((n, i) => `${i + 1}. ${n.title}: ${n.snippet.slice(0, 280)}`)
-      .join("\n");
+    let researchBlock = "";
+    try {
+      const researched = await this.researchGraph.run({
+        workspace_id: input.siteId,
+        question: researchQuery || "blog post topics for this business",
+        depth: "lite",
+        purpose: "post",
+        audience: summary.target_audience,
+        persist: true,
+        created_by: input.userId,
+      });
+      researchBlock = researched.report_markdown.slice(0, 4000);
+    } catch {
+      researchBlock = "";
+    }
 
     const chat = createChatOpenAI({
       apiKey: BlogAiConfig.openaiApiKey,
@@ -189,7 +208,7 @@ ${campaignLines || "- none"}
 
 USER SEED INTENT (optional): ${input.seed_intent?.trim() || "(none — invent useful topics)"}
 
-WEB RESEARCH SNIPPETS:
+WEB RESEARCH:
 ${researchBlock || "(no research available — rely on business context)"}
 
 Rules:
@@ -260,36 +279,28 @@ Rules:
       allow_guess: true,
     });
 
-    const queries = brief.search_queries.length ? brief.search_queries : [input.topic.title];
-    const [searchBatches, extracted] = await Promise.all([
-      Promise.all(queries.slice(0, 4).map((q) => this.tavily.search(q))),
-      urls.length ? this.tavily.extract(urls) : Promise.resolve([]),
-    ]);
-    const searchNotes = searchBatches.flat();
-    const routed = routeResearchNotes(
-      [
-        ...searchNotes.map((n) => ({
-          url: n.url,
-          title: n.title,
-          snippet: n.snippet,
-          source: "web" as const,
-        })),
-        ...extracted.map((e) => ({
-          url: e.url,
-          title: e.title || e.url,
-          snippet: e.text.slice(0, 1200),
-          source: "extract" as const,
-        })),
-      ],
-      styleProfile,
-      {
-        maxKeep: 8,
-        mustInclude: enrichment.must_include,
-        personalNotes: enrichment.personal_notes,
-      }
-    );
-
-    const researchBlock = formatRoutedNotesForPrompt(routed);
+    let researchBlock = "";
+    try {
+      const researched = await this.researchGraph.run({
+        workspace_id: input.siteId,
+        question: `${input.topic.title}. ${input.topic.about}`,
+        depth: "lite",
+        purpose: "post",
+        audience: enrichment.target_audience || summary.target_audience,
+        persist: true,
+        created_by: input.userId,
+      });
+      researchBlock = researched.report_markdown.slice(0, 5000);
+    } catch {
+      researchBlock = "";
+    }
+    const extracted = urls.length ? await this.tavily.extract(urls) : [];
+    const extra = extracted
+      .map((e) => `- ${e.title || e.url}: ${e.text.slice(0, 400)}`)
+      .join("\n");
+    if (extra) {
+      researchBlock = `${researchBlock}\n\nUser-provided sources:\n${extra}`;
+    }
 
     const chat = createChatOpenAI({
       apiKey: BlogAiConfig.openaiApiKey,
@@ -387,6 +398,101 @@ Return working_title, thesis, sections with heading + intent matching the archet
       e.cta ? `CTA: ${e.cta}` : "",
       e.links?.length ? `Source links: ${e.links.join(", ")}` : "",
       e.example_urls?.length ? `Example/reference URLs: ${e.example_urls.join(", ")}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  async withCampaignConstraints(
+    userParams: BlogUserGenerationParams | undefined,
+    siteId: string,
+    campaignId?: string
+  ): Promise<BlogUserGenerationParams | undefined> {
+    const strategyBlock = await this.loadContentStrategyBlock(siteId);
+    const campaignBlock = campaignId ? await this.loadCampaignConstraintBlock(siteId, campaignId) : undefined;
+    const constraints = [strategyBlock, campaignBlock].filter(Boolean).join("\n\n");
+    if (!constraints) return userParams;
+    const merged: BlogUserGenerationParams = {
+      ...(userParams ?? {}),
+      context_pack: [userParams?.context_pack, constraints].filter(Boolean).join("\n\n"),
+      must_avoid: [
+        userParams?.must_avoid,
+        "Anything that contradicts the Content Strategy or campaign constraints above.",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    };
+    return merged;
+  }
+
+  async assertDraftAlignsWithCampaign(input: {
+    siteId: string;
+    campaignId?: string;
+    title: string;
+    content: string;
+  }): Promise<void> {
+    const strategyBlock = await this.loadContentStrategyBlock(input.siteId);
+    const campaign = input.campaignId
+      ? await this.campaignService.getCampaignById(input.campaignId, input.siteId).catch(() => null)
+      : null;
+    if (!strategyBlock && !campaign) return;
+    const chat = createChatOpenAI({
+      apiKey: BlogAiConfig.openaiApiKey,
+      model: BlogAiConfig.chatModel,
+      timeout: BlogAiConfig.API_TIMEOUT,
+      temperature: 0,
+    });
+    if (!chat) return;
+    const AlignmentSchema = z.object({
+      aligned: z.boolean(),
+      reason: z.string(),
+    });
+    const structured = chat.withStructuredOutput(AlignmentSchema);
+    const constraintText = [
+      strategyBlock,
+      campaign ? this.formatCampaignConstraintBlock(campaign) : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const result = await structured.invoke([
+      new SystemMessage(
+        "Judge whether this draft stays inside the Content Strategy and campaign. Refuse if it targets a different audience, fights the strategy or campaign goal, or uses a conflicting CTA. Be strict.",
+      ),
+      new HumanMessage(
+        `${constraintText}\n\nTITLE: ${input.title}\n\nDRAFT:\n${input.content.slice(0, 6000)}`,
+      ),
+    ]);
+    if (!result.aligned) {
+      throw new BadRequestError(
+        result.reason || "This draft does not stay within the Content Strategy. Adjust the brief and try again.",
+      );
+    }
+  }
+
+  private async loadContentStrategyBlock(siteId: string): Promise<string | undefined> {
+    const strategy = await this.workspaceStrategy.getActive(siteId).catch(() => null);
+    if (!strategy || !isContentStrategyReady(strategy.generation_status, strategy.document)) return undefined;
+    return formatContentStrategyForPrompt(strategy.document);
+  }
+
+  private async loadCampaignConstraintBlock(siteId: string, campaignId: string): Promise<string | undefined> {
+    const campaign = await this.campaignService.getCampaignById(campaignId, siteId).catch(() => null);
+    if (!campaign) return undefined;
+    return this.formatCampaignConstraintBlock(campaign);
+  }
+
+  private formatCampaignConstraintBlock(campaign: Campaign): string {
+    return [
+      "CAMPAIGN CONSTRAINTS — do not violate these. If a request conflicts, refuse rather than drift.",
+      `Campaign: ${campaign.name}`,
+      `Goal: ${campaign.goal}`,
+      campaign.desired_transformation ? `Desired outcome: ${campaign.desired_transformation}` : "",
+      campaign.target_audience ? `Audience: ${campaign.target_audience}` : "",
+      campaign.messaging ? `Messaging: ${campaign.messaging}` : "",
+      campaign.funnel_focus ? `Funnel focus: ${campaign.funnel_focus}` : "",
+      campaign.cta_strategy?.primary_cta ? `Primary CTA: ${campaign.cta_strategy.primary_cta}` : "",
+      campaign.primary_topics?.length ? `Topics in scope: ${campaign.primary_topics.join(", ")}` : "",
+      campaign.guardrails?.length ? `Guardrails: ${campaign.guardrails.join("; ")}` : "",
     ]
       .filter(Boolean)
       .join("\n");

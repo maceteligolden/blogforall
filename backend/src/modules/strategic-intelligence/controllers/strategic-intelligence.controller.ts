@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
-import { sendSuccess } from "../../../shared/helper/response.helper";
+import { sendAccepted, sendSuccess } from "../../../shared/helper/response.helper";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
 import { WorkspaceStrategyService } from "../services/workspace-strategy.service";
 import { BusinessKnowledgeService } from "../services/business-knowledge.service";
@@ -11,6 +11,7 @@ import { DecisionProposalService } from "../services/decision-proposal.service";
 import type { BusinessKnowledgeKey } from "../constants/business-knowledge.keys";
 import { BUSINESS_KNOWLEDGE_KEYS } from "../constants/business-knowledge.keys";
 import { BadRequestError } from "../../../shared/errors";
+import type { ContentStrategyDocument } from "../../../shared/types/content-strategy.document";
 
 @injectable()
 export class StrategicIntelligenceController {
@@ -32,7 +33,7 @@ export class StrategicIntelligenceController {
       const siteId = this.siteId(req);
       const userId = getJwtUserId(req);
       const strategy = await this.strategyService.ensureStrategy(siteId, userId);
-      sendSuccess(res, "Workspace strategy", strategy);
+      sendSuccess(res, "Content strategy", strategy);
     } catch (e) {
       next(e);
     }
@@ -50,8 +51,10 @@ export class StrategicIntelligenceController {
         audience_summary: body.audience_summary as string | undefined,
         perception_goals: body.perception_goals as string[] | undefined,
         constraints: body.constraints as string[] | undefined,
+        document: body.document as Partial<ContentStrategyDocument> | undefined,
+        website_url: body.website_url as string | undefined,
       });
-      sendSuccess(res, "Workspace strategy updated", strategy);
+      sendSuccess(res, "Content strategy updated", strategy);
     } catch (e) {
       next(e);
     }
@@ -71,8 +74,11 @@ export class StrategicIntelligenceController {
     try {
       const siteId = this.siteId(req);
       const userId = getJwtUserId(req);
-      const strategy = await this.strategyService.regenerate(siteId, userId);
-      sendSuccess(res, "Workspace strategy regenerated", strategy);
+      const body = (req.validatedBody ?? req.body ?? {}) as { website_url?: string };
+      await this.strategyService.createGeneratingStub(siteId, userId, body.website_url);
+      this.strategyService.startBackgroundGenerate(siteId, userId, body.website_url);
+      const strategy = await this.strategyService.getActiveOrThrow(siteId);
+      sendAccepted(res, "Content strategy generation started", strategy);
     } catch (e) {
       next(e);
     }

@@ -5,6 +5,13 @@ export interface CreateCampaignInput {
   description?: string;
   goal: string;
   target_audience?: string;
+  desired_transformation?: string;
+  messaging?: string;
+  funnel_focus?: "awareness" | "consideration" | "conversion" | "full_funnel";
+  cta_strategy?: {
+    primary_cta?: string;
+    secondary_cta?: string;
+  };
   start_date: Date;
   end_date: Date;
   posting_frequency: PostFrequency;
@@ -13,6 +20,7 @@ export interface CreateCampaignInput {
   total_posts_planned?: number;
   budget?: number;
   strategy_id?: string;
+  primary_topics?: string[];
   success_metrics?: {
     target_views?: number;
     target_engagement?: number;
@@ -27,6 +35,13 @@ export interface UpdateCampaignInput {
   description?: string;
   goal?: string;
   target_audience?: string;
+  desired_transformation?: string;
+  messaging?: string;
+  funnel_focus?: "awareness" | "consideration" | "conversion" | "full_funnel";
+  cta_strategy?: {
+    primary_cta?: string;
+    secondary_cta?: string;
+  };
   start_date?: Date;
   end_date?: Date;
   posting_frequency?: PostFrequency;
@@ -42,6 +57,7 @@ export interface UpdateCampaignInput {
   };
   status?: CampaignStatus;
   lifecycle_status?: CampaignLifecycleStatus;
+  primary_topics?: string[];
 }
 
 export interface CampaignQueryFilters {

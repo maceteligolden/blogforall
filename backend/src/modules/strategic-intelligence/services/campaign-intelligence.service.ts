@@ -90,7 +90,7 @@ export class CampaignIntelligenceService {
       knowledge_gaps: topGaps.map((g) => g.key),
       funnel_coverage,
       unverified_assumptions: assumptions,
-      next_questions: topGaps.slice(0, 3).map((g) => g.question),
+      next_questions: topGaps.slice(0, 3).map((g) => ({ key: g.key, question: g.question })),
       progress_pct,
       success_probability: Math.round(overall_confidence * 100) / 100,
       recommended_actions,

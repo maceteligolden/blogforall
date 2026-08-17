@@ -110,10 +110,15 @@ describe("T3.5 TurnTracer + skill metrics", () => {
         },
       },
     }));
-    registry.register("writing", async () => ({
-      summary: "w",
-      patch: { draft: { title: "T", content: "<p>x</p>", excerpt: "e" } },
-    }));
+    registry.register("writing", async (_s, args) => {
+      expect(args.action).toBe("outline");
+      return {
+        summary: "w",
+        patch: {
+          outline: { title: "T", sections: [{ heading: "Intro", summary: "…" }] },
+        },
+      };
+    });
     registry.register("content_optimization", async () => ({
       summary: "o",
       patch: {
@@ -166,7 +171,7 @@ describe("T3.5 TurnTracer + skill metrics", () => {
     });
 
     const skillSpans = tracer.spans.filter((s) => s.name === "skill");
-    expect(skillSpans).toHaveLength(3);
-    expect(skillSpans.map((s) => s.attrs.skill_id)).toEqual(["research", "writing", "content_optimization"]);
+    expect(skillSpans).toHaveLength(2);
+    expect(skillSpans.map((s) => s.attrs.skill_id)).toEqual(["research", "writing"]);
   });
 });

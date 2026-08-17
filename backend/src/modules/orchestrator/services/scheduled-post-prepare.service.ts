@@ -28,6 +28,7 @@ import { TokenEnforcementService } from "../../token-ledger/services/token-enfor
 import { TokenLedgerFeature } from "../../../shared/constants/token-ledger.constant";
 import { RealtimeService, REALTIME_EVENTS } from "../../../shared/realtime";
 import { notifyApprovalCreatedInApp } from "../../../shared/utils/notify-approval-created.util";
+import { InteractivePostGenerationService } from "../../blog/services/interactive-post-generation.service";
 
 const PREPARE_BATCH_SIZE = 10;
 
@@ -35,6 +36,7 @@ interface PrepareOutcome {
   scheduledPostId: string;
   ok: boolean;
   reason?: string;
+  blogId?: string;
 }
 
 /**
@@ -66,7 +68,8 @@ export class ScheduledPostPrepareService {
     private readonly siteRepository: SiteRepository,
     private readonly tokenEnforcement: TokenEnforcementService,
     private readonly campaignRepository: CampaignRepository,
-    private readonly realtimeService: RealtimeService
+    private readonly realtimeService: RealtimeService,
+    private readonly interactivePostGeneration: InteractivePostGenerationService
   ) {}
 
   /**
@@ -100,7 +103,7 @@ export class ScheduledPostPrepareService {
     }
     if (post.prepared_at) {
       // Already prepared; let the publish worker / reviewer take it from here.
-      return { scheduledPostId, ok: true, reason: "Already prepared" };
+      return { scheduledPostId, ok: true, reason: "Already prepared", blogId: post.blog_id };
     }
 
     if (post.campaign_id) {
@@ -116,8 +119,13 @@ export class ScheduledPostPrepareService {
       const blogId = await this.ensureBlogDraft(post);
       const prepared = await this.scheduledPostRepository.markPrepared(scheduledPostId, siteId, { blog_id: blogId });
       if (!prepared) {
-        // Another worker raced us. Whoever won will issue the token + approval.
-        return { scheduledPostId, ok: true, reason: "Raced with another worker" };
+        const raced = await this.scheduledPostRepository.findById(scheduledPostId, siteId);
+        return {
+          scheduledPostId,
+          ok: true,
+          reason: "Raced with another worker",
+          blogId: raced?.blog_id,
+        };
       }
 
       const tokenTtlMs = env.orchestrator.reviewTokenTtlDays * 24 * 60 * 60 * 1000;
@@ -142,6 +150,7 @@ export class ScheduledPostPrepareService {
           blog_id: blogId,
           rework_round: prepared.rework_round,
           review_token_id: token._id?.toString(),
+          ...(post.campaign_id ? { campaign_id: post.campaign_id } : {}),
         },
         expires_at: expiresAt,
       });
@@ -208,7 +217,7 @@ export class ScheduledPostPrepareService {
         );
       }
 
-      return { scheduledPostId, ok: true, reason: raw ? "token-issued" : "ok" };
+      return { scheduledPostId, ok: true, reason: raw ? "token-issued" : "ok", blogId };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       logger.error(
@@ -238,7 +247,11 @@ export class ScheduledPostPrepareService {
    */
   private async ensureBlogDraft(post: ScheduledPost): Promise<string> {
     const memory = await this.workspaceMemoryRepository.findBySiteId(post.site_id);
-    const generationParams = this.buildGenerationParams(memory);
+    const generationParams = await this.interactivePostGeneration.withCampaignConstraints(
+      this.buildGenerationParams(memory),
+      post.site_id,
+      post.campaign_id
+    );
 
     if (post.blog_id) {
       const existing = await this.blogRepository.findById(post.blog_id, post.site_id);
@@ -316,6 +329,12 @@ export class ScheduledPostPrepareService {
           analysis,
           generationParams
         );
+        await this.interactivePostGeneration.assertDraftAlignsWithCampaign({
+          siteId: post.site_id,
+          campaignId: post.campaign_id,
+          title: generated.title,
+          content: generated.content,
+        });
 
         const blog = await this.blogService.createBlog(post.user_id, post.site_id, {
           title: post.title || generated.title,

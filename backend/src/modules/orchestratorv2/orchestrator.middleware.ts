@@ -1,14 +1,17 @@
 import {
+  AIMessage,
   createMiddleware,
   humanInTheLoopMiddleware,
-  piiMiddleware,
+  HumanMessage,
+  PIIDetectionError,
   summarizationMiddleware,
   ToolMessage,
-  type PIIMatch,
 } from "langchain";
 import { Command } from "@langchain/langgraph";
 import { z } from "zod";
 import { container } from "tsyringe";
+import { env } from "../../shared/config/env";
+import { createChatOpenAI } from "../../shared/ai/create-chat-openai";
 import {
   createLoadSkillTool,
   findSkillOwningTool,
@@ -18,6 +21,25 @@ import {
   createStrategyTools,
   formatStrategyUpdateDraft,
 } from "./orchestrator.tool";
+import {
+  createCampaignTools,
+  formatCampaignCreateDraft,
+  formatCampaignScheduleDraft,
+  formatCampaignUpdateDraft,
+} from "./orchestrator.campaign-tools";
+import { createResearchTools } from "./orchestrator.research-tools";
+import {
+  createWritingTools,
+  formatWritingConfirmResearchDraft,
+  formatWritingResearchDraft,
+} from "./orchestrator.writing-tools";
+import {
+  createBlogTools,
+  formatBlogPublishDraft,
+  formatBlogScheduleDraft,
+  formatBlogUnpublishDraft,
+  formatBlogUnscheduleDraft,
+} from "./orchestrator.blog-tools";
 import { LangChainMemoryRepository } from "./longterm-memory.repository";
 import { LongTermMemory } from "./orchestrator.validation";
 import { AGENT_MODEL } from "./orchestrator.constants";
@@ -154,91 +176,262 @@ function formatMemoriesForPrompt(memories: LongTermMemory[]): string {
   );
 }
 
-function detectSsn(content: string): PIIMatch[] {
-  const matches: PIIMatch[] = [];
-  const pattern = /\b\d{3}-\d{2}-\d{4}\b/g;
+type PiiPhase = "input" | "output";
+
+type PiiHit = { start: number; end: number; replacement: string };
+
+function collectRegexHits(
+  content: string,
+  pattern: RegExp,
+  replacement: (text: string) => string,
+  predicate?: (text: string) => boolean,
+): PiiHit[] {
+  const hits: PiiHit[] = [];
+  const re = new RegExp(pattern.source, pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`);
   let match: RegExpExecArray | null;
-
-  while ((match = pattern.exec(content)) !== null) {
-    const ssn = match[0];
-    const firstThree = parseInt(ssn.substring(0, 3), 10);
-    if (
-      firstThree !== 0 &&
-      firstThree !== 666 &&
-      !(firstThree >= 900 && firstThree <= 999)
-    ) {
-      matches.push({
-        text: ssn,
-        start: match.index,
-        end: match.index + ssn.length,
-      });
-    }
+  while ((match = re.exec(content)) !== null) {
+    const text = match[0];
+    if (predicate && !predicate(text)) continue;
+    hits.push({
+      start: match.index,
+      end: match.index + text.length,
+      replacement: replacement(text),
+    });
   }
-
-  return matches;
+  return hits;
 }
 
-const piiMiddlewares = [
-  piiMiddleware("email", {
-    strategy: "redact",
-    applyToInput: true,
-  }),
-  piiMiddleware("credit_card", {
-    strategy: "mask",
-    applyToInput: true,
-    applyToOutput: true,
-  }),
-  piiMiddleware("ip", {
-    strategy: "redact",
-    applyToInput: true,
-  }),
-  piiMiddleware("mac_address", {
-    strategy: "redact",
-    applyToInput: true,
-  }),
-  piiMiddleware("url", {
-    strategy: "redact",
-    applyToInput: true,
-    applyToOutput: false,
-  }),
-  piiMiddleware("phone_number", {
-    detector: /\+?\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}/,
-    strategy: "mask",
-    applyToInput: true,
-  }),
-  piiMiddleware("ssn", {
-    detector: detectSsn,
-    strategy: "hash",
-    applyToInput: true,
-    applyToOutput: true,
-  }),
-  piiMiddleware("api_key", {
-    detector: /(?:sk-[a-zA-Z0-9]{20,}|Bearer\s+[A-Za-z0-9\-._~+/]+=*)/,
-    strategy: "block",
-    applyToInput: true,
-    applyToOutput: true,
-  }),
-];
+function applyHits(content: string, hits: PiiHit[]): string {
+  let result = content;
+  for (let i = hits.length - 1; i >= 0; i -= 1) {
+    const hit = hits[i];
+    result = result.slice(0, hit.start) + hit.replacement + result.slice(hit.end);
+  }
+  return result;
+}
 
-const summarizationMw = summarizationMiddleware({
-  model: AGENT_MODEL,
-  trigger: { tokens: 4000 },
-  keep: { messages: 20 },
-});
+function isLikelySsn(text: string): boolean {
+  const firstThree = parseInt(text.substring(0, 3), 10);
+  return firstThree !== 0 && firstThree !== 666 && !(firstThree >= 900 && firstThree <= 999);
+}
+
+function luhnOk(cardNumber: string): boolean {
+  const digits = cardNumber.replace(/\D/g, "");
+  if (digits.length < 13 || digits.length > 19) return false;
+  let sum = 0;
+  let even = false;
+  for (let i = digits.length - 1; i >= 0; i -= 1) {
+    let digit = parseInt(digits[i], 10);
+    if (even) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+    even = !even;
+  }
+  return sum % 10 === 0;
+}
+
+function redactPiiText(content: string, phase: PiiPhase): string {
+  if (!content) return content;
+
+  const apiKeyHits = collectRegexHits(
+    content,
+    /(?:sk-[a-zA-Z0-9]{20,}|Bearer\s+[A-Za-z0-9\-._~+/]+=*)/,
+    () => "",
+  );
+  if (apiKeyHits.length > 0) {
+    throw new PIIDetectionError("api_key", apiKeyHits.map((h) => ({ text: content.slice(h.start, h.end), start: h.start, end: h.end })));
+  }
+
+  const hits: PiiHit[] = [
+    ...collectRegexHits(content, /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/, () => "[REDACTED_EMAIL]"),
+    ...collectRegexHits(
+      content,
+      /\b(?:\d{4}[-\s]?){3}\d{4}\b/,
+      (text) => `****-****-****-${text.replace(/\D/g, "").slice(-4)}`,
+      luhnOk,
+    ),
+    ...(phase === "input"
+      ? [
+          ...collectRegexHits(
+            content,
+            /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/,
+            () => "[REDACTED_IP]",
+          ),
+          ...collectRegexHits(
+            content,
+            /\b(?:[0-9A-Fa-f]{2}[:-]){5}(?:[0-9A-Fa-f]{2})\b/,
+            () => "[REDACTED_MAC_ADDRESS]",
+          ),
+          ...collectRegexHits(content, /(?:https?:\/\/|www\.)[^\s<>"{}|\\^`[\]]+/gi, () => "[REDACTED_URL]"),
+          ...collectRegexHits(
+            content,
+            /\+?\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{4}/,
+            (text) => `${"*".repeat(Math.max(0, text.length - 4))}${text.slice(-4)}`,
+          ),
+        ]
+      : []),
+    ...collectRegexHits(
+      content,
+      /\b\d{3}-\d{2}-\d{4}\b/,
+      (text) => `<ssn_hash:${text.slice(-4)}>`,
+      isLikelySsn,
+    ),
+  ];
+
+  return applyHits(content, hits);
+}
+
+function redactContent(content: unknown, phase: PiiPhase): unknown {
+  if (typeof content === "string") {
+    return redactPiiText(content, phase);
+  }
+  if (Array.isArray(content)) {
+    return content.map((block) => {
+      if (typeof block === "string") return redactPiiText(block, phase);
+      if (block && typeof block === "object" && "text" in block && typeof (block as { text: unknown }).text === "string") {
+        return { ...block, text: redactPiiText((block as { text: string }).text, phase) };
+      }
+      return block;
+    });
+  }
+  return content;
+}
+
+/**
+ * One wrap-style PII pass. Built-in piiMiddleware uses beforeModel/afterModel
+ * nodes — eight of those exhaust LangGraph's default recursionLimit of 25 on
+ * the first tool call (load_skill).
+ */
+function createCombinedPiiMiddleware() {
+  return createMiddleware({
+    name: "combinedPiiMiddleware",
+    wrapModelCall: async (request, handler) => {
+      const messages = (request.messages ?? []).map((message) =>
+        HumanMessage.isInstance(message)
+          ? new HumanMessage({
+              content: redactContent(message.content, "input") as HumanMessage["content"],
+              id: message.id,
+              name: message.name,
+            })
+          : message,
+      );
+      const response = await handler({ ...request, messages });
+      if (!AIMessage.isInstance(response)) return response;
+      return new AIMessage({
+        content: redactContent(response.content, "output") as AIMessage["content"],
+        id: response.id,
+        name: response.name,
+        tool_calls: response.tool_calls,
+      });
+    },
+    wrapToolCall: async (request, handler) => {
+      const result = await handler(request);
+      if (result instanceof Command || !ToolMessage.isInstance(result)) {
+        return result;
+      }
+      return new ToolMessage({
+        content: redactContent(result.content, "input") as string,
+        tool_call_id: result.tool_call_id,
+        name: result.name,
+        id: result.id,
+      });
+    },
+  });
+}
+
+const piiMiddleware = createCombinedPiiMiddleware();
+
+function createSummarizationMiddleware() {
+  return summarizationMiddleware({
+    model: createChatOpenAI({
+      apiKey: env.orchestrator.openaiApiKey,
+      model: AGENT_MODEL,
+    }),
+    trigger: { tokens: 4000 },
+    keep: { messages: 20 },
+  });
+}
 
 const skillStateSchema = z.object({
   loadedSkills: z.array(z.string()).default([]),
 });
 
+function skillsFromMessages(messages: unknown[] | undefined): string[] {
+  const names = new Set<string>();
+  for (const message of messages ?? []) {
+    if (ToolMessage.isInstance(message)) {
+      if (message.name === "load_skill") {
+        const match = String(message.content).match(/^Loaded skill:\s+(\S+)/);
+        if (match?.[1] && SKILLS.some((skill) => skill.name === match[1])) {
+          names.add(match[1]);
+        }
+        continue;
+      }
+      const owner = findSkillOwningTool(message.name ?? "");
+      if (owner) names.add(owner.name);
+    }
+    const toolCalls = (message as { tool_calls?: Array<{ name?: string }> }).tool_calls;
+    if (!Array.isArray(toolCalls)) continue;
+    for (const call of toolCalls) {
+      const owner = findSkillOwningTool(typeof call.name === "string" ? call.name : "");
+      if (owner) names.add(owner.name);
+    }
+  }
+  return [...names];
+}
+
+function resolveLoadedSkills(state: { loadedSkills?: string[]; messages?: unknown[] }): string[] {
+  return Array.from(new Set([...(state.loadedSkills ?? []), ...skillsFromMessages(state.messages)]));
+}
+
 /**
  * Progressive disclosure: only load_skill is always available.
- * Skill-owned tools (e.g. strategy_*) unlock after load_skill updates loadedSkills.
+ * Skill-owned tools unlock after load_skill updates loadedSkills.
  */
-function createSkillMiddleware(args: { siteId: string; userId: string }) {
+function sanitizeWritingHitlToolCalls(response: AIMessage): AIMessage {
+  if (!response.tool_calls?.length) return response;
+  const calls = response.tool_calls;
+  const hasRequest = calls.some((call) => call.name === "writing_request_research");
+  const hasConfirm = calls.some((call) => call.name === "writing_confirm_research");
+  let next = hasRequest && hasConfirm
+    ? calls.filter((call) => call.name !== "writing_confirm_research")
+    : calls;
+  const seenHitl = new Set<string>();
+  next = next.filter((call) => {
+    if (call.name !== "writing_request_research" && call.name !== "writing_confirm_research") {
+      return true;
+    }
+    if (seenHitl.has(call.name)) return false;
+    seenHitl.add(call.name);
+    return true;
+  });
+  if (next.length === calls.length) return response;
+  return new AIMessage({
+    content: response.content,
+    id: response.id,
+    name: response.name,
+    tool_calls: next,
+  });
+}
+
+function createSkillMiddleware(args: {
+  siteId: string;
+  userId: string;
+  threadId?: string;
+  writingLoop?: boolean;
+}) {
   const loadSkill = createLoadSkillTool();
-  const strategyTools = createStrategyTools(args);
+  const allTools = [
+    ...createStrategyTools(args),
+    ...createCampaignTools(args),
+    ...createResearchTools(args),
+    ...createWritingTools(args),
+    ...createBlogTools(args),
+  ];
   const skillToolByName = new Map(
-    strategyTools.map((t) => [t.name as string, t]),
+    allTools.map((t) => [t.name as string, t]),
   );
 
   const toolsForSkill = (skillName: string) => {
@@ -246,7 +439,7 @@ function createSkillMiddleware(args: { siteId: string; userId: string }) {
     if (!skill) return [];
     return skill.toolNames
       .map((name) => skillToolByName.get(name))
-      .filter((t): t is (typeof strategyTools)[number] => Boolean(t));
+      .filter((t): t is (typeof allTools)[number] => Boolean(t));
   };
 
   return createMiddleware({
@@ -254,36 +447,46 @@ function createSkillMiddleware(args: { siteId: string; userId: string }) {
     stateSchema: skillStateSchema,
     tools: [loadSkill],
     wrapModelCall: async (request, handler) => {
-      const loadedSkills: string[] = request.state.loadedSkills ?? [];
-      const unlocked = loadedSkills.flatMap((name) => toolsForSkill(name));
+      const loadedSkills = resolveLoadedSkills({
+        loadedSkills: request.state.loadedSkills,
+        messages: request.messages ?? request.state.messages,
+      });
+      if (args.writingLoop && !loadedSkills.includes("writing")) {
+        loadedSkills.push("writing");
+      }
+      const unlocked = loadedSkills
+        .flatMap((name) => toolsForSkill(name))
+        .filter((tool) => !(args.writingLoop && tool.name === "research_run"));
+
+      const writingSkill = args.writingLoop ? SKILLS.find((skill) => skill.name === "writing") : undefined;
+      const writingPlaybook = writingSkill
+        ? `\n\nLoaded skill: writing\n\n${writingSkill.content}\n\nUnlocked tools: ${writingSkill.toolNames.join(", ")}`
+        : "";
 
       const skillsAddendum =
         `\n\n## Available Skills\n\n${skillsPrompt}\n\n` +
         "Use the load_skill tool when you need detailed information " +
-        "about handling a specific type of request. Skill tools unlock only after load_skill.";
+        "about handling a specific type of request. Skill tools unlock only after load_skill." +
+        writingPlaybook +
+        (args.writingLoop
+          ? "\n\nThis thread is the weekly writing loop. Do not call research_run. After you have a brief, call writing_request_research (HITL 1) only. After that tool returns the report, stop — the UI collects Continue (HITL 2). Do not call writing_confirm_research yourself."
+          : "");
 
-      return handler({
+      const response = await handler({
         ...request,
         tools: [loadSkill, ...unlocked],
         systemPrompt: `${request.systemPrompt ?? ""}${skillsAddendum}`,
       });
+      return AIMessage.isInstance(response) ? sanitizeWritingHitlToolCalls(response) : response;
     },
     wrapToolCall: async (request, handler) => {
       const toolName = request.toolCall.name;
       const toolCallId = request.toolCall.id ?? "";
 
       if (skillOwnedToolNames.has(toolName)) {
-        const owner = findSkillOwningTool(toolName);
-        const loaded: string[] = request.state.loadedSkills ?? [];
-        if (!owner || !loaded.includes(owner.name)) {
-          return new ToolMessage({
-            content:
-              `Tool '${toolName}' is locked. ` +
-              `Call load_skill with skillName='${owner?.name ?? "workspace_strategy"}' first.`,
-            tool_call_id: toolCallId,
-            name: toolName,
-          });
-        }
+        // wrapModelCall already withholds locked tools from the model.
+        // HITL resume must still execute an already-requested tool even if
+        // summarization dropped the original load_skill message.
         const impl = skillToolByName.get(toolName);
         if (!impl) {
           return new ToolMessage({
@@ -296,20 +499,9 @@ function createSkillMiddleware(args: { siteId: string; userId: string }) {
       }
 
       if (toolName === "load_skill") {
-        const result = await handler(request);
-        const skillName = String(request.toolCall.args?.skillName ?? "");
-        const skill = SKILLS.find((s) => s.name === skillName);
-        if (!skill || !ToolMessage.isInstance(result)) {
-          return result;
-        }
-        const prev: string[] = request.state.loadedSkills ?? [];
-        const next = prev.includes(skillName) ? prev : [...prev, skillName];
-        return new Command({
-          update: {
-            loadedSkills: next,
-            messages: [result],
-          },
-        });
+        // Do not Command-update loadedSkills: parallel load_skill writes collide on LastValue.
+        // wrapModelCall unlocks tools by reading "Loaded skill:" tool messages.
+        return handler(request);
       }
 
       return handler(request);
@@ -317,18 +509,80 @@ function createSkillMiddleware(args: { siteId: string; userId: string }) {
   });
 }
 
-function createStrategyHitlMiddleware() {
+const hitlReview = {
+  allowedDecisions: ["approve", "edit", "reject"] as Array<
+    "approve" | "edit" | "reject"
+  >,
+};
+
+function createSkillHitlMiddleware(ctx: { siteId: string }) {
   return humanInTheLoopMiddleware({
     interruptOn: {
       strategy_update: {
-        allowedDecisions: ["approve", "edit", "reject"],
-        description: (toolCall) =>
+        ...hitlReview,
+        description: async (toolCall) =>
           formatStrategyUpdateDraft(
+            (toolCall.args ?? {}) as Record<string, unknown>,
+            ctx.siteId,
+          ),
+      },
+      campaign_create: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatCampaignCreateDraft(
             (toolCall.args ?? {}) as Record<string, unknown>,
           ),
       },
+      campaign_update: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatCampaignUpdateDraft(
+            (toolCall.args ?? {}) as Record<string, unknown>,
+          ),
+      },
+      campaign_schedule_additional_posts: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatCampaignScheduleDraft(
+            (toolCall.args ?? {}) as Record<string, unknown>,
+          ),
+      },
+      writing_request_research: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatWritingResearchDraft(
+            (toolCall.args ?? {}) as Record<string, unknown>,
+          ),
+      },
+      writing_confirm_research: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatWritingConfirmResearchDraft(
+            (toolCall.args ?? {}) as Record<string, unknown>,
+          ),
+      },
+      blogs_publish: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatBlogPublishDraft((toolCall.args ?? {}) as Record<string, unknown>),
+      },
+      blogs_unpublish: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatBlogUnpublishDraft((toolCall.args ?? {}) as Record<string, unknown>),
+      },
+      blogs_schedule: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatBlogScheduleDraft((toolCall.args ?? {}) as Record<string, unknown>),
+      },
+      blogs_unschedule: {
+        ...hitlReview,
+        description: (toolCall) =>
+          formatBlogUnscheduleDraft((toolCall.args ?? {}) as Record<string, unknown>),
+      },
     },
-    descriptionPrefix: "Strategy update pending approval",
+    descriptionPrefix: "Pending approval",
   });
 }
 
@@ -369,8 +623,8 @@ function createLongTermMemoryMiddleware(
 
 export {
   createSkillMiddleware,
-  createStrategyHitlMiddleware,
+  createSkillHitlMiddleware,
   createLongTermMemoryMiddleware,
-  piiMiddlewares,
-  summarizationMw,
+  createSummarizationMiddleware,
+  piiMiddleware,
 };

@@ -276,4 +276,36 @@ export class BlogGenerationService {
     if (!finalPayload) throw new Error("Stream ended without a final result");
     return finalPayload;
   }
+
+  static async generateBlogBackground(
+    prompt: string,
+    analysis: PromptAnalysis | undefined,
+    extras?: Omit<InteractiveGenerateOptions, "signal" | "analysis" | "onEvent">
+  ): Promise<{ blog_id: string }> {
+    const siteId = requireSiteId();
+    const hasApprovedOutline = !!extras?.approved_outline;
+    const res = await apiClient.post(
+      API_ENDPOINTS.BLOGS.GENERATE_BACKGROUND(siteId),
+      {
+        prompt,
+        analysis,
+        tone: analysis?.tone ?? extras?.enrichment?.tone,
+        target_audience: analysis?.target_audience ?? extras?.enrichment?.target_audience,
+        topics_to_explore: analysis?.topics_to_explore ?? extras?.keywords,
+        word_count: analysis?.word_count ?? extras?.enrichment?.word_count,
+        purpose: hasApprovedOutline ? undefined : analysis?.purpose?.slice(0, 120),
+        structure: hasApprovedOutline ? undefined : analysis?.structure?.slice(0, 120),
+        enrichment: extras?.enrichment,
+        approved_outline: extras?.approved_outline,
+        campaign_id: extras?.campaign_id ?? extras?.approved_outline?.campaign_id,
+        keywords: extras?.keywords ?? extras?.approved_outline?.keywords,
+        post_type: extras?.post_type ?? extras?.approved_outline?.post_type,
+        content_archetype: extras?.approved_outline?.content_archetype,
+        style_variant: extras?.enrichment?.style_variant ?? extras?.approved_outline?.style_variant,
+        length_preset: extras?.enrichment?.length_preset,
+      },
+      { timeout: 60000 }
+    );
+    return res.data.data as { blog_id: string };
+  }
 }

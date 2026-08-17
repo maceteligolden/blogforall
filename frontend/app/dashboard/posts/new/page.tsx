@@ -17,7 +17,6 @@ import { BlockEditor } from "@/components/editor/BlockEditor";
 import { blocksToHtml, getContentBlocksValidationErrors } from "@/lib/utils/content-blocks";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 import { hasBodyContent, hasTitle } from "@/lib/utils/blog-form-validation";
-import { htmlToBlocks } from "@/lib/utils/html-to-blocks";
 import { contentToBlocks } from "@/lib/utils/content-to-blocks";
 import type { ContentBlock } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
@@ -25,7 +24,6 @@ import { BlogReviewCard } from "@/components/blog/blog-review-card";
 import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { AiPostWizard } from "@/components/blog/ai-post-wizard";
 import { useBlogDraft } from "@/lib/hooks/use-blog-draft";
-import type { GenerateBlogResponse } from "@/lib/api/services/blog-generation.service";
 import { Sparkles, PenTool, Save, Trash2, Keyboard, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { generationTracker } from "@/lib/analytics/flows/generation.tracker";
@@ -84,27 +82,11 @@ export default function NewBlogPage() {
 
   const derivedExcerpt = () => deriveExcerptFromContent(getContentHtml());
 
-  const handleWizardComplete = (generatedData: GenerateBlogResponse) => {
+  const handleWizardQueued = (_result: { blog_id: string }) => {
     generationTracker.confirmed({ generation_type: "ai-generate" });
-    setFormData((prev) => ({
-      ...prev,
-      title: generatedData.content.title,
-      content: generatedData.content.content,
-      content_blocks: htmlToBlocks(generatedData.content.content),
-      campaign_id: generatedData.campaign_id || prev.campaign_id,
-    }));
-
-    if (generatedData.review) {
-      setAutoReviewResult(generatedData.review);
-      setReviewHasNewInfo(true);
-      setReviewPanelTab("content");
-      setShowReview(true);
-    }
-
-    setMode("write");
     toast({
-      title: "Post generated",
-      description: "Review the draft, then save when you're ready.",
+      title: "Writing in the background",
+      description: "Your post will be ready to edit soon. We'll notify you when it's done.",
       variant: "success",
     });
   };
@@ -316,7 +298,8 @@ export default function NewBlogPage() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex-shrink-0">
         <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: "Create New Post" }]} />
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <h1 className="text-2xl font-display text-white shrink-0">Create New Post</h1>
+          <h1 className="text-2xl font-display text-white shrink-0">Blank post</h1>
+          <p className="text-sm text-gray-500 mt-1">Quiet fallback — most posts start from chat.</p>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-wrap">
             <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-1 border border-gray-800 shrink-0">
@@ -450,7 +433,7 @@ export default function NewBlogPage() {
                     }}
                   />
                 ) : mode === "ai-generate" ? (
-                  <AiPostWizard onComplete={handleWizardComplete} onError={(message) => setError(message)} />
+                  <AiPostWizard onQueued={handleWizardQueued} onError={(message) => setError(message)} />
                 ) : (
                   <>
                     <div>

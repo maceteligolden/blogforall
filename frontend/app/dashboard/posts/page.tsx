@@ -13,9 +13,11 @@ import { ConfirmModal } from "@/components/ui/modal";
 import { Search, Grid3x3, Table2, Trash2 } from "lucide-react";
 import { BlogHubTabs } from "@/components/blogs/blog-hub-tabs";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
+import { useStartWritingThread } from "@/lib/writing/use-start-writing-thread";
 
 export default function BlogsPage() {
   const router = useRouter();
+  const { startWritingThread } = useStartWritingThread();
   const [statusFilter, setStatusFilter] = useState<BlogStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
@@ -78,12 +80,21 @@ export default function BlogsPage() {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-display text-white">My Posts</h1>
-        <Button
-          className="bg-primary hover:bg-primary/90 text-white"
-          onClick={() => router.push("/dashboard/posts/new")}
-        >
-          Create Post
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            className="bg-primary hover:bg-primary/90 text-white"
+            onClick={() => void startWritingThread({})}
+          >
+            Write a post
+          </Button>
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/posts/new")}
+            className="text-xs text-gray-500 hover:text-gray-300 px-2"
+          >
+            Blank form
+          </button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -172,13 +183,13 @@ export default function BlogsPage() {
       {!filteredBlogs || filteredBlogs.length === 0 ? (
         <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
           <p className="text-gray-400 mb-4">
-            {searchQuery ? "No blogs found matching your search." : "No blogs found."}
+            {searchQuery ? "No posts found matching your search." : "No posts yet — start from a conversation."}
           </p>
           <Button
             className="bg-primary hover:bg-primary/90 text-white"
-            onClick={() => router.push("/dashboard/posts/new")}
+            onClick={() => void startWritingThread({})}
           >
-            Create Your First Post
+            Write a post
           </Button>
         </div>
       ) : viewMode === "cards" ? (
@@ -210,6 +221,8 @@ export default function BlogsPage() {
                           ? "bg-green-900/30 text-green-400 border border-green-800"
                           : blog.status === "scheduled"
                             ? "bg-amber-900/30 text-amber-400 border border-amber-800"
+                            : blog.status === "generating"
+                              ? "bg-primary/15 text-primary border border-primary/40"
                             : blog.status === "draft"
                               ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
                               : "bg-gray-800 text-gray-400 border border-gray-700"
@@ -325,6 +338,8 @@ export default function BlogsPage() {
                             ? "bg-green-900/30 text-green-400 border border-green-800"
                             : blog.status === "scheduled"
                               ? "bg-amber-900/30 text-amber-400 border border-amber-800"
+                              : blog.status === "generating"
+                                ? "bg-primary/15 text-primary border border-primary/40"
                               : blog.status === "draft"
                                 ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800"
                                 : "bg-gray-800 text-gray-400 border border-gray-700"

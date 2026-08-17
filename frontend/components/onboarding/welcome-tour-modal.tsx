@@ -69,12 +69,11 @@ export function WelcomeTourModal() {
           Welcome{profile?.first_name ? `, ${profile.first_name}` : ""}
         </h2>
         <p className="text-sm text-gray-400 mb-6">
-          Your workspace is ready. Finish brand setup so the AI can write in your voice — share your website or answer a
-          few quick questions in chat. You can also continue anytime from the setup progress bar in the navbar.
+          Your workspace is ready. I&apos;ll read back the Content Strategy in chat and ask if it sounds like you — then we can write the first post.
         </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <Button className="flex-1" onClick={() => void finishBrandSetup()} disabled={dismissing}>
-            {dismissing ? "…" : "Finish brand setup"}
+            {dismissing ? "…" : "Open chat"}
           </Button>
           <Button
             variant="outline"

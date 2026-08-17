@@ -10,7 +10,6 @@ import {
 } from "../../../../modules/orchestrator/ai/contracts/post-format";
 import { draftRoleInstructions, emptyResearchGuidance } from "../../../../modules/blog/ai/post-format-prompt";
 import { ContentStrategyService } from "../../../../modules/orchestrator/ai/skills/strategy/content-strategy.service";
-import { buildResearchPackageFromNotes } from "../../../../modules/orchestrator/ai/skills/research/build-package";
 import { planFromState } from "../../../../modules/orchestrator/ai/graph/plan.policy";
 import { createInitialOrchestratorState } from "../../../../modules/orchestrator/ai/graph/state";
 import { buildThinOptimizationReport } from "../../../../modules/orchestrator/ai/skills/content-optimization/thin-validators";
@@ -127,18 +126,7 @@ describe("genre-aware strategy + research", () => {
     expect(defaults.keyword_clusters.flat().some((k: string) => /best practices/i.test(k))).toBe(true);
   });
 
-  it("personal_story research package excludes best-practices questions", () => {
-    const built = buildResearchPackageFromNotes({
-      workspace_id: "ws",
-      topic: "bike ride",
-      depth: "full",
-      notes: [],
-      max_sources: 5,
-      post_format: "personal_story",
-    });
-    const questions = built.package.research_questions.map((q: { question: string }) => q.question).join(" ");
-    expect(questions).not.toMatch(/best practices/i);
-    expect(questions).toMatch(/concrete details/i);
+  it("personal_story and linkedin skip how-to research framing", () => {
     expect(skipsHowToResearch("personal_story")).toBe(true);
     expect(skipsHowToResearch("linkedin_post")).toBe(true);
     expect(skipsHowToResearch("productivity")).toBe(false);

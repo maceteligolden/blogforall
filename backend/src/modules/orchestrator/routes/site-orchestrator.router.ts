@@ -25,7 +25,7 @@ router.post("/chat", validateBody(V.orchestratorChatBodySchema), v2Controller.ch
 router.post("/chat/stream", validateBody(V.orchestratorChatBodySchema), v2Controller.chatStream);
 router.post("/onboarding/chat", validateBody(V.orchestratorOnboardingChatBodySchema), controller.onboardingChat);
 router.post("/onboarding/start", controller.startOnboardingInterview);
-router.post("/voice/tts", validateBody(V.voiceTtsBodySchema), controller.voiceTts);
+router.post("/voice/tts", validateBody(V.voiceTtsBodySchema), v2Controller.voiceTts);
 
 router.post("/threads/open", validateBody(V.openThreadBodySchema), controller.openThread);
 router.get("/threads", validateQuery(V.threadListQuerySchema), controller.listThreads);

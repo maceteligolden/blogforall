@@ -8,7 +8,7 @@ export function BusinessContextPanel() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/dashboard/business");
+    router.replace("/dashboard/strategy");
   }, [router]);
 
   return (

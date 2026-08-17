@@ -38,6 +38,18 @@ export class OrchestratorApprovalRepository {
     }).sort({ requested_at: -1 });
   }
 
+  async findPendingCampaignRoadmap(
+    siteId: string,
+    campaignId: string
+  ): Promise<OrchestratorApproval | null> {
+    return OrchestratorApprovalModel.findOne({
+      site_id: siteId,
+      kind: OrchestratorApprovalKind.CAMPAIGN_ROADMAP_APPROVAL,
+      status: OrchestratorApprovalStatus.PENDING,
+      "payload.campaign_id": campaignId,
+    }).sort({ requested_at: -1 });
+  }
+
   async listForUser(
     siteId: string,
     userId: string,
@@ -81,6 +93,35 @@ export class OrchestratorApprovalRepository {
           decided_by_user_id: decidedByUserId,
           ...(decisionNote ? { decision_note: decisionNote } : {}),
           updated_at: new Date(),
+        },
+      },
+      { new: true }
+    );
+  }
+
+  async revertToPending(approvalId: string, siteId: string): Promise<OrchestratorApproval | null> {
+    return OrchestratorApprovalModel.findOneAndUpdate(
+      {
+        _id: approvalId,
+        site_id: siteId,
+        status: {
+          $in: [
+            OrchestratorApprovalStatus.APPROVED,
+            OrchestratorApprovalStatus.REJECTED,
+            OrchestratorApprovalStatus.EXECUTED,
+          ],
+        },
+      },
+      {
+        $set: {
+          status: OrchestratorApprovalStatus.PENDING,
+          updated_at: new Date(),
+        },
+        $unset: {
+          decided_at: 1,
+          decided_by_user_id: 1,
+          decision_note: 1,
+          execution_result: 1,
         },
       },
       { new: true }

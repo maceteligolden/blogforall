@@ -9,5 +9,5 @@ export const BRAND_SETUP_ITEMS = [
 
 export const SETUP_INTERVIEW_PENDING_KEY = "bloggr_setup_interview_pending";
 export const SETUP_BANNER_DISMISSED_KEY = "bloggr_setup_banner_dismissed";
-/** Prefills dashboard chat composer when refining business data from /dashboard/business. */
+/** Prefills dashboard chat composer when refining Content Strategy. */
 export const BUSINESS_REFINE_PROMPT_KEY = "bloggr_business_refine_prompt";

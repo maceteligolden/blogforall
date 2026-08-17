@@ -58,7 +58,7 @@ export function ChatMessage({
     viewCtaLabel ??
     (artifactTool?.startsWith("blogs.") && hasDraftEntity
       ? "View draft →"
-      : artifactTool?.startsWith("campaigns.")
+      : artifactTool?.startsWith("campaigns.") || artifactTool?.startsWith("campaign_")
         ? "View campaign →"
         : artifactTool?.startsWith("strategy.")
           ? "View strategy →"

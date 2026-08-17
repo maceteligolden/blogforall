@@ -74,7 +74,7 @@ describe("T3.1 plan policy + edges", () => {
     expect(plan.skill_args?.purpose).toBe("clarify");
   });
 
-  it("quick_draft sequences research → writing → optimize", () => {
+  it("quick_draft sequences research → outline HITL → draft → optimize", () => {
     const base = createInitialOrchestratorState({
       turn_id: "t1",
       thread_id: "th",
@@ -98,9 +98,25 @@ describe("T3.1 plan policy + edges", () => {
 
     const withPkg = { ...base, research_package_id: "rp_1", slots: { topic: "AI agents" } };
     expect(planFromState(withPkg).skill_id).toBe("writing");
+    expect(planFromState(withPkg).skill_args?.action).toBe("outline");
+
+    const withOutline = {
+      ...withPkg,
+      outline: { title: "AI Agents", sections: [{ heading: "Intro", summary: "…" }] },
+    };
+    const paused = planFromState(withOutline);
+    expect(paused.next).toBe("compose");
+    expect(paused.confirmation?.kind).toBe("outline_approval");
+
+    const approved = {
+      ...withOutline,
+      slots: { ...withOutline.slots, outline_approved: true },
+    };
+    expect(planFromState(approved).skill_id).toBe("writing");
+    expect(planFromState(approved).skill_args?.action).toBe("draft");
 
     const withDraft = {
-      ...withPkg,
+      ...approved,
       draft: { title: "T", content: "<p>x</p>" },
     };
     expect(planFromState(withDraft).skill_id).toBe("content_optimization");
@@ -183,7 +199,7 @@ describe("T3.1 orchestrator graph invokeTurn", () => {
     expect(out.progress_events.some((e) => e.type === "persist")).toBe(true);
   });
 
-  it("quick_draft runs research → writing → optimize with mocked skills", async () => {
+  it("quick_draft runs research → outline and pauses for approval", async () => {
     const memory = {
       retrieve: jest.fn(async () => ({
         workspace_slice: {},
@@ -211,31 +227,18 @@ describe("T3.1 orchestrator graph invokeTurn", () => {
         },
       },
     }));
-    registry.register("writing", async () => ({
-      summary: "drafted",
-      patch: {
-        draft: {
-          title: "AI Agents Guide",
-          content: "<p>Body</p>",
-          excerpt: "Excerpt",
+    registry.register("writing", async (_s, args) => {
+      expect(args.action).toBe("outline");
+      return {
+        summary: "outlined",
+        patch: {
+          outline: {
+            title: "AI Agents Guide",
+            sections: [{ heading: "Intro", summary: "What an agent is" }],
+          },
         },
-      },
-    }));
-    registry.register("content_optimization", async () => ({
-      summary: "optimized",
-      patch: {
-        optimization_report_id: "opt_1",
-        optimization_plan: {
-          version: 1,
-          critical: [],
-          high: [],
-          medium: [],
-          low: [],
-          writing_brief: "Looks good",
-        },
-        quality_gate_passed: true,
-      },
-    }));
+      };
+    });
 
     const compiled = buildOrchestratorGraph({ memory: memory as any, registry });
     const out = await invokeTurn(compiled, {
@@ -255,10 +258,10 @@ describe("T3.1 orchestrator graph invokeTurn", () => {
       }),
     });
 
-    expect(out.skills_run_this_turn).toBe(3);
+    expect(out.skills_run_this_turn).toBe(2);
     expect(out.research_package_id).toBe("rp_1");
-    expect(out.draft).toBeTruthy();
-    expect(out.quality_gate_passed).toBe(true);
-    expect(out.reply).toMatch(/Research|Draft|Optimization/i);
+    expect(out.outline).toBeTruthy();
+    expect(out.draft).toBeFalsy();
+    expect(out.plan?.confirmation?.kind).toBe("outline_approval");
   });
 });

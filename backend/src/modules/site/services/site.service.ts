@@ -35,6 +35,7 @@ export class SiteService {
     const site = await this.siteRepository.createWithOwner(ownerId, {
       name: input.name,
       description: input.description,
+      website_url: input.website_url,
       owner: ownerId,
       status: SiteStatus.ACTIVE,
     });
@@ -46,7 +47,12 @@ export class SiteService {
       try {
         await this.campaignService.ensureDefaultCampaign(siteId, ownerId);
         await this.businessKnowledgeService.seedFromWorkspaceMemory(siteId, ownerId);
-        await this.workspaceStrategyService.ensureStrategy(siteId, ownerId);
+        if (input.website_url) {
+          await this.workspaceStrategyService.createGeneratingStub(siteId, ownerId, input.website_url);
+          this.workspaceStrategyService.startBackgroundGenerate(siteId, ownerId, input.website_url);
+        } else {
+          await this.workspaceStrategyService.ensureStrategy(siteId, ownerId);
+        }
       } catch (err) {
         logger.warn(
           "Strategic intelligence bootstrap after site create failed",
@@ -213,6 +219,9 @@ export class SiteService {
     }
 
     logger.info("Site updated", { siteId, userId }, "SiteService");
+    if (input.website_url) {
+      this.workspaceStrategyService.startBackgroundGenerate(siteId, userId, input.website_url);
+    }
     return updatedSite;
   }
 

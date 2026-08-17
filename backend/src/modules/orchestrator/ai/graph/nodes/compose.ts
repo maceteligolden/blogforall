@@ -2,6 +2,10 @@ import type { ResearchPackage } from "../../contracts/research-package";
 import type { OrchestratorState } from "../state";
 
 function formatResearchReport(pkg: ResearchPackage, summary?: OrchestratorState["research_summary"]): string {
+  const extra = pkg as ResearchPackage & { report_markdown?: string };
+  if (extra.report_markdown?.trim()) {
+    return extra.report_markdown.trim();
+  }
   const topic = pkg.topic || summary?.topic || "this topic";
   const notes = [...pkg.facts, ...pkg.definitions, ...pkg.statistics, ...pkg.examples, ...pkg.recent_developments]
     .map((f) => f.text.trim())
@@ -72,32 +76,13 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
   }
   // Strategy artifacts are discussed via Conversation skill — never dump raw "Strategy draft:" to chat.
 
-  const hitlResearch =
-    state.workflow_stage === "research" ||
-    state.metadata?.writing_checkpoint === "research" ||
-    state.plan?.confirmation?.kind === "research_approval";
   const hitlOutline =
     state.workflow_stage === "outline" ||
     state.metadata?.writing_checkpoint === "outline" ||
     state.plan?.confirmation?.kind === "outline_approval";
 
   if (state.research_package || state.research_summary) {
-    if (hitlResearch && !state.outline && !state.draft) {
-      // Card owns the full board; also include a short bullet preview so findings
-      // are never "empty" if the card payload fails to render.
-      const preview = [
-        ...(state.research_package?.facts ?? []).map((f) => f.text),
-        ...(state.research_package?.definitions ?? []).map((f) => f.text),
-        ...(state.research_package?.statistics ?? []).map((f) => f.text),
-      ]
-        .map((t) => t.trim())
-        .filter(Boolean)
-        .slice(0, 5);
-      parts.push("Research is ready — review the findings below.");
-      if (preview.length) {
-        parts.push("", ...preview.map((t) => `• ${t.slice(0, 180)}`));
-      }
-    } else if (state.research_package) {
+    if (state.research_package) {
       parts.push(formatResearchReport(state.research_package, state.research_summary));
     } else if (state.research_summary) {
       parts.push(
@@ -168,7 +153,7 @@ export function composeNode(state: OrchestratorState): Partial<OrchestratorState
       ctx?.clarification_question?.trim() ||
         "What should we tackle next — a draft, research, or something else in the workspace?"
     );
-  } else if (!hitlResearch && !hitlOutline && !parts[parts.length - 1]?.includes("?")) {
+  } else if (!hitlOutline && !parts[parts.length - 1]?.includes("?")) {
     parts.push("Want me to tweak anything, or shall we move on?");
   }
 

@@ -54,7 +54,7 @@ describe("T3.3 quick_draft e2e + M3 parity checklist", () => {
     expect(resolveWorkflowMode(urgent)).toBe("quick_draft");
   });
 
-  it("quick_draft path: research lite → writing → optimize; retrieve once; no writer search", async () => {
+  it("quick_draft path: research lite → outline HITL; retrieve once; no writer search", async () => {
     const retrieve = jest.fn(async () => ({
       workspace_slice: { brand_voice: "clear" },
       preferences: [],
@@ -90,15 +90,14 @@ describe("T3.3 quick_draft e2e + M3 parity checklist", () => {
     });
     registry.register("writing", async (state, args) => {
       expect(state.research_package_id).toBe("rp_qd");
-      expect(args.action).toBe("draft");
+      expect(args.action).toBe("outline");
       writingSawSearch = writingToolAllowlist([...WRITING_FORBIDDEN_TOOLS, "blog.save"]).includes("search.web");
       return {
-        summary: "drafted without search",
+        summary: "outlined without search",
         patch: {
-          draft: {
+          outline: {
             title: "5 Tips for Remote Hiring",
-            content: "<p>Tips</p>",
-            excerpt: "Tips for founders",
+            sections: [{ heading: "Tips", summary: "Practical hiring steps" }],
           },
         },
       };
@@ -145,10 +144,11 @@ describe("T3.3 quick_draft e2e + M3 parity checklist", () => {
 
     expect(out.mode).toBe("quick_draft");
     expect(out.skills_run_this_turn).toBeLessThanOrEqual(MVP_LOCKS.maxSkillsPerTurn);
-    expect(out.skills_run_this_turn).toBe(3);
+    expect(out.skills_run_this_turn).toBe(2);
     expect(out.research_package_id).toBe("rp_qd");
-    expect(out.draft).toBeTruthy();
-    expect(out.quality_gate_passed).toBe(true);
+    expect(out.outline).toBeTruthy();
+    expect(out.draft).toBeFalsy();
+    expect(out.plan?.confirmation?.kind).toBe("outline_approval");
     expect(out.reply).toBeTruthy();
     expect(retrieve).toHaveBeenCalledTimes(1);
     expect(writingSawSearch).toBe(false);

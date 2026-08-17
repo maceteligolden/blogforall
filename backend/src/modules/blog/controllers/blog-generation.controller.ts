@@ -7,7 +7,7 @@ import {
   type PostOutline,
   type TopicSuggestion,
 } from "../services/interactive-post-generation.service";
-import { sendSuccess } from "../../../shared/helper/response.helper";
+import { sendSuccess, sendAccepted } from "../../../shared/helper/response.helper";
 import { BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
@@ -20,6 +20,11 @@ import { getRequestIdFromContext, setRequestContextFlow } from "../../../shared/
 import { ObservabilityFlow } from "../../../shared/observability/flows";
 import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant";
 import type { BlogUserGenerationParams } from "../ai/types";
+import { BlogService } from "../services/blog.service";
+import { NotificationService } from "../../notification/services/notification.service";
+import { RealtimeService, REALTIME_EVENTS } from "../../../shared/realtime";
+import { BlogStatus } from "../../../shared/constants";
+import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 import {
   blogGenerationAnalyzeBodySchema,
   blogGenerationBodySchema,
@@ -156,7 +161,10 @@ export class BlogGenerationController {
   constructor(
     private blogGenerationService: BlogGenerationService,
     private interactivePostGeneration: InteractivePostGenerationService,
-    private tokenEnforcement: TokenEnforcementService
+    private tokenEnforcement: TokenEnforcementService,
+    private blogService: BlogService,
+    private notificationService: NotificationService,
+    private realtimeService: RealtimeService
   ) {}
 
   suggestTopics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -258,9 +266,15 @@ export class BlogGenerationController {
       setRequestContextFlow(ObservabilityFlow.BLOG_GENERATION);
       const userId = getJwtUserId(req);
       assertBlogAiRateLimit(userId);
+      const siteId = String(req.params.siteId || "");
       const body = req.validatedBody as GenerateBody;
       const { prompt, analysis: rawAnalysis } = body;
-      const userParams = userParamsFromGenerateBody(body, this.interactivePostGeneration);
+      const campaignId = body.campaign_id ?? body.approved_outline?.campaign_id;
+      const userParams = await this.interactivePostGeneration.withCampaignConstraints(
+        userParamsFromGenerateBody(body, this.interactivePostGeneration),
+        siteId,
+        campaignId
+      );
       const trimmedPrompt = prompt.trim();
 
       const full = await this.tokenEnforcement.runWithReservation({
@@ -283,7 +297,18 @@ export class BlogGenerationController {
                 "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
             );
           }
-          return this.blogGenerationService.generateWithReview(trimmedPrompt, promptAnalysis, userParams);
+          const generated = await this.blogGenerationService.generateWithReview(
+            trimmedPrompt,
+            promptAnalysis,
+            userParams
+          );
+          await this.interactivePostGeneration.assertDraftAlignsWithCampaign({
+            siteId,
+            campaignId,
+            title: generated.content.title,
+            content: generated.content.content,
+          });
+          return generated;
         },
       });
       logger.info(
@@ -296,21 +321,176 @@ export class BlogGenerationController {
         content: full.content,
         analysis: full.analysis,
         review: full.review,
-        campaign_id: body.campaign_id ?? body.approved_outline?.campaign_id,
+        campaign_id: campaignId,
       });
     } catch (error) {
       next(error);
     }
   };
 
+  generateBlogBackground = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      setRequestContextFlow(ObservabilityFlow.BLOG_GENERATION);
+      const userId = getJwtUserId(req);
+      assertBlogAiRateLimit(userId);
+      const siteId = String(req.params.siteId || "");
+      const body = req.validatedBody as GenerateBody;
+      const campaignId = body.campaign_id ?? body.approved_outline?.campaign_id;
+      const title = (body.approved_outline?.working_title || body.prompt).slice(0, 200).trim() || "Untitled draft";
+      const blog = await this.blogService.createBlog(userId, siteId, {
+        title,
+        content: "<p>This draft is being written. It will be ready to edit shortly.</p>",
+        status: BlogStatus.GENERATING,
+        campaign_id: campaignId,
+      });
+      const blogId = String(blog._id);
+      sendAccepted(res, "Draft generation started", { blog_id: blogId });
+
+      const requestId = getRequestIdFromContext(req);
+      const trimmedPrompt = body.prompt.trim();
+      void this.runBackgroundGeneration({
+        userId,
+        siteId,
+        blogId,
+        body,
+        campaignId,
+        trimmedPrompt,
+        requestId,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  private async runBackgroundGeneration(input: {
+    userId: string;
+    siteId: string;
+    blogId: string;
+    body: GenerateBody;
+    campaignId?: string;
+    trimmedPrompt: string;
+    requestId?: string;
+  }): Promise<void> {
+    try {
+      const userParams = await this.interactivePostGeneration.withCampaignConstraints(
+        userParamsFromGenerateBody(input.body, this.interactivePostGeneration),
+        input.siteId,
+        input.campaignId
+      );
+      const full = await this.tokenEnforcement.runWithReservation({
+        userId: input.userId,
+        feature: TokenLedgerFeature.BLOG_GENERATE,
+        requestId: input.requestId ?? `bg-generate:${input.blogId}`,
+        estimate: {
+          feature: TokenLedgerFeature.BLOG_GENERATE,
+          promptText: input.trimmedPrompt,
+          wordCount: userParams?.word_count,
+        },
+        fn: async () => {
+          let promptAnalysis = input.body.analysis as PromptAnalysis | undefined;
+          if (!promptAnalysis) {
+            promptAnalysis = await this.blogGenerationService.analyzePrompt(input.trimmedPrompt, userParams);
+          }
+          if (!promptAnalysis.is_valid) {
+            throw new BadRequestError(
+              promptAnalysis.rejection_reason ||
+                "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
+            );
+          }
+          const generated = await this.blogGenerationService.generateWithReview(
+            input.trimmedPrompt,
+            promptAnalysis,
+            userParams
+          );
+          await this.interactivePostGeneration.assertDraftAlignsWithCampaign({
+            siteId: input.siteId,
+            campaignId: input.campaignId,
+            title: generated.content.title,
+            content: generated.content.content,
+          });
+          return generated;
+        },
+      });
+
+      await this.blogService.updateBlog(input.blogId, input.siteId, input.userId, {
+        title: full.content.title,
+        content: full.content.content,
+        excerpt: full.content.excerpt,
+        meta: full.content.meta
+          ? {
+              description: full.content.meta.description ?? undefined,
+              keywords: full.content.meta.keywords ?? undefined,
+            }
+          : undefined,
+        status: BlogStatus.DRAFT,
+      });
+
+      this.realtimeService.emitToUser(
+        input.userId,
+        REALTIME_EVENTS.BLOG_STATUS_CHANGED,
+        { blogId: input.blogId, siteId: input.siteId, status: BlogStatus.DRAFT },
+        { siteId: input.siteId }
+      );
+
+      await this.notificationService.createAndSend({
+        channel: NotificationChannel.IN_APP,
+        type: NotificationType.BLOG_DRAFT_READY,
+        recipientUserId: input.userId,
+        title: "Draft ready — open to edit",
+        body: `"${full.content.title}" is ready. Open it to review and edit.`,
+        payload: { blog_id: input.blogId, site_id: input.siteId },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(
+        "Background blog generation failed",
+        error instanceof Error ? error : new Error(message),
+        { blogId: input.blogId, siteId: input.siteId },
+        "BlogGenerationController"
+      );
+      try {
+        await this.blogService.updateBlog(input.blogId, input.siteId, input.userId, {
+          content: `<p>Draft generation failed: ${message}</p>`,
+          status: BlogStatus.DRAFT,
+        });
+      } catch {
+        /* ignore follow-up write errors */
+      }
+      this.realtimeService.emitToUser(
+        input.userId,
+        REALTIME_EVENTS.BLOG_STATUS_CHANGED,
+        { blogId: input.blogId, siteId: input.siteId, status: BlogStatus.DRAFT, error: message },
+        { siteId: input.siteId }
+      );
+      try {
+        await this.notificationService.createAndSend({
+          channel: NotificationChannel.IN_APP,
+          type: NotificationType.BLOG_DRAFT_READY,
+          recipientUserId: input.userId,
+          title: "Draft generation failed",
+          body: message,
+          payload: { blog_id: input.blogId, site_id: input.siteId },
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
   generateBlogStream = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       setRequestContextFlow(ObservabilityFlow.BLOG_GENERATION);
       const userId = getJwtUserId(req);
       assertBlogAiRateLimit(userId);
+      const siteId = String(req.params.siteId || "");
       const body = req.validatedBody as GenerateBody;
       const { prompt, analysis: rawAnalysis } = body;
-      const userParams = userParamsFromGenerateBody(body, this.interactivePostGeneration);
+      const campaignId = body.campaign_id ?? body.approved_outline?.campaign_id;
+      const userParams = await this.interactivePostGeneration.withCampaignConstraints(
+        userParamsFromGenerateBody(body, this.interactivePostGeneration),
+        siteId,
+        campaignId
+      );
       const trimmedPrompt = prompt.trim();
 
       await this.tokenEnforcement.runWithReservation({
@@ -351,20 +531,23 @@ export class BlogGenerationController {
           };
 
           try {
-            const campaignId = body.campaign_id ?? body.approved_outline?.campaign_id;
-            await this.blogGenerationService.streamGenerate(
+            const generated = await this.blogGenerationService.streamGenerate(
               trimmedPrompt,
               promptAnalysis!,
               userParams,
               ac.signal,
               (event, data) => {
-                if (event === "final" && data && typeof data === "object") {
-                  emit(event, { ...(data as Record<string, unknown>), campaign_id: campaignId });
-                  return;
-                }
+                if (event === "final") return;
                 emit(event, data);
               }
             );
+            await this.interactivePostGeneration.assertDraftAlignsWithCampaign({
+              siteId,
+              campaignId,
+              title: generated.content.title,
+              content: generated.content.content,
+            });
+            emit("final", { ...generated, campaign_id: campaignId });
             res.end();
           } catch (err) {
             emit("error", { message: (err as Error).message });

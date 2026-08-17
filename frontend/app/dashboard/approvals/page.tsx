@@ -29,6 +29,8 @@ function formatApprovalKind(kind: OrchestratorApproval["kind"]): string {
       return "Scheduled post review";
     case "campaign_proposal":
       return "Campaign proposal";
+    case "campaign_roadmap_approval":
+      return "Campaign roadmap";
     default:
       return kind;
   }

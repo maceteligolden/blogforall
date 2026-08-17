@@ -35,10 +35,13 @@ function artifactLabel(tool: string): string {
     case "campaigns.get":
     case "campaigns.create":
     case "campaigns.update":
+    case "campaign_get":
+    case "campaign_create":
+    case "campaign_update":
       return "Campaign";
     case "strategy.get":
     case "strategy.update":
-      return "Strategy";
+      return "Content Strategy";
     default:
       return tool.replace(/\./g, " · ");
   }
@@ -151,19 +154,35 @@ function CampaignArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
 
 function StrategyArtifact({ artifact }: { artifact: OrchestratorArtifact }) {
   const d = artifact.outputData;
-  const purpose = strField(d, "purpose") ?? "Workspace strategy";
-  const audience = strField(d, "audience_summary");
+  const document =
+    d.document && typeof d.document === "object" ? (d.document as Record<string, unknown>) : undefined;
+  const northStar =
+    document && typeof document.north_star === "object"
+      ? strField(document.north_star as Record<string, unknown>, "what_we_are")
+      : undefined;
+  const purpose = northStar ?? strField(d, "purpose") ?? "Content Strategy";
+  const audienceObj =
+    document && typeof document.audience === "object"
+      ? (document.audience as Record<string, unknown>)
+      : undefined;
+  const primary =
+    audienceObj && typeof audienceObj.primary === "object"
+      ? (audienceObj.primary as Record<string, unknown>)
+      : undefined;
+  const audience = (primary ? strField(primary, "who") : undefined) ?? strField(d, "audience_summary");
   const outcomes = listField(d, "long_term_outcomes");
   const principles = listField(d, "principles");
   const perception = listField(d, "perception_goals");
   const constraints = listField(d, "constraints");
   const version = typeof d.version === "number" ? d.version : undefined;
+  const genStatus = strField(d, "generation_status");
 
   return (
     <Card className="bg-gray-900 border-gray-800 p-4 space-y-4">
       <div>
         <p className="text-[10px] uppercase tracking-wide text-gray-500">
-          Strategy{version != null ? ` · v${version}` : ""}
+          Content Strategy{version != null ? ` · v${version}` : ""}
+          {genStatus ? ` · ${genStatus}` : ""}
         </p>
         <h3 className="text-base font-semibold text-white mt-0.5 leading-snug">{purpose}</h3>
       </div>
@@ -536,6 +555,9 @@ function ArtifactContent({ artifact }: { artifact: OrchestratorArtifact }) {
     case "campaigns.get":
     case "campaigns.create":
     case "campaigns.update":
+    case "campaign_get":
+    case "campaign_create":
+    case "campaign_update":
       return <CampaignArtifact artifact={artifact} />;
     case "strategy.get":
     case "strategy.update":
@@ -657,7 +679,8 @@ export function OrchestratorArtifactPanel({
                 ? "Blog draft"
                 : isBlogList
                   ? "Blog list"
-                  : activeArtifact?.tool.startsWith("campaigns.")
+                  : activeArtifact?.tool.startsWith("campaigns.") ||
+                      activeArtifact?.tool.startsWith("campaign_")
                     ? "Campaign"
                     : activeArtifact?.tool.startsWith("strategy.")
                       ? "Strategy"

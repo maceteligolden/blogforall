@@ -1,6 +1,144 @@
 import apiClient from "../client";
 import { API_ENDPOINTS } from "../config";
 
+export type ContentStrategyGenerationStatus = "generating" | "ready" | "failed";
+
+export interface ContentStrategyAudienceProfile {
+  who: string;
+  situation: string;
+  jtbd: string;
+  beliefs_to_change: string[];
+}
+
+export interface ContentStrategyDocument {
+  north_star: {
+    what_we_are: string;
+    what_we_sell: string;
+    commercial_goal: string;
+    growth_priority: string;
+  };
+  audience: {
+    primary: ContentStrategyAudienceProfile;
+    secondary?: ContentStrategyAudienceProfile;
+    awareness_stage: string;
+  };
+  positioning: {
+    category: string;
+    differentiation: string;
+    value_proposition: string;
+    competitors: Array<{ name: string; notes?: string }>;
+    statement: string;
+  };
+  narrative: {
+    core_message: string;
+    supporting_messages: string[];
+    proof_points: string[];
+    claims_we_can_make: string[];
+    claims_we_must_not_make: string[];
+    editorial_pov: string;
+  };
+  content_franchise: {
+    pillars: Array<{
+      name: string;
+      in_scope: string[];
+      out_of_scope: string[];
+      authority_thesis: string;
+    }>;
+    offer_mapping: Array<{ pillar: string; product_or_cta: string }>;
+  };
+  voice: {
+    personality: string;
+    voice: string;
+    tone_range: string;
+    writing_principles: string[];
+    words_to_use: string[];
+    words_to_avoid: string[];
+  };
+  jobs_of_content: {
+    awareness: number;
+    authority: number;
+    demand: number;
+    conversion: number;
+    retention: number;
+  };
+  conversion: {
+    desired_action: string;
+    primary_cta: string;
+    secondary_cta: string;
+    how_content_supports_offer: string;
+  };
+  guardrails: {
+    always: string[];
+    never: string[];
+    accuracy_bar: string;
+    audience_restrictions: string[];
+  };
+  measurement: {
+    content_kpis: string[];
+    business_outcomes: string[];
+  };
+  discovery?: {
+    topic_clusters: string[];
+    search_intent_posture: string;
+    aeo_notes: string;
+  };
+  distribution?: {
+    blog_role: string;
+    email_role: string;
+    social_role: string;
+  };
+}
+
+export function emptyContentStrategyDocument(): ContentStrategyDocument {
+  return {
+    north_star: { what_we_are: "", what_we_sell: "", commercial_goal: "", growth_priority: "" },
+    audience: {
+      primary: { who: "", situation: "", jtbd: "", beliefs_to_change: [] },
+      awareness_stage: "",
+    },
+    positioning: {
+      category: "",
+      differentiation: "",
+      value_proposition: "",
+      competitors: [],
+      statement: "",
+    },
+    narrative: {
+      core_message: "",
+      supporting_messages: [],
+      proof_points: [],
+      claims_we_can_make: [],
+      claims_we_must_not_make: [],
+      editorial_pov: "",
+    },
+    content_franchise: { pillars: [], offer_mapping: [] },
+    voice: {
+      personality: "",
+      voice: "",
+      tone_range: "",
+      writing_principles: [],
+      words_to_use: [],
+      words_to_avoid: [],
+    },
+    jobs_of_content: { awareness: 0.2, authority: 0.2, demand: 0.2, conversion: 0.2, retention: 0.2 },
+    conversion: { desired_action: "", primary_cta: "", secondary_cta: "", how_content_supports_offer: "" },
+    guardrails: { always: [], never: [], accuracy_bar: "", audience_restrictions: [] },
+    measurement: { content_kpis: [], business_outcomes: [] },
+  };
+}
+
+export function isContentStrategyReady(strategy?: WorkspaceStrategy | null): boolean {
+  if (!strategy || strategy.generation_status === "generating") return false;
+  if (strategy.generation_status === "failed") return false;
+  const d = strategy.document;
+  return Boolean(
+    d?.north_star?.what_we_are?.trim() ||
+      d?.positioning?.statement?.trim() ||
+      d?.audience?.primary?.who?.trim() ||
+      strategy.purpose?.trim()
+  );
+}
+
 export interface WorkspaceStrategy {
   _id?: string;
   site_id: string;
@@ -12,6 +150,11 @@ export interface WorkspaceStrategy {
   constraints: string[];
   version: number;
   status: "active" | "archived";
+  generation_status?: ContentStrategyGenerationStatus;
+  website_url?: string;
+  document: ContentStrategyDocument;
+  section_confidence?: Record<string, { confidence: number; source?: string }>;
+  generation_error?: string;
   generated_from?: string;
   confidence_summary?: number;
   created_at?: string;
@@ -61,20 +204,23 @@ export interface DecisionProposalResult {
 export class StrategicService {
   static async getStrategy(siteId: string) {
     const res = await apiClient.get(API_ENDPOINTS.STRATEGIC.STRATEGY(siteId));
-    return res.data.data as WorkspaceStrategy;
+    const raw = res.data.data as WorkspaceStrategy;
+    return {
+      ...raw,
+      document: raw.document ?? emptyContentStrategyDocument(),
+    } as WorkspaceStrategy;
   }
 
   static async updateStrategy(
     siteId: string,
-    patch: Partial<
-      Pick<
-        WorkspaceStrategy,
-        "purpose" | "long_term_outcomes" | "principles" | "audience_summary" | "perception_goals" | "constraints"
-      >
-    >
+    patch: Partial<WorkspaceStrategy> & { document?: ContentStrategyDocument; website_url?: string }
   ) {
     const res = await apiClient.patch(API_ENDPOINTS.STRATEGIC.STRATEGY(siteId), patch);
-    return res.data.data as WorkspaceStrategy;
+    const raw = res.data.data as WorkspaceStrategy;
+    return {
+      ...raw,
+      document: raw.document ?? emptyContentStrategyDocument(),
+    } as WorkspaceStrategy;
   }
 
   static async listStrategyVersions(siteId: string) {
@@ -82,9 +228,13 @@ export class StrategicService {
     return res.data.data as WorkspaceStrategy[];
   }
 
-  static async regenerateStrategy(siteId: string) {
-    const res = await apiClient.post(API_ENDPOINTS.STRATEGIC.STRATEGY_REGENERATE(siteId));
-    return res.data.data as WorkspaceStrategy;
+  static async regenerateStrategy(siteId: string, websiteUrl?: string) {
+    const res = await apiClient.post(API_ENDPOINTS.STRATEGIC.STRATEGY_REGENERATE(siteId), websiteUrl ? { website_url: websiteUrl } : {});
+    const raw = res.data.data as WorkspaceStrategy;
+    return {
+      ...raw,
+      document: raw.document ?? emptyContentStrategyDocument(),
+    } as WorkspaceStrategy;
   }
 
   static async listGaps(siteId: string) {

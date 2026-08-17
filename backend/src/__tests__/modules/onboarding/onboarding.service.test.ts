@@ -67,7 +67,7 @@ describe("OnboardingService.getSignupWizardStatus", () => {
     expect(status).toEqual({ stage: SignupWizardStage.COMPLETE });
   });
 
-  it("promotes onboarding sites to active and returns plan_selection", async () => {
+  it("promotes onboarding sites to active and completes the wizard", async () => {
     mockUserFindById.mockResolvedValue({ _id: "u1", plan_selection_completed_at: null });
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ONBOARDING }]);
     mockUpdate.mockResolvedValue({});
@@ -75,19 +75,19 @@ describe("OnboardingService.getSignupWizardStatus", () => {
     const status = await service.getSignupWizardStatus("u1");
 
     expect(mockUpdate).toHaveBeenCalledWith("s1", { status: SiteStatus.ACTIVE });
-    expect(status).toEqual({ stage: SignupWizardStage.PLAN_SELECTION, site_id: "s1" });
+    expect(status).toEqual({ stage: SignupWizardStage.COMPLETE, site_id: "s1" });
   });
 
-  it("returns plan_selection when site is active but plan not confirmed", async () => {
+  it("returns complete when a workspace exists, skipping plan and invite gates", async () => {
     mockUserFindById.mockResolvedValue({ _id: "u1", plan_selection_completed_at: null });
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
 
     const status = await service.getSignupWizardStatus("u1");
 
-    expect(status).toEqual({ stage: SignupWizardStage.PLAN_SELECTION, site_id: "s1" });
+    expect(status).toEqual({ stage: SignupWizardStage.COMPLETE, site_id: "s1" });
   });
 
-  it("returns invite when plan selected but invite prompt not dismissed", async () => {
+  it("returns complete when plan was selected but invite was not dismissed", async () => {
     mockUserFindById.mockResolvedValue({
       _id: "u1",
       plan_selection_completed_at: new Date(),
@@ -97,7 +97,7 @@ describe("OnboardingService.getSignupWizardStatus", () => {
 
     const status = await service.getSignupWizardStatus("u1");
 
-    expect(status).toEqual({ stage: SignupWizardStage.INVITE, site_id: "s1" });
+    expect(status).toEqual({ stage: SignupWizardStage.COMPLETE, site_id: "s1" });
   });
 
   it("returns complete when wizard finished", async () => {

@@ -24,6 +24,15 @@ export const orchestratorChatBodySchema = z.object({
   message: z.string().min(1).max(8000),
   session_mode: z.enum(["auto", "planning", "writing", "research", "review", "casual", "strategy"]).optional(),
   conversation_mode: z.boolean().optional(),
+  focus: z
+    .object({
+      campaign_id: z.string().min(1).optional(),
+      roadmap_sequence_index: z.number().int().min(0).optional(),
+      blog_id: z.string().min(1).optional(),
+      topic: z.string().min(1).max(400).optional(),
+      intent: z.string().max(2000).optional(),
+    })
+    .optional(),
   selection_context: z
     .object({
       blog_id: z.string().min(1),

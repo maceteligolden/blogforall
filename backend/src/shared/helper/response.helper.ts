@@ -34,6 +34,10 @@ export const sendCreated = (res: Response, message: string, data?: unknown): voi
   sendResponse({ res, code: HttpStatus.CREATED, message, data });
 };
 
+export const sendAccepted = (res: Response, message: string, data?: unknown): void => {
+  sendResponse({ res, code: HttpStatus.ACCEPTED, message, data });
+};
+
 export const sendNoContent = (res: Response, message: string): void => {
   sendResponse({ res, code: HttpStatus.NO_CONTENT, message });
 };

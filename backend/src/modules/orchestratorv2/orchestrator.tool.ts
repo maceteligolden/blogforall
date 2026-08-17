@@ -3,6 +3,13 @@ import { z } from "zod";
 import { container } from "tsyringe";
 import { WorkspaceStrategyService } from "../strategic-intelligence/services/workspace-strategy.service";
 import type { WorkspaceStrategy } from "../strategic-intelligence/repositories/workspace-strategy.repository";
+import {
+  formatContentStrategyDiff,
+  formatContentStrategyForPrompt,
+  mergeContentStrategyDocument,
+  parseContentStrategyDocument,
+  type ContentStrategyDocument,
+} from "../../shared/types/content-strategy.document";
 
 const strategyUpdateSchema = z.object({
   purpose: z.string().min(1).max(2000).optional(),
@@ -11,6 +18,7 @@ const strategyUpdateSchema = z.object({
   audience_summary: z.string().max(2000).optional(),
   perception_goals: z.array(z.string()).optional(),
   constraints: z.array(z.string()).optional(),
+  document: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type StrategyUpdateArgs = z.infer<typeof strategyUpdateSchema>;
@@ -27,47 +35,64 @@ function truncate(text: string, max = 160): string {
 }
 
 function formatStrategySummary(strategy: WorkspaceStrategy): string {
-  const outcomes = (strategy.long_term_outcomes ?? []).slice(0, 3).join("; ");
-  const principles = (strategy.principles ?? []).slice(0, 3).join("; ");
+  const doc = parseContentStrategyDocument(strategy.document);
+  const northStar = doc.north_star.what_we_are || strategy.purpose;
   return [
-    `Workspace strategy v${strategy.version}`,
-    `Purpose: ${truncate(strategy.purpose || "(empty)")}`,
-    `Audience: ${truncate(strategy.audience_summary || "(empty)")}`,
-    outcomes ? `Outcomes: ${truncate(outcomes)}` : null,
-    principles ? `Principles: ${truncate(principles)}` : null,
+    `Content Strategy v${strategy.version} (${strategy.generation_status ?? "ready"})`,
+    `North star: ${truncate(northStar || "(empty)")}`,
+    `Audience: ${truncate(doc.audience.primary.who || strategy.audience_summary || "(empty)")}`,
+    doc.positioning.statement ? `Positioning: ${truncate(doc.positioning.statement)}` : null,
+    doc.conversion.primary_cta ? `Primary CTA: ${truncate(doc.conversion.primary_cta)}` : null,
+    doc.content_franchise.pillars.length
+      ? `Pillars: ${truncate(doc.content_franchise.pillars.map((p) => p.name).join(", "))}`
+      : null,
+    "",
+    formatContentStrategyForPrompt(doc),
   ]
-    .filter(Boolean)
+    .filter((line) => line != null)
     .join("\n");
 }
 
-export function formatStrategyUpdateDraft(args: Record<string, unknown>): string {
-  const lines = ["Proposed workspace strategy update:"];
-  const fields: Array<[string, unknown]> = [
-    ["purpose", args.purpose],
-    ["audience_summary", args.audience_summary],
-    ["long_term_outcomes", args.long_term_outcomes],
-    ["principles", args.principles],
-    ["perception_goals", args.perception_goals],
-    ["constraints", args.constraints],
-  ];
-  for (const [key, value] of fields) {
-    if (value == null) continue;
-    if (Array.isArray(value)) {
-      if (value.length === 0) continue;
-      lines.push(`- ${key}: ${value.map(String).join("; ")}`);
-    } else if (typeof value === "string" && value.trim()) {
-      lines.push(`- ${key}: ${value.trim()}`);
-    }
+function proposedDocumentFromArgs(
+  current: ContentStrategyDocument,
+  args: Record<string, unknown>
+): ContentStrategyDocument {
+  let next = current;
+  if (args.document && typeof args.document === "object") {
+    next = mergeContentStrategyDocument(next, args.document as Partial<ContentStrategyDocument>);
   }
-  if (lines.length === 1) {
-    lines.push("- (no field changes detected)");
+  if (typeof args.purpose === "string" && args.purpose.trim()) {
+    next = mergeContentStrategyDocument(next, { north_star: { ...next.north_star, what_we_are: args.purpose } });
   }
-  lines.push("", "Approve to apply, or reject to keep the current strategy.");
-  return lines.join("\n");
+  if (typeof args.audience_summary === "string" && args.audience_summary.trim()) {
+    next = mergeContentStrategyDocument(next, {
+      audience: { ...next.audience, primary: { ...next.audience.primary, who: args.audience_summary } },
+    });
+  }
+  if (Array.isArray(args.constraints) && args.constraints.length) {
+    next = mergeContentStrategyDocument(next, {
+      guardrails: { ...next.guardrails, always: args.constraints as string[] },
+    });
+  }
+  return parseContentStrategyDocument(next);
+}
+
+export async function formatStrategyUpdateDraft(
+  args: Record<string, unknown>,
+  siteId?: string
+): Promise<string> {
+  if (!siteId) {
+    return "Proposed Content Strategy update. Approve to apply, or reject to keep the current strategy.";
+  }
+  const strategies = container.resolve(WorkspaceStrategyService);
+  const current = await strategies.getActive(siteId);
+  const before = parseContentStrategyDocument(current?.document);
+  const after = proposedDocumentFromArgs(before, args);
+  return formatContentStrategyDiff(before, after);
 }
 
 /**
- * Strategy tools owned by the workspace_strategy skill.
+ * Strategy tools owned by the content_strategy skill.
  * Not registered as peer tools on createAgent — unlocked via skill middleware.
  */
 export function createStrategyTools(ctx: StrategyToolContext) {
@@ -81,23 +106,23 @@ export function createStrategyTools(ctx: StrategyToolContext) {
     {
       name: "strategy_get",
       description:
-        "Read the active long-term WorkspaceStrategy for this workspace. Returns a compact summary for you — paraphrase for the user; never dump raw payloads.",
+        "Read the active Content Strategy for this workspace (editorial constitution). Returns a compact summary for you — paraphrase for the user; never dump raw payloads.",
       schema: z.object({}),
-    },
+    }
   );
 
   const strategy_update = tool(
     async (input: StrategyUpdateArgs) => {
       const parsed = strategyUpdateSchema.parse(input);
       const strategy = await strategies.update(ctx.siteId, ctx.userId, parsed);
-      return `Updated workspace strategy to v${strategy.version}. ${formatStrategySummary(strategy)}`;
+      return `Updated Content Strategy to v${strategy.version}. ${formatStrategySummary(strategy)}`;
     },
     {
       name: "strategy_update",
       description:
-        "Patch WorkspaceStrategy fields (purpose, audience_summary, long_term_outcomes, principles, perception_goals, constraints). Requires human approval. Show a before→after draft in chat before calling.",
+        "Patch Content Strategy fields (document sections: north_star, audience, positioning, narrative, pillars, voice, conversion, guardrails). Requires human approval. Call this whenever the user states a durable fact — do not wait for them to say 'update the strategy'.",
       schema: strategyUpdateSchema,
-    },
+    }
   );
 
   return [strategy_get, strategy_update] as const;

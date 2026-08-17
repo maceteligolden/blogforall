@@ -11,12 +11,13 @@ import type {
   OrchestratorSessionMode,
   OrchestratorThread,
   SetupInterviewStartResponse,
+  ThreadFocus,
   ThreadWithMessages,
   WorkspaceKnowledgeSource,
 } from "../types/orchestrator.types";
 import type { OrchestratorSelectionContext } from "@/lib/types/orchestrator-session.types";
 
-const ORCHESTRATOR_TURN_TIMEOUT_MS = 180_000;
+const ORCHESTRATOR_TURN_TIMEOUT_MS = 240_000;
 
 function parseSseBlocks(buffer: string): { events: Array<{ event: string; data: string }>; rest: string } {
   const parts = buffer.split("\n\n");
@@ -47,13 +48,15 @@ function buildChatBody(
     attachments?: OrchestratorChatAttachment[];
     selectionContext?: OrchestratorSelectionContext;
     conversationMode?: boolean;
+    focus?: ThreadFocus;
   }
 ): OrchestratorChatRequest {
   return {
     message,
     ...(threadId ? { thread_id: threadId } : {}),
-    ...(options?.sessionMode ? { session_mode: options.sessionMode } : {}),
+    session_mode: options?.sessionMode ?? "auto",
     ...(options?.conversationMode ? { conversation_mode: true } : {}),
+    ...(options?.focus ? { focus: options.focus } : {}),
     ...(options?.attachments?.length ? { attachments: options.attachments } : {}),
     ...(options?.selectionContext
       ? {
@@ -79,6 +82,7 @@ export class OrchestratorService {
       attachments?: OrchestratorChatAttachment[];
       selectionContext?: OrchestratorSelectionContext;
       conversationMode?: boolean;
+      focus?: ThreadFocus;
     }
   ): Promise<ChatTurnResponse> {
     const body = buildChatBody(message, threadId, options);
@@ -100,6 +104,7 @@ export class OrchestratorService {
       attachments?: OrchestratorChatAttachment[];
       selectionContext?: OrchestratorSelectionContext;
       conversationMode?: boolean;
+      focus?: ThreadFocus;
       onSentence?: (text: string) => void;
       signal?: AbortSignal;
     }
@@ -250,10 +255,14 @@ export class OrchestratorService {
     decision: "approved" | "rejected",
     note?: string
   ): Promise<OrchestratorApproval> {
-    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.APPROVAL_DECIDE(siteId, approvalId), {
-      decision,
-      ...(note ? { note } : {}),
-    });
+    const response = await apiClient.post(
+      API_ENDPOINTS.ORCHESTRATOR.APPROVAL_DECIDE(siteId, approvalId),
+      {
+        decision,
+        ...(note ? { note } : {}),
+      },
+      { timeout: ORCHESTRATOR_TURN_TIMEOUT_MS }
+    );
     const data = response.data?.data ?? response.data;
     return data?.approval ?? data;
   }

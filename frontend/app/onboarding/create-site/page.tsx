@@ -17,8 +17,8 @@ import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropo
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
-import { BrandSetupPreview } from "@/components/onboarding/brand-setup-preview";
 import { useToast } from "@/components/ui/toast";
+import { SETUP_INTERVIEW_PENDING_KEY } from "@/lib/onboarding/brand-setup-items";
 
 function CreateSitePageContent() {
   const router = useRouter();
@@ -26,8 +26,10 @@ function CreateSitePageContent() {
   const { toast } = useToast();
   const { abandonSignupAsync, isAbandoningSignup } = useAuth();
   const [name, setName] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [error, setError] = useState("");
   const [nameTouched, setNameTouched] = useState(false);
+  const [urlTouched, setUrlTouched] = useState(false);
 
   useOnboardingDropoff("workspace_details");
 
@@ -65,30 +67,39 @@ function CreateSitePageContent() {
     },
     onSiteReady: (site) => {
       queryClient.setQueryData(["onboarding", "signup-wizard"], {
-        stage: "plan_selection",
+        stage: "complete",
         site_id: site._id,
       });
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(SETUP_INTERVIEW_PENDING_KEY, site._id);
+      }
       toast({
         variant: "success",
         title: "Workspace ready",
-        description: `"${site.name}" is set up. Next, pick a plan.`,
+        description: `"${site.name}" is set up. I'll read back your Content Strategy in chat.`,
       });
-      router.push(`/onboarding/plans?siteId=${encodeURIComponent(site._id)}`);
+      router.push("/dashboard");
     },
   });
 
   const nameError = nameTouched && !name.trim() ? "Give your workspace a name to continue." : "";
+  const urlError = urlTouched && !websiteUrl.trim() ? "Add your website URL so we can generate Content Strategy." : "";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setNameTouched(true);
+    setUrlTouched(true);
     setError("");
     if (!name.trim()) {
       setError("Give your workspace a name to continue.");
       return;
     }
+    if (!websiteUrl.trim()) {
+      setError("Add your website URL so we can generate Content Strategy.");
+      return;
+    }
     workspaceTracker.creationStarted();
-    createSiteMutation.mutate({ name: name.trim() });
+    createSiteMutation.mutate({ name: name.trim(), website_url: websiteUrl.trim() });
   };
 
   const handleAbandonSignup = async () => {
@@ -110,8 +121,8 @@ function CreateSitePageContent() {
   return (
     <AuthSplitLayout>
       <AuthPageHeader
-        title="Name your workspace"
-        subtitle="Just a name for now — you'll finish brand setup with AI from the dashboard progress bar."
+        title="Create your workspace"
+        subtitle="We'll generate your Content Strategy from your website in the background."
       />
       <SignupWizardProgress stage="workspace_name" />
 
@@ -136,9 +147,28 @@ function CreateSitePageContent() {
           {nameError && <p className="text-xs text-red-300">{nameError}</p>}
         </div>
 
-        <BrandSetupPreview />
+        <div className="space-y-2">
+          <Label htmlFor="website">Website URL</Label>
+          <Input
+            id="website"
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+            onBlur={() => setUrlTouched(true)}
+            placeholder="https://example.com"
+            className="bg-gray-800 border-gray-700"
+          />
+          {urlError && <p className="text-xs text-red-300">{urlError}</p>}
+        </div>
 
-        <Button type="submit" className="w-full" disabled={createSiteMutation.isPending || !name.trim()}>
+        <p className="text-xs text-gray-500">
+          Next we&apos;ll generate Content Strategy from your website, then I&apos;ll read it back in chat — does this sound like you?
+        </p>
+
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={createSiteMutation.isPending || !name.trim() || !websiteUrl.trim()}
+        >
           {createSiteMutation.isPending ? "Creating…" : "Continue"}
         </Button>
       </form>

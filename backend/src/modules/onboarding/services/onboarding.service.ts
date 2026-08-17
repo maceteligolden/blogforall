@@ -152,18 +152,22 @@ export class OnboardingService {
 
     const primarySiteId = ownedSites[0]?._id?.toString();
 
-    if (!user.plan_selection_completed_at) {
-      return {
-        stage: SignupWizardStage.PLAN_SELECTION,
-        site_id: primarySiteId,
-      };
+    try {
+      await this.ensureFreePlanAndCompleteOnboarding(userId);
+    } catch (err) {
+      logger.warn(
+        "Could not auto-complete free plan after workspace create",
+        { userId, error: String(err) },
+        "OnboardingService"
+      );
     }
 
-    if (!user.workspace_invite_prompt_dismissed_at) {
-      return {
-        stage: SignupWizardStage.INVITE,
-        site_id: primarySiteId,
-      };
+    const updates: Record<string, unknown> = {};
+    if (!user.plan_selection_completed_at) updates.plan_selection_completed_at = new Date();
+    if (!user.workspace_invite_prompt_dismissed_at) updates.workspace_invite_prompt_dismissed_at = new Date();
+    if (Object.keys(updates).length > 0) {
+      updates.updated_at = new Date();
+      await this.userRepository.update(userId, updates);
     }
 
     return { stage: SignupWizardStage.COMPLETE, site_id: primarySiteId };

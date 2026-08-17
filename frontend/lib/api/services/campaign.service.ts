@@ -7,6 +7,13 @@ export interface CreateCampaignRequest {
   description?: string;
   goal: string;
   target_audience?: string;
+  desired_transformation?: string;
+  messaging?: string;
+  funnel_focus?: "awareness" | "consideration" | "conversion" | "full_funnel";
+  cta_strategy?: {
+    primary_cta?: string;
+    secondary_cta?: string;
+  };
   start_date: Date | string;
   end_date: Date | string;
   posting_frequency: "daily" | "weekly" | "biweekly" | "monthly" | "custom";
@@ -44,7 +51,15 @@ export interface Campaign {
   name: string;
   description?: string;
   goal: string;
+  is_default?: boolean;
   target_audience?: string;
+  desired_transformation?: string;
+  messaging?: string;
+  funnel_focus?: "awareness" | "consideration" | "conversion" | "full_funnel";
+  cta_strategy?: {
+    primary_cta?: string;
+    secondary_cta?: string;
+  };
   status: "draft" | "active" | "paused" | "completed" | "cancelled";
   start_date: string;
   end_date: string;
@@ -73,7 +88,7 @@ export interface CampaignIntelligenceSnapshot {
   knowledge_gaps?: string[];
   funnel_coverage?: Record<string, number>;
   unverified_assumptions?: string[];
-  next_questions?: string[];
+  next_questions?: Array<string | { key: string; question: string }>;
   progress_pct?: number;
   success_probability?: number;
   recommended_actions?: string[];
@@ -199,17 +214,17 @@ export class CampaignService {
 
   static async activateCampaign(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ACTIVATE(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ACTIVATE(siteId, id), {});
   }
 
   static async pauseCampaign(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PAUSE(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PAUSE(siteId, id), {});
   }
 
   static async cancelCampaign(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.CANCEL(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.CANCEL(siteId, id), {});
   }
 
   static async createScheduledPost(data: CreateScheduledPostRequest) {
@@ -258,7 +273,7 @@ export class CampaignService {
 
   static async cancelScheduledPost(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.CANCEL(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.CANCEL(siteId, id), {});
   }
 
   static async moveToCampaign(id: string, campaignId: string) {
@@ -270,7 +285,7 @@ export class CampaignService {
 
   static async removeFromCampaign(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.REMOVE_FROM_CAMPAIGN(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.SCHEDULED_POSTS.REMOVE_FROM_CAMPAIGN(siteId, id), {});
   }
 
   static async getCampaignTemplates(params?: { type?: string; is_active?: boolean; industry?: string }) {
@@ -290,7 +305,7 @@ export class CampaignService {
 
   static async planCampaign(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PLAN(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PLAN(siteId, id), {}, { timeout: 180000 });
   }
 
   static async getRoadmap(id: string) {
@@ -300,12 +315,17 @@ export class CampaignService {
 
   static async approveRoadmap(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ROADMAP_APPROVE(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ROADMAP_APPROVE(siteId, id), {}, { timeout: 120000 });
   }
 
   static async rejectRoadmap(id: string, reason?: string) {
     const siteId = this.requireSiteId();
     return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ROADMAP_REJECT(siteId, id), { reason });
+  }
+
+  static async startRoadmapItemDraft(id: string, sequenceIndex: number) {
+    const siteId = this.requireSiteId();
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.ROADMAP_ITEM_DRAFT(siteId, id, sequenceIndex), {});
   }
 
   static async getCampaignHealth(id: string) {
@@ -320,7 +340,7 @@ export class CampaignService {
 
   static async recomputeIntelligence(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.INTELLIGENCE_RECOMPUTE(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.INTELLIGENCE_RECOMPUTE(siteId, id), {});
   }
 
   static async getLatestProgressReport(id: string) {
@@ -335,7 +355,7 @@ export class CampaignService {
 
   static async generateProgressReport(id: string) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PROGRESS_GENERATE(siteId, id), null);
+    return apiClient.post(API_ENDPOINTS.CAMPAIGNS.PROGRESS_GENERATE(siteId, id), {});
   }
 
   static async listCampaignEvents(id: string) {

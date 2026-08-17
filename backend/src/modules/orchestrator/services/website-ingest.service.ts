@@ -154,6 +154,7 @@ ${ingest.text.slice(0, MAX_TEXT_CHARS)}`,
     proposal: WorkspaceOnboardingProposal;
     summary: string;
     source: "tavily" | "fetch";
+    text: string;
   } | null> {
     const ingest = await this.ingest(rawUrl, signal);
     if (!ingest) return null;
@@ -163,6 +164,7 @@ ${ingest.text.slice(0, MAX_TEXT_CHARS)}`,
       proposal,
       summary: formatProposalSummary(proposal, ingest.url),
       source: ingest.source,
+      text: ingest.text,
     };
   }
 

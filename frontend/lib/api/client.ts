@@ -31,6 +31,11 @@ apiClient.interceptors.request.use(
     }
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
 
+    // express.json() rejects the literal `null` body Axios serializes from `post(url, null)`.
+    if (config.data === null) {
+      config.data = {};
+    }
+
     if (config.headers) {
       const correlation = getCorrelationHeaders();
       config.headers["X-Request-Id"] = correlation["X-Request-Id"];

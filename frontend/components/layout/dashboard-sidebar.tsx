@@ -32,7 +32,7 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { currentSiteId } = useAuthStore();
-  const { threadId, setThreadId, clearLiveArtifacts } = useOrchestrator();
+  const { threadId, setThreadId, clearLiveArtifacts, setActiveDraftBlogId } = useOrchestrator();
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
@@ -58,6 +58,7 @@ export function DashboardSidebar({
   const handleNewChat = () => {
     clearLiveArtifacts();
     setThreadId(null);
+    setActiveDraftBlogId(null);
     router.push("/dashboard");
     onMobileClose?.();
   };
@@ -146,6 +147,7 @@ export function DashboardSidebar({
                   if (href === "/dashboard") {
                     clearLiveArtifacts();
                     setThreadId(null);
+                    setActiveDraftBlogId(null);
                   }
                   onMobileClose?.();
                 }}

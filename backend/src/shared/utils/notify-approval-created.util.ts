@@ -17,12 +17,19 @@ export async function notifyApprovalCreatedInApp(
   const approvalId = approval._id?.toString();
   if (!approvalId) return;
 
+  if (approval.kind === OrchestratorApprovalKind.IN_CHAT_CONFIRMATION) {
+    return;
+  }
+
   const reworkRound =
     typeof approval.payload?.rework_round === "number"
       ? approval.payload.rework_round
       : Number(approval.payload?.rework_round ?? 0);
 
   const isScheduleReview = approval.kind === OrchestratorApprovalKind.SCHEDULED_POST_REVIEW;
+  const campaignId =
+    typeof approval.payload?.campaign_id === "string" ? approval.payload.campaign_id : undefined;
+  const isCampaignDraft = isScheduleReview && Boolean(campaignId);
   const type = isScheduleReview
     ? reworkRound > 0
       ? NotificationType.SCHEDULED_POST_REWORKED
@@ -32,8 +39,15 @@ export async function notifyApprovalCreatedInApp(
   const title = isScheduleReview
     ? reworkRound > 0
       ? "Rework ready for review"
-      : "Scheduled post needs review"
+      : isCampaignDraft
+        ? "Draft ready — review and schedule"
+        : "Scheduled post needs review"
     : "Confirmation needed";
+
+  const body =
+    isCampaignDraft && reworkRound === 0
+      ? "Your campaign draft is ready. Review the post, then confirm timing on the campaign Schedule tab."
+      : approval.summary;
 
   try {
     await notificationService.createAndSend({
@@ -41,7 +55,7 @@ export async function notifyApprovalCreatedInApp(
       type,
       recipientUserId: userId,
       title,
-      body: approval.summary,
+      body,
       payload: {
         approval_id: approvalId,
         site_id: approval.site_id,
@@ -52,6 +66,7 @@ export async function notifyApprovalCreatedInApp(
         ...(typeof approval.payload?.scheduled_post_id === "string"
           ? { scheduled_post_id: approval.payload.scheduled_post_id }
           : {}),
+        ...(campaignId ? { campaign_id: campaignId } : {}),
       },
     });
   } catch (error) {

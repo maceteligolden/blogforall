@@ -8,7 +8,6 @@ import { WorkspaceStrategyRepository } from "../../strategic-intelligence/reposi
 import { CampaignRepository } from "../../campaign/repositories/campaign.repository";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
-import { listMissingRequiredOnboardingFields } from "../utils/onboarding-interview.helper";
 
 export type WorkspaceBriefPriority =
   | "onboarding"
@@ -98,7 +97,6 @@ export class WorkspaceBriefService {
       topGapQuestion = undefined;
     }
 
-    const missingOnboarding = listMissingRequiredOnboardingFields(memory);
     const now = Date.now();
     const deadlineMs = DEADLINE_DAYS * 24 * 60 * 60 * 1000;
     const campaignRisk = campaignsPage.data.find((c) => {
@@ -113,21 +111,16 @@ export class WorkspaceBriefService {
     });
 
     const chips: string[] = [];
-    if (missingOnboarding.length) chips.push("Finish brand setup");
     if (pendingApprovalCount > 0)
       chips.push(`Review ${pendingApprovalCount} approval${pendingApprovalCount === 1 ? "" : "s"}`);
     if (draftCount > 0) chips.push(`Review ${draftCount} draft${draftCount === 1 ? "" : "s"}`);
     if (campaignRisk) chips.push(`Check ${campaignRisk.name}`);
-    if (topGapQuestion) chips.push("Fill a knowledge gap");
-    if (chips.length === 0) chips.push("Plan next post", "Review strategy");
+    if (chips.length === 0) chips.push("Write a post", "Review strategy");
 
     let priority: WorkspaceBriefPriority = "welcome_back";
     let opener_line: string;
 
-    if (missingOnboarding.length > 0) {
-      priority = "onboarding";
-      opener_line = "Welcome back — a few brand-setup answers are still open. Want to finish those together?";
-    } else if (pendingApprovalCount > 0) {
+    if (pendingApprovalCount > 0) {
       priority = "approvals";
       opener_line =
         pendingApprovalCount === 1

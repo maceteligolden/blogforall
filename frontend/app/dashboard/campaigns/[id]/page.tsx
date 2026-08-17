@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
   useCampaign,
@@ -14,7 +14,9 @@ import { CampaignService } from "@/lib/api/services/campaign.service";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { QUERY_KEYS } from "@/lib/api/config";
-import { Calendar, Edit, Trash2, Play, Pause, X, Plus, Clock, CheckCircle, XCircle } from "lucide-react";
+import { useAuthStore } from "@/lib/store/auth.store";
+import { StrategicService } from "@/lib/api/services/strategic.service";
+import { Edit, Trash2, Play, Pause, Plus, Clock, CheckCircle, XCircle } from "lucide-react";
 import { ConfirmModal } from "@/components/ui/modal";
 import Link from "next/link";
 import { CampaignHealthBadge } from "@/components/campaign/CampaignHealthBadge";
@@ -35,6 +37,16 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+const SCHEDULE_PAGE_SIZE = 6;
+
+type ScheduledPostRow = {
+  _id: string;
+  title: string;
+  status: string;
+  scheduled_at: string;
+  blog_id?: string;
+};
+
 function CampaignDetailContent() {
   const router = useRouter();
   const params = useParams();
@@ -42,6 +54,13 @@ function CampaignDetailContent() {
   const campaignId = params.id as string;
   const tab = (searchParams.get("tab") as TabId) || "overview";
   const queryClient = useQueryClient();
+  const currentSiteId = useAuthStore((s) => s.currentSiteId);
+
+  const { data: contentStrategy } = useQuery({
+    queryKey: currentSiteId ? QUERY_KEYS.STRATEGIC_STRATEGY(currentSiteId) : [],
+    queryFn: () => StrategicService.getStrategy(currentSiteId as string),
+    enabled: !!currentSiteId,
+  });
 
   const { data: campaignResponse, isLoading: campaignLoading } = useCampaign(campaignId);
   const { data: statsResponse, isLoading: statsLoading } = useQuery({
@@ -89,10 +108,28 @@ function CampaignDetailContent() {
   const pauseCampaign = usePauseCampaign();
   const cancelCampaign = useCancelCampaign();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [schedulePage, setSchedulePage] = useState(0);
 
   const campaign = campaignResponse?.data?.data;
   const stats = statsResponse?.data?.data;
-  const scheduledPosts = scheduledPostsResponse?.data?.data || scheduledPostsResponse || [];
+  const scheduledPosts: ScheduledPostRow[] = Array.isArray(scheduledPostsResponse)
+    ? (scheduledPostsResponse as ScheduledPostRow[])
+    : Array.isArray((scheduledPostsResponse as { data?: unknown } | undefined)?.data)
+      ? ((scheduledPostsResponse as { data: ScheduledPostRow[] }).data)
+      : [];
+
+  const scheduleTotalPages = Math.max(1, Math.ceil(scheduledPosts.length / SCHEDULE_PAGE_SIZE));
+  const pageScheduledPosts = useMemo(
+    () => scheduledPosts.slice(schedulePage * SCHEDULE_PAGE_SIZE, (schedulePage + 1) * SCHEDULE_PAGE_SIZE),
+    [scheduledPosts, schedulePage]
+  );
+
+  useEffect(() => {
+    if (schedulePage > scheduleTotalPages - 1) {
+      setSchedulePage(Math.max(0, scheduleTotalPages - 1));
+    }
+  }, [schedulePage, scheduleTotalPages]);
 
   const setTab = (next: TabId) => {
     const q = new URLSearchParams(searchParams.toString());
@@ -174,9 +211,9 @@ function CampaignDetailContent() {
       ) : !Array.isArray(scheduledPosts) || scheduledPosts.length === 0 ? (
         <p className="text-gray-400 text-center py-8">No scheduled posts yet.</p>
       ) : (
-        <div className="space-y-3">
-          {scheduledPosts.map(
-            (post: { _id: string; title: string; status: string; scheduled_at: string; blog_id?: string }) => (
+        <>
+          <div className="space-y-3">
+            {pageScheduledPosts.map((post) => (
               <div key={post._id} className="bg-black rounded-lg border border-gray-800 p-4">
                 <div className="flex items-center gap-2 mb-1">
                   {getPostStatusIcon(post.status)}
@@ -193,9 +230,34 @@ function CampaignDetailContent() {
                   </Link>
                 )}
               </div>
-            )
+            ))}
+          </div>
+          {scheduledPosts.length > SCHEDULE_PAGE_SIZE && (
+            <div className="flex items-center justify-center gap-3 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                disabled={schedulePage === 0}
+                onClick={() => setSchedulePage((current) => Math.max(0, current - 1))}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-gray-400">
+                Page {schedulePage + 1} of {scheduleTotalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                disabled={schedulePage >= scheduleTotalPages - 1}
+                onClick={() => setSchedulePage((current) => Math.min(scheduleTotalPages - 1, current + 1))}
+              >
+                Next
+              </Button>
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
@@ -229,7 +291,7 @@ function CampaignDetailContent() {
             {campaign.status === "active" && (
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => pauseCampaign.mutate(campaignId)}
+                onClick={() => setShowPauseModal(true)}
               >
                 <Pause className="w-4 h-4 mr-2" />
                 Pause
@@ -306,6 +368,28 @@ function CampaignDetailContent() {
                     All campaign posts publish only after you approve them in the scheduled-post review flow.
                   </p>
                 </div>
+                {contentStrategy && (
+                  <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
+                    <h2 className="text-xl font-semibold mb-2">Content Strategy</h2>
+                    <p className="text-sm text-gray-400 mb-3">This campaign executes the workspace Content Strategy.</p>
+                    <p className="text-white">
+                      {contentStrategy.document.north_star.what_we_are || contentStrategy.purpose}
+                    </p>
+                    {contentStrategy.document.audience.primary.who ? (
+                      <p className="text-sm text-gray-400 mt-2">
+                        Audience: {contentStrategy.document.audience.primary.who}
+                      </p>
+                    ) : null}
+                    {contentStrategy.document.conversion.primary_cta ? (
+                      <p className="text-sm text-gray-400 mt-1">
+                        Primary CTA: {contentStrategy.document.conversion.primary_cta}
+                      </p>
+                    ) : null}
+                    <Link href="/dashboard/strategy" className="text-sm text-primary hover:underline mt-3 inline-block">
+                      View full Content Strategy →
+                    </Link>
+                  </div>
+                )}
                 {scheduleSection}
               </div>
               <div className="space-y-4">
@@ -321,7 +405,9 @@ function CampaignDetailContent() {
           </>
         )}
 
-        {tab === "roadmap" && <CampaignRoadmapTab campaignId={campaignId} />}
+        {tab === "roadmap" && (
+          <CampaignRoadmapTab campaignId={campaignId} campaignName={campaign.name} />
+        )}
         {tab === "schedule" && scheduleSection}
         {tab === "progress" &&
           (progressLoading ? (
@@ -357,6 +443,15 @@ function CampaignDetailContent() {
             </div>
           ))}
 
+        <ConfirmModal
+          isOpen={showPauseModal}
+          onClose={() => setShowPauseModal(false)}
+          onConfirm={() => pauseCampaign.mutate(campaignId)}
+          title="Pause campaign"
+          message="Pausing stops auto-prepare and publish until you resume this campaign."
+          confirmText="Pause"
+          isConfirming={pauseCampaign.isPending}
+        />
         <ConfirmModal
           isOpen={showDeleteModal}
           onClose={() => setShowDeleteModal(false)}

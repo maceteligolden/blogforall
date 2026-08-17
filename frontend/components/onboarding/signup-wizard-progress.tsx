@@ -6,12 +6,11 @@ const STEPS: Array<{ stage: Exclude<SignupWizardStage, "complete">; label: strin
   { stage: "email_verification", label: "Verify" },
   { stage: "company_role", label: "Role" },
   { stage: "workspace_name", label: "Workspace" },
-  { stage: "plan_selection", label: "Plan" },
-  { stage: "invite", label: "Invite" },
 ];
 
 function stepIndex(stage: Exclude<SignupWizardStage, "complete">): number {
-  return STEPS.findIndex((s) => s.stage === stage);
+  const index = STEPS.findIndex((s) => s.stage === stage);
+  return index >= 0 ? index : STEPS.length - 1;
 }
 
 export function SignupWizardProgress({ stage }: { stage: Exclude<SignupWizardStage, "complete"> }) {

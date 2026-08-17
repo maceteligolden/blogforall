@@ -383,21 +383,6 @@ export function planFromState(state: OrchestratorState): PlanResult {
       });
     }
 
-    // HITL pause after research (before outline).
-    if (!state.outline && !researchApproved(state)) {
-      return planResultSchema.parse({
-        next: "compose",
-        workflow_stage: "research",
-        rationale: `${opts.label}: HITL pause — await research approval`,
-        confirmation: {
-          action: "writing_research",
-          payload: { research_package_id: state.research_package_id },
-          summary: "Research is ready — review the findings below.",
-          kind: "research_approval",
-        },
-      });
-    }
-
     const reviseOutlineOnce = isReviseOutlineMessage(state.message) && state.skills_run_this_turn === 0;
     if (!state.outline || reviseOutlineOnce) {
       return planResultSchema.parse({

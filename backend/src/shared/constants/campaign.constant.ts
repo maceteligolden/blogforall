@@ -115,6 +115,9 @@ export enum CampaignRoadmapStatus {
   SUPERSEDED = "superseded",
 }
 
+/** Hard cap so approve/materialize cannot hang the API on oversized plans. */
+export const MAX_CAMPAIGN_PLANNED_POSTS = 30;
+
 export enum CampaignEventType {
   CAMPAIGN_CREATED = "campaign.created",
   ROADMAP_PROPOSED = "roadmap.proposed",

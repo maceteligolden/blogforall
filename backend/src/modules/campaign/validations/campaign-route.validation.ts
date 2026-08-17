@@ -15,6 +15,12 @@ export const campaignIdParamSchema = z.object({
   id: z.string().min(1),
 });
 
+export const roadmapItemDraftParamSchema = z.object({
+  siteId: z.string().min(1),
+  id: z.string().min(1),
+  sequenceIndex: z.coerce.number().int().min(0),
+});
+
 export const scheduledPostIdParamSchema = campaignIdParamSchema;
 
 export const templateIdParamSchema = campaignIdParamSchema;
@@ -33,11 +39,22 @@ const successMetricsSchema = z
   })
   .optional();
 
+const ctaStrategySchema = z
+  .object({
+    primary_cta: z.string().max(300).optional(),
+    secondary_cta: z.string().max(300).optional(),
+  })
+  .optional();
+
 export const createCampaignBodySchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   goal: z.string().min(1),
   target_audience: z.string().optional(),
+  desired_transformation: z.string().max(2000).optional(),
+  messaging: z.string().max(2000).optional(),
+  funnel_focus: z.enum(["awareness", "consideration", "conversion", "full_funnel"]).optional(),
+  cta_strategy: ctaStrategySchema,
   start_date: z.coerce.date(),
   end_date: z.coerce.date(),
   posting_frequency: z.nativeEnum(PostFrequency),

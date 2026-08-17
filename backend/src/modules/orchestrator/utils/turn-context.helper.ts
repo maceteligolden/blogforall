@@ -25,7 +25,7 @@ function getOperationalModeInstructions(mode?: OperationalSessionMode): string {
     case "writing":
       return `Session mode: WRITING — ${voice} Prioritize drafting, editing, and refining. Confirm soft requests before generating.`;
     case "research":
-      return `Session mode: RESEARCH — ${voice} Prioritize search.web, blogs.list/get, and knowledge sources; summarize findings in plain language.`;
+      return `Session mode: RESEARCH — ${voice} Load the research skill and run evidence-driven research. Present findings in plain language with sources.`;
     case "review":
       return `Session mode: REVIEW — ${voice} Prioritize editorial feedback; mention campaign/strategy fit when relevant.`;
     case "casual":

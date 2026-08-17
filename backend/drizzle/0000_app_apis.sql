@@ -52,6 +52,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS sites_slug_unique ON sites (slug);
 CREATE UNIQUE INDEX IF NOT EXISTS sites_public_id_unique ON sites (public_id);
 CREATE INDEX IF NOT EXISTS sites_owner_idx ON sites (owner);
 CREATE INDEX IF NOT EXISTS sites_status_idx ON sites (status);
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS website_url text;
 
 CREATE TABLE IF NOT EXISTS site_members (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

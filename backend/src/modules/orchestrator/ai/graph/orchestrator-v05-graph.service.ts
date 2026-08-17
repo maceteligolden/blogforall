@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 import { injectable } from "tsyringe";
 import { BlogService } from "../../../blog/services/blog.service";
-import { FirstPartyPriorsService } from "../../../blog/ai/first-party-priors.service";
 import { BlogStatus } from "../../../../shared/constants";
 import { env } from "../../../../shared/config/env";
 import { ConversationIntelligenceService } from "../conversation-intelligence/conversation-intelligence";
@@ -13,7 +12,6 @@ import { createTurnTracer, type CompletedSpan, type TurnTracer } from "../observ
 import type { OptimizationPlan } from "../contracts/content-optimization";
 import type { ConversationContext } from "../contracts/conversation-context";
 import { ContentOptimizationService } from "../skills/content-optimization/content-optimization.service";
-import { ResearchSkillService } from "../skills/research/research-skill.service";
 import { SkillRegistry } from "../skills/registry";
 import { ContentStrategyService } from "../skills/strategy/content-strategy.service";
 import { WritingSkillService } from "../skills/writing/writing.service";
@@ -21,7 +19,7 @@ import { ConversationSkillService } from "../skills/conversation/conversation.se
 import { StrategicContextService } from "../services/strategic-context.service";
 import { CampaignService } from "../../../campaign/services/campaign.service";
 import { ResearchPackageRepository } from "../../repositories/research-package.repository";
-import { resolveResearchTopic } from "../skills/research/resolve-research-topic";
+import { ResearchGraphService } from "../../../orchestratorv2/research/research-graph.service";
 import {
   buildOrchestratorGraph,
   invokeTurn,
@@ -95,8 +93,10 @@ function buildSkillToolCalls(
             text: f.text,
             ...(f.value ? { value: f.value } : {}),
           }));
-          // Flatten findings to top-level so the chat card survives nested truncation.
+          const extra = pkg as typeof pkg & { report_markdown?: string; spoken_summary?: string };
           output_data.topic = pkg.topic;
+          if (extra.report_markdown) output_data.report_markdown = extra.report_markdown;
+          if (extra.spoken_summary) output_data.spoken_summary = extra.spoken_summary;
           output_data.facts = facts;
           output_data.definitions = definitions;
           output_data.statistics = statistics;
@@ -116,12 +116,10 @@ function buildSkillToolCalls(
             sources: output_data.sources,
             references: pkg.references.slice(0, 10),
             coverage: pkg.coverage,
+            ...(extra.report_markdown ? { report_markdown: extra.report_markdown } : {}),
             ...(keyInsights.length ? { key_insights: keyInsights.slice(0, 6) } : {}),
           };
           if (keyInsights.length) output_data.key_insights = keyInsights.slice(0, 6);
-        }
-        if (state.metadata?.writing_checkpoint === "research" || state.workflow_stage === "research") {
-          output_data.writing_checkpoint = "research";
         }
         return { tool: "research", summary: e.message ?? "research", output_data };
       }
@@ -290,14 +288,13 @@ export class OrchestratorV05GraphService {
   constructor(
     private readonly ci: ConversationIntelligenceService,
     private readonly memory: MemoryManagerService,
-    private readonly research: ResearchSkillService,
+    private readonly research: ResearchGraphService,
     private readonly writing: WritingSkillService,
     private readonly optimize: ContentOptimizationService,
     private readonly strategy: ContentStrategyService,
     private readonly conversation: ConversationSkillService,
     private readonly blogService: BlogService,
     private readonly strategicContext: StrategicContextService,
-    private readonly firstPartyPriors: FirstPartyPriorsService,
     private readonly campaignService: CampaignService,
     private readonly researchPackages: ResearchPackageRepository
   ) {}
@@ -557,51 +554,30 @@ export class OrchestratorV05GraphService {
 
     registry.register("research", async (state, args) => {
       const depth = args.depth === "full" ? "full" : "lite";
-      const topic = resolveResearchTopic(state);
-      const post_format = isPostFormat(state.slots.post_format) ? state.slots.post_format : undefined;
+      const topic =
+        (typeof state.slots.topic === "string" && state.slots.topic.trim()) ||
+        state.message.trim() ||
+        "research request";
       const onPhase = this.graphDeps?.onPhase;
-      const first_party = await this.firstPartyPriors.load(state.workspace_id, topic).catch(() => undefined);
-      const revise = args.revise === true;
       const result = await this.research.run({
         workspace_id: state.workspace_id,
-        topic,
+        question: topic,
         depth,
-        post_format,
-        allow_guess: depth === "lite",
-        personal_notes: topic,
-        first_party,
+        purpose: "post",
         persist: true,
         created_by: state.user_id,
         thread_id: state.thread_id,
         onPhase,
-        revise,
       });
-      if (result.needs_clarification) {
-        const q =
-          result.research_brief.ambiguity.clarifying_question || "Which scope should research use before searching?";
-        const opts = result.research_brief.ambiguity.options?.join(" / ");
-        return {
-          summary: `Research needs clarification: ${q}`,
-          patch: {
-            reply: opts ? `${q}\nOptions: ${opts}` : q,
-            pending_question: q,
-            slots: { ...state.slots, topic },
-          },
-        };
-      }
-      const keyInsights = (result.package as { key_insights?: string[] }).key_insights;
+      const pkg = await this.researchPackages.findById(state.workspace_id, result.package_id);
       return {
         summary: `Research ${depth}: ${result.summary.source_count} sources`,
         patch: {
-          research_package_id: result.package.id,
+          research_package_id: result.package_id,
           research_summary: result.summary,
-          research_package: result.package,
+          research_package: pkg ?? undefined,
           slots: { ...state.slots, topic },
-          metadata: {
-            ...(state.metadata ?? {}),
-            ...(keyInsights?.length ? { research_key_insights: keyInsights } : {}),
-          },
-          artifacts_for_client: [{ kind: "research_package", id: result.package.id, title: result.package.topic }],
+          artifacts_for_client: [{ kind: "research_package", id: result.package_id, title: result.summary.topic }],
         },
       };
     });

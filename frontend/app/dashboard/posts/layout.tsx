@@ -15,9 +15,18 @@ function getBackNav(pathname: string): { href: string; label: string } | null {
   return { href: "/dashboard/posts", label: "Back to posts" };
 }
 
+function isPostEditorPath(pathname: string): boolean {
+  if (pathname === "/dashboard/posts/new") return false;
+  return /^\/dashboard\/posts\/[^/]+$/.test(pathname);
+}
+
 export default function PostsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const backNav = getBackNav(pathname);
+
+  if (isPostEditorPath(pathname)) {
+    return <div className="h-[calc(100vh-4rem)] min-h-0 overflow-hidden bg-black text-white">{children}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">

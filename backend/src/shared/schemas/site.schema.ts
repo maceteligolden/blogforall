@@ -8,6 +8,7 @@ export interface Site extends BaseEntity {
   public_id: string;
   owner: string;
   status: SiteStatus;
+  website_url?: string;
   created_at: Date;
   updated_at: Date;
 }

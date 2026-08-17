@@ -87,6 +87,11 @@ router.post(
   validateBody(V.rejectRoadmapBodySchema),
   campaignFeatureController.rejectRoadmap
 );
+router.post(
+  "/:id/roadmap/items/:sequenceIndex/draft",
+  validateParams(V.roadmapItemDraftParamSchema),
+  campaignFeatureController.startItemDraft
+);
 router.get("/:id/health", validateParams(V.campaignIdParamSchema), campaignFeatureController.getHealth);
 router.get(
   "/:id/progress-reports/latest",

@@ -30,6 +30,7 @@ export const researchSourceSchema = z.object({
   quality_rationale: z.string().optional(),
   freshness: freshnessSchema.optional(),
   retrieved_at: z.string().min(1),
+  tier: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
 });
 
 export const provenancedFactSchema = z.object({
@@ -175,6 +176,14 @@ export const researchPackageSchema = z.object({
   degraded: z.boolean().optional(),
   disclosure: z.string().optional(),
   strategy_id: z.string().optional(),
+  brief: z.unknown().optional(),
+  searches: z.unknown().optional(),
+  documents: z.unknown().optional(),
+  claims: z.unknown().optional(),
+  findings: z.unknown().optional(),
+  critic_notes: z.unknown().optional(),
+  report_markdown: z.string().optional(),
+  spoken_summary: z.string().optional(),
 });
 
 export const researchPackageSummarySchema = z.object({

@@ -323,9 +323,13 @@ export class BlogRepository {
     } = updateData as Partial<BlogType> & {
       id?: string;
     };
+    const payload = omitUndefined(rest as Record<string, unknown>) as Record<string, unknown>;
+    for (const key of ["category", "campaign_id", "strategy_id"]) {
+      if (payload[key] === "") payload[key] = null;
+    }
     const [row] = await db
       .update(blogs)
-      .set({ ...omitUndefined(rest as Record<string, unknown>), updated_at: new Date() })
+      .set({ ...payload, updated_at: new Date() })
       .where(and(eq(blogs.id, id), eq(blogs.site_id, siteId)))
       .returning();
     if (!row) return null;

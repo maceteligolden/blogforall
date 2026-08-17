@@ -6,6 +6,8 @@ type NotificationPayload = {
   token?: string;
   approval_id?: string;
   site_id?: string;
+  campaign_id?: string;
+  campaignId?: string;
 };
 
 /**
@@ -15,9 +17,27 @@ type NotificationPayload = {
 export function getNotificationHref(notification: NotificationItem): string | null {
   const payload = (notification.payload ?? {}) as NotificationPayload;
   const type = notification.type;
+  const blogId = payload.blogId ?? payload.blog_id;
+  const campaignId = payload.campaign_id ?? payload.campaignId;
+
+  if (type === "content_strategy_ready") {
+    return "/dashboard";
+  }
+
+  if (type === "blog_draft_ready" && blogId) {
+    return `/dashboard/posts/${blogId}`;
+  }
 
   if (type === "site_invitation" && typeof payload.token === "string" && payload.token) {
     return `/invitations/accept?token=${encodeURIComponent(payload.token)}`;
+  }
+
+  if (
+    (type === "scheduled_post_review" || type === "scheduled_post_reworked") &&
+    campaignId &&
+    blogId
+  ) {
+    return `/dashboard/posts/${blogId}`;
   }
 
   if (
@@ -30,7 +50,6 @@ export function getNotificationHref(notification: NotificationItem): string | nu
     return "/dashboard/approvals";
   }
 
-  const blogId = payload.blogId ?? payload.blog_id;
   if (blogId) {
     return `/dashboard/posts/${blogId}/view`;
   }

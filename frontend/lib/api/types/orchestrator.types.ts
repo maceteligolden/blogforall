@@ -2,7 +2,8 @@ export type OrchestratorApprovalKind =
   | "in_chat_confirmation"
   | "memory_update"
   | "scheduled_post_review"
-  | "campaign_proposal";
+  | "campaign_proposal"
+  | "campaign_roadmap_approval";
 
 export type OrchestratorApprovalStatus = "pending" | "approved" | "rejected" | "executed" | "expired";
 
@@ -23,9 +24,29 @@ export interface OrchestratorThread {
   status: "active" | "archived";
   last_activity_at: string;
   is_onboarding: boolean;
+  focus?: ThreadFocus;
   created_at: string;
   updated_at: string;
 }
+
+export type ThreadFocus = {
+  campaign_id?: string;
+  roadmap_sequence_index?: number;
+  blog_id?: string;
+  topic?: string;
+  intent?: string;
+};
+
+export type NextDueTopic = {
+  campaign_id: string;
+  campaign_name: string;
+  sequence_index: number;
+  title: string;
+  objective: string;
+  strategic_intent: string;
+  scheduled_at?: string;
+  overdue: boolean;
+};
 
 export type OrchestratorMessageRole = "user" | "assistant" | "tool" | "system";
 
@@ -77,6 +98,7 @@ export interface OpenThreadResponse {
     created_at: string;
   };
   chips: string[];
+  next_topics?: NextDueTopic[];
   priority: WorkspaceBriefPriority;
 }
 
@@ -157,6 +179,7 @@ export interface OrchestratorChatRequest {
   thread_id?: string;
   session_mode?: OrchestratorSessionMode;
   conversation_mode?: boolean;
+  focus?: ThreadFocus;
   attachments?: OrchestratorChatAttachment[];
   selection_context?: {
     blog_id: string;

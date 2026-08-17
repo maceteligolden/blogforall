@@ -1,6 +1,6 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
-import { sendSuccess } from "../../../shared/helper/response.helper";
+import { sendSuccess, sendAccepted } from "../../../shared/helper/response.helper";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
 import { CampaignPlanningService } from "../services/campaign-planning.service";
 import { CampaignRoadmapService } from "../services/campaign-roadmap.service";
@@ -66,6 +66,20 @@ export class CampaignFeatureController {
       const body = (req.validatedBody ?? req.body) as { reason?: string };
       const data = await this.roadmapService.rejectRoadmap(campaignId, siteId, userId, body.reason);
       sendSuccess(res, "Roadmap rejected", data);
+    } catch (e) {
+      next(e);
+    }
+  };
+
+  startItemDraft = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { siteId, id, sequenceIndex } = req.validatedParams as {
+        siteId: string;
+        id: string;
+        sequenceIndex: number;
+      };
+      const data = await this.roadmapService.startItemDraft(id, siteId, sequenceIndex, getJwtUserId(req));
+      sendAccepted(res, "Draft generation started", data);
     } catch (e) {
       next(e);
     }

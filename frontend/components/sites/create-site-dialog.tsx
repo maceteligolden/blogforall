@@ -20,6 +20,7 @@ interface CreateSiteDialogProps {
 
 export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
   const [name, setName] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [error, setError] = useState("");
   const queryClient = useQueryClient();
   const { updateSiteContext } = useAuth();
@@ -32,6 +33,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
       updateSiteContext(newSite._id);
       setName("");
+      setWebsiteUrl("");
       setError("");
       onClose();
       if (typeof window !== "undefined") {
@@ -40,7 +42,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
       toast({
         variant: "success",
         title: "Workspace ready",
-        description: "Finish brand setup next — the AI will ask a few quick questions.",
+        description: "We're generating Content Strategy from your website. Chat can help you refine it when it's ready.",
       });
       router.push("/dashboard");
     },
@@ -65,9 +67,14 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
       setError("Workspace name is required");
       return;
     }
+    if (!websiteUrl.trim()) {
+      setError("Website URL is required");
+      return;
+    }
 
     createSiteMutation.mutate({
       name: name.trim(),
+      website_url: websiteUrl.trim(),
     });
   };
 
@@ -89,7 +96,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={createSiteMutation.isPending || !name.trim()}
+            disabled={createSiteMutation.isPending || !name.trim() || !websiteUrl.trim()}
             className="bg-primary hover:bg-primary/90 text-white"
           >
             {createSiteMutation.isPending ? "Creating..." : "Create workspace"}
@@ -116,8 +123,23 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
             required
             autoFocus
           />
+        </div>
+
+        <div>
+          <Label htmlFor="workspace-url" className="text-gray-300">
+            Website URL <span className="text-red-400">*</span>
+          </Label>
+          <Input
+            id="workspace-url"
+            type="url"
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+            placeholder="https://example.com"
+            className="mt-1 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+            required
+          />
           <p className="mt-2 text-xs text-gray-500">
-            Brand details come later via setup progress and AI — just pick a name for now.
+            We'll generate Content Strategy from this website in the background.
           </p>
         </div>
       </form>

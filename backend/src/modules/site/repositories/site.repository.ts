@@ -64,14 +64,15 @@ export class SiteRepository {
 
     const [row] = await db
       .insert(sites)
-      .values({
-        name,
-        description: siteData.description,
-        slug,
-        public_id,
-        owner: siteData.owner!,
-        status: siteData.status ?? "active",
-      })
+        .values({
+          name,
+          description: siteData.description,
+          slug,
+          public_id,
+          owner: siteData.owner!,
+          status: siteData.status ?? "active",
+          website_url: siteData.website_url,
+        })
       .returning();
     return this.toEntity(row);
   }
@@ -99,6 +100,7 @@ export class SiteRepository {
           public_id,
           owner: ownerId,
           status: siteData.status ?? "active",
+          website_url: siteData.website_url,
         })
         .returning();
       await tx.insert(siteMembers).values({

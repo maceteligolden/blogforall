@@ -15,6 +15,7 @@ export enum UserPlan {
 
 export enum BlogStatus {
   DRAFT = "draft",
+  GENERATING = "generating",
   SCHEDULED = "scheduled",
   PUBLISHED = "published",
   UNPUBLISHED = "unpublished",
@@ -63,6 +64,7 @@ export enum InvitationStatus {
 export enum HttpStatus {
   OK = 200,
   CREATED = 201,
+  ACCEPTED = 202,
   NO_CONTENT = 204,
   BAD_REQUEST = 400,
   UNAUTHORIZED = 401,

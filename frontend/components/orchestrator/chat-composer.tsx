@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils/cn";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
 import type { OrchestratorSelectionContext } from "@/lib/types/orchestrator-session.types";
-import { ChatModeSelector } from "./chat-mode-selector";
 
 function SelectionReferenceChip({ context, onClear }: { context: OrchestratorSelectionContext; onClear: () => void }) {
   const excerpt =
@@ -66,9 +65,6 @@ export function ChatComposer({
   className,
 }: ChatComposerProps) {
   const {
-    sessionMode,
-    setSessionMode,
-    effectiveSessionMode,
     selectionContext,
     setSelectionContext,
     composerFocusRef,
@@ -173,12 +169,6 @@ export function ChatComposer({
 
         <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-800/80 mt-1">
           <div className="flex items-center gap-0.5">
-            <ChatModeSelector
-              value={sessionMode}
-              effectiveMode={effectiveSessionMode}
-              onChange={setSessionMode}
-              disabled={disabled}
-            />
             {sttSupported && (
               <button
                 type="button"

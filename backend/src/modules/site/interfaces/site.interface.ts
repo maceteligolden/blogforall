@@ -1,11 +1,13 @@
 export interface CreateSiteInput {
   name: string;
   description?: string;
+  website_url?: string;
 }
 
 export interface UpdateSiteInput {
   name?: string;
   description?: string;
+  website_url?: string;
 }
 
 export interface SiteWithMembers {

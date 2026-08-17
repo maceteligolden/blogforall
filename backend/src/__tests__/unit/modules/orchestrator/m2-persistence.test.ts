@@ -1,10 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { MVP_LOCKS } from "../../../../modules/orchestrator/ai/contracts";
 import { ArtifactStoreService } from "../../../../modules/orchestrator/ai/memory/artifact-store.service";
-import { buildResearchPackageFromNotes } from "../../../../modules/orchestrator/ai/skills/research/build-package";
-import { ResearchFullService } from "../../../../modules/orchestrator/ai/skills/research/research-full.service";
-import { ResearchSkillService } from "../../../../modules/orchestrator/ai/skills/research/research-skill.service";
+import { mapGraphToPackage } from "../../../../modules/orchestratorv2/research/research-package.mapper";
 import { buildThinOptimizationReport } from "../../../../modules/orchestrator/ai/skills/content-optimization/thin-validators";
+import { evaluateStopping } from "../../../../modules/orchestratorv2/research/research.scoring";
 
 describe("T2.8 ArtifactStoreService", () => {
   it("saves and loads packages/reports/memory via repositories", async () => {
@@ -25,15 +23,53 @@ describe("T2.8 ArtifactStoreService", () => {
     };
     const store = new ArtifactStoreService(packages as any, reports as any, memoryRecords as any);
 
-    const built = buildResearchPackageFromNotes({
+    const pkg = mapGraphToPackage({
       workspace_id: "ws_1",
-      topic: "AI agents",
+      question: "AI agents",
       depth: "lite",
-      notes: [{ url: "https://example.com/a", title: "A", snippet: "s" }],
-      max_sources: 5,
+      brief: {
+        research_question: "AI agents",
+        objectives: ["Compare options"],
+        constraints: [],
+        decision_criteria: ["Reliability"],
+        source_strategy: "Primary docs first",
+      },
+      subquestions: [{ id: "sq_1", question: "What is an agent?", category: "core", covered: true }],
+      searches: [],
+      documents: [
+        {
+          id: "src_1",
+          url: "https://example.com/a",
+          title: "A",
+          snippet: "s",
+          source: "example.com",
+          tier: 2,
+          relevance_score: 0.8,
+          credibility_score: 0.7,
+          quality_score: 0.7,
+        },
+      ],
+      claims: [
+        {
+          id: "cl_1",
+          claim: "Agents can call tools",
+          kind: "fact",
+          source_ids: ["src_1"],
+          supporting_evidence: ["docs"],
+          contradicting_evidence: [],
+          confidence: 0.8,
+          subquestion_ids: ["sq_1"],
+          verified: true,
+        },
+      ],
+      findings: [],
+      critic: null,
+      report_markdown: "## Executive summary\nAgents can call tools.",
+      spoken_summary: "Agents can call tools.",
+      degraded: false,
     });
-    const savedPkg = await store.saveResearchPackage(built.package);
-    expect(savedPkg.package_id).toBe(built.package.id);
+    const savedPkg = await store.saveResearchPackage(pkg);
+    expect(savedPkg.package_id).toBe(pkg.id);
     expect(packages.save).toHaveBeenCalled();
 
     const report = buildThinOptimizationReport({
@@ -68,77 +104,17 @@ describe("T2.8 ArtifactStoreService", () => {
   });
 });
 
-describe("T2.4 ResearchFullService", () => {
-  it("uses multi-query search, caps at full max, and can persist", async () => {
-    const notes = Array.from({ length: 6 }, (_, i) => ({
-      url: `https://example.com/f${i}`,
-      title: `Full ${i}`,
-      snippet: `Fact ${i}`,
-    }));
-    const tavily = {
-      search: jest.fn(async (q: string) => notes.map((n, i) => ({ ...n, url: `${n.url}-${q.slice(0, 8)}-${i}` }))),
-      extract: jest.fn(async (urls: string[]) =>
-        urls.map((url) => ({ url, title: "Extracted", text: "Extracted body with concrete steps and pitfalls." }))
-      ),
-    };
-    const artifacts = {
-      saveResearchPackage: jest.fn(async (pkg: { id: string }) => ({ package_id: pkg.id })),
-    };
-    const full = new ResearchFullService(tavily as any, artifacts as any);
-    const result = await full.run({
-      workspace_id: "ws_1",
-      topic: "AI agents",
-      persist: true,
-      allow_guess: true,
-      content_archetype: "article",
+describe("research stopping criteria", () => {
+  it("is incomplete when subquestions are uncovered", () => {
+    const snapshot = evaluateStopping({
+      subquestions: [{ id: "q1", question: "Cost?", category: "cost", covered: false }],
+      claims: [],
+      documents: [],
+      criticScore: 0.9,
+      criticThreshold: 0.7,
+      sourceQualityThreshold: 0.35,
     });
-    expect(result.package.depth).toBe("full");
-    expect(result.package.sources.length).toBeLessThanOrEqual(MVP_LOCKS.researchSourcesFullMax);
-    expect(result.package.research_questions.length).toBeGreaterThanOrEqual(1);
-    expect(result.research_brief).toBeDefined();
-    expect(tavily.search.mock.calls.length).toBeGreaterThanOrEqual(1);
-    expect(result.persisted).toBe(true);
-    expect(artifacts.saveResearchPackage).toHaveBeenCalled();
-  });
-
-  it("ResearchSkillService routes lite vs full", async () => {
-    const brief = {
-      raw_topic: "t",
-      scope: { kind: "general_topic", topic: "t" },
-      reader_job: "j",
-      must_answer: [],
-      must_not_invent: [],
-      ambiguity: { is_ambiguous: false },
-      first_party_reuse: { avoid_duplicate_angles: [], style_exemplar_post_ids: [], winning_patterns: [] },
-      search_queries: ["t"],
-    };
-    const lite = {
-      run: jest.fn(async () => ({
-        package: { id: "rp_lite", depth: "lite" },
-        summary: { depth: "lite" },
-        provenance_errors: [],
-        persisted: true,
-        research_brief: brief,
-        needs_clarification: false,
-      })),
-    };
-    const full = {
-      run: jest.fn(async () => ({
-        package: { id: "rp_full", depth: "full" },
-        summary: { depth: "full" },
-        provenance_errors: [],
-        coverage_retries: 0,
-        persisted: true,
-        research_brief: brief,
-        needs_clarification: false,
-      })),
-    };
-    const skill = new ResearchSkillService(lite as any, full as any);
-    const a = await skill.run({ workspace_id: "ws", topic: "t", depth: "lite" });
-    const b = await skill.run({ workspace_id: "ws", topic: "t", depth: "full" });
-    expect(a.depth).toBe("lite");
-    expect(b.depth).toBe("full");
-    expect(lite.run).toHaveBeenCalled();
-    expect(full.run).toHaveBeenCalled();
+    expect(snapshot.complete).toBe(false);
+    expect(snapshot.allQuestionsCovered).toBe(false);
   });
 });

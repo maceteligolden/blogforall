@@ -1,143 +1,5 @@
 import type { OrchestratorMessage } from "@/lib/api/types/orchestrator.types";
-import type { ResearchFindingsCardProps } from "@/components/orchestrator/research-findings-card";
 import type { OutlineApprovalCardProps } from "@/components/orchestrator/outline-approval-card";
-
-type Finding = { text: string; value?: string };
-type Source = { title: string; url?: string };
-
-function asFindings(raw: unknown): Finding[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((item) => {
-      if (typeof item === "string") return { text: item };
-      if (item && typeof item === "object") {
-        const o = item as Record<string, unknown>;
-        const text =
-          typeof o.text === "string"
-            ? o.text
-            : typeof o.label === "string"
-              ? o.label
-              : typeof o.claim === "string"
-                ? o.claim
-                : typeof o.snippet === "string"
-                  ? o.snippet
-                  : "";
-        if (!text.trim()) return null;
-        return {
-          text: text.trim(),
-          value: typeof o.value === "string" ? o.value : undefined,
-        };
-      }
-      return null;
-    })
-    .filter((x): x is Finding => !!x);
-}
-
-function asSources(raw: unknown): Source[] {
-  if (!Array.isArray(raw)) return [];
-  const out: Source[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const o = item as Record<string, unknown>;
-    const title = typeof o.title === "string" ? o.title : typeof o.url === "string" ? o.url : "";
-    if (!title.trim()) continue;
-    out.push({
-      title: title.trim(),
-      ...(typeof o.url === "string" ? { url: o.url } : {}),
-    });
-  }
-  return out;
-}
-
-function packageFromOutput(data: Record<string, unknown>): Record<string, unknown> | null {
-  const pkg = data.research_package;
-  if (pkg && typeof pkg === "object") return pkg as Record<string, unknown>;
-  return null;
-}
-
-export function extractResearchCardProps(
-  output: Record<string, unknown>
-): Omit<ResearchFindingsCardProps, "onApprove" | "onRevise" | "onContinue" | "disabled" | "className"> | null {
-  const pkg = packageFromOutput(output);
-  const summary =
-    output.research_summary && typeof output.research_summary === "object"
-      ? (output.research_summary as Record<string, unknown>)
-      : null;
-
-  const topic =
-    (typeof pkg?.topic === "string" && pkg.topic) ||
-    (typeof summary?.topic === "string" && summary.topic) ||
-    (typeof output.topic === "string" && output.topic) ||
-    undefined;
-
-  const facts = asFindings(pkg?.facts ?? output.facts);
-  const definitions = asFindings(pkg?.definitions ?? output.definitions);
-  const statistics = asFindings(pkg?.statistics ?? output.statistics);
-  const sources = asSources(pkg?.sources ?? pkg?.references ?? output.sources);
-  const pkgInsights = Array.isArray(pkg?.key_insights)
-    ? pkg!.key_insights.filter((x): x is string => typeof x === "string")
-    : [];
-  const keyInsights = (
-    Array.isArray(output.key_insights)
-      ? output.key_insights.filter((x): x is string => typeof x === "string")
-      : pkgInsights
-  ).filter(Boolean);
-
-  const hasSignal =
-    Boolean(topic) ||
-    facts.length + definitions.length + statistics.length + sources.length + keyInsights.length > 0 ||
-    Boolean(summary);
-
-  if (!hasSignal) return null;
-
-  // #region agent log
-  fetch("http://127.0.0.1:7845/ingest/3b4333d1-9478-4155-a0c2-6acee25e28ec", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "17457c" },
-    body: JSON.stringify({
-      sessionId: "17457c",
-      runId: "post-fix",
-      hypothesisId: "H-UI",
-      location: "writing-hitl.ts:extractResearchCardProps",
-      message: "research card props extracted",
-      data: {
-        topic: topic?.slice(0, 60) ?? null,
-        factCount: facts.length,
-        defCount: definitions.length,
-        statCount: statistics.length,
-        sourceCount: sources.length,
-        insightCount: keyInsights.length,
-        sampleFact: facts[0]?.text?.slice(0, 80) ?? null,
-        outputKeys: Object.keys(output).slice(0, 12),
-        pkgKeys: pkg ? Object.keys(pkg).slice(0, 12) : [],
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
-  return {
-    topic,
-    facts,
-    definitions,
-    statistics,
-    sources,
-    keyInsights,
-    coverageScore:
-      typeof summary?.coverage_score === "number"
-        ? summary.coverage_score
-        : typeof (pkg?.coverage as { coverage_score?: number } | undefined)?.coverage_score === "number"
-          ? (pkg!.coverage as { coverage_score: number }).coverage_score
-          : undefined,
-    sourceCount:
-      typeof summary?.source_count === "number"
-        ? summary.source_count
-        : Array.isArray(pkg?.sources)
-          ? pkg!.sources.length
-          : undefined,
-    degraded: Boolean(summary?.degraded ?? pkg?.degraded ?? output.degraded),
-  };
-}
 
 export function extractOutlineCardProps(
   output: Record<string, unknown>
@@ -163,7 +25,7 @@ export function extractOutlineCardProps(
   return { title, sections };
 }
 
-export type WritingHitlKind = "research" | "outline";
+export type WritingHitlKind = "outline";
 
 export function detectWritingHitlFromMessage(
   message: OrchestratorMessage | undefined
@@ -186,12 +48,6 @@ export function detectWritingHitlFromMessage(
     ) {
       if (extractOutlineCardProps(data)) {
         return { kind: "outline", output: data };
-      }
-    }
-
-    if (tool === "research" || checkpoint === "research" || data.research_package || data.research_summary) {
-      if (extractResearchCardProps(data)) {
-        return { kind: "research", output: data };
       }
     }
   }

@@ -35,17 +35,13 @@ export class CampaignScheduleMaterializerService {
     }
 
     const items = await this.postItemRepository.findByCampaign(campaignId, siteId);
-    let created = 0;
+    const pending = items.filter((item) => !item.scheduled_post_id && item.scheduled_at);
+    if (pending.length === 0) {
+      return 0;
+    }
 
-    for (const item of items) {
-      if (item.scheduled_post_id) {
-        continue;
-      }
-      if (!item.scheduled_at) {
-        continue;
-      }
-
-      const scheduledPost = await this.scheduledPostRepository.create({
+    const createdPosts = await this.scheduledPostRepository.createMany(
+      pending.map((item) => ({
         user_id: userId,
         site_id: siteId,
         campaign_id: campaignId,
@@ -71,25 +67,35 @@ export class CampaignScheduleMaterializerService {
         },
         publish_attempts: 0,
         rework_round: 0,
-      });
+      }))
+    );
 
-      await this.postItemRepository.update(item._id!.toString(), siteId, {
-        scheduled_post_id: scheduledPost._id!.toString(),
-        status: CampaignPostItemStatus.SCHEDULED,
-      });
+    await Promise.all(
+      createdPosts.map((scheduledPost, index) => {
+        const item = pending[index];
+        return this.postItemRepository.update(item._id!.toString(), siteId, {
+          scheduled_post_id: scheduledPost._id!.toString(),
+          status: CampaignPostItemStatus.SCHEDULED,
+        });
+      })
+    );
 
-      await this.eventRepository.append({
-        campaign_id: campaignId,
-        site_id: siteId,
-        type: CampaignEventType.POST_SCHEDULED,
-        actor_user_id: userId,
-        payload: { item_id: item._id, scheduled_post_id: scheduledPost._id },
-      });
+    await this.eventRepository.append({
+      campaign_id: campaignId,
+      site_id: siteId,
+      type: CampaignEventType.POST_SCHEDULED,
+      actor_user_id: userId,
+      payload: {
+        created: createdPosts.length,
+        scheduled_post_ids: createdPosts.map((post) => post._id),
+      },
+    });
 
-      created++;
-    }
-
-    logger.info("Campaign schedule materialized", { campaignId, created }, "CampaignScheduleMaterializerService");
-    return created;
+    logger.info(
+      "Campaign schedule materialized",
+      { campaignId, created: createdPosts.length },
+      "CampaignScheduleMaterializerService"
+    );
+    return createdPosts.length;
   }
 }

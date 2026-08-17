@@ -7,6 +7,7 @@ import { StrategyEngineService } from "../services/strategy-engine.service";
 import { BehavioralRuleService } from "../services/behavioral-rule.service";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 import { WebsiteIngestService } from "../../orchestrator/services/website-ingest.service";
+import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
 import { proposalToMemoryPatch } from "../../orchestrator/utils/website-onboarding.helper";
 import type { BehavioralRule } from "../../../shared/schemas/memory-types";
 import { env } from "../../../shared/config/env";
@@ -20,7 +21,8 @@ export class MemoryController {
     private readonly strategyEngine: StrategyEngineService,
     private readonly behavioralRuleService: BehavioralRuleService,
     private readonly businessKnowledge: BusinessKnowledgeService,
-    private readonly websiteIngest: WebsiteIngestService
+    private readonly websiteIngest: WebsiteIngestService,
+    private readonly workspaceStrategy: WorkspaceStrategyService
   ) {}
 
   private siteId(req: Request): string {
@@ -198,6 +200,8 @@ export class MemoryController {
         source: proposed.source,
         summary: proposed.summary,
       });
+
+      this.workspaceStrategy.startBackgroundGenerate(siteId, userId, proposed.url);
     } catch (error) {
       next(error);
     }

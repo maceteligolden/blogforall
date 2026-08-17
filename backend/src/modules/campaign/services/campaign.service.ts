@@ -1,4 +1,4 @@
-import { injectable } from "tsyringe";
+import { injectable, container } from "tsyringe";
 import { CampaignRepository } from "../repositories/campaign.repository";
 import { ScheduledPostRepository } from "../repositories/scheduled-post.repository";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
@@ -48,6 +48,7 @@ export class CampaignService {
   async ensureDefaultCampaign(siteId: string, userId: string): Promise<Campaign> {
     const existing = await this.campaignRepository.findDefault(siteId);
     if (existing) {
+      this.bootstrapDefaultRoadmap(siteId, userId);
       if (!existing.strategy_id && env.orchestrator.strategicIntelligenceEnabled) {
         const strategyId = await this.resolveStrategyId(siteId, userId);
         if (strategyId) {
@@ -85,9 +86,11 @@ export class CampaignService {
         posting_frequency: PostFrequency.WEEKLY,
         timezone: "UTC",
         posts_published: 0,
+        total_posts_planned: 12,
         funnel_focus: "full_funnel",
       });
       logger.info("Default campaign created", { campaignId: campaign._id, siteId }, "CampaignService");
+      this.bootstrapDefaultRoadmap(siteId, userId);
       return campaign;
     } catch (err) {
       // Race: another request may have created the default.
@@ -119,17 +122,26 @@ export class CampaignService {
   }
 
   async createCampaign(userId: string, siteId: string, input: CreateCampaignInput): Promise<Campaign> {
-    if (input.start_date >= input.end_date) {
-      throw new BadRequestError("End date must be after start date");
+    const now = new Date();
+    let startDate = input.start_date;
+    if (startDate < now) {
+      const ageMs = now.getTime() - startDate.getTime();
+      const sameUtcDay = startDate.toISOString().slice(0, 10) === now.toISOString().slice(0, 10);
+      if (input.end_date > now && (sameUtcDay || ageMs <= 48 * 60 * 60 * 1000)) {
+        startDate = now;
+      } else {
+        throw new BadRequestError("Start date cannot be in the past");
+      }
     }
 
-    if (input.start_date < new Date()) {
-      throw new BadRequestError("Start date cannot be in the past");
+    if (startDate >= input.end_date) {
+      throw new BadRequestError("End date must be after start date");
     }
 
     const timezone = input.timezone || "UTC";
 
     if (env.orchestrator.strategicIntelligenceEnabled) {
+      await this.workspaceStrategy.requireReady(siteId);
       await this.ensureDefaultCampaign(siteId, userId);
     }
 
@@ -137,6 +149,7 @@ export class CampaignService {
 
     const campaign = await this.campaignRepository.create({
       ...input,
+      start_date: startDate,
       user_id: userId,
       site_id: siteId,
       status: CampaignStatus.DRAFT,
@@ -329,5 +342,21 @@ export class CampaignService {
 
   async getCampaignsByDateRange(siteId: string, startDate: Date, endDate: Date): Promise<Campaign[]> {
     return this.campaignRepository.findByDateRange(siteId, startDate, endDate);
+  }
+
+  /** Fire-and-forget: generate Evergreen's first roadmap once Content Strategy is ready. */
+  private bootstrapDefaultRoadmap(siteId: string, userId: string): void {
+    void (async () => {
+      try {
+        const { CampaignPlanningService } = await import("./campaign-planning.service");
+        await container.resolve(CampaignPlanningService).ensureDefaultRoadmap(siteId, userId);
+      } catch (err) {
+        logger.warn(
+          "Evergreen roadmap bootstrap skipped",
+          { siteId, error: err instanceof Error ? err.message : String(err) },
+          "CampaignService"
+        );
+      }
+    })();
   }
 }

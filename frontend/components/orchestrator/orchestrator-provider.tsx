@@ -55,6 +55,11 @@ interface OrchestratorContextValue {
   openResultsPanel: (artifactId?: string) => void;
   closeResultsPanel: () => void;
   setSelectedArtifactId: (artifactId: string | null) => void;
+  /** True while Start draft / topic / edit is opening a bound writing thread. */
+  writingKickoffPending: boolean;
+  writingKickoffLabel: string | null;
+  beginWritingKickoff: (label?: string) => void;
+  endWritingKickoff: () => void;
   /** @deprecated Navigate to /dashboard instead */
   isOpen: boolean;
   /** @deprecated Navigate to /dashboard instead */
@@ -109,6 +114,15 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const [conversationMode, setConversationMode] = useState(false);
   const [resultsPanelOpen, setResultsPanelOpen] = useState(false);
   const [selectedArtifactId, setSelectedArtifactIdState] = useState<string | null>(null);
+  const [writingKickoffPending, setWritingKickoffPending] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return Boolean(sessionStorage.getItem("bloggr_writing_thread_pending"));
+    } catch {
+      return false;
+    }
+  });
+  const [writingKickoffLabel, setWritingKickoffLabel] = useState<string | null>(null);
   const prevThreadIdRef = useRef<string | null>(null);
 
   const isWritingPinned = isWritingEffectiveMode(sessionMode, effectiveSessionMode);
@@ -195,6 +209,16 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
 
   const setThreadId = useCallback((id: string | null) => {
     setThreadIdState(id);
+  }, []);
+
+  const beginWritingKickoff = useCallback((label?: string) => {
+    setWritingKickoffPending(true);
+    setWritingKickoffLabel(label?.trim() || "Starting the writing conversation…");
+  }, []);
+
+  const endWritingKickoff = useCallback(() => {
+    setWritingKickoffPending(false);
+    setWritingKickoffLabel(null);
   }, []);
 
   const setSessionMode = useCallback(
@@ -327,6 +351,10 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       openResultsPanel,
       closeResultsPanel,
       setSelectedArtifactId,
+      writingKickoffPending,
+      writingKickoffLabel,
+      beginWritingKickoff,
+      endWritingKickoff,
       isOpen: false,
       open,
       close: () => undefined,
@@ -364,6 +392,10 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
       openResultsPanel,
       closeResultsPanel,
       setSelectedArtifactId,
+      writingKickoffPending,
+      writingKickoffLabel,
+      beginWritingKickoff,
+      endWritingKickoff,
       open,
     ]
   );

@@ -14,36 +14,46 @@ export class ScheduledPostRepository {
     return withId(row) as unknown as ScheduledPostType;
   }
 
-  async create(postData: Partial<ScheduledPostType>): Promise<ScheduledPostType> {
+  private toInsertValues(postData: Partial<ScheduledPostType>) {
     const { _id: _ignored, id: _idIgnored, ...rest } = postData as Partial<ScheduledPostType> & { id?: string };
-    const [row] = await db
-      .insert(scheduledPosts)
-      .values({
-        user_id: rest.user_id!,
-        site_id: rest.site_id!,
-        title: rest.title!,
-        scheduled_at: rest.scheduled_at!,
-        ...omitUndefined({
-          blog_id: rest.blog_id,
-          campaign_id: rest.campaign_id,
-          timezone: rest.timezone,
-          status: rest.status,
-          publish_attempts: rest.publish_attempts,
-          last_attempt_at: rest.last_attempt_at,
-          error_message: rest.error_message,
-          published_at: rest.published_at,
-          auto_generate: rest.auto_generate,
-          generation_prompt: rest.generation_prompt,
-          metadata: rest.metadata,
-          prepared_at: rest.prepared_at,
-          approved_at: rest.approved_at,
-          approved_by_user_id: rest.approved_by_user_id,
-          rework_comments: rest.rework_comments,
-          rework_round: rest.rework_round,
-        } as Record<string, unknown>),
-      })
-      .returning();
+    return {
+      user_id: rest.user_id!,
+      site_id: rest.site_id!,
+      title: rest.title!,
+      scheduled_at: rest.scheduled_at!,
+      ...omitUndefined({
+        blog_id: rest.blog_id,
+        campaign_id: rest.campaign_id,
+        timezone: rest.timezone,
+        status: rest.status,
+        publish_attempts: rest.publish_attempts,
+        last_attempt_at: rest.last_attempt_at,
+        error_message: rest.error_message,
+        published_at: rest.published_at,
+        auto_generate: rest.auto_generate,
+        generation_prompt: rest.generation_prompt,
+        metadata: rest.metadata,
+        prepared_at: rest.prepared_at,
+        approved_at: rest.approved_at,
+        approved_by_user_id: rest.approved_by_user_id,
+        rework_comments: rest.rework_comments,
+        rework_round: rest.rework_round,
+      } as Record<string, unknown>),
+    };
+  }
+
+  async create(postData: Partial<ScheduledPostType>): Promise<ScheduledPostType> {
+    const [row] = await db.insert(scheduledPosts).values(this.toInsertValues(postData)).returning();
     return this.toEntity(row);
+  }
+
+  async createMany(posts: Partial<ScheduledPostType>[]): Promise<ScheduledPostType[]> {
+    if (!posts.length) return [];
+    const rows = await db
+      .insert(scheduledPosts)
+      .values(posts.map((post) => this.toInsertValues(post)))
+      .returning();
+    return withIds(rows) as unknown as ScheduledPostType[];
   }
 
   async findById(id: string, siteId?: string): Promise<ScheduledPostType | null> {

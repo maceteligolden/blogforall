@@ -22,6 +22,8 @@ const updateStrategyBodySchema = z.object({
   audience_summary: z.string().max(2000).optional(),
   perception_goals: z.array(z.string()).optional(),
   constraints: z.array(z.string()).optional(),
+  website_url: z.string().max(500).optional(),
+  document: z.record(z.string(), z.unknown()).optional(),
 });
 
 const updateKnowledgeBodySchema = z.object({

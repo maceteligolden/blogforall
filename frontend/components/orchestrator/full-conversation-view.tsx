@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Captions, CaptionsOff, Mic, MicOff, PhoneOff, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-import { ChatModeSelector } from "./chat-mode-selector";
 import type { OperationalSessionMode, OrchestratorSessionMode } from "@/lib/types/orchestrator-session.types";
 
 export type ConversationStatus = "idle" | "listening" | "thinking" | "speaking";
@@ -12,9 +11,9 @@ const TRANSCRIPT_STORAGE_KEY = "bloggr.voice.showTranscript";
 
 interface FullConversationViewProps {
   threadTitle: string;
-  sessionMode: OrchestratorSessionMode;
-  effectiveSessionMode: OperationalSessionMode;
-  onSessionModeChange: (mode: OrchestratorSessionMode) => void;
+  sessionMode?: OrchestratorSessionMode;
+  effectiveSessionMode?: OperationalSessionMode;
+  onSessionModeChange?: (mode: OrchestratorSessionMode) => void;
   status: ConversationStatus;
   interimTranscript: string;
   lastUserMessage?: string;
@@ -47,9 +46,6 @@ function loadShowTranscript(): boolean {
 
 export function FullConversationView({
   threadTitle,
-  sessionMode,
-  effectiveSessionMode,
-  onSessionModeChange,
   status,
   interimTranscript,
   lastUserMessage,
@@ -107,12 +103,6 @@ export function FullConversationView({
               View results
             </button>
           )}
-          <ChatModeSelector
-            value={sessionMode}
-            effectiveMode={effectiveSessionMode}
-            onChange={onSessionModeChange}
-            disabled={disabled}
-          />
         </div>
       </header>
 

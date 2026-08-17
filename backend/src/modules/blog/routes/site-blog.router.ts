@@ -64,6 +64,13 @@ router.post(
   blogGenerationController.generateBlogStream
 );
 router.post(
+  "/generate/background",
+  authMiddleware,
+  siteParams,
+  validateBody(blogGenerationBodySchema),
+  blogGenerationController.generateBlogBackground
+);
+router.post(
   "/generate",
   authMiddleware,
   siteParams,

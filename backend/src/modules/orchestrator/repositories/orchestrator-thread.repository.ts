@@ -11,6 +11,7 @@ export class OrchestratorThreadRepository {
     user_id: string;
     title?: string;
     is_onboarding?: boolean;
+    focus?: OrchestratorThread["focus"];
   }): Promise<OrchestratorThread> {
     const doc = new OrchestratorThreadModel({
       site_id: input.site_id,
@@ -18,9 +19,29 @@ export class OrchestratorThreadRepository {
       title: input.title || "New conversation",
       title_source: "default",
       is_onboarding: !!input.is_onboarding,
+      ...(input.focus ? { focus: input.focus } : {}),
       last_activity_at: new Date(),
     });
     return doc.save();
+  }
+
+  async setFocus(
+    threadId: string,
+    siteId: string,
+    focus: NonNullable<OrchestratorThread["focus"]>
+  ): Promise<OrchestratorThread | null> {
+    return OrchestratorThreadModel.findOneAndUpdate(
+      { _id: threadId, site_id: siteId },
+      { $set: { focus, updated_at: new Date() } },
+      { new: true }
+    );
+  }
+
+  async clearBlogIdFromFocus(blogId: string, siteId: string): Promise<void> {
+    await OrchestratorThreadModel.updateMany(
+      { site_id: siteId, "focus.blog_id": blogId },
+      { $unset: { "focus.blog_id": 1 }, $set: { updated_at: new Date() } }
+    );
   }
 
   async findById(threadId: string, siteId: string): Promise<OrchestratorThread | null> {

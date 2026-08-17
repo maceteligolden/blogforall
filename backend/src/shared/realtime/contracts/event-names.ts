@@ -15,6 +15,7 @@ export const REALTIME_EVENTS = {
   SCHEDULED_POST_FAILED: "scheduled_post.failed",
   CAMPAIGN_EVENT_APPENDED: "campaign.event.appended",
   BLOG_STATUS_CHANGED: "blog.status.changed",
+  STRATEGY_STATUS_CHANGED: "strategy.status.changed",
   WORKSPACE_INVITATION_SENT: "workspace.invitation.sent",
   WORKSPACE_INVITATION_ACCEPTED: "workspace.invitation.accepted",
   WORKSPACE_INVITATION_REJECTED: "workspace.invitation.rejected",

@@ -28,6 +28,7 @@ export function useBlog(id: string) {
       return response.data.data;
     },
     enabled: !!id && !!currentSiteId,
+    refetchInterval: (query) => (query.state.data?.status === "generating" ? 4000 : false),
   });
 }
 

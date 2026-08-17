@@ -31,9 +31,9 @@ export interface UpdateBlogInput {
   featured_image?: string;
   images?: string[];
   status?: BlogStatus;
-  category?: string;
-  campaign_id?: string;
-  strategy_id?: string;
+  category?: string | null;
+  campaign_id?: string | null;
+  strategy_id?: string | null;
   dynamic_forms?: Record<string, unknown>;
   meta?: {
     description?: string;

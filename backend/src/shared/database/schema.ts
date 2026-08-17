@@ -63,6 +63,7 @@ export const sites = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("active"),
+    website_url: text("website_url"),
     ...timestamps,
   },
   (table) => [

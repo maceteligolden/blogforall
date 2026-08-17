@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { CreateCampaignRequest, CampaignService, CampaignTemplate } from "@/lib/api/services/campaign.service";
+import { StrategicService, isContentStrategyReady } from "@/lib/api/services/strategic.service";
 import { useCreateCampaign } from "@/lib/hooks/use-campaign";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +13,22 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { addDays } from "date-fns";
+import { useAuthStore } from "@/lib/store/auth.store";
+import Link from "next/link";
 
 function NewCampaignPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const templateId = searchParams.get("template");
   const createCampaign = useCreateCampaign();
+  const currentSiteId = useAuthStore((s) => s.currentSiteId);
+
+  const { data: contentStrategy } = useQuery({
+    queryKey: currentSiteId ? QUERY_KEYS.STRATEGIC_STRATEGY(currentSiteId) : [],
+    queryFn: () => StrategicService.getStrategy(currentSiteId as string),
+    enabled: !!currentSiteId,
+  });
+  const strategyReady = isContentStrategyReady(contentStrategy);
 
   const { data: template } = useQuery({
     queryKey: ["campaign-template", templateId],
@@ -34,6 +45,11 @@ function NewCampaignPageContent() {
     description: "",
     goal: "",
     target_audience: "",
+    desired_transformation: "",
+    messaging: "",
+    funnel_focus: "full_funnel" as "awareness" | "consideration" | "conversion" | "full_funnel",
+    primary_cta: "",
+    kpi_input: "",
     start_date: "",
     end_date: "",
     posting_frequency: "weekly" as "daily" | "weekly" | "biweekly" | "monthly" | "custom",
@@ -63,6 +79,11 @@ function NewCampaignPageContent() {
         description: "",
         goal: template.default_goal,
         target_audience: "",
+        desired_transformation: "",
+        messaging: "",
+        funnel_focus: "full_funnel" as const,
+        primary_cta: "",
+        kpi_input: "",
         start_date: startDate.toISOString().slice(0, 16),
         end_date: endDate.toISOString().slice(0, 16),
         posting_frequency: template.default_frequency as "daily" | "weekly" | "biweekly" | "monthly" | "custom",
@@ -86,6 +107,11 @@ function NewCampaignPageContent() {
     setError("");
 
     // Validation
+    if (!strategyReady) {
+      setError("Content Strategy must be ready before you can create a campaign.");
+      return;
+    }
+
     if (!formData.name.trim()) {
       setError("Campaign name is required");
       return;
@@ -131,6 +157,10 @@ function NewCampaignPageContent() {
       description: formData.description?.trim() || undefined,
       goal: formData.goal.trim(),
       target_audience: formData.target_audience?.trim() || undefined,
+      desired_transformation: formData.desired_transformation?.trim() || undefined,
+      messaging: formData.messaging?.trim() || undefined,
+      funnel_focus: formData.funnel_focus,
+      cta_strategy: formData.primary_cta.trim() ? { primary_cta: formData.primary_cta.trim() } : undefined,
       start_date: new Date(formData.start_date).toISOString(),
       end_date: new Date(formData.end_date).toISOString(),
       posting_frequency: formData.posting_frequency,
@@ -142,7 +172,13 @@ function NewCampaignPageContent() {
         target_views: formData.success_metrics?.target_views || undefined,
         target_engagement: formData.success_metrics?.target_engagement || undefined,
         target_conversions: formData.success_metrics?.target_conversions || undefined,
-        kpis: formData.success_metrics?.kpis?.filter((kpi) => kpi.trim()) || undefined,
+        kpis: [
+          ...(formData.success_metrics?.kpis?.filter((kpi) => kpi.trim()) || []),
+          ...formData.kpi_input
+            .split(",")
+            .map((kpi) => kpi.trim())
+            .filter(Boolean),
+        ],
       },
     };
 
@@ -176,6 +212,11 @@ function NewCampaignPageContent() {
           [metricKey]: value ? Number(value) : undefined,
         },
       });
+    } else if (name === "total_posts_planned" || name === "budget") {
+      setFormData({
+        ...formData,
+        [name]: value ? Number(value) : undefined,
+      });
     } else {
       setFormData({
         ...formData,
@@ -198,14 +239,39 @@ function NewCampaignPageContent() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          <h1 className="text-3xl font-display text-white">Create New Campaign</h1>
-          <p className="text-gray-400 mt-2">Set up a marketing campaign to schedule and manage your blog posts</p>
+          <h1 className="text-3xl font-display text-white">Create campaign</h1>
+          <p className="text-gray-400 mt-2">
+            Advanced fallback. Named campaigns usually start in chat. This form is for when you already know the parameters.
+          </p>
         </div>
+
+        {!strategyReady && (
+          <div className="mb-6 rounded-lg border border-amber-800 bg-amber-900/20 px-4 py-3 text-sm text-amber-100">
+            Content Strategy must be ready before you create a campaign.{" "}
+            <Link href="/dashboard/strategy" className="text-primary hover:underline">
+              Open Content Strategy
+            </Link>
+            {contentStrategy?.generation_status === "generating" ? " — generation is still running." : "."}
+          </div>
+        )}
 
         <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="rounded-md bg-red-900/20 border border-red-800 p-3 text-sm text-red-400">{error}</div>
+            )}
+
+            {contentStrategy && strategyReady && (
+              <div className="rounded-md border border-gray-800 bg-black/30 p-4 text-sm text-gray-300 space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-500">Executing Content Strategy</p>
+                <p>{contentStrategy.document.north_star.what_we_are || contentStrategy.purpose}</p>
+                {contentStrategy.document.audience.primary.who ? (
+                  <p className="text-gray-400">Audience: {contentStrategy.document.audience.primary.who}</p>
+                ) : null}
+                {contentStrategy.document.conversion.primary_cta ? (
+                  <p className="text-gray-400">Primary CTA: {contentStrategy.document.conversion.primary_cta}</p>
+                ) : null}
+              </div>
             )}
 
             {/* Basic Information */}
@@ -262,19 +328,84 @@ function NewCampaignPageContent() {
               </div>
 
               <div>
+                <Label htmlFor="desired_transformation" className="text-gray-300">
+                  Intent / desired outcome
+                </Label>
+                <textarea
+                  id="desired_transformation"
+                  name="desired_transformation"
+                  value={formData.desired_transformation}
+                  onChange={handleChange}
+                  placeholder="What should be true after this campaign? e.g. operators trust us enough to start a trial."
+                  className="mt-1 flex min-h-[80px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                  maxLength={2000}
+                />
+                <p className="mt-1 text-xs text-gray-500">We use this as the campaign intent for planning and drafts.</p>
+              </div>
+
+              <div>
                 <Label htmlFor="target_audience" className="text-gray-300">
                   Target Audience
                 </Label>
-                <Input
+                <textarea
                   id="target_audience"
                   name="target_audience"
-                  type="text"
                   value={formData.target_audience}
                   onChange={handleChange}
-                  placeholder="e.g., Tech-savvy professionals aged 25-40"
-                  className="mt-1 bg-black border-gray-700 text-white"
-                  maxLength={500}
+                  placeholder="Who they are, the situation they are in, and what they need to believe. e.g. Founders at 10–50 person SaaS teams who already tried generic AI writers and still have no publishing cadence."
+                  className="mt-1 flex min-h-[90px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                  maxLength={2000}
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="messaging" className="text-gray-300">
+                  Messaging
+                </Label>
+                <textarea
+                  id="messaging"
+                  name="messaging"
+                  value={formData.messaging}
+                  onChange={handleChange}
+                  placeholder="The story and promises this campaign should repeat."
+                  className="mt-1 flex min-h-[70px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                  maxLength={2000}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="funnel_focus" className="text-gray-300">
+                    Funnel focus
+                  </Label>
+                  <select
+                    id="funnel_focus"
+                    name="funnel_focus"
+                    value={formData.funnel_focus}
+                    onChange={handleChange}
+                    className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white"
+                  >
+                    <option value="full_funnel">Full funnel</option>
+                    <option value="awareness">Awareness</option>
+                    <option value="consideration">Consideration</option>
+                    <option value="conversion">Conversion</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="primary_cta" className="text-gray-300">
+                    Primary CTA
+                  </Label>
+                  <Input
+                    id="primary_cta"
+                    name="primary_cta"
+                    type="text"
+                    value={formData.primary_cta}
+                    onChange={handleChange}
+                    placeholder="e.g. Start a free trial"
+                    className="mt-1 bg-black border-gray-700 text-white"
+                    maxLength={300}
+                  />
+                </div>
               </div>
             </div>
 
@@ -462,6 +593,63 @@ function NewCampaignPageContent() {
                   />
                 </div>
               </div>
+
+              <div>
+                <Label htmlFor="kpi_input" className="text-gray-300">
+                  KPIs
+                </Label>
+                <div className="mt-1 flex gap-2">
+                  <Input
+                    id="kpi_input"
+                    name="kpi_input"
+                    type="text"
+                    value={formData.kpi_input}
+                    onChange={handleChange}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const next = formData.kpi_input
+                          .split(",")
+                          .map((kpi) => kpi.trim())
+                          .filter(Boolean);
+                        if (!next.length) return;
+                        setFormData({
+                          ...formData,
+                          kpi_input: "",
+                          success_metrics: {
+                            ...formData.success_metrics,
+                            kpis: [...new Set([...(formData.success_metrics.kpis || []), ...next])],
+                          },
+                        });
+                      }
+                    }}
+                    placeholder="Type a KPI and press Enter, or comma-separate several"
+                    className="bg-black border-gray-700 text-white"
+                  />
+                </div>
+                {(formData.success_metrics.kpis?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.success_metrics.kpis.map((kpi) => (
+                      <button
+                        key={kpi}
+                        type="button"
+                        className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-300 hover:border-gray-500"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            success_metrics: {
+                              ...formData.success_metrics,
+                              kpis: formData.success_metrics.kpis.filter((item) => item !== kpi),
+                            },
+                          })
+                        }
+                      >
+                        {kpi} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Actions */}
@@ -477,7 +665,7 @@ function NewCampaignPageContent() {
               <Button
                 type="submit"
                 className="bg-primary hover:bg-primary/90 text-white"
-                disabled={createCampaign.isPending}
+                disabled={createCampaign.isPending || !strategyReady}
               >
                 {createCampaign.isPending ? "Creating..." : "Create Campaign"}
               </Button>

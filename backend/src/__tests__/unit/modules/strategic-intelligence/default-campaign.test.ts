@@ -79,7 +79,12 @@ describe("CampaignService Default Campaign (Strategic Intelligence)", () => {
     const result = await service.ensureDefaultCampaign("site1", "user1");
     expect(result.name).toBe("Evergreen");
     expect(campaignRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({ is_default: true, site_id: "site1", name: "Evergreen" })
+      expect.objectContaining({
+        is_default: true,
+        site_id: "site1",
+        name: "Evergreen",
+        total_posts_planned: 12,
+      })
     );
   });
 

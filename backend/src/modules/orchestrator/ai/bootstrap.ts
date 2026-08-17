@@ -47,7 +47,6 @@ import {
   CampaignGetHealthTool,
   CampaignScheduleAdditionalPostsTool,
 } from "./tools/campaign.tools";
-import { SearchWebTool } from "./tools/search.tools";
 import {
   StrategyProposeCalendarTool,
   StrategyGetTool,
@@ -114,7 +113,6 @@ export class OrchestratorBootstrap {
     private readonly campaignGetProgressReport: CampaignGetProgressReportTool,
     private readonly campaignGetHealth: CampaignGetHealthTool,
     private readonly campaignScheduleAdditionalPosts: CampaignScheduleAdditionalPostsTool,
-    private readonly searchWeb: SearchWebTool,
     private readonly strategyProposeCalendar: StrategyProposeCalendarTool,
     private readonly strategyGet: StrategyGetTool,
     private readonly strategyUpdate: StrategyUpdateTool,
@@ -161,7 +159,6 @@ export class OrchestratorBootstrap {
       this.campaignGetProgressReport,
       this.campaignGetHealth,
       this.campaignScheduleAdditionalPosts,
-      this.searchWeb,
       this.strategyProposeCalendar,
       this.strategyGet,
       this.strategyUpdate,

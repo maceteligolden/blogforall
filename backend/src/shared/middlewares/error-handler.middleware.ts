@@ -47,6 +47,19 @@ export const errorHandler = (error: Error | AppError, req: Request, res: Respons
     return;
   }
 
+  const parseFailed =
+    error instanceof SyntaxError &&
+    ((error as SyntaxError & { type?: string }).type === "entity.parse.failed" ||
+      /is not valid JSON/i.test(error.message));
+  if (parseFailed) {
+    AppLogger.warn("Invalid JSON body", baseMeta, "ErrorHandler");
+    res.status(HttpStatus.BAD_REQUEST).json({
+      message: "Invalid JSON body",
+      ...(requestId ? { request_id: requestId } : {}),
+    });
+    return;
+  }
+
   AppLogger.critical("Unhandled error", error, baseMeta, "ErrorHandler");
 
   if (!res.headersSent) {

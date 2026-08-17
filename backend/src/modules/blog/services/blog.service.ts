@@ -3,9 +3,11 @@ import { BlogRepository } from "../repositories/blog.repository";
 import { CategoryRepository } from "../../category/repositories/category.repository";
 import { ScheduledPostRepository } from "../../campaign/repositories/scheduled-post.repository";
 import { CampaignService } from "../../campaign/services/campaign.service";
+import { CampaignPostItemRepository } from "../../campaign/repositories/campaign-post-item.repository";
+import { OrchestratorThreadRepository } from "../../orchestrator/repositories/orchestrator-thread.repository";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { BlogStatus } from "../../../shared/constants";
-import { ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
+import { CampaignPostItemStatus, ScheduledPostStatus } from "../../../shared/constants/campaign.constant";
 import { logger } from "../../../shared/utils/logger";
 import {
   validateContentBlocks,
@@ -32,7 +34,9 @@ export class BlogService {
     private scheduledPostRepository: ScheduledPostRepository,
     private siteService: SiteService,
     private campaignService: CampaignService,
-    private learningLoopService: LearningLoopService
+    private learningLoopService: LearningLoopService,
+    private campaignPostItemRepository: CampaignPostItemRepository,
+    private threadRepository: OrchestratorThreadRepository
   ) {}
 
   private async assertBlogCapability(siteId: string, userId: string, capability: SiteCapability): Promise<void> {
@@ -132,8 +136,9 @@ export class BlogService {
       }
     }
 
+    const { category: inputCategory, campaign_id: _campaignId, strategy_id: _strategyId, ...createFields } = input;
     const blog = await this.blogRepository.create({
-      ...input,
+      ...createFields,
       content,
       content_blocks,
       excerpt,
@@ -141,8 +146,9 @@ export class BlogService {
       site_id: siteId,
       slug,
       status: input.status || BlogStatus.DRAFT,
-      campaign_id: campaignId,
-      strategy_id: strategyId,
+      category: inputCategory || undefined,
+      campaign_id: campaignId || undefined,
+      strategy_id: strategyId || undefined,
     });
 
     logger.info("Blog created", { blogId: blog._id, authorId, siteId }, "BlogService");
@@ -194,7 +200,10 @@ export class BlogService {
       throw new ForbiddenError("You don't have permission to update this blog");
     }
 
-    const updateData: Partial<Blog> = { ...input };
+    const updateData: Record<string, unknown> = { ...input };
+    if (input.category === "" || input.category === null) updateData.category = null;
+    if (input.campaign_id === "" || input.campaign_id === null) updateData.campaign_id = null;
+    if (input.strategy_id === "" || input.strategy_id === null) updateData.strategy_id = null;
 
     if (input.content_blocks != null && input.content_blocks.length > 0) {
       validateContentBlocks(input.content_blocks);
@@ -204,7 +213,7 @@ export class BlogService {
       updateData.content_blocks = htmlToBlocks(input.content);
     }
 
-    const effectiveContent = updateData.content ?? blog.content;
+    const effectiveContent = (updateData.content as string | undefined) ?? blog.content;
     if (input.excerpt !== undefined) {
       updateData.excerpt = clampBlogExcerpt(input.excerpt || this.generateExcerptFromHtml(effectiveContent));
     } else if (!blog.excerpt) {
@@ -224,8 +233,7 @@ export class BlogService {
 
     // If title is updated, regenerate slug
     if (input.title && input.title !== blog.title) {
-      const newSlug = await this.ensureUniqueSlug(this.generateSlug(input.title), siteId, blogId);
-      updateData.slug = newSlug;
+      updateData.slug = await this.ensureUniqueSlug(this.generateSlug(input.title), siteId, blogId);
     }
 
     // Handle status changes
@@ -236,7 +244,7 @@ export class BlogService {
       updateData.status = input.status;
     }
 
-    const updatedBlog = await this.blogRepository.update(blogId, siteId, updateData);
+    const updatedBlog = await this.blogRepository.update(blogId, siteId, updateData as Partial<Blog>);
     if (!updatedBlog) {
       throw new NotFoundError("Blog not found");
     }
@@ -261,6 +269,15 @@ export class BlogService {
     if (isScheduled) {
       throw new BadRequestError("Cannot delete blog that is scheduled. Please unschedule it first.");
     }
+
+    const boundItems = await this.campaignPostItemRepository.findByBlogId(blogId, siteId);
+    for (const item of boundItems) {
+      if (!item._id) continue;
+      await this.campaignPostItemRepository.update(item._id.toString(), siteId, {
+        status: CampaignPostItemStatus.PLANNED,
+      });
+    }
+    await this.threadRepository.clearBlogIdFromFocus(blogId, siteId);
 
     await this.blogRepository.delete(blogId, siteId);
     logger.info("Blog deleted", { blogId, authorId, siteId }, "BlogService");

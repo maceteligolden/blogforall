@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
     GENERATE_ANALYZE: (siteId: string) => `/sites/${siteId}/posts/generate/analyze`,
     GENERATE: (siteId: string) => `/sites/${siteId}/posts/generate`,
     GENERATE_STREAM: (siteId: string) => `/sites/${siteId}/posts/generate/stream`,
+    GENERATE_BACKGROUND: (siteId: string) => `/sites/${siteId}/posts/generate/background`,
     SCHEDULE: (siteId: string, id: string) => `/sites/${siteId}/posts/${id}/schedule`,
     GET_SCHEDULE: (siteId: string, id: string) => `/sites/${siteId}/posts/${id}/schedule`,
     UNSCHEDULE: (siteId: string, id: string) => `/sites/${siteId}/posts/${id}/schedule`,
@@ -148,6 +149,8 @@ export const API_ENDPOINTS = {
     ROADMAP: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/roadmap`,
     ROADMAP_APPROVE: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/roadmap/approve`,
     ROADMAP_REJECT: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/roadmap/reject`,
+    ROADMAP_ITEM_DRAFT: (siteId: string, id: string, sequenceIndex: number) =>
+      `/sites/${siteId}/campaigns/${id}/roadmap/items/${sequenceIndex}/draft`,
     HEALTH: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/health`,
     PROGRESS_LATEST: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/progress-reports/latest`,
     PROGRESS_REPORTS: (siteId: string, id: string) => `/sites/${siteId}/campaigns/${id}/progress-reports`,

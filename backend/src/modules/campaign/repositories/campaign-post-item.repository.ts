@@ -60,6 +60,25 @@ export class CampaignPostItemRepository {
     return withIds(rows) as unknown as CampaignPostItem[];
   }
 
+  async findBySequence(
+    campaignId: string,
+    siteId: string,
+    sequenceIndex: number
+  ): Promise<CampaignPostItem | null> {
+    const [row] = await db
+      .select()
+      .from(campaignPostItems)
+      .where(
+        and(
+          eq(campaignPostItems.campaign_id, campaignId),
+          eq(campaignPostItems.site_id, siteId),
+          eq(campaignPostItems.sequence_index, sequenceIndex)
+        )
+      )
+      .limit(1);
+    return row ? this.toEntity(row) : null;
+  }
+
   async findById(id: string, siteId: string): Promise<CampaignPostItem | null> {
     const [row] = await db
       .select()

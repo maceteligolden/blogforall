@@ -1,40 +1,28 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
 import { AiPostWizardProgress } from "@/components/blog/ai-post-wizard-progress";
 import { TopicSuggestionList } from "@/components/blog/topic-suggestion-list";
 import { PostEnrichmentForm } from "@/components/blog/post-enrichment-form";
 import { OutlinePlanEditor } from "@/components/blog/outline-plan-editor";
-import { GenerationProgress, type GenerationStage } from "@/components/blog/generation-progress";
-import { BlogGenerationService, type GenerateBlogResponse } from "@/lib/api/services/blog-generation.service";
+import { BlogGenerationService } from "@/lib/api/services/blog-generation.service";
 import type { AiWizardStep, PostEnrichment, PostOutline, TopicSuggestion } from "@/lib/types/interactive-post";
 import { useCampaigns } from "@/lib/hooks/use-campaign";
 import type { Campaign } from "@/lib/api/services/campaign.service";
 import { Sparkles } from "lucide-react";
 
 type Props = {
-  onComplete: (result: GenerateBlogResponse) => void;
+  onQueued: (result: { blog_id: string }) => void;
   onError?: (message: string) => void;
 };
 
-function mapStreamStage(event: string, data: unknown): GenerationStage | null {
-  if (event === "research") return "analyzing";
-  if (event === "phase" && data && typeof data === "object") {
-    const step = (data as { step?: string }).step;
-    if (step === "research") return "analyzing";
-    if (step === "outline_locked") return "analyzing";
-    if (step === "draft") return "generating";
-    if (step === "review") return "reviewing";
-  }
-  if (event === "draft_partial") return "generating";
-  if (event === "final") return "reviewing";
-  return null;
-}
-
-export function AiPostWizard({ onComplete, onError }: Props) {
+export function AiPostWizard({ onQueued, onError }: Props) {
+  const router = useRouter();
   const { data: campaignsResponse } = useCampaigns();
   const campaigns: Campaign[] = useMemo(() => campaignsResponse?.data?.data || [], [campaignsResponse]);
   const [step, setStep] = useState<AiWizardStep>("seed");
@@ -47,8 +35,8 @@ export function AiPostWizard({ onComplete, onError }: Props) {
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [loadingOutline, setLoadingOutline] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [generationStage, setGenerationStage] = useState<GenerationStage>("analyzing");
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [queuedBlogId, setQueuedBlogId] = useState<string | null>(null);
+  const [showQueuedModal, setShowQueuedModal] = useState(false);
   const [error, setError] = useState("");
 
   const fail = (message: string) => {
@@ -105,11 +93,7 @@ export function AiPostWizard({ onComplete, onError }: Props) {
 
   const approveAndGenerate = async () => {
     if (!selectedTopic || !outline) return;
-    const ac = new AbortController();
-    setAbortController(ac);
     setGenerating(true);
-    setGenerationStage("analyzing");
-    setStep("generate");
     setError("");
     try {
       const prompt = [
@@ -135,32 +119,21 @@ export function AiPostWizard({ onComplete, onError }: Props) {
       };
 
       const campaignId = outline.campaign_id || selectedTopic.campaign_id;
-      const result = await BlogGenerationService.generateBlogStream(prompt, analysis, {
-        signal: ac.signal,
+      const result = await BlogGenerationService.generateBlogBackground(prompt, analysis, {
         enrichment,
         approved_outline: outline,
         campaign_id: campaignId,
         keywords: outline.keywords,
         post_type: outline.post_type,
-        onEvent: (event, data) => {
-          const next = mapStreamStage(event, data);
-          if (next) setGenerationStage(next);
-        },
       });
 
-      setGenerationStage("complete");
-      setStep("done");
-      onComplete({ ...result, campaign_id: result.campaign_id || campaignId });
+      setQueuedBlogId(result.blog_id);
+      setShowQueuedModal(true);
+      onQueued(result);
     } catch (e) {
-      if ((e as Error).name === "AbortError") {
-        fail("Generation cancelled");
-      } else {
-        fail((e as Error).message || "Generation failed");
-      }
-      setStep("outline");
+      fail((e as Error).message || "Generation failed");
     } finally {
       setGenerating(false);
-      setAbortController(null);
     }
   };
 
@@ -266,21 +239,44 @@ export function AiPostWizard({ onComplete, onError }: Props) {
               onClick={approveAndGenerate}
               disabled={loadingOutline || !outline || generating}
             >
-              Approve & generate
+              {generating ? "Queuing…" : "Approve & generate"}
             </Button>
           </div>
         </div>
       )}
 
-      <GenerationProgress
-        isOpen={generating || step === "generate"}
-        currentStage={generationStage}
-        onCancel={() => {
-          abortController?.abort();
-          setGenerating(false);
-          setStep("outline");
-        }}
-      />
+      <Modal
+        isOpen={showQueuedModal}
+        onClose={() => setShowQueuedModal(false)}
+        title="We're writing your post"
+        size="sm"
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-gray-700 text-gray-300"
+              onClick={() => router.push("/dashboard/posts")}
+            >
+              Go to posts
+            </Button>
+            {queuedBlogId && (
+              <Button
+                type="button"
+                className="bg-primary hover:bg-primary/90 text-white"
+                onClick={() => router.push(`/dashboard/posts/${queuedBlogId}`)}
+              >
+                Open draft
+              </Button>
+            )}
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-300">
+          The post is being written in the background. You can keep working — we&apos;ll notify you when it&apos;s
+          ready to edit.
+        </p>
+      </Modal>
     </div>
   );
 }

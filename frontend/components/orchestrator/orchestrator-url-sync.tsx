@@ -13,7 +13,7 @@ export function OrchestratorUrlSync() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { threadId, setThreadId } = useOrchestrator();
+  const { threadId, setThreadId, writingKickoffPending } = useOrchestrator();
 
   const onDashboard = pathname === "/dashboard";
   const urlThreadId = searchParams.get("thread");
@@ -29,6 +29,9 @@ export function OrchestratorUrlSync() {
     prevUrlThreadRef.current = urlThreadId;
 
     if (urlChanged) {
+      if (!urlThreadId && writingKickoffPending) {
+        return;
+      }
       if (urlThreadId !== threadId) {
         setThreadId(urlThreadId);
       }
@@ -39,7 +42,7 @@ export function OrchestratorUrlSync() {
 
     const next = threadId ? `/dashboard?thread=${encodeURIComponent(threadId)}` : "/dashboard";
     router.replace(next, { scroll: false });
-  }, [onDashboard, urlThreadId, threadId, setThreadId, router]);
+  }, [onDashboard, urlThreadId, threadId, setThreadId, router, writingKickoffPending]);
 
   return null;
 }

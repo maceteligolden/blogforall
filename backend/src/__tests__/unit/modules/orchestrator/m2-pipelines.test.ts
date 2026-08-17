@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { ConversationIntelligenceService } from "../../../../modules/orchestrator/ai/conversation-intelligence/conversation-intelligence";
 import { MemoryManagerService } from "../../../../modules/orchestrator/ai/memory/manager/memory-manager";
-import { ResearchLiteService } from "../../../../modules/orchestrator/ai/skills/research/research-lite.service";
 import {
   assertWritingMayProceed,
   writingToolAllowlist,
 } from "../../../../modules/orchestrator/ai/skills/writing/writing-guards";
-import { MVP_LOCKS } from "../../../../modules/orchestrator/ai/contracts/mvp-locks";
 
 const baseCiInput = {
   workspace_id: "ws_1",
@@ -199,38 +197,7 @@ describe("T2.2 MemoryManagerService", () => {
   });
 });
 
-describe("T2.3 ResearchLiteService + Writing guards", () => {
-  it("builds ResearchPackage from Tavily notes and caps sources", async () => {
-    const notes = Array.from({ length: 8 }, (_, i) => ({
-      url: `https://example.com/${i}`,
-      title: `Title ${i}`,
-      snippet: `Snippet about topic ${i}`,
-    }));
-    const tavily = { search: jest.fn(async () => notes) };
-    const artifacts = { saveResearchPackage: jest.fn(async () => ({ package_id: "rp_x" })) };
-    const research = new ResearchLiteService(tavily as any, artifacts as any);
-    const result = await research.run({
-      workspace_id: "ws_1",
-      topic: "AI agents",
-      persist: false,
-    });
-    expect(result.package.depth).toBe("lite");
-    expect(result.package.sources).toHaveLength(MVP_LOCKS.researchSourcesLiteMax);
-    expect(result.provenance_errors).toEqual([]);
-    expect(result.summary.source_count).toBe(MVP_LOCKS.researchSourcesLiteMax);
-    expect(result.package.degraded).toBeFalsy();
-    expect(artifacts.saveResearchPackage).not.toHaveBeenCalled();
-  });
-
-  it("marks degraded when search returns empty", async () => {
-    const tavily = { search: jest.fn(async () => []) };
-    const artifacts = { saveResearchPackage: jest.fn(async () => ({ package_id: "rp_x" })) };
-    const research = new ResearchLiteService(tavily as any, artifacts as any);
-    const result = await research.run({ workspace_id: "ws_1", topic: "obscure", persist: false });
-    expect(result.package.degraded).toBe(true);
-    expect(result.package.sources).toHaveLength(0);
-  });
-
+describe("T2.3 Writing guards", () => {
   it("Writing requires research_package_id", () => {
     expect(() => assertWritingMayProceed({})).toThrow(/research_package_id/);
     expect(() => assertWritingMayProceed({ research_package_id: "rp_1" })).not.toThrow();

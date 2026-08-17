@@ -15,6 +15,7 @@ export interface Site {
    * should be treated as "active".
    */
   status?: SiteStatus;
+  website_url?: string;
   created_at: Date;
   updated_at: Date;
 }
@@ -22,11 +23,13 @@ export interface Site {
 export interface CreateSiteRequest {
   name: string;
   description?: string;
+  website_url: string;
 }
 
 export interface UpdateSiteRequest {
   name?: string;
   description?: string;
+  website_url?: string;
 }
 
 export interface SiteMember {

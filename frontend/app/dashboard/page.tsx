@@ -5,8 +5,8 @@ import { OrchestratorChat } from "@/components/orchestrator/orchestrator-chat";
 import { OrchestratorArtifactPanel } from "@/components/orchestrator/orchestrator-artifact-panel";
 import { WorkspaceSplitLayout } from "@/components/orchestrator/workspace-split-layout";
 import { useOrchestratorArtifacts } from "@/lib/hooks/use-orchestrator-artifacts";
-import { SetupProgressBanner } from "@/components/onboarding/setup-progress-banner";
 import { SetupInterviewBootstrap } from "@/components/onboarding/setup-interview-bootstrap";
+import { WritingThreadBootstrap } from "@/components/writing/writing-thread-bootstrap";
 
 export default function DashboardPage() {
   const [mobileArtifactsOpen, setMobileArtifactsOpen] = useState(false);
@@ -15,7 +15,7 @@ export default function DashboardPage() {
   return (
     <div className="h-[calc(100vh-4rem)] min-h-0 overflow-hidden flex flex-col">
       <SetupInterviewBootstrap />
-      <SetupProgressBanner />
+      <WritingThreadBootstrap />
       <div className="min-h-0 flex-1 overflow-hidden">
         <WorkspaceSplitLayout
           showRight={showResultsPanel}

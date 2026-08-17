@@ -1,5 +1,4 @@
 import {
-  Building2,
   Calendar,
   FileText,
   FolderOpen,
@@ -20,8 +19,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/posts", label: "Posts", icon: FileText },
   { href: "/dashboard/library", label: "Library", icon: FolderOpen },
-  { href: "/dashboard/business", label: "Business", icon: Building2 },
-  { href: "/dashboard/strategy", label: "Strategy", icon: Compass },
+  { href: "/dashboard/strategy", label: "Content Strategy", icon: Compass },
   { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
   { href: "/dashboard/approvals", label: "Approvals", icon: ShieldAlert },

@@ -31,6 +31,14 @@ export interface OrchestratorThread extends BaseEntity {
    * `workspace.completeOnboarding` tool. Flipped to false after onboarding.
    */
   is_onboarding: boolean;
+  /** Bound campaign, roadmap item, or post this thread is working on. */
+  focus?: {
+    campaign_id?: string;
+    roadmap_sequence_index?: number;
+    blog_id?: string;
+    topic?: string;
+    intent?: string;
+  };
   created_at: Date;
   updated_at: Date;
 }
@@ -53,6 +61,13 @@ const orchestratorThreadSchema = new Schema<OrchestratorThread>(
     },
     last_activity_at: { type: Date, default: Date.now, index: true },
     is_onboarding: { type: Boolean, default: false },
+    focus: {
+      campaign_id: { type: String },
+      roadmap_sequence_index: { type: Number },
+      blog_id: { type: String },
+      topic: { type: String, maxlength: 400 },
+      intent: { type: String, maxlength: 2000 },
+    },
     created_at: { type: Date, default: Date.now },
     updated_at: { type: Date, default: Date.now },
   },

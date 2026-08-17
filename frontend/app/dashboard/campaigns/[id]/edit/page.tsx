@@ -24,6 +24,11 @@ export default function EditCampaignPage() {
     description: string;
     goal: string;
     target_audience: string;
+    desired_transformation: string;
+    messaging: string;
+    funnel_focus: "awareness" | "consideration" | "conversion" | "full_funnel";
+    primary_cta: string;
+    kpi_input: string;
     start_date: string;
     end_date: string;
     posting_frequency: "daily" | "weekly" | "biweekly" | "monthly" | "custom";
@@ -31,11 +36,22 @@ export default function EditCampaignPage() {
     timezone: string;
     total_posts_planned?: number;
     budget?: number;
+    success_metrics: {
+      target_views?: number;
+      target_engagement?: number;
+      target_conversions?: number;
+      kpis: string[];
+    };
   }>({
     name: "",
     description: "",
     goal: "",
     target_audience: "",
+    desired_transformation: "",
+    messaging: "",
+    funnel_focus: "full_funnel",
+    primary_cta: "",
+    kpi_input: "",
     start_date: "",
     end_date: "",
     posting_frequency: "weekly",
@@ -43,6 +59,12 @@ export default function EditCampaignPage() {
     timezone: "",
     total_posts_planned: undefined,
     budget: undefined,
+    success_metrics: {
+      target_views: undefined,
+      target_engagement: undefined,
+      target_conversions: undefined,
+      kpis: [],
+    },
   });
 
   const [error, setError] = useState("");
@@ -58,6 +80,11 @@ export default function EditCampaignPage() {
         description: campaign.description || "",
         goal: campaign.goal,
         target_audience: campaign.target_audience || "",
+        desired_transformation: campaign.desired_transformation || "",
+        messaging: campaign.messaging || "",
+        funnel_focus: campaign.funnel_focus || "full_funnel",
+        primary_cta: campaign.cta_strategy?.primary_cta || "",
+        kpi_input: "",
         start_date: startDate,
         end_date: endDate,
         posting_frequency: campaign.posting_frequency,
@@ -65,6 +92,12 @@ export default function EditCampaignPage() {
         timezone: campaign.timezone,
         total_posts_planned: campaign.total_posts_planned,
         budget: campaign.budget,
+        success_metrics: {
+          target_views: campaign.success_metrics?.target_views,
+          target_engagement: campaign.success_metrics?.target_engagement,
+          target_conversions: campaign.success_metrics?.target_conversions,
+          kpis: campaign.success_metrics?.kpis || [],
+        },
       });
       setIsCustomFrequency(campaign.posting_frequency === "custom");
     }
@@ -104,6 +137,10 @@ export default function EditCampaignPage() {
       description: formData.description?.trim() || undefined,
       goal: formData.goal.trim(),
       target_audience: formData.target_audience?.trim() || undefined,
+      desired_transformation: formData.desired_transformation?.trim() || undefined,
+      messaging: formData.messaging?.trim() || undefined,
+      funnel_focus: formData.funnel_focus,
+      cta_strategy: formData.primary_cta.trim() ? { primary_cta: formData.primary_cta.trim() } : undefined,
       start_date: formData.start_date ? new Date(formData.start_date) : undefined,
       end_date: formData.end_date ? new Date(formData.end_date) : undefined,
       posting_frequency: formData.posting_frequency,
@@ -111,6 +148,18 @@ export default function EditCampaignPage() {
       timezone: formData.timezone,
       total_posts_planned: formData.total_posts_planned || undefined,
       budget: formData.budget || undefined,
+      success_metrics: {
+        target_views: formData.success_metrics.target_views || undefined,
+        target_engagement: formData.success_metrics.target_engagement || undefined,
+        target_conversions: formData.success_metrics.target_conversions || undefined,
+        kpis: [
+          ...(formData.success_metrics.kpis.filter((kpi) => kpi.trim()) || []),
+          ...formData.kpi_input
+            .split(",")
+            .map((kpi) => kpi.trim())
+            .filter(Boolean),
+        ],
+      },
     };
 
     updateCampaign.mutate(
@@ -136,6 +185,20 @@ export default function EditCampaignPage() {
         ...formData,
         [name]: value as any,
         custom_schedule: value === "custom" ? formData.custom_schedule : "",
+      });
+    } else if (name.startsWith("success_metrics.")) {
+      const metricKey = name.split(".")[1];
+      setFormData({
+        ...formData,
+        success_metrics: {
+          ...formData.success_metrics,
+          [metricKey]: value ? Number(value) : undefined,
+        },
+      });
+    } else if (name === "total_posts_planned" || name === "budget") {
+      setFormData({
+        ...formData,
+        [name]: value ? Number(value) : undefined,
       });
     } else {
       setFormData({
@@ -252,18 +315,84 @@ export default function EditCampaignPage() {
               </div>
 
               <div>
+                <Label htmlFor="desired_transformation" className="text-gray-300">
+                  Intent / desired outcome
+                </Label>
+                <textarea
+                  id="desired_transformation"
+                  name="desired_transformation"
+                  value={formData.desired_transformation}
+                  onChange={handleChange}
+                  placeholder="What should be true after this campaign?"
+                  className="mt-1 flex min-h-[80px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                  maxLength={2000}
+                />
+                <p className="mt-1 text-xs text-gray-500">We use this as the campaign intent for planning and drafts.</p>
+              </div>
+
+              <div>
                 <Label htmlFor="target_audience" className="text-gray-300">
                   Target Audience
                 </Label>
-                <Input
+                <textarea
                   id="target_audience"
                   name="target_audience"
-                  type="text"
                   value={formData.target_audience}
                   onChange={handleChange}
-                  className="mt-1 bg-black border-gray-700 text-white"
-                  maxLength={500}
+                  placeholder="Who they are, the situation they are in, and what they need to believe."
+                  className="mt-1 flex min-h-[90px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                  maxLength={2000}
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="messaging" className="text-gray-300">
+                  Messaging
+                </Label>
+                <textarea
+                  id="messaging"
+                  name="messaging"
+                  value={formData.messaging}
+                  onChange={handleChange}
+                  placeholder="The story and promises this campaign should repeat."
+                  className="mt-1 flex min-h-[70px] w-full rounded-md border border-gray-700 bg-black text-white px-3 py-2 text-sm"
+                  maxLength={2000}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="funnel_focus" className="text-gray-300">
+                    Funnel focus
+                  </Label>
+                  <select
+                    id="funnel_focus"
+                    name="funnel_focus"
+                    value={formData.funnel_focus}
+                    onChange={handleChange}
+                    className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white"
+                  >
+                    <option value="full_funnel">Full funnel</option>
+                    <option value="awareness">Awareness</option>
+                    <option value="consideration">Consideration</option>
+                    <option value="conversion">Conversion</option>
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="primary_cta" className="text-gray-300">
+                    Primary CTA
+                  </Label>
+                  <Input
+                    id="primary_cta"
+                    name="primary_cta"
+                    type="text"
+                    value={formData.primary_cta}
+                    onChange={handleChange}
+                    placeholder="e.g. Start a free trial"
+                    className="mt-1 bg-black border-gray-700 text-white"
+                    maxLength={300}
+                  />
+                </div>
               </div>
             </div>
 
@@ -391,6 +520,112 @@ export default function EditCampaignPage() {
                     className="mt-1 bg-black border-gray-700 text-white"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-white border-b border-gray-800 pb-2">
+                Success Metrics (Optional)
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="target_views" className="text-gray-300">
+                    Target Views
+                  </Label>
+                  <Input
+                    id="target_views"
+                    name="success_metrics.target_views"
+                    type="number"
+                    value={formData.success_metrics.target_views || ""}
+                    onChange={handleChange}
+                    min="0"
+                    className="mt-1 bg-black border-gray-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="target_engagement" className="text-gray-300">
+                    Target Engagement
+                  </Label>
+                  <Input
+                    id="target_engagement"
+                    name="success_metrics.target_engagement"
+                    type="number"
+                    value={formData.success_metrics.target_engagement || ""}
+                    onChange={handleChange}
+                    min="0"
+                    className="mt-1 bg-black border-gray-700 text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="target_conversions" className="text-gray-300">
+                    Target Conversions
+                  </Label>
+                  <Input
+                    id="target_conversions"
+                    name="success_metrics.target_conversions"
+                    type="number"
+                    value={formData.success_metrics.target_conversions || ""}
+                    onChange={handleChange}
+                    min="0"
+                    className="mt-1 bg-black border-gray-700 text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="kpi_input" className="text-gray-300">
+                  KPIs
+                </Label>
+                <Input
+                  id="kpi_input"
+                  name="kpi_input"
+                  type="text"
+                  value={formData.kpi_input}
+                  onChange={handleChange}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const next = formData.kpi_input
+                        .split(",")
+                        .map((kpi) => kpi.trim())
+                        .filter(Boolean);
+                      if (!next.length) return;
+                      setFormData({
+                        ...formData,
+                        kpi_input: "",
+                        success_metrics: {
+                          ...formData.success_metrics,
+                          kpis: [...new Set([...formData.success_metrics.kpis, ...next])],
+                        },
+                      });
+                    }
+                  }}
+                  placeholder="Type a KPI and press Enter, or comma-separate several"
+                  className="mt-1 bg-black border-gray-700 text-white"
+                />
+                {formData.success_metrics.kpis.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.success_metrics.kpis.map((kpi) => (
+                      <button
+                        key={kpi}
+                        type="button"
+                        className="text-xs px-2 py-1 rounded border border-gray-700 text-gray-300 hover:border-gray-500"
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            success_metrics: {
+                              ...formData.success_metrics,
+                              kpis: formData.success_metrics.kpis.filter((item) => item !== kpi),
+                            },
+                          })
+                        }
+                      >
+                        {kpi} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

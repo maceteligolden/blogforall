@@ -14,6 +14,9 @@ import { resolveStyleProfile } from "./contracts/style-profile";
 import { coerceContentArchetype } from "./contracts/content-archetype";
 import { formatRoutedNotesForPrompt, routeResearchNotes } from "./contracts/signal-router";
 import { TavilySearchService } from "./tavily-search.service";
+import { ResearchGraphService } from "../../orchestratorv2/research/research-graph.service";
+import { formatPackageForPrompt } from "../../orchestratorv2/research/research-package.mapper";
+import { ArtifactStoreService } from "../../orchestrator/ai/memory/artifact-store.service";
 import { runBlogReviewWithChat, type BlogReviewResult } from "./blog-review.runner";
 import { clampBlogExcerpt } from "../utils/excerpt.util";
 import { ensureHtmlContent } from "../../../shared/utils/content-blocks.util";
@@ -67,7 +70,11 @@ export class BlogGenerationGraphService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private compiled: any = null;
 
-  constructor(private readonly tavilySearch: TavilySearchService) {}
+  constructor(
+    private readonly tavilySearch: TavilySearchService,
+    private readonly researchGraph: ResearchGraphService,
+    private readonly artifacts: ArtifactStoreService,
+  ) {}
 
   assertConfigured(): void {
     if (!BlogAiConfig.openaiApiKey) {
@@ -177,6 +184,58 @@ export class BlogGenerationGraphService {
       throw new BadRequestError("Blog generation did not produce content. Please try again.");
     }
     return update.draft;
+  }
+
+  /**
+   * Writing background draft: merge → draft from approved notes → editorial review.
+   * Skips the research graph / Tavily — research already ran in writing_request_research.
+   */
+  async generateFromNotesWithReview(
+    prompt: string,
+    analysis: PromptAnalysis,
+    researchNotes: ResearchNote[],
+    userParams?: BlogUserGenerationParams,
+    signal?: AbortSignal
+  ): Promise<{
+    content: GeneratedBlogContent;
+    analysis: PromptAnalysis;
+    review: BlogReviewResult;
+  }> {
+    this.assertConfigured();
+    if (!analysis.is_valid) {
+      throw new BadRequestError(
+        analysis.rejection_reason ||
+          "We couldn't understand your prompt. Please provide a clear topic or question about what you'd like to write about."
+      );
+    }
+    const mergedOut = await this.nodeMergeParams(
+      {
+        prompt: prompt.trim(),
+        userParams,
+        analysis,
+        researchNotes,
+        draft: null,
+        review: null,
+      },
+      { signal }
+    );
+    const mergedAnalysis = mergedOut.analysis ?? analysis;
+    const content = await this.draftFromNotes(prompt, mergedAnalysis, researchNotes, userParams, signal);
+    const reviewOut = await this.nodeReview(
+      {
+        prompt: prompt.trim(),
+        userParams,
+        analysis: mergedAnalysis,
+        researchNotes,
+        draft: content,
+        review: null,
+      },
+      { signal }
+    );
+    if (!reviewOut.review) {
+      throw new BadRequestError("Blog review step did not complete. Please try again.");
+    }
+    return { content, analysis: mergedAnalysis, review: reviewOut.review };
   }
 
   /**
@@ -509,13 +568,48 @@ Return structured output matching the schema.`;
   private async nodeResearch(state: BlogGenStateType, config?: RunnableConfig): Promise<BlogGenUpdate> {
     const a = state.analysis!;
     const topic = a.topic || state.prompt.slice(0, 200);
+    const siteId = state.userParams?.site_id;
+    if (siteId) {
+      try {
+        const result = await this.researchGraph.run({
+          workspace_id: siteId,
+          question: [topic, a.purpose, a.target_audience].filter(Boolean).join(" — "),
+          depth: "full",
+          purpose: "post",
+          audience: a.target_audience,
+          persist: true,
+          signal: config?.signal,
+        });
+        const pkg = await this.artifacts.getResearchPackage(siteId, result.package_id);
+        const notes: ResearchNote[] = [
+          {
+            url: `research://${result.package_id}`,
+            title: "Research report",
+            snippet: (result.report_markdown || (pkg ? formatPackageForPrompt(pkg) : "")).slice(0, 4000),
+          },
+          ...(pkg?.references ?? []).slice(0, 12).map((r) => ({
+            url: r.url,
+            title: r.title,
+            snippet: pkg?.sources.find((s) => s.id === r.source_id)?.snippet || r.title,
+          })),
+        ];
+        if (notes.length > 1 || notes[0]?.snippet) {
+          return { researchNotes: notes };
+        }
+      } catch (error) {
+        logger.warn(
+          "Research graph failed in blog generation; falling back to search",
+          { error: String(error) },
+          "BlogGenerationGraphService",
+        );
+      }
+    }
     const notes = await this.tavilySearch.searchMultiQuery(topic, {
       minSources: 5,
       maxSources: 15,
       signal: config?.signal,
     });
     if (!notes.length) {
-      // Fall back to single query for backwards-compatible behavior
       const q = this.tavilySearch.buildQuery(state.prompt, a.topic, a.topics_to_explore);
       const fallback = await this.tavilySearch.search(q, config?.signal);
       return { researchNotes: fallback };
@@ -671,6 +765,7 @@ ${input.feedback}
 Rules:
 - Address every point of the reviewer's feedback.
 - Preserve sections the reviewer did not flag.
+- Always return the COMPLETE post HTML (every section), never only the rewritten fragment.
 - Keep the HTML structure clean (h2 sections, paragraphs, lists as appropriate).
 - Do not invent statistics, quotes, or sources that were not already present.
 - Update the title only if the feedback explicitly asks for a different angle.

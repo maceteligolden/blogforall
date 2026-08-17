@@ -1,17 +1,37 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CampaignService, type CampaignIntelligenceSnapshot } from "@/lib/api/services/campaign.service";
+import { StrategicService } from "@/lib/api/services/strategic.service";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { QUERY_KEYS } from "@/lib/api/config";
+import { useAuthStore } from "@/lib/store/auth.store";
 
 function pct(n?: number) {
   if (n == null || Number.isNaN(n)) return "—";
   return `${Math.round(n * 100)}%`;
 }
 
+function normalizeQuestions(
+  questions?: CampaignIntelligenceSnapshot["next_questions"]
+): Array<{ key: string; question: string }> {
+  return (questions ?? []).map((item, index) => {
+    if (typeof item === "string") {
+      return { key: "", question: item };
+    }
+    return { key: item.key || "", question: item.question || `Question ${index + 1}` };
+  });
+}
+
 export function CampaignIntelligencePanel({ campaignId }: { campaignId: string }) {
   const queryClient = useQueryClient();
+  const currentSiteId = useAuthStore((s) => s.currentSiteId);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [answerError, setAnswerError] = useState("");
+
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEYS.CAMPAIGN_INTELLIGENCE(campaignId),
     queryFn: async () => {
@@ -27,6 +47,25 @@ export function CampaignIntelligencePanel({ campaignId }: { campaignId: string }
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.CAMPAIGN_INTELLIGENCE(campaignId) });
     },
   });
+
+  const saveAnswer = async (key: string) => {
+    const value = answers[key]?.trim();
+    if (!currentSiteId || !key || !value) return;
+    setSavingKey(key);
+    setAnswerError("");
+    try {
+      await StrategicService.updateKnowledge(currentSiteId, key, {
+        value,
+        source: "campaign_intelligence",
+      });
+      await recompute.mutateAsync();
+      setAnswers((prev) => ({ ...prev, [key]: "" }));
+    } catch {
+      setAnswerError("Could not save that answer. Try again.");
+    } finally {
+      setSavingKey(null);
+    }
+  };
 
   if (isLoading) {
     return <p className="text-sm text-gray-500">Loading campaign intelligence…</p>;
@@ -49,6 +88,7 @@ export function CampaignIntelligencePanel({ campaignId }: { campaignId: string }
   }
 
   const dims = data.dimensions ?? {};
+  const questions = normalizeQuestions(data.next_questions);
 
   return (
     <section className="rounded-lg border border-gray-800 bg-gray-900 p-6 space-y-4">
@@ -105,13 +145,33 @@ export function CampaignIntelligencePanel({ campaignId }: { campaignId: string }
         </div>
       )}
 
-      {(data.next_questions?.length ?? 0) > 0 && (
+      {questions.length > 0 && (
         <div>
           <p className="text-sm text-gray-400 mb-2">Next questions</p>
-          <ul className="space-y-1">
-            {data.next_questions!.map((q, i) => (
-              <li key={i} className="text-sm text-gray-300">
-                · {q}
+          {answerError && <p className="text-xs text-red-400 mb-2">{answerError}</p>}
+          <ul className="space-y-3">
+            {questions.map((item, i) => (
+              <li key={item.key || i} className="rounded-md border border-gray-800 bg-black/30 p-3 space-y-2">
+                <p className="text-sm text-gray-300">{item.question}</p>
+                {item.key ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={answers[item.key] ?? ""}
+                      onChange={(e) => setAnswers((prev) => ({ ...prev, [item.key]: e.target.value }))}
+                      placeholder="Short answer"
+                      className="bg-black border-gray-700 text-white"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-primary hover:bg-primary/90 text-white shrink-0"
+                      disabled={!answers[item.key]?.trim() || savingKey === item.key || !currentSiteId}
+                      onClick={() => saveAnswer(item.key)}
+                    >
+                      {savingKey === item.key ? "Saving…" : "Save"}
+                    </Button>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

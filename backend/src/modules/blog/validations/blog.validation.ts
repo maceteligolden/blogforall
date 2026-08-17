@@ -21,6 +21,12 @@ const contentBlockSchema = z
   })
   .passthrough();
 
+/** Empty strings from the editor cannot be written to uuid columns. */
+const optionalUuid = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z.string().optional().nullable()
+);
+
 export const createBlogSchema = z
   .object({
     title: z.string().min(1, "Title is required").max(200, "Title must not exceed 200 characters"),
@@ -31,9 +37,9 @@ export const createBlogSchema = z
     featured_image: z.string().optional(),
     images: z.array(z.string()).optional(),
     status: z.nativeEnum(BlogStatus).optional().default(BlogStatus.DRAFT),
-    category: z.string().optional(),
-    campaign_id: z.string().optional(),
-    strategy_id: z.string().optional(),
+    category: optionalUuid,
+    campaign_id: optionalUuid,
+    strategy_id: optionalUuid,
     dynamic_forms: z.record(z.unknown()).optional(),
     meta: z
       .object({
@@ -58,9 +64,9 @@ export const updateBlogSchema = z.object({
   featured_image: z.string().optional().nullable(),
   images: z.array(z.string()).optional(),
   status: z.nativeEnum(BlogStatus).optional(),
-  category: z.string().optional().nullable(),
-  campaign_id: z.string().optional().nullable(),
-  strategy_id: z.string().optional().nullable(),
+  category: optionalUuid,
+  campaign_id: optionalUuid,
+  strategy_id: optionalUuid,
   dynamic_forms: z.record(z.unknown()).optional(),
   meta: z
     .object({

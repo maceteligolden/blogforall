@@ -19,7 +19,7 @@ const OPERATIONAL_MODES: {
   { id: "planning", label: "Planning", description: "Outline ideas and strategy" },
   { id: "strategy", label: "Strategy", description: "Themes, clusters, and calendar" },
   { id: "writing", label: "Writing", description: "Draft and edit blog content" },
-  { id: "research", label: "Research", description: "Explore and summarize content" },
+  { id: "research", label: "Research", description: "Investigate a question with sources" },
   { id: "review", label: "Review", description: "Score and improve drafts" },
   { id: "casual", label: "Casual", description: "General workspace chat" },
 ];

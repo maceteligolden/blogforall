@@ -9,6 +9,8 @@ export const REALTIME_EVENTS = {
   SCHEDULED_POST_PUBLISHED: "scheduled_post.published",
   SCHEDULED_POST_FAILED: "scheduled_post.failed",
   CAMPAIGN_EVENT_APPENDED: "campaign.event.appended",
+  BLOG_STATUS_CHANGED: "blog.status.changed",
+  STRATEGY_STATUS_CHANGED: "strategy.status.changed",
   REALTIME_ERROR: "realtime:error",
   REALTIME_CONNECTED: "realtime:connected",
 } as const;

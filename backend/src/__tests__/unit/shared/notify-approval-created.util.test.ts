@@ -22,28 +22,13 @@ function makeApproval(overrides: Partial<OrchestratorApproval> = {}): Orchestrat
 }
 
 describe("notifyApprovalCreatedInApp", () => {
-  it("creates IN_APP confirmation_needed for in-chat approvals", async () => {
-    const createAndSend = jest.fn().mockResolvedValue({ notificationId: "n1", correlationId: "c1" });
+  it("skips in-chat confirmations (those stay in the conversation)", async () => {
+    const createAndSend = jest.fn();
     const notificationService = { createAndSend } as unknown as NotificationService;
 
     await notifyApprovalCreatedInApp(notificationService, makeApproval());
 
-    expect(createAndSend).toHaveBeenCalledTimes(1);
-    expect(createAndSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        channel: NotificationChannel.IN_APP,
-        type: NotificationType.CONFIRMATION_NEEDED,
-        recipientUserId: "user-1",
-        title: "Confirmation needed",
-        body: "Delete this blog?",
-        payload: expect.objectContaining({
-          approval_id: "approval-1",
-          site_id: "site-1",
-          thread_id: "thread-1",
-          action: "blogs.delete",
-        }),
-      })
-    );
+    expect(createAndSend).not.toHaveBeenCalled();
   });
 
   it("creates IN_APP scheduled_post_review for schedule reviews", async () => {
@@ -67,6 +52,38 @@ describe("notifyApprovalCreatedInApp", () => {
         payload: expect.objectContaining({
           blog_id: "blog-1",
           scheduled_post_id: "sp-1",
+        }),
+      })
+    );
+  });
+
+  it("uses draft-ready copy when the scheduled post belongs to a campaign", async () => {
+    const createAndSend = jest.fn().mockResolvedValue({ notificationId: "n1", correlationId: "c1" });
+    const notificationService = { createAndSend } as unknown as NotificationService;
+
+    await notifyApprovalCreatedInApp(
+      notificationService,
+      makeApproval({
+        kind: OrchestratorApprovalKind.SCHEDULED_POST_REVIEW,
+        summary: 'Review "Post" scheduled for …',
+        thread_id: undefined,
+        payload: {
+          blog_id: "blog-1",
+          scheduled_post_id: "sp-1",
+          campaign_id: "campaign-1",
+          rework_round: 0,
+        },
+      })
+    );
+
+    expect(createAndSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: NotificationType.SCHEDULED_POST_REVIEW,
+        title: "Draft ready — review and schedule",
+        body: "Your campaign draft is ready. Review the post, then confirm timing on the campaign Schedule tab.",
+        payload: expect.objectContaining({
+          blog_id: "blog-1",
+          campaign_id: "campaign-1",
         }),
       })
     );
@@ -96,7 +113,12 @@ describe("notifyApprovalCreatedInApp", () => {
     const createAndSend = jest.fn().mockRejectedValue(new Error("db down"));
     const notificationService = { createAndSend } as unknown as NotificationService;
 
-    await expect(notifyApprovalCreatedInApp(notificationService, makeApproval())).resolves.toBeUndefined();
+    await expect(
+      notifyApprovalCreatedInApp(
+        notificationService,
+        makeApproval({ kind: OrchestratorApprovalKind.SCHEDULED_POST_REVIEW })
+      )
+    ).resolves.toBeUndefined();
   });
 
   it("skips when recipient user id is missing", async () => {

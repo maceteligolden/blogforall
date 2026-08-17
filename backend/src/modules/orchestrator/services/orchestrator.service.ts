@@ -342,14 +342,25 @@ export class OrchestratorService {
       },
       { siteId }
     );
-    if (decided.action === "strategy_update") {
+    if (
+      decided.action === "strategy_update" ||
+      decided.action === "campaign_create" ||
+      decided.action === "campaign_update" ||
+      decided.action === "campaign_schedule_additional_posts" ||
+      decided.action === "writing_request_research" ||
+      decided.action === "writing_confirm_research" ||
+      decided.action === "blogs_publish" ||
+      decided.action === "blogs_unpublish" ||
+      decided.action === "blogs_schedule" ||
+      decided.action === "blogs_unschedule"
+    ) {
       // orchestratorv2 HITL: resume LangGraph on the same thread_id
       const { default: OrchestratorV2Service } = await import(
         "../../orchestratorv2/orchestrator.service"
       );
       const { container } = await import("tsyringe");
       const v2 = container.resolve(OrchestratorV2Service);
-      await v2.resumeStrategyApproval(decided, decision, note);
+      await v2.resumeHitlApproval(decided, decision, note);
     } else if (decision === "approved") {
       await this.executeApprovedAction(decided, userId);
     }

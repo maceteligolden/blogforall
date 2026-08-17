@@ -1,11 +1,26 @@
 import { injectable } from "tsyringe";
 import { BlogAiConfig } from "../../../shared/constants/blog-generation.constant";
 import { BadRequestError } from "../../../shared/errors";
+import { logger } from "../../../shared/utils/logger";
 import { BlogGenerationGraphService } from "../ai/blog-generation-graph.service";
 import type { BlogReviewResult } from "../ai/blog-review.runner";
-import type { BlogUserGenerationParams, GeneratedBlogContent, PromptAnalysis } from "../ai/types";
+import type { BlogUserGenerationParams, GeneratedBlogContent, PromptAnalysis, ResearchNote } from "../ai/types";
 
-export type { PromptAnalysis, GeneratedBlogContent } from "../ai/types";
+export type { PromptAnalysis, GeneratedBlogContent, ResearchNote } from "../ai/types";
+
+function formatReviewAsFeedback(review: BlogReviewResult): string {
+  const lines: string[] = [];
+  if (review.summary?.trim()) {
+    lines.push(`Editorial review (overall ${review.overall_score}/10): ${review.summary.trim()}`);
+  }
+  const suggestions = review.suggestions ?? [];
+  for (const suggestion of suggestions.slice(0, 12)) {
+    const original = (suggestion.original || "").replace(/\s+/g, " ").trim().slice(0, 120);
+    const next = (suggestion.suggestion || "").replace(/\s+/g, " ").trim().slice(0, 160);
+    lines.push(`- [${suggestion.priority}] ${suggestion.explanation}${original ? ` — was: "${original}"` : ""}${next ? ` → ${next}` : ""}`);
+  }
+  return lines.join("\n").trim();
+}
 
 @injectable()
 export class BlogGenerationService {
@@ -26,7 +41,7 @@ export class BlogGenerationService {
     analysis: PromptAnalysis,
     userParams?: BlogUserGenerationParams
   ): Promise<GeneratedBlogContent> {
-    const { content } = await this.graphService.generateFull(prompt, analysis, userParams);
+    const { content } = await this.generateWithReview(prompt, analysis, userParams);
     return content;
   }
 
@@ -35,7 +50,47 @@ export class BlogGenerationService {
     analysis: PromptAnalysis,
     userParams?: BlogUserGenerationParams
   ): Promise<{ content: GeneratedBlogContent; analysis: PromptAnalysis; review: BlogReviewResult }> {
-    return this.graphService.generateFull(prompt, analysis, userParams);
+    const first = await this.graphService.generateFull(prompt, analysis, userParams);
+    const rewritten = await this.rewriteFromReview(first.content, first.review, userParams);
+    return { content: rewritten, analysis: first.analysis, review: first.review };
+  }
+
+  /** Writing loop: draft from already-approved research notes, then review + rewrite. No second web research. */
+  async generateWithReviewFromNotes(
+    prompt: string,
+    analysis: PromptAnalysis,
+    researchNotes: ResearchNote[],
+    userParams?: BlogUserGenerationParams
+  ): Promise<{ content: GeneratedBlogContent; analysis: PromptAnalysis; review: BlogReviewResult }> {
+    const first = await this.graphService.generateFromNotesWithReview(prompt, analysis, researchNotes, userParams);
+    try {
+      const rewritten = await this.rewriteFromReview(first.content, first.review, userParams);
+      return { content: rewritten, analysis: first.analysis, review: first.review };
+    } catch (error) {
+      logger.warn(
+        "Editorial rewrite failed; keeping first draft",
+        { error: error instanceof Error ? error.message : String(error) },
+        "BlogGenerationService"
+      );
+      return first;
+    }
+  }
+
+  /** Apply editorial review notes so the user never sees the pre-review draft. */
+  private async rewriteFromReview(
+    content: GeneratedBlogContent,
+    review: BlogReviewResult,
+    userParams?: BlogUserGenerationParams
+  ): Promise<GeneratedBlogContent> {
+    const feedback = formatReviewAsFeedback(review);
+    if (!feedback) return content;
+    return this.graphService.regenerateWithFeedback({
+      title: content.title,
+      content: content.content,
+      excerpt: content.excerpt,
+      feedback,
+      userParams,
+    });
   }
 
   /**

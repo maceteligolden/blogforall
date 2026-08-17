@@ -1,5 +1,4 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { QUERY_KEYS } from "@/lib/api/config";
 import type { OrchestratorMessage } from "@/lib/api/types/orchestrator.types";
 
 export interface OrchestratorArtifact {
@@ -45,9 +44,13 @@ export const ENTITY_PANEL_TOOLS = new Set([
   "blogs.update",
   "blogs.get",
   "blogs.review",
+  "writing.confirmResearch",
   "campaigns.get",
   "campaigns.create",
   "campaigns.update",
+  "campaign_get",
+  "campaign_create",
+  "campaign_update",
   "strategy.get",
   "strategy.update",
 ]);
@@ -55,13 +58,27 @@ export const ENTITY_PANEL_TOOLS = new Set([
 /** @deprecated Use ENTITY_PANEL_TOOLS — kept as alias for gradual migration */
 export const VIEWABLE_ARTIFACT_TOOLS = ENTITY_PANEL_TOOLS;
 
-export const DRAFT_ARTIFACT_TOOLS = new Set(["blogs.generateDraft", "blogs.createDraft", "blogs.update", "blogs.get"]);
+export const DRAFT_ARTIFACT_TOOLS = new Set([
+  "blogs.generateDraft",
+  "blogs.createDraft",
+  "blogs.update",
+  "blogs.get",
+  "writing.confirmResearch",
+  "writing.reviseDraft",
+]);
 
-export const CAMPAIGN_PANEL_TOOLS = new Set(["campaigns.get", "campaigns.create", "campaigns.update"]);
+export const CAMPAIGN_PANEL_TOOLS = new Set([
+  "campaigns.get",
+  "campaigns.create",
+  "campaigns.update",
+  "campaign_get",
+  "campaign_create",
+  "campaign_update",
+]);
 export const STRATEGY_PANEL_TOOLS = new Set(["strategy.get", "strategy.update"]);
 
-/** Research / outline stay in-chat as workflow cards — never auto-open the panel. */
-export const WORKFLOW_CARD_TOOLS = new Set(["research", "writing.outline", "search.web", "content_strategy"]);
+/** Outline stays in-chat as a workflow card — never auto-open the panel. */
+export const WORKFLOW_CARD_TOOLS = new Set(["writing.outline", "content_strategy"]);
 
 export function extractBlogIdFromArtifactData(data: Record<string, unknown>): string | undefined {
   if (typeof data.blog_id === "string") return data.blog_id;
@@ -112,23 +129,29 @@ export function patchBlogCacheFromToolOutput(
           : undefined;
   if (!content && !content_blocks && !updated_at) return false;
 
-  queryClient.setQueryData(QUERY_KEYS.BLOG(blogId), (old: Record<string, unknown> | undefined) => {
-    const next: Record<string, unknown> = {
-      ...(old ?? { _id: blogId }),
-      ...(updated_at ? { updated_at } : {}),
-      ...(typeof outputData.title === "string" ? { title: outputData.title } : {}),
-      ...(typeof outputData.excerpt === "string" ? { excerpt: outputData.excerpt } : {}),
-      ...(typeof outputData.status === "string" ? { status: outputData.status } : {}),
-    };
-    if (content_blocks !== undefined) {
-      next.content_blocks = content_blocks;
-      if (content !== undefined) next.content = content;
-    } else if (content !== undefined) {
-      next.content = content;
-      next.content_blocks = undefined;
+  queryClient.setQueriesData(
+    {
+      predicate: (query) =>
+        Array.isArray(query.queryKey) && query.queryKey[0] === "blogs" && query.queryKey[1] === blogId,
+    },
+    (old: Record<string, unknown> | undefined) => {
+      const next: Record<string, unknown> = {
+        ...(old ?? { _id: blogId }),
+        ...(updated_at ? { updated_at } : {}),
+        ...(typeof outputData.title === "string" ? { title: outputData.title } : {}),
+        ...(typeof outputData.excerpt === "string" ? { excerpt: outputData.excerpt } : {}),
+        ...(typeof outputData.status === "string" ? { status: outputData.status } : {}),
+      };
+      if (content_blocks !== undefined) {
+        next.content_blocks = content_blocks;
+        if (content !== undefined) next.content = content;
+      } else if (content !== undefined) {
+        next.content = content;
+        next.content_blocks = undefined;
+      }
+      return next;
     }
-    return next;
-  });
+  );
   return true;
 }
 

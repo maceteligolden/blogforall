@@ -100,11 +100,19 @@ describe("T4.1 strategist_pipeline staging path", () => {
       ...withPkg,
       outline: { title: "AI Agents", sections: [{ heading: "Intro", summary: "…" }] },
     };
-    expect(planFromState(withOutline).skill_id).toBe("writing");
-    expect(planFromState(withOutline).skill_args?.action).toBe("draft");
+    const paused = planFromState(withOutline);
+    expect(paused.next).toBe("compose");
+    expect(paused.confirmation?.kind).toBe("outline_approval");
+
+    const approved = {
+      ...withOutline,
+      slots: { ...withOutline.slots, outline_approved: true },
+    };
+    expect(planFromState(approved).skill_id).toBe("writing");
+    expect(planFromState(approved).skill_args?.action).toBe("draft");
 
     const withDraft = {
-      ...withOutline,
+      ...approved,
       draft: { title: "T", content: "<p>x</p>" },
     };
     expect(planFromState(withDraft).skill_id).toBe("content_optimization");
@@ -113,7 +121,7 @@ describe("T4.1 strategist_pipeline staging path", () => {
     expect(planFromState(gated).next).toBe("compose");
   });
 
-  it("e2e strategist path streams research_* and optimize_* phases", async () => {
+  it("e2e strategist path runs strategy → research → outline HITL", async () => {
     const phases: WorkflowPhaseEvent[] = [];
     const retrieve = jest.fn(async () => ({
       workspace_slice: { brand_voice: "clear" },
@@ -282,32 +290,21 @@ describe("T4.1 strategist_pipeline staging path", () => {
       "content_strategy",
       "research",
       "writing:outline",
-      "writing:draft",
-      "content_optimization",
     ]);
-    expect(out.skills_run_this_turn).toBe(5);
+    expect(out.skills_run_this_turn).toBe(3);
     expect(out.skills_run_this_turn).toBeLessThanOrEqual(MVP_LOCKS.maxSkillsPerTurn);
     expect(out.strategy).toBeTruthy();
     expect(out.research_package_id).toBe("rp_st");
     expect(out.outline).toBeTruthy();
-    expect(out.draft).toBeTruthy();
-    expect(out.quality_gate_passed).toBe(true);
-    expect(out.reply).toMatch(/coverage|Outline|Optimization/i);
+    expect(out.draft).toBeFalsy();
+    expect(out.plan?.confirmation?.kind).toBe("outline_approval");
 
     const phaseNames = phases.map((p) => p.phase);
     expect(phaseNames).toEqual(
       expect.arrayContaining([
         "strategy",
         "research",
-        "research_planning",
-        "research_gathering",
-        "research_structuring",
-        "research_packaging",
         "outline",
-        "draft",
-        "optimize",
-        "optimize_scoring",
-        "optimize_gate",
       ])
     );
   });

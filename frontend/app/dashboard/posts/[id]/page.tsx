@@ -26,6 +26,9 @@ import { BlogReviewComparison } from "@/components/blog/blog-review-comparison";
 import { ReviewModeView } from "@/components/blog/review-mode-view";
 import { Sparkles, Calendar } from "lucide-react";
 import type { ReviewSuggestion } from "@/lib/api/services/blog-review.service";
+import { OrchestratorChat } from "@/components/orchestrator/orchestrator-chat";
+import { WorkspaceSplitLayout } from "@/components/orchestrator/workspace-split-layout";
+import { useStartWritingThread } from "@/lib/writing/use-start-writing-thread";
 
 export default function EditBlogPage() {
   const router = useRouter();
@@ -33,6 +36,8 @@ export default function EditBlogPage() {
   const queryClient = useQueryClient();
   const id = params.id as string;
   const { data: blog, isLoading } = useBlog(id);
+  const { startWritingThread } = useStartWritingThread();
+  const editorChatStarted = useRef(false);
   const updateBlog = useUpdateBlog();
   const uploadImage = useUploadImage();
   const { data: categories } = useCategories({ tree: false });
@@ -60,7 +65,7 @@ export default function EditBlogPage() {
     content_blocks?: ContentBlock[];
     featured_image: string;
     category: string;
-    status: "draft" | "scheduled" | "published" | "unpublished";
+    status: "draft" | "generating" | "scheduled" | "published" | "unpublished";
     scheduled_at: string;
   }>({
     title: "",
@@ -87,9 +92,23 @@ export default function EditBlogPage() {
   const baselineCapturedForIdRef = useRef<string>("");
 
   useEffect(() => {
+    editorChatStarted.current = false;
     baselineCapturedForIdRef.current = "";
     setSavedFingerprint(null);
   }, [id]);
+
+  useEffect(() => {
+    if (!blog || String(blog._id) !== id || editorChatStarted.current) return;
+    editorChatStarted.current = true;
+    void startWritingThread({
+      blog_id: id,
+      campaign_id: typeof (blog as { campaign_id?: string }).campaign_id === "string"
+        ? (blog as { campaign_id?: string }).campaign_id
+        : undefined,
+      topic: blog.title,
+      stayOnPage: true,
+    });
+  }, [blog, id, startWritingThread]);
 
   useEffect(() => {
     if (!blog || isLoading || isLoadingSchedule) return;
@@ -241,6 +260,11 @@ export default function EditBlogPage() {
     e.preventDefault();
     setError("");
 
+    if (blog.status === "generating") {
+      setError("This post is still being written. Try again in a moment.");
+      return;
+    }
+
     const useBlocks = formData.content_blocks != null && formData.content_blocks.length > 0;
     if (useBlocks) {
       const errs = getContentBlocksValidationErrors(formData.content_blocks || []);
@@ -269,7 +293,11 @@ export default function EditBlogPage() {
       setError("Pick a schedule date and time, or change status away from Scheduled.");
       return;
     }
-    const blogDataForUpdate = willScheduleLater ? { ...blogData, status: "draft" as const } : blogData;
+    const blogDataForUpdate = {
+      ...(willScheduleLater ? { ...blogData, status: "draft" as const } : blogData),
+      category: formData.category || undefined,
+      featured_image: formData.featured_image || undefined,
+    };
     const excerptText = deriveExcerptFromContent(
       useBlocks ? blocksToHtml(formData.content_blocks as ContentBlock[]) : formData.content
     );
@@ -419,9 +447,19 @@ export default function EditBlogPage() {
   }
 
   return (
-    <div className="h-screen bg-black text-white flex flex-col overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex-shrink-0">
+    <div className="h-full min-h-0 overflow-hidden bg-black text-white">
+      <WorkspaceSplitLayout
+        showRight
+        left={<OrchestratorChat className="h-full" />}
+        right={
+          <div className="h-full min-h-0 overflow-y-auto flex flex-col">
+      <div className="px-6 lg:px-8 py-6 flex-shrink-0">
         <Breadcrumb items={[{ label: "Posts", href: "/dashboard/posts" }, { label: blog?.title || "Edit Post" }]} />
+        {blog.status === "generating" && (
+          <div className="mt-4 rounded-md border border-primary/40 bg-primary/10 px-4 py-3 text-sm text-primary">
+            This post is still being written. Editing and publishing are paused until the draft is ready.
+          </div>
+        )}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-display text-white">Edit Post</h1>
           <div className="flex items-center space-x-4">
@@ -436,7 +474,7 @@ export default function EditBlogPage() {
               type="button"
               className="bg-purple-600 hover:bg-purple-700 text-white border-0 shrink-0"
               onClick={handleReview}
-              disabled={isReviewing || !canReviewNow}
+              disabled={blog.status === "generating" || isReviewing || !canReviewNow}
             >
               <Sparkles className="w-4 h-4 mr-2" />
               {isReviewing ? "Reviewing..." : "Review with AI"}
@@ -446,6 +484,7 @@ export default function EditBlogPage() {
               form="blog-form"
               className="bg-primary hover:bg-primary/90 text-white"
               disabled={
+                blog.status === "generating" ||
                 updateBlog.isPending ||
                 savedFingerprint === null ||
                 !isDirty ||
@@ -665,7 +704,7 @@ export default function EditBlogPage() {
                           type="button"
                           className="w-full bg-purple-600 hover:bg-purple-700 text-white border-0"
                           onClick={handleReview}
-                          disabled={isReviewing || !canReviewNow}
+                          disabled={blog.status === "generating" || isReviewing || !canReviewNow}
                         >
                           <Sparkles className="w-4 h-4 mr-2" />
                           {isReviewing ? "Reviewing..." : "Review with AI"}
@@ -874,6 +913,9 @@ export default function EditBlogPage() {
           )}
         </div>
       </main>
+          </div>
+        }
+      />
     </div>
   );
 }

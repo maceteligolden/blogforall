@@ -28,6 +28,10 @@ export enum NotificationType {
   CAMPAIGN_DAILY_PROGRESS_REPORT = "campaign_daily_progress_report",
   /** In-chat or other non-schedule approval awaiting a decision. */
   CONFIRMATION_NEEDED = "confirmation_needed",
+  /** Interactive AI generate finished writing a draft. */
+  BLOG_DRAFT_READY = "blog_draft_ready",
+  /** Content Strategy finished generating from the workspace website (or failed). */
+  CONTENT_STRATEGY_READY = "content_strategy_ready",
   /** Waitlist signup confirmation for early access. */
   WAITLIST_CONFIRMATION = "waitlist_confirmation",
 }
