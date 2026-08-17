@@ -27,7 +27,7 @@ export interface UpdateBlogRequest extends Partial<CreateBlogRequest> {
 }
 
 export interface BlogQueryParams {
-  status?: "draft" | "scheduled" | "published" | "unpublished";
+  status?: "draft" | "generating" | "scheduled" | "published" | "unpublished";
   search?: string;
   page?: number;
   limit?: number;
