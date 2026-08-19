@@ -101,6 +101,9 @@ export const API_ENDPOINTS = {
     SIGNUP_WIZARD: "/onboarding/signup-wizard",
     COMPLETE_PLAN_SELECTION: "/onboarding/plan-selection/complete",
     SETUP_PROGRESS: "/onboarding/setup-progress",
+    STRATEGIST_PROGRESS: "/onboarding/strategist-progress",
+    STRATEGIST_PROGRESS_RETRY: "/onboarding/strategist-progress/retry",
+    STRATEGIST_READY_ACKNOWLEDGE: "/onboarding/strategist-ready/acknowledge",
   },
   SITES: {
     CREATE: "/sites",

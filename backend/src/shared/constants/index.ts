@@ -42,9 +42,11 @@ export enum SiteStatus {
 export enum SignupWizardStage {
   EMAIL_VERIFICATION = "email_verification",
   COMPANY_ROLE = "company_role",
-  WORKSPACE_NAME = "workspace_name",
   PLAN_SELECTION = "plan_selection",
+  WORKSPACE_NAME = "workspace_name",
   INVITE = "invite",
+  STRATEGIST_SETUP = "strategist_setup",
+  STRATEGIST_READY = "strategist_ready",
   COMPLETE = "complete",
 }
 

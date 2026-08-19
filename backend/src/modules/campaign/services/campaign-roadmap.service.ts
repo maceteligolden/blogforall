@@ -59,14 +59,16 @@ export class CampaignRoadmapService {
     return { current, history };
   }
 
-  async approveRoadmap(campaignId: string, siteId: string, userId: string) {
+  async approveRoadmap(campaignId: string, siteId: string, userId: string, options?: { skipMaterialize?: boolean }) {
     const roadmap = await this.roadmapRepository.findLatest(campaignId, siteId);
     if (!roadmap) {
       throw new NotFoundError("Roadmap not found");
     }
 
     if (roadmap.status === CampaignRoadmapStatus.APPROVED) {
-      await this.materializer.materialize(campaignId, siteId, userId);
+      if (!options?.skipMaterialize) {
+        await this.materializer.materialize(campaignId, siteId, userId);
+      }
       await this.closePendingRoadmapApproval(campaignId, siteId, userId);
       return this.getRoadmap(campaignId, siteId);
     }
@@ -116,20 +118,24 @@ export class CampaignRoadmapService {
       status: CampaignStatus.ACTIVE,
     });
 
-    await this.materializer.materialize(campaignId, siteId, userId);
+    if (!options?.skipMaterialize) {
+      await this.materializer.materialize(campaignId, siteId, userId);
+    }
 
     await this.eventRepository.append({
       campaign_id: campaignId,
       site_id: siteId,
       type: CampaignEventType.ROADMAP_APPROVED,
       actor_user_id: userId,
-      payload: { version: roadmap.version },
+      payload: { version: roadmap.version, materialized: !options?.skipMaterialize },
     });
 
     await this.memoryService.recordDecision(
       campaignId,
       siteId,
-      `Roadmap v${roadmap.version} approved (${roadmap.items.length} posts materialized).`,
+      options?.skipMaterialize
+        ? `Roadmap v${roadmap.version} approved with ${roadmap.items.length} topics. Posts will be written later.`
+        : `Roadmap v${roadmap.version} approved (${roadmap.items.length} posts materialized).`,
       "user"
     );
 

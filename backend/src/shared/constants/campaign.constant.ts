@@ -118,6 +118,9 @@ export enum CampaignRoadmapStatus {
 /** Hard cap so approve/materialize cannot hang the API on oversized plans. */
 export const MAX_CAMPAIGN_PLANNED_POSTS = 30;
 
+/** First Evergreen roadmap during signup / default bootstrap — keep this small and fast. */
+export const SIGNUP_DEFAULT_ROADMAP_TOPICS = 4;
+
 export enum CampaignEventType {
   CAMPAIGN_CREATED = "campaign.created",
   ROADMAP_PROPOSED = "roadmap.proposed",

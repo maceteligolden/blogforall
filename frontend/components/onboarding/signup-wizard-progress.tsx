@@ -2,13 +2,17 @@
 
 import type { SignupWizardStage } from "@/lib/onboarding/signup-wizard";
 
-const STEPS: Array<{ stage: Exclude<SignupWizardStage, "complete">; label: string }> = [
+const STEPS: Array<{ stage: Exclude<SignupWizardStage, "complete" | "strategist_ready">; label: string }> = [
   { stage: "email_verification", label: "Verify" },
   { stage: "company_role", label: "Role" },
+  { stage: "plan_selection", label: "Plan" },
   { stage: "workspace_name", label: "Workspace" },
+  { stage: "invite", label: "Invite" },
+  { stage: "strategist_setup", label: "Setup" },
 ];
 
 function stepIndex(stage: Exclude<SignupWizardStage, "complete">): number {
+  if (stage === "strategist_ready") return STEPS.length - 1;
   const index = STEPS.findIndex((s) => s.stage === stage);
   return index >= 0 ? index : STEPS.length - 1;
 }

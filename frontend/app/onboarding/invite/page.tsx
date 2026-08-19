@@ -17,6 +17,7 @@ import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 import { PendingInvitationsList } from "@/components/sites/pending-invitations-list";
+import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 import { useAuthStore } from "@/lib/store/auth.store";
 
 const INVITE_PROMPT_SEEN_KEY = "blogforall_invite_prompt_seen";
@@ -31,6 +32,7 @@ function InviteOnboardingContent() {
   const [role, setRole] = useState<"admin" | "editor" | "viewer">("editor");
   const [error, setError] = useState("");
   const [sentCount, setSentCount] = useState(0);
+  useOnboardingDropoff("invite");
 
   const { data: wizardStatus } = useQuery({
     queryKey: ["onboarding", "signup-wizard"],
@@ -39,7 +41,7 @@ function InviteOnboardingContent() {
   });
 
   useEffect(() => {
-    if (wizardStatus && wizardStatus.stage !== "invite" && wizardStatus.stage !== "complete") {
+    if (wizardStatus && wizardStatus.stage !== "invite") {
       router.replace(signupWizardPath(wizardStatus));
     }
   }, [wizardStatus, router]);
@@ -64,10 +66,10 @@ function InviteOnboardingContent() {
   });
 
   useEffect(() => {
-    if (!promptLoading && promptStatus && !promptStatus.should_show && !siteIdParam) {
-      router.replace("/dashboard");
+    if (!promptLoading && promptStatus && !promptStatus.should_show && wizardStatus) {
+      router.replace(signupWizardPath(wizardStatus));
     }
-  }, [promptLoading, promptStatus, siteIdParam, router]);
+  }, [promptLoading, promptStatus, wizardStatus, router]);
 
   useEffect(() => {
     onboardingTracker.invitePromptViewed();
@@ -93,17 +95,11 @@ function InviteOnboardingContent() {
     try {
       await OnboardingService.dismissInvitePrompt();
     } catch {
-      // Continue to dashboard even if dismiss fails
+      // Continue to setup even if dismiss fails; wizard GET is the source of truth.
     }
-    // Optimistic cache so dashboard gate does not see stale requiresOnboarding / invite stage.
     queryClient.setQueryData(["onboarding", "signup-wizard"], {
-      stage: "complete",
+      stage: "strategist_setup",
       site_id: siteId ?? undefined,
-    });
-    queryClient.setQueryData(["onboarding", "status"], {
-      requiresOnboarding: false,
-      hasCard: false,
-      hasPlan: false,
     });
     if (siteId) {
       useAuthStore.getState().setCurrentSiteId(siteId);
@@ -118,8 +114,10 @@ function InviteOnboardingContent() {
     }
     if (skipped) {
       onboardingTracker.invitePromptSkipped();
+    } else {
+      onboardingTracker.stepCompleted({ step: "invite" });
     }
-    router.push("/dashboard");
+    router.push(siteId ? `/onboarding/setup?siteId=${encodeURIComponent(siteId)}` : "/onboarding/setup");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -161,7 +159,7 @@ function InviteOnboardingContent() {
         </div>
       </div>
       <p className="mb-6 rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2 text-xs text-gray-400">
-        Next: tell Bloggr about your business on the dashboard — about 2 minutes via the setup progress bar.
+        Next we will show progress as your content strategy, default campaign, and topics come together.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">

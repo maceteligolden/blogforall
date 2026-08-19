@@ -12,7 +12,6 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { useToast } from "@/components/ui/toast";
 import { AuthService } from "@/lib/api/services/auth.service";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
-import { useAuth } from "@/lib/hooks/use-auth";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
@@ -32,7 +31,6 @@ function CompanyRoleContent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { setTokens, setUser } = useAuthStore();
-  const { abandonSignupAsync, isAbandoningSignup } = useAuth();
   const [role, setRole] = useState<string>("");
   const [detail, setDetail] = useState("");
   const [error, setError] = useState("");
@@ -67,13 +65,13 @@ function CompanyRoleContent() {
       const data = res.data.data;
       setTokens(data.tokens.access_token, data.tokens.refresh_token);
       setUser(data.user);
-      queryClient.setQueryData(["onboarding", "signup-wizard"], { stage: "workspace_name" });
+      queryClient.setQueryData(["onboarding", "signup-wizard"], { stage: "plan_selection" });
       onboardingTracker.stepCompleted({ step: "company_role" });
       toast({
         variant: "success",
         description: "Got it — we'll tailor advice to how you work.",
       });
-      router.push("/onboarding/create-site");
+      router.push("/onboarding/plans");
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -135,25 +133,6 @@ function CompanyRoleContent() {
           {submitting ? "Saving…" : "Continue"}
         </Button>
       </form>
-
-      <button
-        type="button"
-        onClick={async () => {
-          try {
-            onboardingTracker.dropped({
-              last_step: "company_role",
-              last_route: "/onboarding/company-role",
-            });
-            await abandonSignupAsync();
-          } catch {
-            toast({ variant: "error", description: "Couldn't cancel signup." });
-          }
-        }}
-        disabled={isAbandoningSignup}
-        className="mt-6 w-full text-center text-sm text-gray-500 hover:text-gray-300"
-      >
-        {isAbandoningSignup ? "Leaving…" : "Exit signup"}
-      </button>
     </AuthSplitLayout>
   );
 }

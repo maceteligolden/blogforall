@@ -98,4 +98,37 @@ export class OnboardingController {
       next(error);
     }
   };
+
+  getStrategistProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const { site_id: siteId } = req.validatedQuery as { site_id: string };
+      const progress = await this.onboardingService.getStrategistProgress(userId, siteId);
+      sendSuccess(res, "Strategist setup progress retrieved", progress);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  retryStrategistProgress = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const { site_id: siteId } = req.validatedQuery as { site_id: string };
+      const progress = await this.onboardingService.retryStrategistProgress(userId, siteId);
+      sendSuccess(res, "Strategist setup retry started", progress);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  acknowledgeStrategistReady = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const body = (req.validatedBody as { degraded?: boolean } | undefined) ?? {};
+      const status = await this.onboardingService.acknowledgeStrategistReady(userId, Boolean(body.degraded));
+      sendSuccess(res, "Business strategist is ready", status);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

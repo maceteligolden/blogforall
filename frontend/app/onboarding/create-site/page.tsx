@@ -11,20 +11,17 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { AuthSplitLayout } from "@/components/auth/auth-split-layout";
 import { AuthPageHeader } from "@/components/auth/auth-page-header";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
-import { useAuth } from "@/lib/hooks/use-auth";
 import { workspaceTracker } from "@/lib/analytics/flows/workspace.tracker";
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 import { useToast } from "@/components/ui/toast";
-import { SETUP_INTERVIEW_PENDING_KEY } from "@/lib/onboarding/brand-setup-items";
 
 function CreateSitePageContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { abandonSignupAsync, isAbandoningSignup } = useAuth();
   const [name, setName] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [error, setError] = useState("");
@@ -67,18 +64,16 @@ function CreateSitePageContent() {
     },
     onSiteReady: (site) => {
       queryClient.setQueryData(["onboarding", "signup-wizard"], {
-        stage: "complete",
+        stage: "invite",
         site_id: site._id,
       });
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(SETUP_INTERVIEW_PENDING_KEY, site._id);
-      }
+      onboardingTracker.stepCompleted({ step: "workspace_name" });
       toast({
         variant: "success",
-        title: "Workspace ready",
-        description: `"${site.name}" is set up. I'll read back your Content Strategy in chat.`,
+        title: "Workspace created",
+        description: `"${site.name}" is set up. Next you can invite teammates.`,
       });
-      router.push("/dashboard");
+      router.push(`/onboarding/invite?siteId=${encodeURIComponent(site._id)}`);
     },
   });
 
@@ -100,22 +95,6 @@ function CreateSitePageContent() {
     }
     workspaceTracker.creationStarted();
     createSiteMutation.mutate({ name: name.trim(), website_url: websiteUrl.trim() });
-  };
-
-  const handleAbandonSignup = async () => {
-    try {
-      onboardingTracker.dropped({
-        last_step: "workspace_details",
-        last_route: "/onboarding/create-site",
-      });
-      await abandonSignupAsync();
-      toast({ variant: "info", description: "Signup cancelled. You can start again anytime." });
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Couldn't cancel signup. Try again.";
-      toast({ variant: "error", description: message });
-    }
   };
 
   return (
@@ -161,8 +140,8 @@ function CreateSitePageContent() {
         </div>
 
         <p className="text-xs text-gray-500">
-          Next we&apos;ll generate Content Strategy from your website, then I&apos;ll read it back in chat — does this
-          sound like you?
+          Next you can invite teammates, then we&apos;ll generate your Content Strategy, default campaign, and topics
+          from your website.
         </p>
 
         <Button
@@ -173,15 +152,6 @@ function CreateSitePageContent() {
           {createSiteMutation.isPending ? "Creating…" : "Continue"}
         </Button>
       </form>
-
-      <button
-        type="button"
-        onClick={handleAbandonSignup}
-        disabled={isAbandoningSignup}
-        className="mt-6 w-full text-center text-sm text-gray-500 hover:text-gray-300"
-      >
-        {isAbandoningSignup ? "Leaving…" : "Exit signup"}
-      </button>
     </AuthSplitLayout>
   );
 }

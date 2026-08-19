@@ -18,16 +18,8 @@ export function middleware(request: NextRequest) {
   // /auth/signup, and middleware would race router.push("/auth/verify-email") → stuck Loading.
   // verify-email is the wizard entry; it replaces to the correct stage when already past OTP.
   if (authToken && isAuthPage) {
-    if (pathname.startsWith("/auth/login")) {
-      const raw = request.nextUrl.searchParams.get("redirect");
-      if (raw && raw.startsWith("/") && !raw.startsWith("//") && raw.startsWith("/dashboard")) {
-        return NextResponse.redirect(new URL(raw, request.url));
-      }
-    }
-    if (pathname.startsWith("/auth/signup") || pathname === "/") {
-      return NextResponse.redirect(new URL("/auth/verify-email", request.url));
-    }
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    // Wizard entry routes to the current signup stage (or dashboard when complete).
+    return NextResponse.redirect(new URL("/auth/verify-email", request.url));
   }
 
   // 2. If user is NOT logged in and tries to access a protected route, redirect to login

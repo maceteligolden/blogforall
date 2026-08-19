@@ -29,6 +29,7 @@ export const users = pgTable(
     referred_by_user_id: uuid("referred_by_user_id"),
     workspace_invite_prompt_dismissed_at: timestamp("workspace_invite_prompt_dismissed_at", { withTimezone: true }),
     plan_selection_completed_at: timestamp("plan_selection_completed_at", { withTimezone: true }),
+    strategist_ready_acknowledged_at: timestamp("strategist_ready_acknowledged_at", { withTimezone: true }),
     email_verified: boolean("email_verified").notNull().default(false),
     email_verification_token: text("email_verification_token"),
     email_verification_expires: timestamp("email_verification_expires", { withTimezone: true }),

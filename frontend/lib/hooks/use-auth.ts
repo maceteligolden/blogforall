@@ -7,20 +7,22 @@ import { signupWizardPath } from "../onboarding/signup-wizard";
 import { authTracker } from "../analytics/flows/auth.tracker";
 import { QUERY_KEYS } from "../api/config";
 
-async function routeToSignupWizard(router: ReturnType<typeof useRouter>) {
+async function routeToSignupWizard(router: ReturnType<typeof useRouter>, redirect?: string | null) {
   try {
-    const onboardingStatus = await OnboardingService.getStatus();
-    if (onboardingStatus.requiresOnboarding) {
-      try {
-        await OnboardingService.skip();
-      } catch {
-        // Continue with workspace setup even if skip fails
-      }
-    }
     const wizard = await OnboardingService.getSignupWizardStatus();
+    if (
+      wizard.stage === "complete" &&
+      redirect &&
+      redirect.startsWith("/") &&
+      !redirect.startsWith("//") &&
+      redirect.startsWith("/dashboard")
+    ) {
+      router.push(redirect);
+      return;
+    }
     router.push(signupWizardPath(wizard));
   } catch {
-    router.push("/onboarding/create-site");
+    router.push("/onboarding/company-role");
   }
 }
 
@@ -46,16 +48,9 @@ export function useAuth() {
       setUser(userData);
       authTracker.loginSuccess({ userId: userData.id, planType: userData.plan });
 
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        const redirect = params.get("redirect");
-        if (redirect) {
-          router.push(redirect);
-          return;
-        }
-      }
-
-      await routeToSignupWizard(router);
+      const redirect =
+        typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
+      await routeToSignupWizard(router, redirect);
     },
     onError: (error: unknown) => {
       const message =

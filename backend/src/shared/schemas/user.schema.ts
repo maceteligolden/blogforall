@@ -21,6 +21,7 @@ export interface User extends BaseEntity {
   referred_by_user_id?: string;
   workspace_invite_prompt_dismissed_at?: Date;
   plan_selection_completed_at?: Date;
+  strategist_ready_acknowledged_at?: Date;
   email_verified: boolean;
   email_verification_token?: string;
   email_verification_expires?: Date;

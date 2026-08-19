@@ -19,6 +19,7 @@ import {
   CampaignApprovalPolicy,
   PostFrequency,
   CampaignType,
+  SIGNUP_DEFAULT_ROADMAP_TOPICS,
 } from "../../../shared/constants/campaign.constant";
 import { PaginatedResponse } from "../../../shared/interfaces";
 import { env } from "../../../shared/config/env";
@@ -86,7 +87,7 @@ export class CampaignService {
         posting_frequency: PostFrequency.WEEKLY,
         timezone: "UTC",
         posts_published: 0,
-        total_posts_planned: 12,
+        total_posts_planned: SIGNUP_DEFAULT_ROADMAP_TOPICS,
         funnel_focus: "full_funnel",
       });
       logger.info("Default campaign created", { campaignId: campaign._id, siteId }, "CampaignService");

@@ -42,6 +42,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class TooManyRequestsError extends AppError {
+  constructor(message: string = "Too many requests. Please wait and try again.") {
+    super(message, HttpStatus.TOO_MANY_REQUESTS);
+  }
+}
+
 export class TokenLimitExceededError extends AppError {
   readonly code = "TOKEN_LIMIT_EXCEEDED";
   constructor(

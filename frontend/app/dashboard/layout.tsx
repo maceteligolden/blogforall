@@ -44,15 +44,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { currentSiteId, isAuthenticated } = useAuthStore();
   const { updateSiteContext } = useAuth();
 
-  const { data: onboardingStatus, isLoading: onboardingLoading } = useQuery({
-    queryKey: ["onboarding", "status"],
-    queryFn: () => OnboardingService.getStatus(),
-    retry: false,
-    enabled: isAuthenticated,
-  });
-
-  // Wizard is the source of truth for signup routing — always fetch when authed.
-  // (Previously disabled when requiresOnboarding, which blocked correct redirects.)
   const { data: wizardStatus, isLoading: wizardLoading } = useQuery({
     queryKey: ["onboarding", "signup-wizard"],
     queryFn: () => OnboardingService.getSignupWizardStatus(),
@@ -91,13 +82,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
-    if (onboardingLoading || wizardLoading) {
+    if (wizardLoading) {
       return;
     }
 
-    // Signup wizard wins over legacy requiresOnboarding (stale cache after plan/invite).
     if (wizardStatus && wizardStatus.stage !== "complete") {
       router.replace(signupWizardPath(wizardStatus));
+      return;
+    }
+
+    if (!wizardStatus) {
       return;
     }
 
@@ -123,21 +117,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
-    // Legacy path: no wizard stage / pre-wizard accounts
-    if (onboardingStatus?.requiresOnboarding) {
-      void OnboardingService.skip()
-        .catch(() => undefined)
-        .finally(() => {
-          router.replace("/onboarding/create-site");
-        });
-      return;
-    }
-
     setCheckingOnboarding(false);
   }, [
     pathname,
-    onboardingStatus,
-    onboardingLoading,
     wizardStatus,
     wizardLoading,
     wizardComplete,
@@ -150,7 +132,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     updateSiteContext,
   ]);
 
-  if (checkingOnboarding || onboardingLoading || wizardLoading || (wizardComplete && (sitesLoading || !sitesFetched))) {
+  if (checkingOnboarding || wizardLoading || (wizardComplete && (sitesLoading || !sitesFetched))) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="animate-pulse">Loading...</div>

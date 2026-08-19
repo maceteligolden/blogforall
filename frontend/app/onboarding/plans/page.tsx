@@ -12,6 +12,7 @@ import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { usePlans } from "@/lib/hooks/use-subscription";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 
 function PlansOnboardingContent() {
   const router = useRouter();
@@ -19,6 +20,7 @@ function PlansOnboardingContent() {
   const queryClient = useQueryClient();
   const siteIdParam = searchParams.get("siteId") ?? undefined;
   const [error, setError] = useState("");
+  useOnboardingDropoff("plan_selection");
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [addCardOpen, setAddCardOpen] = useState(false);
   const [pendingPaymentMethodId, setPendingPaymentMethodId] = useState<string | null>(null);
@@ -46,18 +48,18 @@ function PlansOnboardingContent() {
 
   const selectedPlan = useMemo(() => plans.find((p) => p._id === selectedPlanId), [plans, selectedPlanId]);
 
-  const goInvite = (siteId?: string) => {
+  const goWorkspace = (siteId?: string) => {
     queryClient.setQueryData(["onboarding", "signup-wizard"], {
-      stage: "invite",
+      stage: "workspace_name",
       site_id: siteId,
     });
-    // Plan selection marks onboarding_completed server-side; keep status cache in sync.
     queryClient.setQueryData(["onboarding", "status"], {
       requiresOnboarding: false,
       hasCard: false,
       hasPlan: false,
     });
-    router.push(siteId ? `/onboarding/invite?siteId=${encodeURIComponent(siteId)}` : "/onboarding/invite");
+    onboardingTracker.stepCompleted({ step: "plan_selection" });
+    router.push("/onboarding/create-site");
     void queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
     void queryClient.invalidateQueries({ queryKey: ["onboarding", "status"] });
   };
@@ -67,7 +69,7 @@ function PlansOnboardingContent() {
     onSuccess: async () => {
       onboardingTracker.planSelected({ onboarding_type: "workspace_setup", plan_type: "free" });
       const siteId = siteIdParam ?? wizardStatus?.site_id;
-      goInvite(siteId);
+      goWorkspace(siteId);
     },
     onError: (err: unknown) => {
       const message =
@@ -86,7 +88,7 @@ function PlansOnboardingContent() {
         plan_type: selectedPlan?.name ?? "paid",
       });
       const siteId = siteIdParam ?? wizardStatus?.site_id;
-      goInvite(siteId);
+      goWorkspace(siteId);
     },
     onError: (err: unknown) => {
       const message =

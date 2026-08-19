@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
   referred_by_user_id uuid,
   workspace_invite_prompt_dismissed_at timestamptz,
   plan_selection_completed_at timestamptz,
+  strategist_ready_acknowledged_at timestamptz,
   email_verified boolean NOT NULL DEFAULT false,
   email_verification_token text,
   email_verification_expires timestamptz,
@@ -433,3 +434,10 @@ CREATE TABLE IF NOT EXISTS scheduled_post_review_tokens (
 CREATE INDEX IF NOT EXISTS review_tokens_lookup_used_idx ON scheduled_post_review_tokens (token_lookup, used_at);
 CREATE INDEX IF NOT EXISTS review_tokens_site_post_used_idx ON scheduled_post_review_tokens (site_id, scheduled_post_id, used_at);
 CREATE INDEX IF NOT EXISTS review_tokens_expires_at_idx ON scheduled_post_review_tokens (expires_at);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS strategist_ready_acknowledged_at timestamptz;
+UPDATE users
+SET strategist_ready_acknowledged_at = COALESCE(workspace_invite_prompt_dismissed_at, now())
+WHERE plan_selection_completed_at IS NOT NULL
+  AND workspace_invite_prompt_dismissed_at IS NOT NULL
+  AND strategist_ready_acknowledged_at IS NULL;

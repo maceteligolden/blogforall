@@ -8,6 +8,7 @@ import {
   CampaignContentAutonomy,
   CampaignPublishingMode,
   CampaignApprovalPolicy,
+  SIGNUP_DEFAULT_ROADMAP_TOPICS,
 } from "../../../../shared/constants/campaign.constant";
 import type { Campaign } from "../../../../shared/schemas/campaign.schema";
 
@@ -83,7 +84,7 @@ describe("CampaignService Default Campaign (Strategic Intelligence)", () => {
         is_default: true,
         site_id: "site1",
         name: "Evergreen",
-        total_posts_planned: 12,
+        total_posts_planned: SIGNUP_DEFAULT_ROADMAP_TOPICS,
       })
     );
   });

@@ -14,15 +14,30 @@ import {
   CampaignEventType,
   PostFrequency,
   MAX_CAMPAIGN_PLANNED_POSTS,
+  SIGNUP_DEFAULT_ROADMAP_TOPICS,
 } from "../../../shared/constants/campaign.constant";
 import type { CampaignRoadmapItemSnapshot, RoadmapPostType } from "../../../shared/schemas/campaign-roadmap.schema";
+import type { Campaign } from "../../../shared/schemas/campaign.schema";
 import type { CampaignTopicSuggestion } from "../../orchestratorv2/research/research.types";
 import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
 import {
   formatContentStrategyForPrompt,
   isContentStrategyReady,
+  parseContentStrategyDocument,
+  type ContentStrategyDocument,
 } from "../../../shared/types/content-strategy.document";
 import { CampaignRoadmapService } from "./campaign-roadmap.service";
+
+const defaultRoadmapInflight = new Map<string, Promise<void>>();
+
+export type PlanCampaignOptions = {
+  threadId?: string;
+  autoApprove?: boolean;
+  maxTopics?: number;
+  skipResearch?: boolean;
+  /** Signup: approve topics without creating auto-generate scheduled posts. */
+  skipMaterialize?: boolean;
+};
 
 @injectable()
 export class CampaignPlanningService {
@@ -40,12 +55,7 @@ export class CampaignPlanningService {
   /**
    * Build a strategic roadmap from campaign fields (deterministic V1; LLM layer optional later).
    */
-  async planCampaign(
-    campaignId: string,
-    siteId: string,
-    userId: string,
-    options?: { threadId?: string; autoApprove?: boolean }
-  ) {
+  async planCampaign(campaignId: string, siteId: string, userId: string, options?: PlanCampaignOptions) {
     const campaign = await this.campaignRepository.findById(campaignId, siteId);
     if (!campaign) {
       throw new NotFoundError("Campaign not found");
@@ -55,45 +65,42 @@ export class CampaignPlanningService {
     const strategyBlock = formatContentStrategyForPrompt(contentStrategy.document);
 
     await this.memoryRepository.ensureForCampaign(campaignId, siteId);
+    const topicCap = options?.maxTopics ?? (campaign.is_default ? 12 : MAX_CAMPAIGN_PLANNED_POSTS);
     const estimated = campaign.is_default
-      ? Math.min(campaign.total_posts_planned ?? 12, 12)
+      ? Math.min(campaign.total_posts_planned ?? SIGNUP_DEFAULT_ROADMAP_TOPICS, topicCap)
       : (campaign.total_posts_planned ?? this.estimatePostCount(campaign));
-    const total = Math.min(Math.max(1, estimated), MAX_CAMPAIGN_PLANNED_POSTS);
-    let topics: CampaignTopicSuggestion[] = (
-      campaign.primary_topics?.length
-        ? campaign.primary_topics
-        : campaign.ai_strategy?.content_themes?.length
-          ? campaign.ai_strategy.content_themes
-          : [campaign.goal.slice(0, 80)]
-    ).map((title) => this.topicFromTitle(title, campaign.goal));
+    const total = Math.min(Math.max(1, estimated), topicCap, MAX_CAMPAIGN_PLANNED_POSTS);
+    let topics = this.seedTopics(campaign, contentStrategy.document, total);
     let researchPackageId: string | undefined;
-    try {
-      const researched = await this.researchGraph.suggestCampaignTopics({
-        workspace_id: siteId,
-        question: [
-          `Content topics for campaign "${campaign.name}"`,
-          `Goal: ${campaign.goal}`,
-          campaign.target_audience ? `Audience: ${campaign.target_audience}` : "",
-          strategyBlock,
-        ]
-          .filter(Boolean)
-          .join(". "),
-        count: total,
-        campaign_goal: campaign.goal,
-        created_by: userId,
-        thread_id: options?.threadId,
-        signal: AbortSignal.timeout(90_000),
-      });
-      if (researched.topics.length) {
-        topics = researched.topics;
-        researchPackageId = researched.package_id;
+    if (!options?.skipResearch) {
+      try {
+        const researched = await this.researchGraph.suggestCampaignTopics({
+          workspace_id: siteId,
+          question: [
+            `Content topics for campaign "${campaign.name}"`,
+            `Goal: ${campaign.goal}`,
+            campaign.target_audience ? `Audience: ${campaign.target_audience}` : "",
+            strategyBlock,
+          ]
+            .filter(Boolean)
+            .join(". "),
+          count: total,
+          campaign_goal: campaign.goal,
+          created_by: userId,
+          thread_id: options?.threadId,
+          signal: AbortSignal.timeout(90_000),
+        });
+        if (researched.topics.length) {
+          topics = researched.topics;
+          researchPackageId = researched.package_id;
+        }
+      } catch (error) {
+        logger.warn(
+          "Campaign roadmap research failed; using existing topics",
+          { campaignId, error: String(error) },
+          "CampaignPlanningService"
+        );
       }
-    } catch (error) {
-      logger.warn(
-        "Campaign roadmap research failed; using existing topics",
-        { campaignId, error: String(error) },
-        "CampaignPlanningService"
-      );
     }
 
     const slots = this.distributeScheduleDates(
@@ -153,7 +160,9 @@ export class CampaignPlanningService {
     });
 
     if (options?.autoApprove) {
-      await this.roadmapService.approveRoadmap(campaignId, siteId, userId);
+      await this.roadmapService.approveRoadmap(campaignId, siteId, userId, {
+        skipMaterialize: options.skipMaterialize,
+      });
       logger.info("Campaign roadmap auto-approved", { campaignId, version }, "CampaignPlanningService");
       const approved = await this.roadmapRepository.findLatest(campaignId, siteId);
       return approved ?? roadmap;
@@ -181,8 +190,20 @@ export class CampaignPlanningService {
   /**
    * After Content Strategy is ready, generate and auto-approve Evergreen's first roadmap
    * so weekly writing has topics without a Generate/Approve click.
+   * Signup uses 4 strategy-seeded topics (no web-research graph) so setup cannot hang.
    */
   async ensureDefaultRoadmap(siteId: string, userId: string): Promise<void> {
+    const inflight = defaultRoadmapInflight.get(siteId);
+    if (inflight) return inflight;
+
+    const run = this.runEnsureDefaultRoadmap(siteId, userId).finally(() => {
+      defaultRoadmapInflight.delete(siteId);
+    });
+    defaultRoadmapInflight.set(siteId, run);
+    return run;
+  }
+
+  private async runEnsureDefaultRoadmap(siteId: string, userId: string): Promise<void> {
     const campaign = await this.campaignRepository.findDefault(siteId);
     if (!campaign?._id) return;
 
@@ -196,7 +217,12 @@ export class CampaignPlanningService {
     }
 
     try {
-      await this.planCampaign(campaignId, siteId, userId, { autoApprove: true });
+      await this.planCampaign(campaignId, siteId, userId, {
+        autoApprove: true,
+        maxTopics: SIGNUP_DEFAULT_ROADMAP_TOPICS,
+        skipResearch: true,
+        skipMaterialize: true,
+      });
     } catch (err) {
       logger.warn(
         "Evergreen roadmap auto-generate failed",
@@ -204,6 +230,40 @@ export class CampaignPlanningService {
         "CampaignPlanningService"
       );
     }
+  }
+
+  private seedTopics(
+    campaign: Campaign,
+    document: ContentStrategyDocument | undefined,
+    count: number
+  ): CampaignTopicSuggestion[] {
+    const parsed = parseContentStrategyDocument(document);
+    const seen = new Set<string>();
+    const titles: string[] = [];
+    const push = (raw?: string) => {
+      const title = raw?.trim();
+      if (!title) return;
+      const key = title.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      titles.push(title.slice(0, 120));
+    };
+
+    for (const title of campaign.primary_topics ?? []) push(title);
+    for (const title of campaign.ai_strategy?.content_themes ?? []) push(title);
+    for (const pillar of parsed.content_franchise.pillars) push(pillar.name);
+    for (const cluster of parsed.discovery?.topic_clusters ?? []) push(cluster);
+    for (const message of parsed.narrative.supporting_messages) push(message);
+    push(parsed.narrative.core_message);
+    push(parsed.north_star.what_we_are);
+    if (!titles.length) push(campaign.goal.slice(0, 80));
+
+    const seed = titles[0] ?? campaign.goal.slice(0, 80);
+    while (titles.length < count) {
+      titles.push(`${seed} — Part ${titles.length + 1}`);
+    }
+
+    return titles.slice(0, count).map((title) => this.topicFromTitle(title, campaign.goal));
   }
 
   private topicFromTitle(title: string, campaignGoal: string): CampaignTopicSuggestion {

@@ -5,10 +5,17 @@ import { BillingService } from "../../billing/services/billing.service";
 import { CardRepository } from "../../billing/repositories/card.repository";
 import { SiteRepository } from "../../site/repositories/site.repository";
 import { AuthService } from "../../auth/services/auth.service";
+import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
+import { CampaignRepository } from "../../campaign/repositories/campaign.repository";
+import { CampaignRoadmapRepository } from "../../campaign/repositories/campaign-roadmap.repository";
+import { CampaignPlanningService } from "../../campaign/services/campaign-planning.service";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
-import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 import { SignupWizardStage, SiteStatus } from "../../../shared/constants";
+import { CampaignRoadmapStatus } from "../../../shared/constants/campaign.constant";
+import { env } from "../../../shared/config/env";
+import { isContentStrategyReady } from "../../../shared/types/content-strategy.document";
+import { assertSlidingWindowRateLimit } from "../../../shared/utils/sliding-window-rate-limit";
 import WorkspaceMemory from "../../../shared/schemas/workspace-memory.schema";
 
 export type SignupWizardStatus = {
@@ -26,6 +33,22 @@ export type SetupProgress = {
   items: SetupProgressItem[];
   percent: number;
   complete: boolean;
+};
+
+export type StrategistStepStatus = "pending" | "in_progress" | "ready" | "failed";
+
+export type StrategistProgressStep = {
+  id: "content_strategy" | "default_campaign" | "campaign_topics";
+  label: string;
+  status: StrategistStepStatus;
+  error?: string;
+};
+
+export type StrategistProgress = {
+  site_id: string;
+  steps: StrategistProgressStep[];
+  ready: boolean;
+  failed: boolean;
 };
 
 const SETUP_ITEMS: Array<{ id: string; label: string; check: (m: Record<string, unknown> | null) => boolean }> = [
@@ -78,7 +101,11 @@ export class OnboardingService {
     private authService: AuthService,
     private billingService: BillingService,
     private cardRepository: CardRepository,
-    private userRepository: UserRepository
+    private userRepository: UserRepository,
+    private workspaceStrategyService: WorkspaceStrategyService,
+    private campaignRepository: CampaignRepository,
+    private campaignRoadmapRepository: CampaignRoadmapRepository,
+    private campaignPlanningService: CampaignPlanningService
   ) {}
 
   async getOnboardingStatus(userId: string): Promise<{
@@ -114,6 +141,7 @@ export class OnboardingService {
 
   /**
    * Resolve the current owner signup wizard stage from sites and user fields.
+   * Read-only aside from promoting legacy ONBOARDING sites to ACTIVE.
    */
   async getSignupWizardStatus(userId: string): Promise<SignupWizardStatus> {
     const user = await this.userRepository.findById(userId);
@@ -134,14 +162,15 @@ export class OnboardingService {
       if (accessibleSites.length > 0) {
         return { stage: SignupWizardStage.COMPLETE };
       }
-      // New owner path: role before naming workspace.
       if (!user.company_role) {
         return { stage: SignupWizardStage.COMPANY_ROLE };
+      }
+      if (!user.plan_selection_completed_at) {
+        return { stage: SignupWizardStage.PLAN_SELECTION };
       }
       return { stage: SignupWizardStage.WORKSPACE_NAME };
     }
 
-    // Legacy: promote stuck ONBOARDING sites to ACTIVE (chatless signup).
     for (const site of ownedSites) {
       if (site.status === SiteStatus.ONBOARDING) {
         await this.siteRepository.update(site._id!.toString(), { status: SiteStatus.ACTIVE });
@@ -152,35 +181,28 @@ export class OnboardingService {
 
     const primarySiteId = ownedSites[0]?._id?.toString();
 
-    try {
-      await this.ensureFreePlanAndCompleteOnboarding(userId);
-    } catch (err) {
-      logger.warn(
-        "Could not auto-complete free plan after workspace create",
-        { userId, error: String(err) },
-        "OnboardingService"
-      );
+    if (!user.company_role) {
+      return { stage: SignupWizardStage.COMPANY_ROLE, site_id: primarySiteId };
     }
-
-    const updates: Record<string, unknown> = {};
-    if (!user.plan_selection_completed_at) updates.plan_selection_completed_at = new Date();
-    if (!user.workspace_invite_prompt_dismissed_at) updates.workspace_invite_prompt_dismissed_at = new Date();
-    if (Object.keys(updates).length > 0) {
-      updates.updated_at = new Date();
-      await this.userRepository.update(userId, updates);
+    if (!user.plan_selection_completed_at) {
+      return { stage: SignupWizardStage.PLAN_SELECTION, site_id: primarySiteId };
+    }
+    if (!user.workspace_invite_prompt_dismissed_at) {
+      return { stage: SignupWizardStage.INVITE, site_id: primarySiteId };
+    }
+    if (!user.strategist_ready_acknowledged_at) {
+      const progress = primarySiteId ? await this.deriveStrategistProgress(primarySiteId, userId) : null;
+      if (progress?.ready) {
+        return { stage: SignupWizardStage.STRATEGIST_READY, site_id: primarySiteId };
+      }
+      return { stage: SignupWizardStage.STRATEGIST_SETUP, site_id: primarySiteId };
     }
 
     return { stage: SignupWizardStage.COMPLETE, site_id: primarySiteId };
   }
 
   async getSetupProgress(userId: string, siteId: string): Promise<SetupProgress> {
-    const hasAccess = await this.siteRepository.findById(siteId);
-    if (!hasAccess) throw new NotFoundError("Workspace not found");
-
-    const memberSites = await this.siteRepository.findByUser(userId);
-    if (!memberSites.some((s) => s._id!.toString() === siteId)) {
-      throw new ForbiddenError("You do not have access to this workspace");
-    }
+    await this.assertSiteMember(userId, siteId);
 
     const memory = await WorkspaceMemory.findOne({ site_id: siteId }).lean();
     const mem = (memory ?? null) as Record<string, unknown> | null;
@@ -198,38 +220,87 @@ export class OnboardingService {
     };
   }
 
-  /**
-   * Ensures free subscription and marks account onboarding complete (idempotent).
-   */
-  async ensureFreePlanAndCompleteOnboarding(userId: string): Promise<void> {
+  async getStrategistProgress(userId: string, siteId: string): Promise<StrategistProgress> {
+    await this.assertSiteMember(userId, siteId);
+    const progress = await this.deriveStrategistProgress(siteId, userId);
+    if (progress.failed) {
+      logger.warn(
+        "Signup strategist bootstrap has a failed step",
+        { userId, siteId, steps: progress.steps.map((s) => ({ id: s.id, status: s.status })) },
+        "OnboardingService"
+      );
+    }
+    return progress;
+  }
+
+  async retryStrategistProgress(userId: string, siteId: string): Promise<StrategistProgress> {
+    const site = await this.siteRepository.findById(siteId);
+    if (!site) throw new NotFoundError("Workspace not found");
+    if (site.owner !== userId) {
+      throw new ForbiddenError("Only the workspace owner can retry strategist setup");
+    }
+
+    assertSlidingWindowRateLimit(`strategist-retry:${userId}`, {
+      windowMs: 60 * 60 * 1000,
+      max: 5,
+      message: "Too many retry attempts. Please wait before trying again.",
+    });
+
+    const strategy = await this.workspaceStrategyService.getActive(siteId).catch(() => null);
+    let strategyReady = false;
+    try {
+      strategyReady = Boolean(strategy && isContentStrategyReady(strategy.generation_status, strategy.document));
+    } catch {
+      strategyReady = false;
+    }
+
+    if (!strategyReady) {
+      const websiteUrl = site.website_url;
+      await this.workspaceStrategyService.createGeneratingStub(siteId, userId, websiteUrl);
+      this.workspaceStrategyService.startBackgroundGenerate(siteId, userId, websiteUrl);
+      logger.info("Signup strategist bootstrap retry started", { userId, siteId }, "OnboardingService");
+    } else {
+      await this.campaignPlanningService.ensureDefaultRoadmap(siteId, userId);
+      logger.info("Signup campaign topics retry started", { userId, siteId }, "OnboardingService");
+    }
+    return this.deriveStrategistProgress(siteId, userId);
+  }
+
+  async acknowledgeStrategistReady(userId: string, degraded = false): Promise<SignupWizardStatus> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
     }
 
-    try {
-      await this.subscriptionService.getActiveSubscription(userId);
-    } catch {
-      await this.subscriptionService.createFreeSubscription(userId);
+    const wizard = await this.getSignupWizardStatus(userId);
+    if (wizard.stage !== SignupWizardStage.STRATEGIST_READY && wizard.stage !== SignupWizardStage.COMPLETE) {
+      throw new BadRequestError("Finish strategist setup before continuing");
     }
 
-    const { plan } = await this.subscriptionService.getActiveSubscription(userId);
-    if (plan.price > 0 && plan.interval !== "free") {
-      const freePlan = await this.subscriptionService.getFreePlan();
-      await this.subscriptionService.changePlan(userId, freePlan._id!);
-    }
-
-    if (!user.onboarding_completed) {
+    const wasAcknowledged = Boolean(user.strategist_ready_acknowledged_at);
+    if (!wasAcknowledged) {
       await this.userRepository.update(userId, {
-        onboarding_completed: true,
+        strategist_ready_acknowledged_at: new Date(),
         updated_at: new Date(),
       });
-      logger.info("User onboarding marked complete (free plan)", { userId }, "OnboardingService");
-      captureServerEvent(ServerAnalyticsEvents.USER_ONBOARDING_COMPLETED, {
-        userId,
-        properties: { free_only: true },
-      });
+      logger.info(
+        "Signup strategist ready acknowledged",
+        { userId, siteId: wizard.site_id, degraded },
+        "OnboardingService"
+      );
+      try {
+        await this.authService.finalizeSignupCompletion(userId);
+      } catch (error) {
+        logger.error(
+          "Failed to finalize signup completion after strategist ready",
+          error as Error,
+          { userId },
+          "OnboardingService"
+        );
+      }
     }
+
+    return { stage: SignupWizardStage.COMPLETE, site_id: wizard.site_id };
   }
 
   /**
@@ -240,8 +311,14 @@ export class OnboardingService {
     if (!user) {
       throw new NotFoundError("User not found");
     }
+    if (user.email_verified === false) {
+      throw new BadRequestError("Please verify your email before continuing.");
+    }
+    if (!user.company_role) {
+      throw new BadRequestError("Please choose your workspace role before selecting a plan.");
+    }
 
-    await this.ensureFreePlanAndCompleteOnboarding(userId);
+    await this.ensureFreeSubscriptionExists(userId);
 
     if (!user.plan_selection_completed_at) {
       await this.userRepository.update(userId, {
@@ -259,6 +336,12 @@ export class OnboardingService {
     const user = await this.userRepository.findById(userId);
     if (!user) {
       throw new NotFoundError("User not found");
+    }
+    if (user.email_verified === false) {
+      throw new BadRequestError("Please verify your email before continuing.");
+    }
+    if (!user.company_role) {
+      throw new BadRequestError("Please choose your workspace role before selecting a plan.");
     }
 
     if (!user.stripe_customer_id) {
@@ -288,30 +371,26 @@ export class OnboardingService {
       await this.billingService.setDefaultCard(card._id, userId);
     }
 
-    try {
-      await this.subscriptionService.getActiveSubscription(userId);
-    } catch {
-      await this.subscriptionService.createFreeSubscription(userId);
-    }
+    await this.ensureFreeSubscriptionExists(userId);
 
     await this.subscriptionService.changePlan(userId, planId);
 
     await this.userRepository.update(userId, {
-      onboarding_completed: true,
       plan_selection_completed_at: user.plan_selection_completed_at ?? new Date(),
       updated_at: new Date(),
     });
 
-    logger.info("User completed onboarding with paid plan", { userId, planId }, "OnboardingService");
-    captureServerEvent(ServerAnalyticsEvents.USER_ONBOARDING_COMPLETED, {
-      userId,
-      properties: { plan_id: planId, free_only: false },
-    });
+    logger.info("Signup wizard paid plan selected", { userId, planId }, "OnboardingService");
   }
 
   async skipOnboarding(userId: string): Promise<void> {
-    await this.ensureFreePlanAndCompleteOnboarding(userId);
-    logger.info("User onboarding ensured (free plan)", { userId }, "OnboardingService");
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundError("User not found");
+    }
+
+    await this.ensureFreeSubscriptionExists(userId);
+    logger.info("Signup skip requested; wizard stages were not marked complete", { userId }, "OnboardingService");
   }
 
   /**
@@ -326,13 +405,8 @@ export class OnboardingService {
       return { should_show: false };
     }
 
-    const user = await this.userRepository.findById(userId);
-    if (!user) {
-      throw new NotFoundError("User not found");
-    }
-
     const ownedSites = await this.siteRepository.findByOwner(userId);
-    const activeOwned = ownedSites.filter((s) => s.status === SiteStatus.ACTIVE);
+    const activeOwned = ownedSites.filter((s) => s.status === SiteStatus.ACTIVE || s.status === SiteStatus.ONBOARDING);
 
     if (activeOwned.length === 0) {
       return { should_show: false };
@@ -355,27 +429,124 @@ export class OnboardingService {
       throw new NotFoundError("User not found");
     }
 
-    const wasComplete = Boolean(user.workspace_invite_prompt_dismissed_at);
+    if (!user.workspace_invite_prompt_dismissed_at) {
+      await this.userRepository.update(userId, {
+        workspace_invite_prompt_dismissed_at: new Date(),
+        updated_at: new Date(),
+      });
+      logger.info("Workspace invite prompt dismissed", { userId }, "OnboardingService");
+    }
+  }
 
-    await this.userRepository.update(userId, {
-      workspace_invite_prompt_dismissed_at: new Date(),
-      updated_at: new Date(),
+  private async ensureFreeSubscriptionExists(userId: string): Promise<void> {
+    try {
+      await this.subscriptionService.getActiveSubscription(userId);
+    } catch {
+      await this.subscriptionService.createFreeSubscription(userId);
+    }
+  }
+
+  private async assertSiteMember(userId: string, siteId: string): Promise<void> {
+    const site = await this.siteRepository.findById(siteId);
+    if (!site) throw new NotFoundError("Workspace not found");
+
+    const memberSites = await this.siteRepository.findByUser(userId);
+    if (!memberSites.some((s) => s._id!.toString() === siteId)) {
+      throw new ForbiddenError("You do not have access to this workspace");
+    }
+  }
+
+  private async deriveStrategistProgress(siteId: string, userId?: string): Promise<StrategistProgress> {
+    if (!env.orchestrator.strategicIntelligenceEnabled) {
+      return {
+        site_id: siteId,
+        ready: true,
+        failed: false,
+        steps: [
+          { id: "content_strategy", label: "Content strategy being generated", status: "ready" },
+          { id: "default_campaign", label: "Campaign being drafted", status: "ready" },
+          { id: "campaign_topics", label: "Campaign topics being generated", status: "ready" },
+        ],
+      };
+    }
+
+    const strategy = await this.workspaceStrategyService.getActive(siteId).catch((err) => {
+      logger.warn(
+        "Could not load content strategy for signup progress",
+        { siteId, error: err instanceof Error ? err.message : String(err) },
+        "OnboardingService"
+      );
+      return null;
     });
 
-    logger.info("Workspace invite prompt dismissed", { userId }, "OnboardingService");
-
-    // First time completing the wizard → welcome email + USER_SIGNED_UP
-    if (!wasComplete) {
+    let strategyStatus: StrategistStepStatus = "pending";
+    let strategyError: string | undefined;
+    const strategyReady = (() => {
       try {
-        await this.authService.finalizeSignupCompletion(userId);
-      } catch (error) {
-        logger.error(
-          "Failed to finalize signup completion after invite dismiss",
-          error as Error,
-          { userId },
-          "OnboardingService"
-        );
+        return Boolean(strategy && isContentStrategyReady(strategy.generation_status, strategy.document));
+      } catch {
+        return false;
+      }
+    })();
+    if (!strategy) {
+      strategyStatus = "pending";
+    } else if (strategyReady) {
+      strategyStatus = "ready";
+    } else if (strategy.generation_status === "generating") {
+      strategyStatus = "in_progress";
+    } else if (strategy.generation_status === "failed") {
+      strategyStatus = "failed";
+      strategyError = strategy.generation_error || "Content strategy generation failed";
+    }
+
+    const campaign = await this.campaignRepository.findDefault(siteId).catch(() => null);
+    const campaignStatus: StrategistStepStatus = campaign?._id ? "ready" : "pending";
+
+    let topicsStatus: StrategistStepStatus = "pending";
+    if (campaignStatus !== "ready") {
+      topicsStatus = "pending";
+    } else if (strategyStatus === "failed") {
+      topicsStatus = "failed";
+    } else if (strategyStatus !== "ready") {
+      topicsStatus = strategyStatus === "in_progress" ? "pending" : "pending";
+    } else {
+      const campaignId = campaign!._id!.toString();
+      const roadmap = await this.campaignRoadmapRepository.findLatest(campaignId, siteId).catch(() => null);
+      const hasTopics = Array.isArray(roadmap?.items) && roadmap.items.length > 0;
+      if (
+        hasTopics &&
+        (roadmap?.status === CampaignRoadmapStatus.APPROVED || roadmap?.status === CampaignRoadmapStatus.PROPOSED)
+      ) {
+        topicsStatus = "ready";
+      } else if (roadmap) {
+        topicsStatus = "in_progress";
+      } else {
+        topicsStatus = "in_progress";
+        if (userId) {
+          void this.campaignPlanningService.ensureDefaultRoadmap(siteId, userId).catch((err) => {
+            logger.warn(
+              "Signup campaign topics bootstrap failed to start",
+              { siteId, error: err instanceof Error ? err.message : String(err) },
+              "OnboardingService"
+            );
+          });
+        }
       }
     }
+
+    const steps: StrategistProgressStep[] = [
+      {
+        id: "content_strategy",
+        label: "Content strategy being generated",
+        status: strategyStatus,
+        error: strategyError,
+      },
+      { id: "default_campaign", label: "Campaign being drafted", status: campaignStatus },
+      { id: "campaign_topics", label: "Campaign topics being generated", status: topicsStatus },
+    ];
+    const ready = steps.every((s) => s.status === "ready");
+    const failed = steps.some((s) => s.status === "failed");
+
+    return { site_id: siteId, steps, ready, failed };
   }
 }

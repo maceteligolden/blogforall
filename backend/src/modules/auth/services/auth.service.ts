@@ -3,11 +3,18 @@ import { createHash, randomInt } from "crypto";
 import { UserRepository } from "../repositories/user.repository";
 import { hashPassword, comparePassword } from "../../../shared/utils/password";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../../../shared/utils/token";
-import { BadRequestError, UnauthorizedError, NotFoundError, ForbiddenError } from "../../../shared/errors";
+import {
+  BadRequestError,
+  UnauthorizedError,
+  NotFoundError,
+  ForbiddenError,
+  TooManyRequestsError,
+} from "../../../shared/errors";
 import { UserPlan, UserRole, isPlatformAdminRole } from "../../../shared/constants";
 import { Site } from "../../../shared/schemas/site.schema";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { logger } from "../../../shared/utils/logger";
+import { assertSlidingWindowRateLimit } from "../../../shared/utils/sliding-window-rate-limit";
 import {
   SignupInput,
   LoginInput,
@@ -144,6 +151,19 @@ export class AuthService {
       logger.info("Email already verified; skip OTP", { userId }, "AuthService");
       return;
     }
+
+    if (user.email_verification_expires) {
+      const issuedAt = user.email_verification_expires.getTime() - EMAIL_VERIFICATION_TTL_MS;
+      if (Date.now() - issuedAt < EMAIL_VERIFICATION_RESEND_COOLDOWN_MS) {
+        throw new TooManyRequestsError("Please wait a minute before requesting another verification code.");
+      }
+    }
+
+    assertSlidingWindowRateLimit(`email-verify:${userId}`, {
+      windowMs: 60 * 60 * 1000,
+      max: 5,
+      message: "Too many verification emails. Please wait before requesting another code.",
+    });
 
     const code = this.generatePasswordResetCode();
     const hashedCode = this.hashResetCode(code);
@@ -388,7 +408,7 @@ export class AuthService {
 
     const ownedSites = await this.siteService.getOwnedSitesByUser(userId);
 
-    if (user.workspace_invite_prompt_dismissed_at && user.plan_selection_completed_at) {
+    if (user.strategist_ready_acknowledged_at) {
       throw new BadRequestError("Signup cannot be abandoned after setup is complete");
     }
 
@@ -405,11 +425,13 @@ export class AuthService {
       ? "email_verification"
       : !user.company_role
         ? "company_role"
-        : ownedSites.length === 0
-          ? "workspace_name"
-          : !user.plan_selection_completed_at
-            ? "plan_selection"
-            : "invite";
+        : !user.plan_selection_completed_at
+          ? "plan_selection"
+          : ownedSites.length === 0
+            ? "workspace_name"
+            : !user.workspace_invite_prompt_dismissed_at
+              ? "invite"
+              : "strategist_setup";
 
     captureServerEvent(ServerAnalyticsEvents.ONBOARDING_DROPPED, {
       userId,
@@ -750,4 +772,5 @@ const PASSWORD_RESET_CODE_TTL_MS = PASSWORD_RESET_CODE_TTL_MINUTES * 60 * 1000;
 const PASSWORD_RESET_MAX_ATTEMPTS = 5;
 const EMAIL_VERIFICATION_TTL_MINUTES = 15;
 const EMAIL_VERIFICATION_TTL_MS = EMAIL_VERIFICATION_TTL_MINUTES * 60 * 1000;
+const EMAIL_VERIFICATION_RESEND_COOLDOWN_MS = 60 * 1000;
 const EMAIL_VERIFICATION_MAX_ATTEMPTS = 5;

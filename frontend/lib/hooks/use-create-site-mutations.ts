@@ -11,9 +11,8 @@ import { workspaceTracker } from "@/lib/analytics/flows/workspace.tracker";
 interface UseCreateSiteMutationsOptions {
   onError?: (message: string) => void;
   /**
-   * Called after a site is successfully created (either by createSiteMutation
-   * or skipMutation). The create-site page uses this to continue the signup
-   * wizard (plans). When omitted, defaults to pushing /dashboard.
+   * Called after a site is successfully created. The create-site page uses this
+   * to continue the signup wizard (invite). When omitted, defaults to /dashboard.
    */
   onSiteReady?: (site: Site) => void;
 }

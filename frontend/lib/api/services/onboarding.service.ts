@@ -13,6 +13,22 @@ export interface InvitePromptStatus {
   site_id?: string;
 }
 
+export type StrategistStepStatus = "pending" | "in_progress" | "ready" | "failed";
+
+export type StrategistProgressStep = {
+  id: "content_strategy" | "default_campaign" | "campaign_topics";
+  label: string;
+  status: StrategistStepStatus;
+  error?: string;
+};
+
+export type StrategistProgress = {
+  site_id: string;
+  steps: StrategistProgressStep[];
+  ready: boolean;
+  failed: boolean;
+};
+
 export class OnboardingService {
   /**
    * Get onboarding status
@@ -73,6 +89,30 @@ export class OnboardingService {
     }>(API_ENDPOINTS.ONBOARDING.SETUP_PROGRESS, {
       params: { site_id: siteId },
     });
+    return response.data.data;
+  }
+
+  static async getStrategistProgress(siteId: string): Promise<StrategistProgress> {
+    const response = await apiClient.get<{ data: StrategistProgress }>(API_ENDPOINTS.ONBOARDING.STRATEGIST_PROGRESS, {
+      params: { site_id: siteId },
+    });
+    return response.data.data;
+  }
+
+  static async retryStrategistProgress(siteId: string): Promise<StrategistProgress> {
+    const response = await apiClient.post<{ data: StrategistProgress }>(
+      API_ENDPOINTS.ONBOARDING.STRATEGIST_PROGRESS_RETRY,
+      {},
+      { params: { site_id: siteId } }
+    );
+    return response.data.data;
+  }
+
+  static async acknowledgeStrategistReady(degraded = false): Promise<SignupWizardStatus> {
+    const response = await apiClient.post<{ data: SignupWizardStatus }>(
+      API_ENDPOINTS.ONBOARDING.STRATEGIST_READY_ACKNOWLEDGE,
+      { degraded }
+    );
     return response.data.data;
   }
 }

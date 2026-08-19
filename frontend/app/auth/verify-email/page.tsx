@@ -11,7 +11,6 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { useToast } from "@/components/ui/toast";
 import { AuthService } from "@/lib/api/services/auth.service";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
-import { useAuth } from "@/lib/hooks/use-auth";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
@@ -22,7 +21,6 @@ function VerifyEmailForm() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { setTokens, setUser, user } = useAuthStore();
-  const { abandonSignupAsync, isAbandoningSignup } = useAuth();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -94,20 +92,6 @@ function VerifyEmailForm() {
     }
   };
 
-  const handleAbandon = async () => {
-    try {
-      onboardingTracker.dropped({
-        last_step: "email_verification",
-        last_route: "/auth/verify-email",
-      });
-      await abandonSignupAsync();
-    } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Couldn't cancel signup.";
-      toast({ variant: "error", description: message });
-    }
-  };
-
   return (
     <>
       <AuthPageHeader
@@ -152,15 +136,6 @@ function VerifyEmailForm() {
         className="mt-4 w-full text-center text-sm text-primary hover:underline"
       >
         {resending ? "Sending…" : "Resend code"}
-      </button>
-
-      <button
-        type="button"
-        onClick={handleAbandon}
-        disabled={isAbandoningSignup}
-        className="mt-4 w-full text-center text-sm text-gray-500 hover:text-gray-300"
-      >
-        {isAbandoningSignup ? "Leaving…" : "Exit signup"}
       </button>
     </>
   );

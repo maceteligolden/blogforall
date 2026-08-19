@@ -159,7 +159,10 @@ type GraphState = {
   spoken_summary: string;
   degraded: boolean;
   extra_queries: string[];
+  search_passes: number;
 };
+
+const lastWrite = <T>(_left: T, right: T) => right;
 
 const ResearchState = Annotation.Root({
   question: Annotation<string>(),
@@ -184,7 +187,11 @@ const ResearchState = Annotation.Root({
   report_markdown: Annotation<string>(),
   spoken_summary: Annotation<string>(),
   degraded: Annotation<boolean>(),
-  extra_queries: Annotation<string[]>(),
+  extra_queries: Annotation<string[]>({
+    reducer: lastWrite,
+    default: () => [],
+  }),
+  search_passes: Annotation<number>(),
 });
 
 const phaseStore = new AsyncLocalStorage<NonNullable<ResearchGraphInput["onPhase"]>>();
@@ -245,6 +252,7 @@ export class ResearchGraphService {
       spoken_summary: "",
       degraded: false,
       extra_queries: [],
+      search_passes: 0,
     };
 
     emit?.({ phase: "research_planning", message: "Defining the research brief", percent: 8, skill_id: "research" });
@@ -519,6 +527,7 @@ export class ResearchGraphService {
       documents: this.mergeDocuments(state.documents, documents),
       searches: [...state.searches, ...searches],
       extra_queries: [],
+      search_passes: (state.search_passes ?? 0) + 1,
     };
   }
 
@@ -714,6 +723,8 @@ export class ResearchGraphService {
   }
 
   private routeAfterGap(state: GraphState): "search" | "synthesize" {
+    const maxSearchPasses = state.depth === "full" ? 4 : 3;
+    if (state.search_passes >= maxSearchPasses) return "synthesize";
     return state.extra_queries.length > 0 ? "search" : "synthesize";
   }
 
@@ -849,7 +860,13 @@ export class ResearchGraphService {
   }
 
   private routeAfterCritique(state: GraphState): "search" | "report" {
-    if (state.extra_queries.length > 0 && state.critic_retries <= 1 && !state.critic?.pass) {
+    const maxSearchPasses = state.depth === "full" ? 5 : 4;
+    if (
+      state.extra_queries.length > 0 &&
+      state.critic_retries <= 1 &&
+      !state.critic?.pass &&
+      state.search_passes < maxSearchPasses
+    ) {
       return "search";
     }
     return "report";
