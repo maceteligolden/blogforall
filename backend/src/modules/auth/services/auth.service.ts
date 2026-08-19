@@ -245,16 +245,6 @@ export class AuthService {
     return this.buildLoginResponse(refreshed ?? user, sites);
   }
 
-  async dismissWelcomeTour(userId: string): Promise<void> {
-    const user = await this.userRepository.findById(userId);
-    if (!user) throw new NotFoundError("User not found");
-    await this.userRepository.update(userId, {
-      welcome_tour_dismissed_at: new Date(),
-      show_welcome_tour: false,
-    });
-    logger.info("Welcome tour dismissed", { userId }, "AuthService");
-  }
-
   /**
    * Fire welcome email + USER_SIGNED_UP once the signup wizard is fully complete.
    */
@@ -264,7 +254,6 @@ export class AuthService {
 
     await this.userRepository.update(userId, {
       onboarding_completed: true,
-      show_welcome_tour: true,
     });
 
     identifyServerUser(userId, { email: user.email, plan: user.plan });
@@ -540,7 +529,6 @@ export class AuthService {
     role: string;
     email_verified: boolean;
     company_role?: string;
-    welcome_tour_dismissed: boolean;
     created_at?: Date;
     updated_at?: Date;
   }> {
@@ -559,7 +547,6 @@ export class AuthService {
       role: user.role ?? UserRole.USER,
       email_verified: Boolean(isEmailVerified(user)),
       company_role: user.company_role,
-      welcome_tour_dismissed: !user.show_welcome_tour,
       created_at: user.created_at,
       updated_at: user.updated_at,
     };

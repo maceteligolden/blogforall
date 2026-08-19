@@ -38,6 +38,5 @@ router.post("/abandon-signup", authMiddleware, authController.abandonSignup);
 router.post("/verify-email", authMiddleware, validateBody(verifyEmailSchema), authController.verifyEmail);
 router.post("/resend-verification", authMiddleware, authController.resendVerification);
 router.post("/company-role", authMiddleware, validateBody(companyRoleSchema), authController.setCompanyRole);
-router.post("/dismiss-welcome-tour", authMiddleware, authController.dismissWelcomeTour);
 
 export default router;

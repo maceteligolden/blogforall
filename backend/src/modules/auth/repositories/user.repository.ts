@@ -33,7 +33,6 @@ export class UserRepository {
         email_verified: userData.email_verified ?? false,
         company_role: userData.company_role,
         company_role_detail: userData.company_role_detail,
-        show_welcome_tour: userData.show_welcome_tour ?? false,
       })
       .returning();
     return this.toEntity(row);

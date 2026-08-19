@@ -10,15 +10,22 @@ import { AuthPageHeader } from "@/components/auth/auth-page-header";
 import { Button } from "@/components/ui/button";
 import {
   OnboardingService,
+  startStrategistBootstrap,
+  type StrategistProgress,
   type StrategistProgressStep,
   type StrategistStepStatus,
 } from "@/lib/api/services/onboarding.service";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
+import { useRealtimeEvent } from "@/lib/hooks/use-realtime-event";
+import { useRealtimeStatus } from "@/lib/hooks/use-realtime-status";
+import { REALTIME_EVENTS } from "@/lib/realtime";
 
-const POLL_MS = 3500;
 const TIMEOUT_MS = 3 * 60 * 1000;
+const POLL_WHEN_SOCKET_DOWN_MS = 2500;
+const POLL_WHEN_SOCKET_UP_MS = 8000;
+const REASSURING_COPY = "Ensuring we’re doing it right.";
 
 const STEP_COPY: Record<StrategistProgressStep["id"], Record<StrategistStepStatus, string>> = {
   content_strategy: {
@@ -41,37 +48,75 @@ const STEP_COPY: Record<StrategistProgressStep["id"], Record<StrategistStepStatu
   },
 };
 
+const EMPTY_STEPS: StrategistProgressStep[] = [
+  { id: "content_strategy", label: "Content strategy", status: "pending" },
+  { id: "default_campaign", label: "Default campaign", status: "pending" },
+  { id: "campaign_topics", label: "Campaign topics", status: "pending" },
+];
+
+const OPTIMISTIC_STEPS: StrategistProgressStep[] = [
+  { id: "content_strategy", label: "Content strategy", status: "in_progress" },
+  { id: "default_campaign", label: "Default campaign", status: "pending" },
+  { id: "campaign_topics", label: "Campaign topics", status: "pending" },
+];
+
 function statusIcon(status: StrategistStepStatus) {
   if (status === "ready") return <CheckCircle2 className="h-5 w-5 text-green-400" aria-hidden />;
   if (status === "failed") return <XCircle className="h-5 w-5 text-red-400" aria-hidden />;
-  if (status === "in_progress") return <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />;
-  return <span className="mt-0.5 h-5 w-5 rounded-full border border-gray-700" aria-hidden />;
+  return <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />;
 }
 
 function GeneratingStep({ step }: { step: StrategistProgressStep }) {
   const label = STEP_COPY[step.id][step.status];
-  const active = step.status === "in_progress";
+  const working = step.status === "in_progress" || step.status === "pending";
   return (
     <li
       className={`flex items-start gap-3 rounded-lg border px-4 py-3 transition-colors ${
-        active
+        step.status === "in_progress"
           ? "border-primary/40 bg-primary/10"
           : step.status === "ready"
             ? "border-gray-800 bg-gray-900/40"
-            : "border-gray-800 bg-gray-900/20"
+            : working
+              ? "border-gray-800 bg-gray-900/30"
+              : "border-gray-800 bg-gray-900/20"
       }`}
     >
       <div className="mt-0.5">{statusIcon(step.status)}</div>
       <div className="min-w-0 flex-1">
         <p
-          className={`text-sm font-medium ${active ? "text-white" : step.status === "ready" ? "text-gray-200" : "text-gray-500"}`}
+          className={`text-sm font-medium ${
+            step.status === "in_progress"
+              ? "text-white"
+              : step.status === "ready"
+                ? "text-gray-200"
+                : working
+                  ? "text-gray-300"
+                  : "text-gray-500"
+          }`}
         >
           {label}
         </p>
-        {step.error ? <p className="mt-1 text-xs text-red-300">{step.error}</p> : null}
       </div>
     </li>
   );
+}
+
+function applyStep(
+  previous: StrategistProgress | undefined,
+  siteId: string,
+  stepId: StrategistProgressStep["id"],
+  status: StrategistStepStatus,
+  error?: string
+): StrategistProgress {
+  const steps = (previous?.steps ?? EMPTY_STEPS).map((step) =>
+    step.id === stepId ? { ...step, status, error: status === "failed" ? error : undefined } : step
+  );
+  return {
+    site_id: siteId,
+    steps,
+    ready: steps.every((s) => s.status === "ready"),
+    failed: steps.some((s) => s.status === "failed"),
+  };
 }
 
 function StrategistSetupContent() {
@@ -81,6 +126,9 @@ function StrategistSetupContent() {
   const siteIdParam = searchParams.get("siteId") ?? undefined;
   const [startedAt] = useState(() => Date.now());
   const [timedOut, setTimedOut] = useState(false);
+  const [bootstrapStarted, setBootstrapStarted] = useState(false);
+  const realtimeStatus = useRealtimeStatus();
+  const socketLive = realtimeStatus === "connected";
 
   useOnboardingDropoff("strategist_setup");
 
@@ -91,6 +139,7 @@ function StrategistSetupContent() {
   });
 
   const siteId = siteIdParam ?? wizardStatus?.site_id;
+  const progressKey = ["onboarding", "strategist-progress", siteId] as const;
 
   useEffect(() => {
     if (!wizardStatus) return;
@@ -103,16 +152,72 @@ function StrategistSetupContent() {
     }
   }, [wizardStatus, router]);
 
-  const { data: progress, isLoading } = useQuery({
-    queryKey: ["onboarding", "strategist-progress", siteId],
+  const { data: progress } = useQuery({
+    queryKey: progressKey,
     queryFn: () => OnboardingService.getStrategistProgress(siteId!),
-    enabled: Boolean(siteId) && wizardStatus?.stage === "strategist_setup",
+    enabled: bootstrapStarted && Boolean(siteId) && wizardStatus?.stage === "strategist_setup",
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (!data || data.ready || data.failed) return false;
-      return POLL_MS;
+      if (data?.ready || data?.failed) return false;
+      return socketLive ? POLL_WHEN_SOCKET_UP_MS : POLL_WHEN_SOCKET_DOWN_MS;
     },
   });
+
+  useEffect(() => {
+    if (!socketLive || !bootstrapStarted || !siteId || wizardStatus?.stage !== "strategist_setup") return;
+    void queryClient.invalidateQueries({ queryKey: progressKey });
+  }, [socketLive, bootstrapStarted, siteId, wizardStatus?.stage, queryClient]);
+
+  useEffect(() => {
+    if (!siteId || wizardStatus?.stage !== "strategist_setup") return;
+    void startStrategistBootstrap(siteId)
+      .then((next) => {
+        queryClient.setQueryData(progressKey, next);
+        setBootstrapStarted(true);
+      })
+      .catch(() => {
+        setBootstrapStarted(true);
+        void queryClient.invalidateQueries({ queryKey: progressKey });
+      });
+  }, [siteId, wizardStatus?.stage, queryClient]);
+
+  useRealtimeEvent<{
+    siteId: string;
+    step: StrategistProgressStep["id"];
+    status: StrategistStepStatus;
+    error?: string;
+  }>(REALTIME_EVENTS.SIGNUP_BOOTSTRAP_STEP, (envelope) => {
+    const payload = envelope.payload;
+    if (!payload || payload.siteId !== siteId) return;
+    queryClient.setQueryData(progressKey, (prev: StrategistProgress | undefined) =>
+      applyStep(prev, payload.siteId, payload.step, payload.status, payload.error)
+    );
+  });
+
+  useRealtimeEvent<{ siteId: string }>(REALTIME_EVENTS.SIGNUP_BOOTSTRAP_COMPLETED, (envelope) => {
+    if (envelope.payload?.siteId !== siteId) return;
+    queryClient.setQueryData(progressKey, (prev: StrategistProgress | undefined) => ({
+      site_id: siteId,
+      steps: (prev?.steps ?? EMPTY_STEPS).map((step) => ({ ...step, status: "ready" as const, error: undefined })),
+      ready: true,
+      failed: false,
+    }));
+  });
+
+  useRealtimeEvent<{ siteId: string; step?: string; error?: string }>(
+    REALTIME_EVENTS.SIGNUP_BOOTSTRAP_FAILED,
+    (envelope) => {
+      if (envelope.payload?.siteId !== siteId) return;
+      queryClient.setQueryData(progressKey, (prev: StrategistProgress | undefined) => ({
+        site_id: siteId,
+        steps: (prev?.steps ?? EMPTY_STEPS).map((step) =>
+          step.status === "ready" ? step : { ...step, status: "failed" as const }
+        ),
+        ready: false,
+        failed: true,
+      }));
+    }
+  );
 
   useEffect(() => {
     if (!progress || progress.ready || progress.failed) return;
@@ -135,35 +240,35 @@ function StrategistSetupContent() {
   }, [progress?.ready, siteId, queryClient, router]);
 
   const retryMutation = useMutation({
-    mutationFn: () => OnboardingService.retryStrategistProgress(siteId!),
+    mutationFn: () => startStrategistBootstrap(siteId!),
+    onMutate: () => {
+      setTimedOut(false);
+      if (!siteId) return;
+      queryClient.setQueryData(progressKey, {
+        site_id: siteId,
+        steps: OPTIMISTIC_STEPS,
+        ready: false,
+        failed: false,
+      });
+    },
     onSuccess: (next) => {
       setTimedOut(false);
-      queryClient.setQueryData(["onboarding", "strategist-progress", siteId], next);
-      void queryClient.invalidateQueries({ queryKey: ["onboarding", "strategist-progress", siteId] });
+      setBootstrapStarted(true);
+      queryClient.setQueryData(progressKey, next);
       void queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
     },
   });
 
-  const steps = useMemo(
-    () =>
-      progress?.steps ?? [
-        { id: "content_strategy" as const, label: "Content strategy", status: "pending" as const },
-        { id: "default_campaign" as const, label: "Default campaign", status: "pending" as const },
-        { id: "campaign_topics" as const, label: "Campaign topics", status: "pending" as const },
-      ],
-    [progress]
-  );
+  const steps = useMemo(() => {
+    if (!progress) return OPTIMISTIC_STEPS;
+    return progress.steps;
+  }, [progress]);
+  const showRetry = Boolean((progress?.failed || timedOut) && !retryMutation.isPending);
 
-  const headline =
-    steps.find((s) => s.status === "in_progress" || s.status === "failed") ??
-    steps.find((s) => s.status !== "ready") ??
-    steps[0];
-  const headlineCopy = headline ? STEP_COPY[headline.id][headline.status] : "Setting up your strategist";
-
-  if (!wizardStatus || isLoading) {
+  if (wizardStatus && wizardStatus.stage !== "strategist_setup" && wizardStatus.stage !== "strategist_ready") {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-gray-400">Preparing your strategist…</p>
+        <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />
       </div>
     );
   }
@@ -171,7 +276,7 @@ function StrategistSetupContent() {
   return (
     <AuthSplitLayout>
       <AuthPageHeader
-        title={headlineCopy}
+        title={REASSURING_COPY}
         subtitle="Stay on this screen until setup finishes. You cannot enter the workspace yet."
       />
 
@@ -185,13 +290,9 @@ function StrategistSetupContent() {
         <p className="mt-4 text-sm text-red-300">Could not retry right now. Wait a moment and try again.</p>
       ) : null}
 
-      {progress?.failed || timedOut ? (
+      {showRetry ? (
         <div className="mt-6 space-y-3">
-          <p className="text-sm text-gray-400">
-            {progress?.failed
-              ? "Something went wrong while generating. Retry to keep going — signup has to finish before you can use the app."
-              : "This is taking longer than usual. You can keep waiting or retry."}
-          </p>
+          <p className="text-sm text-gray-400">{REASSURING_COPY}</p>
           <Button
             type="button"
             className="w-full"
@@ -214,7 +315,7 @@ export default function OnboardingSetupPage() {
       <Suspense
         fallback={
           <div className="min-h-screen bg-black text-white flex items-center justify-center">
-            <p className="text-gray-400">Loading...</p>
+            <p className="text-gray-400">{REASSURING_COPY}</p>
           </div>
         }
       >

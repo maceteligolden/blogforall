@@ -46,10 +46,16 @@ export class CampaignService {
    * Ensure the site has exactly one Default (Evergreen) campaign.
    * Used when Strategic Intelligence is enabled (doc 21).
    */
-  async ensureDefaultCampaign(siteId: string, userId: string): Promise<Campaign> {
+  async ensureDefaultCampaign(
+    siteId: string,
+    userId: string,
+    options?: { skipRoadmapBootstrap?: boolean }
+  ): Promise<Campaign> {
     const existing = await this.campaignRepository.findDefault(siteId);
     if (existing) {
-      this.bootstrapDefaultRoadmap(siteId, userId);
+      if (!options?.skipRoadmapBootstrap) {
+        this.bootstrapDefaultRoadmap(siteId, userId);
+      }
       if (!existing.strategy_id && env.orchestrator.strategicIntelligenceEnabled) {
         const strategyId = await this.resolveStrategyId(siteId, userId);
         if (strategyId) {
@@ -91,7 +97,9 @@ export class CampaignService {
         funnel_focus: "full_funnel",
       });
       logger.info("Default campaign created", { campaignId: campaign._id, siteId }, "CampaignService");
-      this.bootstrapDefaultRoadmap(siteId, userId);
+      if (!options?.skipRoadmapBootstrap) {
+        this.bootstrapDefaultRoadmap(siteId, userId);
+      }
       return campaign;
     } catch (err) {
       // Race: another request may have created the default.

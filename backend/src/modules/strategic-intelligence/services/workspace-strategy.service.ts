@@ -49,13 +49,14 @@ export class WorkspaceStrategyService {
   async getActive(siteId: string): Promise<WorkspaceStrategy | null> {
     const existing = await this.strategies.findActive(siteId);
     if (!existing) return null;
-    if (documentHasSubstance(existing.document)) return this.hydrate(existing);
+    const plain = this.asPlain(existing);
+    if (documentHasSubstance(parseContentStrategyDocument(plain.document))) return this.hydrate(plain);
 
     const memory = await this.memoryRepository.findBySiteId(siteId).catch(() => null);
     const fromMemory = documentFromStrategicMemory(memory?.strategic);
-    const fromLegacy = this.documentFromLegacy(existing);
+    const fromLegacy = this.documentFromLegacy(plain);
     const document = documentHasSubstance(fromMemory) ? fromMemory : fromLegacy;
-    if (!documentHasSubstance(document)) return this.hydrate(existing);
+    if (!documentHasSubstance(document)) return this.hydrate(plain);
 
     const flat = flattenContentStrategy(document);
     const updated = await this.strategies.updateActive(siteId, {
@@ -132,7 +133,12 @@ export class WorkspaceStrategyService {
     });
   }
 
-  async generateFromWebsite(siteId: string, userId: string, websiteUrl?: string): Promise<WorkspaceStrategy> {
+  async generateFromWebsite(
+    siteId: string,
+    userId: string,
+    websiteUrl?: string,
+    options?: { skipRoadmapBootstrap?: boolean }
+  ): Promise<WorkspaceStrategy> {
     const site = await this.siteRepository.findById(siteId);
     const url = websiteUrl || site?.website_url;
     await this.createGeneratingStub(siteId, userId, url);
@@ -171,13 +177,20 @@ export class WorkspaceStrategyService {
       );
       this.emitStatus(siteId, userId, "ready");
       await this.notify(userId, siteId, true);
-      this.bootstrapDefaultRoadmap(siteId, userId);
+      if (!options?.skipRoadmapBootstrap) {
+        this.bootstrapDefaultRoadmap(siteId, userId);
+      }
       logger.info(
         "Content Strategy generated from website",
         { siteId, version: created.version, id: created._id ?? randomUUID() },
         "WorkspaceStrategyService"
       );
-      return this.hydrate(created);
+      return this.hydrate({
+        ...this.asPlain(created),
+        document: mapped.document,
+        generation_status: "ready",
+        generation_error: "",
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       logger.warn("Content Strategy generation failed", { siteId, error: message }, "WorkspaceStrategyService");
@@ -317,7 +330,7 @@ export class WorkspaceStrategyService {
     return this.hydrate(created);
   }
 
-  private async markFailed(siteId: string, userId: string, message: string): Promise<WorkspaceStrategy> {
+  async markFailed(siteId: string, userId: string, message: string): Promise<WorkspaceStrategy> {
     const updated = await this.strategies.updateActive(
       siteId,
       {
@@ -344,16 +357,21 @@ export class WorkspaceStrategyService {
     return parseContentStrategyDocument(document);
   }
 
+  private asPlain(strategy: WorkspaceStrategy): WorkspaceStrategy {
+    const maybe = strategy as WorkspaceStrategy & { toObject?: () => WorkspaceStrategy };
+    return typeof maybe.toObject === "function" ? maybe.toObject() : strategy;
+  }
+
   private hydrate(strategy: WorkspaceStrategy): WorkspaceStrategy {
-    const document = documentHasSubstance(strategy.document)
-      ? parseContentStrategyDocument(strategy.document)
-      : emptyContentStrategyDocument();
-    const generation_status = strategy.generation_status ?? (documentHasSubstance(document) ? "ready" : "failed");
+    const raw = this.asPlain(strategy);
+    const parsed = parseContentStrategyDocument(raw.document);
+    const hasSubstance = documentHasSubstance(parsed);
+    const generation_status = raw.generation_status ?? (hasSubstance ? "ready" : "failed");
     return {
-      ...strategy,
-      document: documentHasSubstance(strategy.document) ? parseContentStrategyDocument(strategy.document) : document,
+      ...raw,
+      document: hasSubstance ? parsed : emptyContentStrategyDocument(),
       generation_status,
-      section_confidence: strategy.section_confidence ?? {},
+      section_confidence: raw.section_confidence ?? {},
     };
   }
 

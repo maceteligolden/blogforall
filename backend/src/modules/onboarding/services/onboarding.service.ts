@@ -5,16 +5,10 @@ import { BillingService } from "../../billing/services/billing.service";
 import { CardRepository } from "../../billing/repositories/card.repository";
 import { SiteRepository } from "../../site/repositories/site.repository";
 import { AuthService } from "../../auth/services/auth.service";
-import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
-import { CampaignRepository } from "../../campaign/repositories/campaign.repository";
-import { CampaignRoadmapRepository } from "../../campaign/repositories/campaign-roadmap.repository";
-import { CampaignPlanningService } from "../../campaign/services/campaign-planning.service";
+import { StrategistBootstrapService } from "./strategist-bootstrap.service";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
 import { SignupWizardStage, SiteStatus } from "../../../shared/constants";
-import { CampaignRoadmapStatus } from "../../../shared/constants/campaign.constant";
-import { env } from "../../../shared/config/env";
-import { isContentStrategyReady } from "../../../shared/types/content-strategy.document";
 import { assertSlidingWindowRateLimit } from "../../../shared/utils/sliding-window-rate-limit";
 import WorkspaceMemory from "../../../shared/schemas/workspace-memory.schema";
 
@@ -102,10 +96,7 @@ export class OnboardingService {
     private billingService: BillingService,
     private cardRepository: CardRepository,
     private userRepository: UserRepository,
-    private workspaceStrategyService: WorkspaceStrategyService,
-    private campaignRepository: CampaignRepository,
-    private campaignRoadmapRepository: CampaignRoadmapRepository,
-    private campaignPlanningService: CampaignPlanningService
+    private strategistBootstrapService: StrategistBootstrapService
   ) {}
 
   async getOnboardingStatus(userId: string): Promise<{
@@ -191,7 +182,7 @@ export class OnboardingService {
       return { stage: SignupWizardStage.INVITE, site_id: primarySiteId };
     }
     if (!user.strategist_ready_acknowledged_at) {
-      const progress = primarySiteId ? await this.deriveStrategistProgress(primarySiteId, userId) : null;
+      const progress = primarySiteId ? await this.strategistBootstrapService.deriveProgress(primarySiteId) : null;
       if (progress?.ready) {
         return { stage: SignupWizardStage.STRATEGIST_READY, site_id: primarySiteId };
       }
@@ -222,7 +213,7 @@ export class OnboardingService {
 
   async getStrategistProgress(userId: string, siteId: string): Promise<StrategistProgress> {
     await this.assertSiteMember(userId, siteId);
-    const progress = await this.deriveStrategistProgress(siteId, userId);
+    const progress = await this.strategistBootstrapService.deriveProgress(siteId);
     if (progress.failed) {
       logger.warn(
         "Signup strategist bootstrap has a failed step",
@@ -233,37 +224,37 @@ export class OnboardingService {
     return progress;
   }
 
-  async retryStrategistProgress(userId: string, siteId: string): Promise<StrategistProgress> {
+  async startStrategistBootstrap(
+    userId: string,
+    siteId: string
+  ): Promise<{ progress: StrategistProgress; alreadyReady: boolean; accepted: boolean }> {
     const site = await this.siteRepository.findById(siteId);
     if (!site) throw new NotFoundError("Workspace not found");
     if (site.owner !== userId) {
-      throw new ForbiddenError("Only the workspace owner can retry strategist setup");
+      throw new ForbiddenError("Only the workspace owner can start strategist setup");
     }
 
-    assertSlidingWindowRateLimit(`strategist-retry:${userId}`, {
-      windowMs: 60 * 60 * 1000,
-      max: 5,
-      message: "Too many retry attempts. Please wait before trying again.",
-    });
-
-    const strategy = await this.workspaceStrategyService.getActive(siteId).catch(() => null);
-    let strategyReady = false;
-    try {
-      strategyReady = Boolean(strategy && isContentStrategyReady(strategy.generation_status, strategy.document));
-    } catch {
-      strategyReady = false;
+    const current = await this.strategistBootstrapService.deriveProgress(siteId);
+    if (!current.ready && !this.strategistBootstrapService.isInflight(siteId)) {
+      assertSlidingWindowRateLimit(`strategist-retry:${userId}`, {
+        windowMs: 60 * 60 * 1000,
+        max: 5,
+        message: "Too many retry attempts. Please wait before trying again.",
+      });
     }
 
-    if (!strategyReady) {
-      const websiteUrl = site.website_url;
-      await this.workspaceStrategyService.createGeneratingStub(siteId, userId, websiteUrl);
-      this.workspaceStrategyService.startBackgroundGenerate(siteId, userId, websiteUrl);
-      logger.info("Signup strategist bootstrap retry started", { userId, siteId }, "OnboardingService");
-    } else {
-      await this.campaignPlanningService.ensureDefaultRoadmap(siteId, userId);
-      logger.info("Signup campaign topics retry started", { userId, siteId }, "OnboardingService");
-    }
-    return this.deriveStrategistProgress(siteId, userId);
+    const result = await this.strategistBootstrapService.start(siteId, userId);
+    logger.info(
+      "Signup strategist bootstrap requested",
+      { userId, siteId, alreadyReady: result.alreadyReady, accepted: result.accepted },
+      "OnboardingService"
+    );
+    return result;
+  }
+
+  async retryStrategistProgress(userId: string, siteId: string): Promise<StrategistProgress> {
+    const result = await this.startStrategistBootstrap(userId, siteId);
+    return result.progress;
   }
 
   async acknowledgeStrategistReady(userId: string, degraded = false): Promise<SignupWizardStatus> {
@@ -454,99 +445,5 @@ export class OnboardingService {
     if (!memberSites.some((s) => s._id!.toString() === siteId)) {
       throw new ForbiddenError("You do not have access to this workspace");
     }
-  }
-
-  private async deriveStrategistProgress(siteId: string, userId?: string): Promise<StrategistProgress> {
-    if (!env.orchestrator.strategicIntelligenceEnabled) {
-      return {
-        site_id: siteId,
-        ready: true,
-        failed: false,
-        steps: [
-          { id: "content_strategy", label: "Content strategy being generated", status: "ready" },
-          { id: "default_campaign", label: "Campaign being drafted", status: "ready" },
-          { id: "campaign_topics", label: "Campaign topics being generated", status: "ready" },
-        ],
-      };
-    }
-
-    const strategy = await this.workspaceStrategyService.getActive(siteId).catch((err) => {
-      logger.warn(
-        "Could not load content strategy for signup progress",
-        { siteId, error: err instanceof Error ? err.message : String(err) },
-        "OnboardingService"
-      );
-      return null;
-    });
-
-    let strategyStatus: StrategistStepStatus = "pending";
-    let strategyError: string | undefined;
-    const strategyReady = (() => {
-      try {
-        return Boolean(strategy && isContentStrategyReady(strategy.generation_status, strategy.document));
-      } catch {
-        return false;
-      }
-    })();
-    if (!strategy) {
-      strategyStatus = "pending";
-    } else if (strategyReady) {
-      strategyStatus = "ready";
-    } else if (strategy.generation_status === "generating") {
-      strategyStatus = "in_progress";
-    } else if (strategy.generation_status === "failed") {
-      strategyStatus = "failed";
-      strategyError = strategy.generation_error || "Content strategy generation failed";
-    }
-
-    const campaign = await this.campaignRepository.findDefault(siteId).catch(() => null);
-    const campaignStatus: StrategistStepStatus = campaign?._id ? "ready" : "pending";
-
-    let topicsStatus: StrategistStepStatus = "pending";
-    if (campaignStatus !== "ready") {
-      topicsStatus = "pending";
-    } else if (strategyStatus === "failed") {
-      topicsStatus = "failed";
-    } else if (strategyStatus !== "ready") {
-      topicsStatus = strategyStatus === "in_progress" ? "pending" : "pending";
-    } else {
-      const campaignId = campaign!._id!.toString();
-      const roadmap = await this.campaignRoadmapRepository.findLatest(campaignId, siteId).catch(() => null);
-      const hasTopics = Array.isArray(roadmap?.items) && roadmap.items.length > 0;
-      if (
-        hasTopics &&
-        (roadmap?.status === CampaignRoadmapStatus.APPROVED || roadmap?.status === CampaignRoadmapStatus.PROPOSED)
-      ) {
-        topicsStatus = "ready";
-      } else if (roadmap) {
-        topicsStatus = "in_progress";
-      } else {
-        topicsStatus = "in_progress";
-        if (userId) {
-          void this.campaignPlanningService.ensureDefaultRoadmap(siteId, userId).catch((err) => {
-            logger.warn(
-              "Signup campaign topics bootstrap failed to start",
-              { siteId, error: err instanceof Error ? err.message : String(err) },
-              "OnboardingService"
-            );
-          });
-        }
-      }
-    }
-
-    const steps: StrategistProgressStep[] = [
-      {
-        id: "content_strategy",
-        label: "Content strategy being generated",
-        status: strategyStatus,
-        error: strategyError,
-      },
-      { id: "default_campaign", label: "Campaign being drafted", status: campaignStatus },
-      { id: "campaign_topics", label: "Campaign topics being generated", status: topicsStatus },
-    ];
-    const ready = steps.every((s) => s.status === "ready");
-    const failed = steps.some((s) => s.status === "failed");
-
-    return { site_id: siteId, steps, ready, failed };
   }
 }

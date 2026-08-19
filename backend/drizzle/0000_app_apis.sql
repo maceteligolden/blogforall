@@ -26,8 +26,6 @@ CREATE TABLE IF NOT EXISTS users (
   email_verification_attempts integer NOT NULL DEFAULT 0,
   company_role text,
   company_role_detail text,
-  welcome_tour_dismissed_at timestamptz,
-  show_welcome_tour boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -436,6 +434,8 @@ CREATE INDEX IF NOT EXISTS review_tokens_site_post_used_idx ON scheduled_post_re
 CREATE INDEX IF NOT EXISTS review_tokens_expires_at_idx ON scheduled_post_review_tokens (expires_at);
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS strategist_ready_acknowledged_at timestamptz;
+ALTER TABLE users DROP COLUMN IF EXISTS welcome_tour_dismissed_at;
+ALTER TABLE users DROP COLUMN IF EXISTS show_welcome_tour;
 UPDATE users
 SET strategist_ready_acknowledged_at = COALESCE(workspace_invite_prompt_dismissed_at, now())
 WHERE plan_selection_completed_at IS NOT NULL

@@ -1,7 +1,8 @@
-import { injectable } from "tsyringe";
+import { injectable, container } from "tsyringe";
 import { SiteRepository } from "../repositories/site.repository";
 import { SiteMemberRepository } from "../repositories/site-member.repository";
 import { SubscriptionService } from "../../subscription/services/subscription.service";
+import { UserRepository } from "../../auth/repositories/user.repository";
 import { NotFoundError, ForbiddenError, BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
 import { CreateSiteInput, UpdateSiteInput, SiteWithMembers } from "../interfaces/site.interface";
@@ -10,7 +11,6 @@ import { SiteMemberRole, SiteStatus } from "../../../shared/constants";
 import { env } from "../../../shared/config/env";
 import type { SiteMember as SiteMemberType } from "../../../shared/schemas/site-member.schema";
 import { deleteMongoAiBySiteId } from "../../../shared/utils/delete-mongo-ai-by-site";
-import { CampaignService } from "../../campaign/services/campaign.service";
 import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
 
@@ -20,9 +20,9 @@ export class SiteService {
     private siteRepository: SiteRepository,
     private siteMemberRepository: SiteMemberRepository,
     private subscriptionService: SubscriptionService,
-    private campaignService: CampaignService,
     private workspaceStrategyService: WorkspaceStrategyService,
-    private businessKnowledgeService: BusinessKnowledgeService
+    private businessKnowledgeService: BusinessKnowledgeService,
+    private userRepository: UserRepository
   ) {}
 
   /**
@@ -45,13 +45,10 @@ export class SiteService {
     if (env.orchestrator.strategicIntelligenceEnabled) {
       const siteId = site._id!.toString();
       try {
-        await this.campaignService.ensureDefaultCampaign(siteId, ownerId);
         await this.businessKnowledgeService.seedFromWorkspaceMemory(siteId, ownerId);
-        if (input.website_url) {
-          await this.workspaceStrategyService.createGeneratingStub(siteId, ownerId, input.website_url);
-          this.workspaceStrategyService.startBackgroundGenerate(siteId, ownerId, input.website_url);
-        } else {
-          await this.workspaceStrategyService.ensureStrategy(siteId, ownerId);
+        const owner = await this.userRepository.findById(ownerId);
+        if (owner?.onboarding_completed) {
+          await this.startStrategistBootstrap(siteId, ownerId);
         }
       } catch (err) {
         logger.warn(
@@ -63,6 +60,18 @@ export class SiteService {
     }
 
     return site;
+  }
+
+  /**
+   * Same pipeline as POST /onboarding/strategist-bootstrap.
+   * Resolved lazily: SiteService is in RoomManager's graph, so constructing
+   * StrategistBootstrapService from this constructor is a circular dependency.
+   */
+  private async startStrategistBootstrap(siteId: string, userId: string): Promise<void> {
+    const { StrategistBootstrapService } = await import(
+      "../../onboarding/services/strategist-bootstrap.service"
+    );
+    container.resolve(StrategistBootstrapService).startInBackground(siteId, userId);
   }
 
   /**

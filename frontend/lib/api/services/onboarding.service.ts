@@ -29,6 +29,15 @@ export type StrategistProgress = {
   failed: boolean;
 };
 
+export async function startStrategistBootstrap(siteId: string): Promise<StrategistProgress> {
+  const response = await apiClient.post<{ data: StrategistProgress }>(
+    API_ENDPOINTS.ONBOARDING.STRATEGIST_BOOTSTRAP,
+    {},
+    { params: { site_id: siteId } }
+  );
+  return response.data.data;
+}
+
 export class OnboardingService {
   /**
    * Get onboarding status
@@ -99,14 +108,9 @@ export class OnboardingService {
     return response.data.data;
   }
 
-  static async retryStrategistProgress(siteId: string): Promise<StrategistProgress> {
-    const response = await apiClient.post<{ data: StrategistProgress }>(
-      API_ENDPOINTS.ONBOARDING.STRATEGIST_PROGRESS_RETRY,
-      {},
-      { params: { site_id: siteId } }
-    );
-    return response.data.data;
-  }
+  static startStrategistBootstrap = startStrategistBootstrap;
+
+  static retryStrategistProgress = startStrategistBootstrap;
 
   static async acknowledgeStrategistReady(degraded = false): Promise<SignupWizardStatus> {
     const response = await apiClient.post<{ data: SignupWizardStatus }>(

@@ -23,7 +23,6 @@ export const API_ENDPOINTS = {
     VERIFY_EMAIL: "/auth/verify-email",
     RESEND_VERIFICATION: "/auth/resend-verification",
     COMPANY_ROLE: "/auth/company-role",
-    DISMISS_WELCOME_TOUR: "/auth/dismiss-welcome-tour",
   },
   BLOGS: {
     CREATE: (siteId: string) => `/sites/${siteId}/posts`,
@@ -102,6 +101,7 @@ export const API_ENDPOINTS = {
     COMPLETE_PLAN_SELECTION: "/onboarding/plan-selection/complete",
     SETUP_PROGRESS: "/onboarding/setup-progress",
     STRATEGIST_PROGRESS: "/onboarding/strategist-progress",
+    STRATEGIST_BOOTSTRAP: "/onboarding/strategist-bootstrap",
     STRATEGIST_PROGRESS_RETRY: "/onboarding/strategist-progress/retry",
     STRATEGIST_READY_ACKNOWLEDGE: "/onboarding/strategist-ready/acknowledge",
   },

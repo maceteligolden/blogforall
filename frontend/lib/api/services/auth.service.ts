@@ -104,8 +104,4 @@ export class AuthService {
   static async setCompanyRole(data: { company_role: string; company_role_detail?: string }) {
     return apiClient.post(API_ENDPOINTS.AUTH.COMPANY_ROLE, data);
   }
-
-  static async dismissWelcomeTour() {
-    return apiClient.post(API_ENDPOINTS.AUTH.DISMISS_WELCOME_TOUR);
-  }
 }

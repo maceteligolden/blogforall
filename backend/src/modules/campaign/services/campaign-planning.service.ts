@@ -229,6 +229,7 @@ export class CampaignPlanningService {
         { siteId, campaignId, error: err instanceof Error ? err.message : String(err) },
         "CampaignPlanningService"
       );
+      throw err;
     }
   }
 

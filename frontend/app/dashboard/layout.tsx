@@ -18,7 +18,6 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
-import { WelcomeTourModal } from "@/components/onboarding/welcome-tour-modal";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -150,7 +149,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Suspense fallback={null}>
                   <OrchestratorUrlSync />
                 </Suspense>
-                <WelcomeTourModal />
                 <Navbar onMenuClick={() => setSidebarOpen(true)} />
                 <div className="flex min-h-[calc(100vh-4rem)] bg-black text-white">
                   <DashboardSidebar

@@ -11,6 +11,9 @@ export const REALTIME_EVENTS = {
   CAMPAIGN_EVENT_APPENDED: "campaign.event.appended",
   BLOG_STATUS_CHANGED: "blog.status.changed",
   STRATEGY_STATUS_CHANGED: "strategy.status.changed",
+  SIGNUP_BOOTSTRAP_STEP: "signup.bootstrap.step",
+  SIGNUP_BOOTSTRAP_COMPLETED: "signup.bootstrap.completed",
+  SIGNUP_BOOTSTRAP_FAILED: "signup.bootstrap.failed",
   REALTIME_ERROR: "realtime:error",
   REALTIME_CONNECTED: "realtime:connected",
 } as const;

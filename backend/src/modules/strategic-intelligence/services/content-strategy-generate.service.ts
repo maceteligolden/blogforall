@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { injectable } from "tsyringe";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { env } from "../../../shared/config/env";
@@ -8,13 +9,40 @@ import { proposalToMemoryPatch } from "../../orchestrator/utils/website-onboardi
 import { BusinessKnowledgeService } from "./business-knowledge.service";
 import {
   coalesceContentStrategyDocument,
-  contentStrategyDocumentSchema,
   documentFromStrategicMemory,
   ensureContentStrategyCompleteness,
   parseContentStrategyDocument,
   type ContentStrategyDocument,
   type ContentStrategySectionConfidenceMap,
 } from "../../../shared/types/content-strategy.document";
+
+/** OpenAI json_schema rejects Zod `.optional()`. Every field here is required. */
+const contentStrategyLlmSchema = z.object({
+  what_we_are: z.string(),
+  what_we_sell: z.string(),
+  commercial_goal: z.string(),
+  growth_priority: z.string(),
+  audience_who: z.string(),
+  audience_situation: z.string(),
+  audience_jtbd: z.string(),
+  beliefs_to_change: z.array(z.string()),
+  awareness_stage: z.string(),
+  category: z.string(),
+  differentiation: z.string(),
+  value_proposition: z.string(),
+  positioning_statement: z.string(),
+  core_message: z.string(),
+  supporting_messages: z.array(z.string()),
+  editorial_pov: z.string(),
+  pillar_names: z.array(z.string()),
+  personality: z.string(),
+  voice: z.string(),
+  tone_range: z.string(),
+  writing_principles: z.array(z.string()),
+  desired_action: z.string(),
+  primary_cta: z.string(),
+  secondary_cta: z.string(),
+});
 
 @injectable()
 export class ContentStrategyGenerateService {
@@ -79,22 +107,15 @@ export class ContentStrategyGenerateService {
       timeout: env.orchestrator.API_TIMEOUT,
       temperature: 0.2,
     });
-    const structured = chat.withStructuredOutput(contentStrategyDocumentSchema);
+    const structured = chat.withStructuredOutput(contentStrategyLlmSchema);
     try {
       const raw = await structured.invoke([
         new SystemMessage(
           [
             "You write a Content Strategy (editorial constitution) from a company website.",
-            "Every required string field must be a concrete inferred value — never empty strings.",
-            "Every required list must have at least 2 items (except competitors if unknown).",
-            "Fill ALL sections: north_star, audience (who, situation, jtbd, beliefs_to_change, awareness_stage),",
-            "positioning (category, differentiation, value_proposition, statement, competitors if named),",
-            "narrative (core_message, supporting_messages, proof_points, claims we can/must not make, editorial_pov),",
-            "content_franchise with 3–6 named pillars (name, authority_thesis, in_scope, out_of_scope),",
-            "voice (personality, voice, tone_range, writing_principles, words_to_use, words_to_avoid),",
-            "jobs_of_content weights summing to ~1, conversion (desired_action, primary_cta, secondary_cta, how_content_supports_offer),",
-            "guardrails (always, never, accuracy_bar), measurement (content_kpis, business_outcomes).",
-            "Infer reasonable short values from the site; do not leave sections blank because evidence is thin.",
+            "Every string must be a concrete inferred value — never empty.",
+            "lists need at least 2 items. pillar_names needs 3–6 short names.",
+            "Infer reasonable short values from the site; do not leave fields blank because evidence is thin.",
             "Do not invent pricing, named clients, calendars, or visual brand.",
             "Keep each field to 1–3 sentences or a short list.",
           ].join(" ")
@@ -110,8 +131,50 @@ export class ContentStrategyGenerateService {
             .join("\n\n")
         ),
       ]);
+      const fromLlm = parseContentStrategyDocument({
+        north_star: {
+          what_we_are: raw.what_we_are,
+          what_we_sell: raw.what_we_sell,
+          commercial_goal: raw.commercial_goal,
+          growth_priority: raw.growth_priority,
+        },
+        audience: {
+          primary: {
+            who: raw.audience_who,
+            situation: raw.audience_situation,
+            jtbd: raw.audience_jtbd,
+            beliefs_to_change: raw.beliefs_to_change,
+          },
+          awareness_stage: raw.awareness_stage,
+        },
+        positioning: {
+          category: raw.category,
+          differentiation: raw.differentiation,
+          value_proposition: raw.value_proposition,
+          statement: raw.positioning_statement,
+        },
+        narrative: {
+          core_message: raw.core_message,
+          supporting_messages: raw.supporting_messages,
+          editorial_pov: raw.editorial_pov,
+        },
+        content_franchise: {
+          pillars: raw.pillar_names.map((name) => ({ name, authority_thesis: "", in_scope: [], out_of_scope: [] })),
+        },
+        voice: {
+          personality: raw.personality,
+          voice: raw.voice,
+          tone_range: raw.tone_range,
+          writing_principles: raw.writing_principles,
+        },
+        conversion: {
+          desired_action: raw.desired_action,
+          primary_cta: raw.primary_cta,
+          secondary_cta: raw.secondary_cta,
+        },
+      });
       const document = ensureContentStrategyCompleteness(
-        coalesceContentStrategyDocument(parseContentStrategyDocument(raw), fallback.document)
+        coalesceContentStrategyDocument(fromLlm, fallback.document)
       );
       return { document, section_confidence: this.confidenceFor(document, "website") };
     } catch (error) {

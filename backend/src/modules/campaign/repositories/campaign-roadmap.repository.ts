@@ -38,6 +38,11 @@ export class CampaignRoadmapRepository {
     );
   }
 
+  async deleteById(id: string, siteId: string): Promise<boolean> {
+    const result = await CampaignRoadmapModel.deleteOne({ _id: id, site_id: siteId });
+    return (result.deletedCount ?? 0) > 0;
+  }
+
   async nextVersion(campaignId: string, siteId: string): Promise<number> {
     const latest = await this.findLatest(campaignId, siteId);
     return (latest?.version ?? 0) + 1;

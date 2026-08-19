@@ -22,7 +22,6 @@ interface User {
   role?: string;
   email_verified?: boolean;
   company_role?: string;
-  welcome_tour_dismissed?: boolean;
 }
 
 interface AuthState {

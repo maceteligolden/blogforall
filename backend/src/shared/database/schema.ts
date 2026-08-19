@@ -36,8 +36,6 @@ export const users = pgTable(
     email_verification_attempts: integer("email_verification_attempts").notNull().default(0),
     company_role: text("company_role"),
     company_role_detail: text("company_role_detail"),
-    welcome_tour_dismissed_at: timestamp("welcome_tour_dismissed_at", { withTimezone: true }),
-    show_welcome_tour: boolean("show_welcome_tour").notNull().default(false),
     ...timestamps,
   },
   (table) => [

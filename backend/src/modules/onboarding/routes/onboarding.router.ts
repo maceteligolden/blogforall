@@ -32,6 +32,12 @@ router.get(
   onboardingController.getStrategistProgress
 );
 router.post(
+  "/strategist-bootstrap",
+  authMiddleware,
+  validateQuery(siteIdQuerySchema),
+  onboardingController.startStrategistBootstrap
+);
+router.post(
   "/strategist-progress/retry",
   authMiddleware,
   validateQuery(siteIdQuerySchema),

@@ -1,7 +1,7 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { OnboardingService } from "../services/onboarding.service";
-import { sendSuccess } from "../../../shared/helper/response.helper";
+import { sendSuccess, sendAccepted } from "../../../shared/helper/response.helper";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
 
 @injectable()
@@ -105,6 +105,21 @@ export class OnboardingController {
       const { site_id: siteId } = req.validatedQuery as { site_id: string };
       const progress = await this.onboardingService.getStrategistProgress(userId, siteId);
       sendSuccess(res, "Strategist setup progress retrieved", progress);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  startStrategistBootstrap = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const { site_id: siteId } = req.validatedQuery as { site_id: string };
+      const result = await this.onboardingService.startStrategistBootstrap(userId, siteId);
+      if (result.accepted) {
+        sendAccepted(res, "Strategist setup started", result.progress);
+        return;
+      }
+      sendSuccess(res, "Strategist setup is ready", result.progress);
     } catch (error) {
       next(error);
     }

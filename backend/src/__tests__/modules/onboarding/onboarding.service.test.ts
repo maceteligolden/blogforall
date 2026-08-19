@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { SignupWizardStage, SiteStatus } from "../../../shared/constants";
-import { CampaignRoadmapStatus } from "../../../shared/constants/campaign.constant";
 import { ForbiddenError, TooManyRequestsError } from "../../../shared/errors";
-import { OnboardingService } from "../../../modules/onboarding/services/onboarding.service";
+import { OnboardingService, type StrategistProgress } from "../../../modules/onboarding/services/onboarding.service";
 import { __resetSlidingWindowRateLimitForTests } from "../../../shared/utils/sliding-window-rate-limit";
 
 const mockUserFindById = jest.fn<() => Promise<Record<string, unknown> | null>>();
@@ -11,15 +10,13 @@ const mockFindByOwner = jest.fn<() => Promise<Array<{ _id: string; status: SiteS
 const mockFindByUser = jest.fn<() => Promise<Array<{ _id: string; status: SiteStatus }>>>();
 const mockSiteUpdate = jest.fn<() => Promise<unknown>>();
 const mockFindById = jest.fn<() => Promise<Record<string, unknown> | null>>();
-const mockGetActive = jest.fn<() => Promise<Record<string, unknown> | null>>();
-const mockFindDefault = jest.fn<() => Promise<{ _id: string } | null>>();
-const mockFindLatest = jest.fn<() => Promise<Record<string, unknown> | null>>();
 const mockFinalize = jest.fn<() => Promise<void>>();
-const mockCreateGeneratingStub = jest.fn<() => Promise<unknown>>();
-const mockStartBackgroundGenerate = jest.fn();
-const mockEnsureDefaultRoadmap = jest.fn<() => Promise<void>>();
 const mockGetActiveSubscription = jest.fn<() => Promise<unknown>>();
 const mockCreateFreeSubscription = jest.fn<() => Promise<void>>();
+const mockDeriveProgress = jest.fn<() => Promise<StrategistProgress>>();
+const mockBootstrapStart =
+  jest.fn<() => Promise<{ progress: StrategistProgress; alreadyReady: boolean; accepted: boolean }>>();
+const mockIsInflight = jest.fn<() => boolean>();
 
 function ownerUser(overrides: Record<string, unknown> = {}) {
   return {
@@ -30,14 +27,26 @@ function ownerUser(overrides: Record<string, unknown> = {}) {
   };
 }
 
-const readyStrategy = {
-  generation_status: "ready",
-  document: {
-    north_star: { what_we_are: "A SaaS for writers" },
-    positioning: { statement: "We help teams publish" },
-    audience: { primary: { who: "Founders" } },
-    narrative: { core_message: "Write with a strategist" },
-  },
+const pendingProgress: StrategistProgress = {
+  site_id: "s1",
+  ready: false,
+  failed: false,
+  steps: [
+    { id: "content_strategy", label: "Content strategy being generated", status: "in_progress" },
+    { id: "default_campaign", label: "Campaign being drafted", status: "pending" },
+    { id: "campaign_topics", label: "Campaign topics being generated", status: "pending" },
+  ],
+};
+
+const readyProgress: StrategistProgress = {
+  site_id: "s1",
+  ready: true,
+  failed: false,
+  steps: [
+    { id: "content_strategy", label: "Content strategy being generated", status: "ready" },
+    { id: "default_campaign", label: "Campaign being drafted", status: "ready" },
+    { id: "campaign_topics", label: "Campaign topics being generated", status: "ready" },
+  ],
 };
 
 function makeOnboardingService() {
@@ -60,13 +69,10 @@ function makeOnboardingService() {
       update: mockUserUpdate,
     } as never,
     {
-      getActive: mockGetActive,
-      createGeneratingStub: mockCreateGeneratingStub,
-      startBackgroundGenerate: mockStartBackgroundGenerate,
-    } as never,
-    { findDefault: mockFindDefault } as never,
-    { findLatest: mockFindLatest } as never,
-    { ensureDefaultRoadmap: mockEnsureDefaultRoadmap } as never
+      deriveProgress: mockDeriveProgress,
+      start: mockBootstrapStart,
+      isInflight: mockIsInflight,
+    } as never
   );
 }
 
@@ -75,7 +81,8 @@ describe("OnboardingService.getSignupWizardStatus", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockEnsureDefaultRoadmap.mockResolvedValue(undefined);
+    mockIsInflight.mockReturnValue(false);
+    mockDeriveProgress.mockResolvedValue(pendingProgress);
     service = makeOnboardingService();
   });
 
@@ -171,14 +178,11 @@ describe("OnboardingService.getSignupWizardStatus", () => {
       })
     );
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
-    mockGetActive.mockResolvedValue({ generation_status: "generating", document: {} });
-    mockFindDefault.mockResolvedValue({ _id: "c1" });
-    mockFindLatest.mockResolvedValue(null);
+    mockDeriveProgress.mockResolvedValue(pendingProgress);
 
     const status = await service.getSignupWizardStatus("u1");
 
     expect(status).toEqual({ stage: SignupWizardStage.STRATEGIST_SETUP, site_id: "s1" });
-    expect(mockEnsureDefaultRoadmap).not.toHaveBeenCalled();
   });
 
   it("returns strategist_ready when bootstrap is ready and not acknowledged", async () => {
@@ -189,17 +193,11 @@ describe("OnboardingService.getSignupWizardStatus", () => {
       })
     );
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
-    mockGetActive.mockResolvedValue(readyStrategy);
-    mockFindDefault.mockResolvedValue({ _id: "c1" });
-    mockFindLatest.mockResolvedValue({
-      status: CampaignRoadmapStatus.APPROVED,
-      items: [{ title: "First post" }],
-    });
+    mockDeriveProgress.mockResolvedValue(readyProgress);
 
     const status = await service.getSignupWizardStatus("u1");
 
     expect(status).toEqual({ stage: SignupWizardStage.STRATEGIST_READY, site_id: "s1" });
-    expect(mockEnsureDefaultRoadmap).not.toHaveBeenCalled();
   });
 
   it("returns complete when existing owners already finished plan, invite, and strategist ready", async () => {
@@ -223,21 +221,18 @@ describe("OnboardingService.getStrategistProgress", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockEnsureDefaultRoadmap.mockResolvedValue(undefined);
+    mockIsInflight.mockReturnValue(false);
+    mockDeriveProgress.mockResolvedValue(pendingProgress);
     service = makeOnboardingService();
   });
 
-  it("kicks default roadmap generation when strategy is ready and no roadmap exists", async () => {
+  it("returns a snapshot without kicking topic generation", async () => {
     mockFindById.mockResolvedValue({ _id: "s1", owner: "u1" });
     mockFindByUser.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
-    mockGetActive.mockResolvedValue(readyStrategy);
-    mockFindDefault.mockResolvedValue({ _id: "c1" });
-    mockFindLatest.mockResolvedValue(null);
 
     const progress = await service.getStrategistProgress("u1", "s1");
 
-    expect(mockEnsureDefaultRoadmap).toHaveBeenCalledWith("s1", "u1");
-    expect(progress.steps.find((s) => s.id === "campaign_topics")?.status).toBe("in_progress");
+    expect(mockBootstrapStart).not.toHaveBeenCalled();
     expect(progress.ready).toBe(false);
   });
 
@@ -246,72 +241,47 @@ describe("OnboardingService.getStrategistProgress", () => {
     mockFindByUser.mockResolvedValue([]);
 
     await expect(service.getStrategistProgress("u1", "s1")).rejects.toThrow(ForbiddenError);
-    expect(mockEnsureDefaultRoadmap).not.toHaveBeenCalled();
+    expect(mockDeriveProgress).not.toHaveBeenCalled();
   });
 });
 
-describe("OnboardingService.retryStrategistProgress", () => {
+describe("OnboardingService.startStrategistBootstrap", () => {
   let service: OnboardingService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     __resetSlidingWindowRateLimitForTests();
-    mockEnsureDefaultRoadmap.mockResolvedValue(undefined);
+    mockIsInflight.mockReturnValue(false);
+    mockDeriveProgress.mockResolvedValue(pendingProgress);
+    mockBootstrapStart.mockResolvedValue({ progress: pendingProgress, alreadyReady: false, accepted: true });
     service = makeOnboardingService();
   });
 
-  it("retries only campaign topics when content strategy is already ready", async () => {
+  it("starts the shared bootstrap pipeline", async () => {
     mockFindById.mockResolvedValue({ _id: "s1", owner: "u1", website_url: "https://example.com" });
-    mockGetActive.mockResolvedValue(readyStrategy);
-    mockFindDefault.mockResolvedValue({ _id: "c1" });
-    mockFindLatest.mockResolvedValue({
-      status: CampaignRoadmapStatus.APPROVED,
-      items: [{ title: "First post" }],
-    });
 
-    await service.retryStrategistProgress("u1", "s1");
+    const result = await service.startStrategistBootstrap("u1", "s1");
 
-    expect(mockEnsureDefaultRoadmap).toHaveBeenCalledWith("s1", "u1");
-    expect(mockCreateGeneratingStub).not.toHaveBeenCalled();
-    expect(mockStartBackgroundGenerate).not.toHaveBeenCalled();
+    expect(mockBootstrapStart).toHaveBeenCalledWith("s1", "u1");
+    expect(result.accepted).toBe(true);
   });
 
-  it("regenerates content strategy when it is not ready", async () => {
-    mockFindById.mockResolvedValue({ _id: "s1", owner: "u1", website_url: "https://example.com" });
-    mockGetActive.mockResolvedValue({ generation_status: "failed", document: {} });
-    mockFindDefault.mockResolvedValue({ _id: "c1" });
-    mockFindLatest.mockResolvedValue(null);
-
-    await service.retryStrategistProgress("u1", "s1");
-
-    expect(mockCreateGeneratingStub).toHaveBeenCalledWith("s1", "u1", "https://example.com");
-    expect(mockStartBackgroundGenerate).toHaveBeenCalledWith("s1", "u1", "https://example.com");
-    expect(mockEnsureDefaultRoadmap).not.toHaveBeenCalled();
-  });
-
-  it("rejects retry from anyone who is not the workspace owner", async () => {
+  it("rejects start from anyone who is not the workspace owner", async () => {
     mockFindById.mockResolvedValue({ _id: "s1", owner: "u2", website_url: "https://example.com" });
 
-    await expect(service.retryStrategistProgress("u1", "s1")).rejects.toThrow(ForbiddenError);
-    expect(mockEnsureDefaultRoadmap).not.toHaveBeenCalled();
-    expect(mockCreateGeneratingStub).not.toHaveBeenCalled();
+    await expect(service.startStrategistBootstrap("u1", "s1")).rejects.toThrow(ForbiddenError);
+    expect(mockBootstrapStart).not.toHaveBeenCalled();
   });
 
-  it("rate-limits retry to five attempts per hour", async () => {
+  it("rate-limits new bootstrap runs to five attempts per hour", async () => {
     mockFindById.mockResolvedValue({ _id: "s1", owner: "u1", website_url: "https://example.com" });
-    mockGetActive.mockResolvedValue(readyStrategy);
-    mockFindDefault.mockResolvedValue({ _id: "c1" });
-    mockFindLatest.mockResolvedValue({
-      status: CampaignRoadmapStatus.APPROVED,
-      items: [{ title: "First post" }],
-    });
 
     for (let i = 0; i < 5; i += 1) {
-      await service.retryStrategistProgress("u1", "s1");
+      await service.startStrategistBootstrap("u1", "s1");
     }
 
-    await expect(service.retryStrategistProgress("u1", "s1")).rejects.toThrow(TooManyRequestsError);
-    expect(mockEnsureDefaultRoadmap).toHaveBeenCalledTimes(5);
+    await expect(service.startStrategistBootstrap("u1", "s1")).rejects.toThrow(TooManyRequestsError);
+    expect(mockBootstrapStart).toHaveBeenCalledTimes(5);
   });
 });
 
@@ -320,7 +290,8 @@ describe("OnboardingService.acknowledgeStrategistReady", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockEnsureDefaultRoadmap.mockResolvedValue(undefined);
+    mockIsInflight.mockReturnValue(false);
+    mockDeriveProgress.mockResolvedValue(readyProgress);
     service = makeOnboardingService();
   });
 
@@ -348,12 +319,7 @@ describe("OnboardingService.acknowledgeStrategistReady", () => {
       })
     );
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
-    mockGetActive.mockResolvedValue(readyStrategy);
-    mockFindDefault.mockResolvedValue({ _id: "c1" });
-    mockFindLatest.mockResolvedValue({
-      status: CampaignRoadmapStatus.APPROVED,
-      items: [{ title: "First post" }],
-    });
+    mockDeriveProgress.mockResolvedValue(readyProgress);
     mockUserUpdate.mockResolvedValue({});
     mockFinalize.mockResolvedValue(undefined);
 
@@ -372,9 +338,7 @@ describe("OnboardingService.acknowledgeStrategistReady", () => {
       })
     );
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
-    mockGetActive.mockResolvedValue({ generation_status: "generating", document: {} });
-    mockFindDefault.mockResolvedValue({ _id: "c1" });
-    mockFindLatest.mockResolvedValue(null);
+    mockDeriveProgress.mockResolvedValue(pendingProgress);
 
     await expect(service.acknowledgeStrategistReady("u1", true)).rejects.toThrow(
       /Finish strategist setup before continuing/

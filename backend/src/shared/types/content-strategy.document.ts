@@ -646,12 +646,16 @@ export function documentFromStrategicMemory(
 
 export function documentHasSubstance(doc: ContentStrategyDocument | undefined): boolean {
   if (!doc) return false;
-  return Boolean(
-    doc.north_star.what_we_are.trim() ||
-    doc.positioning.statement.trim() ||
-    doc.audience.primary.who.trim() ||
-    doc.narrative.core_message.trim()
-  );
+  try {
+    return Boolean(
+      doc.north_star?.what_we_are?.trim() ||
+      doc.positioning?.statement?.trim() ||
+      doc.audience?.primary?.who?.trim() ||
+      doc.narrative?.core_message?.trim()
+    );
+  } catch {
+    return false;
+  }
 }
 
 export function isContentStrategyReady(

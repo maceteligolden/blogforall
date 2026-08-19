@@ -175,14 +175,4 @@ export class AuthController {
       next(error);
     }
   };
-
-  dismissWelcomeTour = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const userId = getJwtUserId(req);
-      await this.authService.dismissWelcomeTour(userId);
-      sendNoContent(res, "Welcome tour dismissed");
-    } catch (error) {
-      next(error);
-    }
-  };
 }

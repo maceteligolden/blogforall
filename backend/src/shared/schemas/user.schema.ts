@@ -28,6 +28,4 @@ export interface User extends BaseEntity {
   email_verification_attempts?: number;
   company_role?: string;
   company_role_detail?: string;
-  welcome_tour_dismissed_at?: Date;
-  show_welcome_tour?: boolean;
 }

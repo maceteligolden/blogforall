@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { ToastProvider } from "@/components/ui/toast";
 import { TokenExhaustionProvider } from "@/components/usage/token-exhaustion-provider";
+import { RealtimeProvider } from "@/components/realtime/realtime-provider";
 
 /**
  * Shared providers for the signup onboarding wizard (create-site, plans, invite).
@@ -10,8 +11,10 @@ import { TokenExhaustionProvider } from "@/components/usage/token-exhaustion-pro
  */
 export function OnboardingProviders({ children }: { children: ReactNode }) {
   return (
-    <ToastProvider>
-      <TokenExhaustionProvider>{children}</TokenExhaustionProvider>
-    </ToastProvider>
+    <RealtimeProvider>
+      <ToastProvider>
+        <TokenExhaustionProvider>{children}</TokenExhaustionProvider>
+      </ToastProvider>
+    </RealtimeProvider>
   );
 }
