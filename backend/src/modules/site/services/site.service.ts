@@ -68,9 +68,7 @@ export class SiteService {
    * StrategistBootstrapService from this constructor is a circular dependency.
    */
   private async startStrategistBootstrap(siteId: string, userId: string): Promise<void> {
-    const { StrategistBootstrapService } = await import(
-      "../../onboarding/services/strategist-bootstrap.service"
-    );
+    const { StrategistBootstrapService } = await import("../../onboarding/services/strategist-bootstrap.service");
     container.resolve(StrategistBootstrapService).startInBackground(siteId, userId);
   }
 

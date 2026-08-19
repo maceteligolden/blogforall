@@ -173,9 +173,7 @@ export class ContentStrategyGenerateService {
           secondary_cta: raw.secondary_cta,
         },
       });
-      const document = ensureContentStrategyCompleteness(
-        coalesceContentStrategyDocument(fromLlm, fallback.document)
-      );
+      const document = ensureContentStrategyCompleteness(coalesceContentStrategyDocument(fromLlm, fallback.document));
       return { document, section_confidence: this.confidenceFor(document, "website") };
     } catch (error) {
       logger.warn(
