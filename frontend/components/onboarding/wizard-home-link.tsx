@@ -22,12 +22,7 @@ export function WizardHomeLink({ className, children }: WizardHomeLinkProps) {
   }
 
   return (
-    <button
-      type="button"
-      className={className}
-      disabled={isAbandoningSignup}
-      onClick={() => abandonSignup()}
-    >
+    <button type="button" className={className} disabled={isAbandoningSignup} onClick={() => abandonSignup()}>
       {isAbandoningSignup ? "Leaving…" : children}
     </button>
   );

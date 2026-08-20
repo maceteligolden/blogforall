@@ -21,11 +21,13 @@ describe("StrategistBootstrapService", () => {
   const emitToUser = jest.fn();
   const generateFromWebsite = jest.fn<() => Promise<typeof readyStrategy>>();
   const markFailed = jest.fn<() => Promise<unknown>>();
-  const getActive = jest.fn<() => Promise<{
-    generation_status: "ready" | "generating" | "failed";
-    website_url?: string;
-    document?: typeof readyDocument;
-  } | null>>();
+  const getActive = jest.fn<
+    () => Promise<{
+      generation_status: "ready" | "generating" | "failed";
+      website_url?: string;
+      document?: typeof readyDocument;
+    } | null>
+  >();
   const ensureDefaultCampaign = jest.fn<() => Promise<{ _id: string }>>();
   const findDefault = jest.fn<() => Promise<{ _id: string } | null>>();
   const findLatest = jest.fn<() => Promise<{ _id: string; items: Array<{ title: string }>; status: string } | null>>();

@@ -149,30 +149,35 @@ function PlansOnboardingContent() {
         <WizardFormLoader label={pending ? "Continuing…" : "Loading plans…"} />
       ) : (
         <>
-      {error && (
-        <div className="mb-4 rounded-md border border-red-800 bg-red-900/50 p-3 text-sm text-red-200">{error}</div>
-      )}
+          {error && (
+            <div className="mb-4 rounded-md border border-red-800 bg-red-900/50 p-3 text-sm text-red-200">{error}</div>
+          )}
 
-      {plans.length === 0 ? (
-        <p className="text-sm text-gray-400">No plans available. Contact support.</p>
-      ) : (
-        <PlanSelectionList
-          plans={plans}
-          selectedId={selectedPlanId}
-          onSelect={(id) => {
-            setSelectedPlanId(id);
-            setPendingPaymentMethodId(null);
-          }}
-        />
-      )}
+          {plans.length === 0 ? (
+            <p className="text-sm text-gray-400">No plans available. Contact support.</p>
+          ) : (
+            <PlanSelectionList
+              plans={plans}
+              selectedId={selectedPlanId}
+              onSelect={(id) => {
+                setSelectedPlanId(id);
+                setPendingPaymentMethodId(null);
+              }}
+            />
+          )}
 
-      {pendingPaymentMethodId && selectedPlan && !isFreePlan(selectedPlan) && (
-        <p className="mt-4 text-xs text-green-400">Card ready — continue to activate {selectedPlan.name}.</p>
-      )}
+          {pendingPaymentMethodId && selectedPlan && !isFreePlan(selectedPlan) && (
+            <p className="mt-4 text-xs text-green-400">Card ready — continue to activate {selectedPlan.name}.</p>
+          )}
 
-      <div className="mt-6">
-        <PlanContinueButton onClick={handleContinue} loading={loading} disabled={!selectedPlanId} label={ctaLabel} />
-      </div>
+          <div className="mt-6">
+            <PlanContinueButton
+              onClick={handleContinue}
+              loading={loading}
+              disabled={!selectedPlanId}
+              label={ctaLabel}
+            />
+          </div>
         </>
       )}
 

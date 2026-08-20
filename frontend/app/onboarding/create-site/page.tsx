@@ -16,7 +16,12 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { workspaceTracker } from "@/lib/analytics/flows/workspace.tracker";
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
-import { canVisitStage, nextWizardPath, signupBootstrapRefreshKey, signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import {
+  canVisitStage,
+  nextWizardPath,
+  signupBootstrapRefreshKey,
+  signupWizardPath,
+} from "@/lib/onboarding/signup-wizard";
 import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
@@ -183,47 +188,47 @@ function CreateSitePageContent() {
       {pending ? (
         <WizardFormLoader label={repairMode ? "Saving website…" : "Creating workspace…"} />
       ) : (
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="name">Workspace name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => setNameTouched(true)}
-            placeholder="e.g. Acme Content"
-            className="bg-gray-800 border-gray-700"
-            autoFocus={!repairMode}
-          />
-          {nameError && <p className="text-xs text-red-300">{nameError}</p>}
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="name">Workspace name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => setNameTouched(true)}
+              placeholder="e.g. Acme Content"
+              className="bg-gray-800 border-gray-700"
+              autoFocus={!repairMode}
+            />
+            {nameError && <p className="text-xs text-red-300">{nameError}</p>}
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="website">Website URL</Label>
-          <Input
-            id="website"
-            value={websiteUrl}
-            onChange={(e) => setWebsiteUrl(e.target.value)}
-            onBlur={() => setUrlTouched(true)}
-            placeholder="https://example.com"
-            className={
-              repairMode ? "bg-gray-800 border-red-500 focus-visible:ring-red-500" : "bg-gray-800 border-gray-700"
-            }
-            autoFocus={repairMode}
-          />
-          {urlError && <p className="text-xs text-red-300">{urlError}</p>}
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="website">Website URL</Label>
+            <Input
+              id="website"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              onBlur={() => setUrlTouched(true)}
+              placeholder="https://example.com"
+              className={
+                repairMode ? "bg-gray-800 border-red-500 focus-visible:ring-red-500" : "bg-gray-800 border-gray-700"
+              }
+              autoFocus={repairMode}
+            />
+            {urlError && <p className="text-xs text-red-300">{urlError}</p>}
+          </div>
 
-        <p className="text-xs text-gray-500">
-          {repairMode
-            ? "After you save a readable URL, we'll generate your Content Strategy, default campaign, and topics."
-            : "Next we'll generate your Content Strategy, default campaign, and topics from your website. You can invite teammates after that."}
-        </p>
+          <p className="text-xs text-gray-500">
+            {repairMode
+              ? "After you save a readable URL, we'll generate your Content Strategy, default campaign, and topics."
+              : "Next we'll generate your Content Strategy, default campaign, and topics from your website. You can invite teammates after that."}
+          </p>
 
-        <Button type="submit" className="w-full" disabled={submitting || !name.trim() || !websiteUrl.trim()}>
-          {submitting ? (repairMode ? "Saving…" : "Creating…") : repairMode ? "Save and continue" : "Continue"}
-        </Button>
-      </form>
+          <Button type="submit" className="w-full" disabled={submitting || !name.trim() || !websiteUrl.trim()}>
+            {submitting ? (repairMode ? "Saving…" : "Creating…") : repairMode ? "Save and continue" : "Continue"}
+          </Button>
+        </form>
       )}
     </AuthSplitLayout>
   );

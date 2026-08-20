@@ -43,12 +43,7 @@ export function PasswordInput({
   return (
     <div>
       <div className="relative">
-        <Input
-          {...props}
-          type={showPassword ? "text" : "password"}
-          value={value}
-          className={cn("pr-10", className)}
-        />
+        <Input {...props} type={showPassword ? "text" : "password"} value={value} className={cn("pr-10", className)} />
         <button
           type="button"
           className="absolute right-0 top-0 z-10 flex h-full w-10 items-center justify-center text-gray-400 hover:text-gray-200"

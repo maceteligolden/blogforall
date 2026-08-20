@@ -189,71 +189,75 @@ function InviteOnboardingContent() {
         <WizardFormLoader label="Opening dashboard…" />
       ) : (
         <>
-      <p className="mb-6 rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2 text-xs text-gray-400">
-        You can invite more people later from workspace settings.
-      </p>
+          <p className="mb-6 rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2 text-xs text-gray-400">
+            You can invite more people later from workspace settings.
+          </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="rounded-md border border-red-800 bg-red-900/50 p-3 text-sm text-red-200">{error}</div>
-        )}
-        {sentCount > 0 && (
-          <div className="rounded-md border border-green-800 bg-green-900/30 p-3 text-sm text-green-200">
-            {sentCount} invitation{sentCount === 1 ? "" : "s"} sent.
-          </div>
-        )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="rounded-md border border-red-800 bg-red-900/50 p-3 text-sm text-red-200">{error}</div>
+            )}
+            {sentCount > 0 && (
+              <div className="rounded-md border border-green-800 bg-green-900/30 p-3 text-sm text-green-200">
+                {sentCount} invitation{sentCount === 1 ? "" : "s"} sent.
+              </div>
+            )}
 
-        <div>
-          <Label htmlFor="invite-email" className="text-gray-300">
-            Email address
-          </Label>
-          <Input
-            id="invite-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="colleague@company.com"
-            className="mt-1 border-gray-700 bg-gray-800 text-white"
-          />
-        </div>
+            <div>
+              <Label htmlFor="invite-email" className="text-gray-300">
+                Email address
+              </Label>
+              <Input
+                id="invite-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="colleague@company.com"
+                className="mt-1 border-gray-700 bg-gray-800 text-white"
+              />
+            </div>
 
-        <div>
-          <Label htmlFor="invite-role" className="text-gray-300">
-            Role
-          </Label>
-          <select
-            id="invite-role"
-            value={role}
-            onChange={(e) => setRole(e.target.value as "admin" | "editor" | "viewer")}
-            className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
+            <div>
+              <Label htmlFor="invite-role" className="text-gray-300">
+                Role
+              </Label>
+              <select
+                id="invite-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value as "admin" | "editor" | "viewer")}
+                className="mt-1 flex h-10 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
+              >
+                <option value="admin">Admin — manage members and content</option>
+                <option value="editor">Editor — create and edit content</option>
+                <option value="viewer">Viewer — read-only access</option>
+              </select>
+            </div>
+
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={inviteMutation.isPending || !siteId}
+              className="w-full border-gray-700 bg-transparent text-white hover:bg-gray-800"
+            >
+              <UserPlus className="mr-2 h-4 w-4" />
+              {inviteMutation.isPending ? "Sending..." : "Send invitation"}
+            </Button>
+          </form>
+
+          {siteId && (
+            <div className="mt-6">
+              <h3 className="mb-3 text-sm font-semibold text-gray-300">Pending invitations</h3>
+              <PendingInvitationsList siteId={siteId} invitations={invitations} compact />
+            </div>
+          )}
+
+          <Button
+            type="button"
+            className="mt-6 w-full bg-primary text-white hover:bg-primary/90"
+            onClick={() => void finish()}
           >
-            <option value="admin">Admin — manage members and content</option>
-            <option value="editor">Editor — create and edit content</option>
-            <option value="viewer">Viewer — read-only access</option>
-          </select>
-        </div>
-
-        <Button
-          type="submit"
-          variant="outline"
-          disabled={inviteMutation.isPending || !siteId}
-          className="w-full border-gray-700 bg-transparent text-white hover:bg-gray-800"
-        >
-          <UserPlus className="mr-2 h-4 w-4" />
-          {inviteMutation.isPending ? "Sending..." : "Send invitation"}
-        </Button>
-      </form>
-
-      {siteId && (
-        <div className="mt-6">
-          <h3 className="mb-3 text-sm font-semibold text-gray-300">Pending invitations</h3>
-          <PendingInvitationsList siteId={siteId} invitations={invitations} compact />
-        </div>
-      )}
-
-      <Button type="button" className="mt-6 w-full bg-primary text-white hover:bg-primary/90" onClick={() => void finish()}>
-        Continue to dashboard
-      </Button>
+            Continue to dashboard
+          </Button>
         </>
       )}
     </AuthSplitLayout>

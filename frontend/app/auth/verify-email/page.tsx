@@ -116,33 +116,33 @@ function VerifyEmailForm() {
         <WizardFormLoader />
       ) : (
         <>
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="code">Verification code</Label>
-          <Input
-            id="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="000000"
-            className="bg-gray-800 border-gray-700 tracking-[0.3em] text-center text-lg"
-          />
-        </div>
-        <Button type="submit" className="w-full" disabled={pending || !codeValid}>
-          Verify email
-        </Button>
-      </form>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="code">Verification code</Label>
+              <Input
+                id="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                className="bg-gray-800 border-gray-700 tracking-[0.3em] text-center text-lg"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={pending || !codeValid}>
+              Verify email
+            </Button>
+          </form>
 
-      <button
-        type="button"
-        onClick={handleResend}
-        disabled={resending}
-        className="mt-4 w-full text-center text-sm text-primary hover:underline"
-      >
-        {resending ? "Sending…" : "Resend code"}
-      </button>
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending}
+            className="mt-4 w-full text-center text-sm text-primary hover:underline"
+          >
+            {resending ? "Sending…" : "Resend code"}
+          </button>
         </>
       )}
     </>

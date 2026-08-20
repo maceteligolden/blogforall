@@ -65,11 +65,7 @@ export class StrategistBootstrapService {
    * Returns immediately; work continues in-process.
    * Pass `force` after a website URL change so a new run supersedes any inflight one.
    */
-  async start(
-    siteId: string,
-    userId: string,
-    options?: { force?: boolean }
-  ): Promise<StrategistBootstrapStartResult> {
+  async start(siteId: string, userId: string, options?: { force?: boolean }): Promise<StrategistBootstrapStartResult> {
     if (!env.orchestrator.strategicIntelligenceEnabled) {
       const progress = this.disabledProgress(siteId);
       this.emitCompleted(siteId, userId);
@@ -82,12 +78,9 @@ export class StrategistBootstrapService {
     const urlChanged = Boolean(
       currentUrl && strategy?.website_url && !websiteUrlsEqual(currentUrl, strategy.website_url)
     );
-    const needsRefresh = Boolean(
-      options?.force || urlChanged || strategy?.generation_status === "failed"
-    );
+    const needsRefresh = Boolean(options?.force || urlChanged || strategy?.generation_status === "failed");
     const alreadyStarted = inflight.has(siteId) || starting.has(siteId);
-    const sameInflightUrl =
-      !inflightUrl.has(siteId) || websiteUrlsEqual(inflightUrl.get(siteId), currentUrl);
+    const sameInflightUrl = !inflightUrl.has(siteId) || websiteUrlsEqual(inflightUrl.get(siteId), currentUrl);
 
     if (alreadyStarted && !needsRefresh && sameInflightUrl) {
       const current = await this.deriveProgress(siteId);

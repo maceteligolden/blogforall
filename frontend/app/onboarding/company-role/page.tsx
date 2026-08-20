@@ -102,42 +102,42 @@ function CompanyRoleContent() {
       {pending ? (
         <WizardFormLoader />
       ) : (
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid gap-2">
-          {ROLES.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => setRole(r.id)}
-              className={`rounded-lg border px-4 py-3 text-left transition-colors ${
-                role === r.id
-                  ? "border-primary bg-primary/15 text-white"
-                  : "border-gray-700 bg-gray-900/50 text-gray-300 hover:border-gray-600"
-              }`}
-            >
-              <div className="font-medium">{r.label}</div>
-              <div className="text-xs text-gray-500">{r.hint}</div>
-            </button>
-          ))}
-        </div>
-
-        {role === "other" && (
-          <div className="space-y-2">
-            <Label htmlFor="detail">Tell us a bit more</Label>
-            <Input
-              id="detail"
-              value={detail}
-              onChange={(e) => setDetail(e.target.value)}
-              placeholder="e.g. Freelance SEO consultant"
-              className="bg-gray-800 border-gray-700"
-            />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-2">
+            {ROLES.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                onClick={() => setRole(r.id)}
+                className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                  role === r.id
+                    ? "border-primary bg-primary/15 text-white"
+                    : "border-gray-700 bg-gray-900/50 text-gray-300 hover:border-gray-600"
+                }`}
+              >
+                <div className="font-medium">{r.label}</div>
+                <div className="text-xs text-gray-500">{r.hint}</div>
+              </button>
+            ))}
           </div>
-        )}
 
-        <Button type="submit" className="w-full" disabled={pending || !role}>
-          Continue
-        </Button>
-      </form>
+          {role === "other" && (
+            <div className="space-y-2">
+              <Label htmlFor="detail">Tell us a bit more</Label>
+              <Input
+                id="detail"
+                value={detail}
+                onChange={(e) => setDetail(e.target.value)}
+                placeholder="e.g. Freelance SEO consultant"
+                className="bg-gray-800 border-gray-700"
+              />
+            </div>
+          )}
+
+          <Button type="submit" className="w-full" disabled={pending || !role}>
+            Continue
+          </Button>
+        </form>
       )}
     </AuthSplitLayout>
   );
