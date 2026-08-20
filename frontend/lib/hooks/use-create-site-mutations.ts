@@ -67,5 +67,24 @@ export function useCreateSiteMutations(options: UseCreateSiteMutationsOptions = 
     },
   });
 
-  return { skipMutation, createSiteMutation };
+  const ensureDefaultMutation = useMutation({
+    mutationFn: (data: { name?: string; website_url?: string }) => SiteService.ensureDefaultWorkspace(data),
+    onSuccess: async ({ site }) => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SITES });
+      if (site) {
+        updateSiteContext(site._id);
+        if (onSiteReady) {
+          onSiteReady(site);
+          return;
+        }
+      }
+      router.push("/dashboard");
+    },
+    onError: (err: unknown) => {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      onError?.(apiMessage ?? "Could not update workspace. Please try again.");
+    },
+  });
+
+  return { skipMutation, createSiteMutation, ensureDefaultMutation };
 }

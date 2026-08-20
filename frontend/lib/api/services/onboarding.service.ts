@@ -29,10 +29,13 @@ export type StrategistProgress = {
   failed: boolean;
 };
 
-export async function startStrategistBootstrap(siteId: string): Promise<StrategistProgress> {
+export async function startStrategistBootstrap(
+  siteId: string,
+  options?: { force?: boolean }
+): Promise<StrategistProgress> {
   const response = await apiClient.post<{ data: StrategistProgress }>(
     API_ENDPOINTS.ONBOARDING.STRATEGIST_BOOTSTRAP,
-    {},
+    options?.force ? { force: true } : {},
     { params: { site_id: siteId } }
   );
   return response.data.data;

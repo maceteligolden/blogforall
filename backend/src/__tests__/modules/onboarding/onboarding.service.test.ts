@@ -6,7 +6,8 @@ import { __resetSlidingWindowRateLimitForTests } from "../../../shared/utils/sli
 
 const mockUserFindById = jest.fn<() => Promise<Record<string, unknown> | null>>();
 const mockUserUpdate = jest.fn<(id: string, patch: Record<string, unknown>) => Promise<unknown>>();
-const mockFindByOwner = jest.fn<() => Promise<Array<{ _id: string; status: SiteStatus; owner?: string }>>>();
+const mockFindByOwner =
+  jest.fn<() => Promise<Array<{ _id: string; status: SiteStatus; owner?: string; website_url?: string }>>>();
 const mockFindByUser = jest.fn<() => Promise<Array<{ _id: string; status: SiteStatus }>>>();
 const mockSiteUpdate = jest.fn<() => Promise<unknown>>();
 const mockFindById = jest.fn<() => Promise<Record<string, unknown> | null>>();
@@ -156,7 +157,7 @@ describe("OnboardingService.getSignupWizardStatus", () => {
     expect(status).toEqual({ stage: SignupWizardStage.PLAN_SELECTION, site_id: "s1" });
   });
 
-  it("returns invite after plan selection when a workspace exists", async () => {
+  it("returns strategist_setup after plan selection when a workspace exists", async () => {
     mockUserFindById.mockResolvedValue(
       ownerUser({
         plan_selection_completed_at: new Date(),
@@ -164,21 +165,69 @@ describe("OnboardingService.getSignupWizardStatus", () => {
       })
     );
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
+    mockDeriveProgress.mockResolvedValue(pendingProgress);
+
+    const status = await service.getSignupWizardStatus("u1");
+
+    expect(status).toEqual({ stage: SignupWizardStage.STRATEGIST_SETUP, site_id: "s1" });
+  });
+
+  it("returns invite after strategist ready is acknowledged", async () => {
+    mockUserFindById.mockResolvedValue(
+      ownerUser({
+        plan_selection_completed_at: new Date(),
+        strategist_ready_acknowledged_at: new Date(),
+        workspace_invite_prompt_dismissed_at: null,
+      })
+    );
+    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
+    mockDeriveProgress.mockResolvedValue(readyProgress);
 
     const status = await service.getSignupWizardStatus("u1");
 
     expect(status).toEqual({ stage: SignupWizardStage.INVITE, site_id: "s1" });
   });
 
-  it("returns strategist_setup after invite until bootstrap is ready", async () => {
+  it("returns strategist_setup after acknowledgement when generation is still running", async () => {
     mockUserFindById.mockResolvedValue(
       ownerUser({
         plan_selection_completed_at: new Date(),
-        workspace_invite_prompt_dismissed_at: new Date(),
+        strategist_ready_acknowledged_at: new Date(),
+        workspace_invite_prompt_dismissed_at: null,
       })
     );
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
     mockDeriveProgress.mockResolvedValue(pendingProgress);
+
+    const status = await service.getSignupWizardStatus("u1");
+
+    expect(status).toEqual({ stage: SignupWizardStage.STRATEGIST_SETUP, site_id: "s1" });
+  });
+
+  it("stays on strategist_setup after acknowledgement when a new URL cannot be read", async () => {
+    mockUserFindById.mockResolvedValue(
+      ownerUser({
+        plan_selection_completed_at: new Date(),
+        strategist_ready_acknowledged_at: new Date(),
+        workspace_invite_prompt_dismissed_at: null,
+      })
+    );
+    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE, website_url: "https://bad.example" }]);
+    mockDeriveProgress.mockResolvedValue({
+      site_id: "s1",
+      ready: false,
+      failed: true,
+      steps: [
+        {
+          id: "content_strategy",
+          label: "Content strategy being generated",
+          status: "failed",
+          error: "Could not read that website. Check the URL and try again.",
+        },
+        { id: "default_campaign", label: "Campaign being drafted", status: "failed" },
+        { id: "campaign_topics", label: "Campaign topics being generated", status: "failed" },
+      ],
+    });
 
     const status = await service.getSignupWizardStatus("u1");
 
@@ -198,6 +247,63 @@ describe("OnboardingService.getSignupWizardStatus", () => {
     const status = await service.getSignupWizardStatus("u1");
 
     expect(status).toEqual({ stage: SignupWizardStage.STRATEGIST_READY, site_id: "s1" });
+  });
+
+  it("stays on strategist_setup when strategy ingest failed", async () => {
+    mockUserFindById.mockResolvedValue(
+      ownerUser({
+        plan_selection_completed_at: new Date(),
+      })
+    );
+    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE, website_url: "https://bad.example" }]);
+    mockDeriveProgress.mockResolvedValue({
+      site_id: "s1",
+      ready: false,
+      failed: true,
+      steps: [
+        {
+          id: "content_strategy",
+          label: "Content strategy being generated",
+          status: "failed",
+          error: "Could not read that website. Check the URL and try again.",
+        },
+        { id: "default_campaign", label: "Campaign being drafted", status: "failed" },
+        { id: "campaign_topics", label: "Campaign topics being generated", status: "failed" },
+      ],
+    });
+
+    const status = await service.getSignupWizardStatus("u1");
+
+    expect(status).toEqual({ stage: SignupWizardStage.STRATEGIST_SETUP, site_id: "s1" });
+  });
+
+  it("returns strategist_setup when bootstrap failed for a non-URL reason", async () => {
+    mockUserFindById.mockResolvedValue(
+      ownerUser({
+        plan_selection_completed_at: new Date(),
+        workspace_invite_prompt_dismissed_at: new Date(),
+      })
+    );
+    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
+    mockDeriveProgress.mockResolvedValue({
+      site_id: "s1",
+      ready: false,
+      failed: true,
+      steps: [
+        {
+          id: "content_strategy",
+          label: "Content strategy being generated",
+          status: "failed",
+          error: "Content strategy generation failed",
+        },
+        { id: "default_campaign", label: "Campaign being drafted", status: "failed" },
+        { id: "campaign_topics", label: "Campaign topics being generated", status: "failed" },
+      ],
+    });
+
+    const status = await service.getSignupWizardStatus("u1");
+
+    expect(status).toEqual({ stage: SignupWizardStage.STRATEGIST_SETUP, site_id: "s1" });
   });
 
   it("returns complete when existing owners already finished plan, invite, and strategist ready", async () => {
@@ -262,8 +368,16 @@ describe("OnboardingService.startStrategistBootstrap", () => {
 
     const result = await service.startStrategistBootstrap("u1", "s1");
 
-    expect(mockBootstrapStart).toHaveBeenCalledWith("s1", "u1");
+    expect(mockBootstrapStart).toHaveBeenCalledWith("s1", "u1", undefined);
     expect(result.accepted).toBe(true);
+  });
+
+  it("passes force through to the bootstrap pipeline", async () => {
+    mockFindById.mockResolvedValue({ _id: "s1", owner: "u1", website_url: "https://new.example" });
+
+    await service.startStrategistBootstrap("u1", "s1", { force: true });
+
+    expect(mockBootstrapStart).toHaveBeenCalledWith("s1", "u1", { force: true });
   });
 
   it("rejects start from anyone who is not the workspace owner", async () => {
@@ -311,16 +425,38 @@ describe("OnboardingService.acknowledgeStrategistReady", () => {
     expect(status).toEqual({ stage: SignupWizardStage.COMPLETE, site_id: "s1" });
   });
 
-  it("stamps acknowledgement and finalizes signup once", async () => {
-    mockUserFindById.mockResolvedValue(
-      ownerUser({
-        plan_selection_completed_at: new Date(),
-        workspace_invite_prompt_dismissed_at: new Date(),
-      })
-    );
+  it("stamps acknowledgement and returns invite when teammates have not been prompted", async () => {
+    const user = ownerUser({
+      plan_selection_completed_at: new Date(),
+    });
+    mockUserFindById.mockImplementation(async () => user);
+    mockUserUpdate.mockImplementation(async (_id, patch) => {
+      Object.assign(user, patch);
+      return user;
+    });
     mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
     mockDeriveProgress.mockResolvedValue(readyProgress);
-    mockUserUpdate.mockResolvedValue({});
+    mockFinalize.mockResolvedValue(undefined);
+
+    const status = await service.acknowledgeStrategistReady("u1");
+
+    expect(mockUserUpdate).toHaveBeenCalled();
+    expect(mockFinalize).not.toHaveBeenCalled();
+    expect(status).toEqual({ stage: SignupWizardStage.INVITE, site_id: "s1" });
+  });
+
+  it("stamps acknowledgement and finalizes signup when invite was already dismissed", async () => {
+    const user = ownerUser({
+      plan_selection_completed_at: new Date(),
+      workspace_invite_prompt_dismissed_at: new Date(),
+    });
+    mockUserFindById.mockImplementation(async () => user);
+    mockUserUpdate.mockImplementation(async (_id, patch) => {
+      Object.assign(user, patch);
+      return user;
+    });
+    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
+    mockDeriveProgress.mockResolvedValue(readyProgress);
     mockFinalize.mockResolvedValue(undefined);
 
     const status = await service.acknowledgeStrategistReady("u1");
@@ -343,6 +479,52 @@ describe("OnboardingService.acknowledgeStrategistReady", () => {
     await expect(service.acknowledgeStrategistReady("u1", true)).rejects.toThrow(
       /Finish strategist setup before continuing/
     );
+    expect(mockFinalize).not.toHaveBeenCalled();
+  });
+});
+
+describe("OnboardingService.dismissInvitePrompt", () => {
+  let service: OnboardingService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsInflight.mockReturnValue(false);
+    mockDeriveProgress.mockResolvedValue(readyProgress);
+    service = makeOnboardingService();
+  });
+
+  it("finalizes signup when strategist ready was already acknowledged", async () => {
+    const user = ownerUser({
+      plan_selection_completed_at: new Date(),
+      strategist_ready_acknowledged_at: new Date(),
+    });
+    mockUserFindById.mockImplementation(async () => user);
+    mockUserUpdate.mockImplementation(async (_id, patch) => {
+      Object.assign(user, patch);
+      return user;
+    });
+    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
+    mockFinalize.mockResolvedValue(undefined);
+
+    await service.dismissInvitePrompt("u1");
+
+    expect(mockFinalize).toHaveBeenCalledWith("u1");
+  });
+
+  it("does not finalize when strategist setup is still in progress", async () => {
+    const user = ownerUser({
+      plan_selection_completed_at: new Date(),
+    });
+    mockUserFindById.mockImplementation(async () => user);
+    mockUserUpdate.mockImplementation(async (_id, patch) => {
+      Object.assign(user, patch);
+      return user;
+    });
+    mockFindByOwner.mockResolvedValue([{ _id: "s1", status: SiteStatus.ACTIVE }]);
+    mockDeriveProgress.mockResolvedValue(pendingProgress);
+
+    await service.dismissInvitePrompt("u1");
+
     expect(mockFinalize).not.toHaveBeenCalled();
   });
 });

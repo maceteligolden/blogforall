@@ -1,4 +1,5 @@
 import { injectable } from "tsyringe";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { CampaignRepository } from "../repositories/campaign.repository";
 import { CampaignRoadmapRepository } from "../repositories/campaign-roadmap.repository";
 import { CampaignMemoryRepository } from "../repositories/campaign-memory.repository";
@@ -6,8 +7,11 @@ import { CampaignEventRepository } from "../repositories/campaign-event.reposito
 import { OrchestratorApprovalRepository } from "../../orchestrator/repositories/orchestrator-approval.repository";
 import { OrchestratorApprovalKind } from "../../../shared/schemas/orchestrator-approval.schema";
 import { ResearchGraphService } from "../../orchestratorv2/research/research-graph.service";
+import { RoadmapTopicsSchema } from "../../orchestratorv2/research/roadmap-topics.schema";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
+import { createChatOpenAI } from "../../../shared/ai/create-chat-openai";
+import { env } from "../../../shared/config/env";
 import {
   CampaignLifecycleStatus,
   CampaignRoadmapStatus,
@@ -29,12 +33,15 @@ import {
 import { CampaignRoadmapService } from "./campaign-roadmap.service";
 
 const defaultRoadmapInflight = new Map<string, Promise<void>>();
+const STRATEGY_TOPIC_TIMEOUT_MS = 30_000;
 
 export type PlanCampaignOptions = {
   threadId?: string;
   autoApprove?: boolean;
   maxTopics?: number;
   skipResearch?: boolean;
+  /** Signup: LLM topics from campaign + content strategy (no web-research graph). */
+  generateFromStrategy?: boolean;
   /** Signup: approve topics without creating auto-generate scheduled posts. */
   skipMaterialize?: boolean;
 };
@@ -72,6 +79,20 @@ export class CampaignPlanningService {
     const total = Math.min(Math.max(1, estimated), topicCap, MAX_CAMPAIGN_PLANNED_POSTS);
     let topics = this.seedTopics(campaign, contentStrategy.document, total);
     let researchPackageId: string | undefined;
+    if (options?.generateFromStrategy) {
+      try {
+        const proposed = await this.proposeTopicsFromStrategy(campaign, contentStrategy.document, total);
+        if (proposed.length) {
+          topics = proposed;
+        }
+      } catch (error) {
+        logger.warn(
+          "Campaign strategy topic generation failed; using seeded topics",
+          { campaignId, error: String(error) },
+          "CampaignPlanningService"
+        );
+      }
+    }
     if (!options?.skipResearch) {
       try {
         const researched = await this.researchGraph.suggestCampaignTopics({
@@ -190,7 +211,7 @@ export class CampaignPlanningService {
   /**
    * After Content Strategy is ready, generate and auto-approve Evergreen's first roadmap
    * so weekly writing has topics without a Generate/Approve click.
-   * Signup uses 4 strategy-seeded topics (no web-research graph) so setup cannot hang.
+   * Signup uses 3 LLM topics from campaign + strategy (no web-research graph).
    */
   async ensureDefaultRoadmap(siteId: string, userId: string): Promise<void> {
     const inflight = defaultRoadmapInflight.get(siteId);
@@ -221,6 +242,7 @@ export class CampaignPlanningService {
         autoApprove: true,
         maxTopics: SIGNUP_DEFAULT_ROADMAP_TOPICS,
         skipResearch: true,
+        generateFromStrategy: true,
         skipMaterialize: true,
       });
     } catch (err) {
@@ -265,6 +287,59 @@ export class CampaignPlanningService {
     }
 
     return titles.slice(0, count).map((title) => this.topicFromTitle(title, campaign.goal));
+  }
+
+  /**
+   * Distinct publishable topics from the campaign + content strategy. No web search.
+   */
+  protected async proposeTopicsFromStrategy(
+    campaign: Campaign,
+    document: ContentStrategyDocument | undefined,
+    count: number
+  ): Promise<CampaignTopicSuggestion[]> {
+    const apiKey = env.orchestrator.openaiApiKey || env.blogAi.openaiApiKey;
+    if (!apiKey) {
+      throw new Error("OpenAI API key is not configured");
+    }
+
+    const chat = createChatOpenAI({
+      apiKey,
+      model: env.blogAi.chatModel || "gpt-4o-mini",
+      timeout: STRATEGY_TOPIC_TIMEOUT_MS,
+      temperature: 0.4,
+    });
+    const structured = chat.withStructuredOutput(RoadmapTopicsSchema);
+    const parsed = parseContentStrategyDocument(document);
+    const strategyBlock = formatContentStrategyForPrompt(parsed);
+    const out = await structured.invoke([
+      new SystemMessage(
+        [
+          "Propose distinct publishable blog/post topics from this campaign and content strategy.",
+          "Each topic needs a publishable article-style title, a 1-2 sentence about summary, 3-6 keywords, a post_type, and how it supports the campaign.",
+          'Do not copy content pillar names as titles. Do not number titles. Do not use "Part N" suffixes.',
+          "Ground every topic in the campaign goal and the strategy; invent no facts.",
+        ].join(" ")
+      ),
+      new HumanMessage(
+        [
+          `Need ${count} topics.`,
+          `Campaign: ${campaign.name}`,
+          `Goal: ${campaign.goal}`,
+          campaign.target_audience ? `Audience: ${campaign.target_audience}` : "",
+          campaign.campaign_type ? `Type: ${campaign.campaign_type}` : "",
+          strategyBlock,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      ),
+    ]);
+    return out.topics.slice(0, count).map((topic) => ({
+      title: topic.title,
+      about: topic.about,
+      keywords: topic.keywords ?? [],
+      post_type: topic.post_type,
+      campaign_support: topic.campaign_support,
+    }));
   }
 
   private topicFromTitle(title: string, campaignGoal: string): CampaignTopicSuggestion {

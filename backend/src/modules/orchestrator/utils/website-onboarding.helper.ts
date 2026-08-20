@@ -51,6 +51,16 @@ export function normalizeWebsiteUrl(raw: string): string | null {
   }
 }
 
+export function websiteUrlsEqual(a?: string | null, b?: string | null): boolean {
+  const left = (a || "").trim();
+  const right = (b || "").trim();
+  if (!left && !right) return true;
+  const normalizedLeft = left ? normalizeWebsiteUrl(left) : null;
+  const normalizedRight = right ? normalizeWebsiteUrl(right) : null;
+  if (normalizedLeft && normalizedRight) return normalizedLeft === normalizedRight;
+  return left === right;
+}
+
 export function isNoWebsiteReply(text: string): boolean {
   const t = text.trim();
   if (!t) return false;

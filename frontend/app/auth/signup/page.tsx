@@ -1,21 +1,21 @@
 "use client";
 
-import { useState, Suspense, useEffect } from "react";
+import { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
-import { validatePassword } from "@/lib/utils/password-validation";
 import { AuthPageHeader } from "@/components/auth/auth-page-header";
 
 const SIGNUP_INVITE_KEY = "blogforall_signup_invite_token";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signupAsync, isLoading, signupError } = useAuth();
+  const { signupAsync, isSigningUp } = useAuth();
   const inviteToken = searchParams.get("invite");
   const invitedEmail = searchParams.get("email")?.trim() || "";
   const referralCode = searchParams.get("ref")?.trim().toUpperCase() || undefined;
@@ -28,7 +28,7 @@ function SignupForm() {
     accept_terms: false,
   });
   const [error, setError] = useState<string>("");
-  const [isPasswordValid, setIsPasswordValid] = useState(false);
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (invitedEmail) {
@@ -36,31 +36,28 @@ function SignupForm() {
     }
   }, [invitedEmail]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const canSubmit =
+    formData.first_name.trim().length > 0 &&
+    formData.last_name.trim().length > 0 &&
+    EMAIL_PATTERN.test(formData.email.trim()) &&
+    formData.password.trim().length >= 8 &&
+    formData.accept_terms;
+
+  const submitSignup = async () => {
+    if (!canSubmit || submittingRef.current) return;
+    submittingRef.current = true;
     setError("");
-
-    if (!formData.email || !formData.password || !formData.first_name || !formData.last_name) {
-      setError("Please fill in all required fields");
-      return;
-    }
-    if (!formData.accept_terms) {
-      setError("You must accept the Terms and Conditions to sign up");
-      return;
-    }
-
-    const passwordValidation = validatePassword(formData.password);
-    if (!passwordValidation.isValid) {
-      setError("Password does not meet the requirements. Please check the password criteria.");
-      return;
-    }
 
     if (inviteToken) {
       sessionStorage.setItem(SIGNUP_INVITE_KEY, inviteToken);
     }
     try {
       await signupAsync({
-        ...formData,
+        email: formData.email.trim(),
+        password: formData.password,
+        first_name: formData.first_name.trim(),
+        last_name: formData.last_name.trim(),
+        phone_number: formData.phone_number.trim(),
         accept_terms: true,
         terms_version: "2025-01",
         ...(referralCode ? { referral_code: referralCode } : {}),
@@ -72,15 +69,22 @@ function SignupForm() {
         (err as Error)?.message ||
         "Signup failed. Please try again.";
       setError(errorMessage);
+    } finally {
+      submittingRef.current = false;
     }
   };
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    void submitSignup();
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
-    });
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   return (
@@ -114,6 +118,7 @@ function SignupForm() {
                 id="first_name"
                 name="first_name"
                 type="text"
+                autoComplete="given-name"
                 required
                 value={formData.first_name}
                 onChange={handleChange}
@@ -128,6 +133,7 @@ function SignupForm() {
                 id="last_name"
                 name="last_name"
                 type="text"
+                autoComplete="family-name"
                 required
                 value={formData.last_name}
                 onChange={handleChange}
@@ -159,6 +165,7 @@ function SignupForm() {
               id="phone_number"
               name="phone_number"
               type="tel"
+              autoComplete="tel"
               value={formData.phone_number}
               onChange={handleChange}
               className="mt-1 bg-gray-800 border-gray-700 text-white"
@@ -173,38 +180,46 @@ function SignupForm() {
               name="password"
               autoComplete="new-password"
               required
+              minLength={8}
               value={formData.password}
-              onChange={handleChange}
+              onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
               className="mt-1 bg-gray-800 border-gray-700 text-white"
               showValidation={true}
-              onValidationChange={setIsPasswordValid}
             />
-            <p className="mt-1 text-xs text-gray-400">
-              Password must contain: 1 lowercase, 1 uppercase, 1 number, 1 symbol, and at least 8 characters
-            </p>
           </div>
           <div className="flex items-start gap-2">
             <input
               id="accept_terms"
               name="accept_terms"
               type="checkbox"
+              value="on"
               required
               checked={formData.accept_terms}
-              onChange={handleChange}
-              className="mt-1 h-4 w-4 rounded border-gray-600 bg-gray-800 text-primary focus:ring-primary"
+              onChange={(e) => setFormData((prev) => ({ ...prev, accept_terms: e.target.checked }))}
+              className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-600 bg-gray-800 text-primary focus:ring-primary"
             />
-            <Label htmlFor="accept_terms" className="text-sm text-gray-300 cursor-pointer">
-              I accept the{" "}
+            <p className="text-sm text-gray-300">
+              <Label htmlFor="accept_terms" className="cursor-pointer text-sm font-normal text-gray-300">
+                I accept the
+              </Label>{" "}
               <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 Terms and Conditions
               </a>
-            </Label>
+            </p>
           </div>
         </div>
 
         <div>
-          <Button type="submit" className="w-full" disabled={isLoading || !isPasswordValid || !formData.accept_terms}>
-            {isLoading ? "Creating account..." : "Create account"}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={!canSubmit || isSigningUp}
+            onClick={(e) => {
+              e.preventDefault();
+              void submitSignup();
+            }}
+          >
+            {isSigningUp ? "Creating account..." : "Create account"}
           </Button>
         </div>
 

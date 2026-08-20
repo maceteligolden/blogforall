@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/lib/store/auth.store";
-import { LANDING_CTAS } from "@/lib/landing/landing-copy";
+import { useLandingResumeCta } from "@/lib/onboarding/use-landing-resume";
 import { cn } from "@/lib/utils/cn";
 
 interface StartFreeButtonProps {
@@ -21,9 +20,9 @@ export function StartFreeButton({
   variant = "primary",
   fullWidth,
 }: StartFreeButtonProps) {
-  const { isAuthenticated } = useAuthStore();
-  const href = isAuthenticated ? "/dashboard" : "/auth/signup";
-  const text = isAuthenticated ? LANDING_CTAS.dashboard : (label ?? LANDING_CTAS.startFree);
+  const resumeCta = useLandingResumeCta();
+  const href = resumeCta.href === "/auth/signup" && label ? "/auth/signup" : resumeCta.href;
+  const text = resumeCta.href === "/auth/signup" ? (label ?? resumeCta.label) : resumeCta.label;
 
   return (
     <Link href={href} className={cn(fullWidth && "w-full block")}>

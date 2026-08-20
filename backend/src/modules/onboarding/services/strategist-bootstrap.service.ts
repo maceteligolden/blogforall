@@ -10,8 +10,8 @@ import { RealtimeService } from "../../../shared/realtime/services/realtime.serv
 import { REALTIME_EVENTS } from "../../../shared/realtime/contracts/event-names";
 import { env } from "../../../shared/config/env";
 import { logger } from "../../../shared/utils/logger";
-import { isContentStrategyReady } from "../../../shared/types/content-strategy.document";
 import { CampaignRoadmapStatus } from "../../../shared/constants/campaign.constant";
+import { websiteUrlsEqual } from "../../orchestrator/utils/website-onboarding.helper";
 import type { StrategistProgress, StrategistProgressStep, StrategistStepStatus } from "./onboarding.service";
 
 export type SignupBootstrapStepId = StrategistProgressStep["id"];
@@ -24,10 +24,14 @@ export type StrategistBootstrapStartResult = {
 };
 
 const inflight = new Map<string, Promise<void>>();
+const inflightUrl = new Map<string, string>();
+const runEpoch = new Map<string, number>();
 const starting = new Set<string>();
 
 export function __resetStrategistBootstrapInflightForTests(): void {
   inflight.clear();
+  inflightUrl.clear();
+  runEpoch.clear();
   starting.clear();
 }
 
@@ -59,38 +63,66 @@ export class StrategistBootstrapService {
   /**
    * Start (or coalesce) the first strategy → campaign → topics run.
    * Returns immediately; work continues in-process.
+   * Pass `force` after a website URL change so a new run supersedes any inflight one.
    */
-  async start(siteId: string, userId: string): Promise<StrategistBootstrapStartResult> {
+  async start(
+    siteId: string,
+    userId: string,
+    options?: { force?: boolean }
+  ): Promise<StrategistBootstrapStartResult> {
     if (!env.orchestrator.strategicIntelligenceEnabled) {
       const progress = this.disabledProgress(siteId);
       this.emitCompleted(siteId, userId);
       return { progress, alreadyReady: true, accepted: false };
     }
 
+    const site = await this.siteRepository.findById(siteId);
+    const currentUrl = site?.website_url || "";
+    const strategy = await this.workspaceStrategyService.peekActive(siteId).catch(() => null);
+    const urlChanged = Boolean(
+      currentUrl && strategy?.website_url && !websiteUrlsEqual(currentUrl, strategy.website_url)
+    );
+    const needsRefresh = Boolean(
+      options?.force || urlChanged || strategy?.generation_status === "failed"
+    );
     const alreadyStarted = inflight.has(siteId) || starting.has(siteId);
-    if (alreadyStarted) {
+    const sameInflightUrl =
+      !inflightUrl.has(siteId) || websiteUrlsEqual(inflightUrl.get(siteId), currentUrl);
+
+    if (alreadyStarted && !needsRefresh && sameInflightUrl) {
       const current = await this.deriveProgress(siteId);
       return { progress: current, alreadyReady: current.ready, accepted: !current.ready };
     }
 
-    starting.add(siteId);
-    try {
+    if (!needsRefresh && !alreadyStarted) {
       const current = await this.deriveProgress(siteId);
       if (current.ready) {
         return { progress: current, alreadyReady: true, accepted: false };
       }
+    }
 
-      const run = this.run(siteId, userId).finally(() => {
-        inflight.delete(siteId);
+    const epoch = (runEpoch.get(siteId) ?? 0) + 1;
+    runEpoch.set(siteId, epoch);
+    starting.add(siteId);
+    try {
+      const current = await this.deriveProgress(siteId);
+      const run = this.run(siteId, userId, epoch).finally(() => {
+        if (runEpoch.get(siteId) === epoch) {
+          inflight.delete(siteId);
+          inflightUrl.delete(siteId);
+        }
       });
       inflight.set(siteId, run);
+      inflightUrl.set(siteId, currentUrl);
 
       const startingProgress: StrategistProgress = {
         site_id: siteId,
         ready: false,
         failed: false,
         steps: current.steps.map((step) =>
-          step.id === "content_strategy" ? { ...step, status: "in_progress" as const, error: undefined } : step
+          step.id === "content_strategy"
+            ? { ...step, status: "in_progress" as const, error: undefined }
+            : { ...step, status: "pending" as const, error: undefined }
         ),
       };
       return { progress: startingProgress, alreadyReady: false, accepted: true };
@@ -127,15 +159,7 @@ export class StrategistBootstrapService {
 
     let strategyStatus: StrategistStepStatus = "pending";
     let strategyError: string | undefined;
-    const strategyReady =
-      strategy?.generation_status === "ready" ||
-      (() => {
-        try {
-          return Boolean(strategy && isContentStrategyReady(strategy.generation_status, strategy.document));
-        } catch {
-          return false;
-        }
-      })();
+    const strategyReady = strategy?.generation_status === "ready";
     if (!strategy) {
       strategyStatus = "pending";
     } else if (strategyReady) {
@@ -191,11 +215,13 @@ export class StrategistBootstrapService {
     return { site_id: siteId, steps, ready, failed };
   }
 
-  private async run(siteId: string, userId: string): Promise<void> {
+  private async run(siteId: string, userId: string, epoch: number): Promise<void> {
     const remaining: SignupBootstrapStepId[] = ["content_strategy", "default_campaign", "campaign_topics"];
     let currentStep: SignupBootstrapStepId = "content_strategy";
+    const isStale = () => runEpoch.get(siteId) !== epoch;
     try {
       await this.clearPreviousTopics(siteId);
+      if (isStale()) return;
 
       currentStep = "content_strategy";
       this.emitStep(siteId, userId, "content_strategy", "in_progress");
@@ -204,6 +230,7 @@ export class StrategistBootstrapService {
       const strategy = await this.workspaceStrategyService.generateFromWebsite(siteId, userId, websiteUrl, {
         skipRoadmapBootstrap: true,
       });
+      if (isStale()) return;
       if (strategy.generation_status !== "ready") {
         throw new Error(strategy.generation_error || "Content strategy generation failed");
       }
@@ -215,6 +242,7 @@ export class StrategistBootstrapService {
       const campaign = await this.campaignService.ensureDefaultCampaign(siteId, userId, {
         skipRoadmapBootstrap: true,
       });
+      if (isStale()) return;
       if (!campaign?._id) {
         throw new Error("Could not create the default campaign");
       }
@@ -224,6 +252,7 @@ export class StrategistBootstrapService {
       currentStep = "campaign_topics";
       this.emitStep(siteId, userId, "campaign_topics", "in_progress");
       await this.campaignPlanningService.ensureDefaultRoadmap(siteId, userId);
+      if (isStale()) return;
       const roadmap = await this.campaignRoadmapRepository.findLatest(campaign._id.toString(), siteId);
       const hasTopics = Array.isArray(roadmap?.items) && roadmap.items.length > 0;
       if (!hasTopics) {
@@ -232,9 +261,11 @@ export class StrategistBootstrapService {
       this.emitStep(siteId, userId, "campaign_topics", "ready");
       remaining.shift();
 
+      if (isStale()) return;
       this.emitCompleted(siteId, userId);
       logger.info("Signup strategist bootstrap completed", { siteId, userId }, "StrategistBootstrapService");
     } catch (error) {
+      if (isStale()) return;
       const message = error instanceof Error ? error.message : String(error);
       logger.warn(
         "Signup strategist bootstrap failed",

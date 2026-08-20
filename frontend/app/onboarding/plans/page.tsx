@@ -5,14 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AuthSplitLayout } from "@/components/auth/auth-split-layout";
-import { PlanContinueButton, PlanSelectionGrid, isFreePlan } from "@/components/billing/plan-selection-cards";
+import { AuthPageHeader } from "@/components/auth/auth-page-header";
+import { PlanContinueButton, PlanSelectionList, isFreePlan } from "@/components/billing/plan-selection-cards";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
 import { AddCardDialog } from "@/components/billing/add-card-dialog";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { usePlans } from "@/lib/hooks/use-subscription";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
-import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { canVisitStage, nextWizardPath, signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
+import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
+import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
 
 function PlansOnboardingContent() {
   const router = useRouter();
@@ -21,6 +24,7 @@ function PlansOnboardingContent() {
   const siteIdParam = searchParams.get("siteId") ?? undefined;
   const [error, setError] = useState("");
   useOnboardingDropoff("plan_selection");
+  const { pending, begin, cancel, push } = useWizardTransition();
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [addCardOpen, setAddCardOpen] = useState(false);
   const [pendingPaymentMethodId, setPendingPaymentMethodId] = useState<string | null>(null);
@@ -35,7 +39,7 @@ function PlansOnboardingContent() {
 
   useEffect(() => {
     if (!wizardStatus || wizardLoading) return;
-    if (wizardStatus.stage !== "plan_selection") {
+    if (wizardStatus.stage !== "plan_selection" && !canVisitStage("plan_selection", wizardStatus.stage)) {
       router.replace(signupWizardPath(wizardStatus));
     }
   }, [wizardStatus, wizardLoading, router, siteIdParam]);
@@ -50,7 +54,7 @@ function PlansOnboardingContent() {
 
   const goWorkspace = (siteId?: string) => {
     queryClient.setQueryData(["onboarding", "signup-wizard"], {
-      stage: "workspace_name",
+      stage: wizardStatus && wizardStatus.stage !== "plan_selection" ? wizardStatus.stage : "workspace_name",
       site_id: siteId,
     });
     queryClient.setQueryData(["onboarding", "status"], {
@@ -59,7 +63,7 @@ function PlansOnboardingContent() {
       hasPlan: false,
     });
     onboardingTracker.stepCompleted({ step: "plan_selection" });
-    router.push("/onboarding/create-site");
+    push(nextWizardPath("plan_selection", siteId));
     void queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
     void queryClient.invalidateQueries({ queryKey: ["onboarding", "status"] });
   };
@@ -72,6 +76,7 @@ function PlansOnboardingContent() {
       goWorkspace(siteId);
     },
     onError: (err: unknown) => {
+      cancel();
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Could not continue. Please try again.";
@@ -91,6 +96,7 @@ function PlansOnboardingContent() {
       goWorkspace(siteId);
     },
     onError: (err: unknown) => {
+      cancel();
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Could not complete paid plan selection. Please try again.";
@@ -104,6 +110,7 @@ function PlansOnboardingContent() {
       setError("Select a plan to continue.");
       return;
     }
+    begin();
     if (isFreePlan(selectedPlan)) {
       freeContinueMutation.mutate();
       return;
@@ -115,18 +122,12 @@ function PlansOnboardingContent() {
       });
       return;
     }
+    cancel();
     setAddCardOpen(true);
   };
 
-  const loading = wizardLoading || plansLoading || freeContinueMutation.isPending || paidContinueMutation.isPending;
-
-  if (wizardLoading || plansLoading || !wizardStatus) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <p className="text-gray-400">Loading plans...</p>
-      </div>
-    );
-  }
+  const loading =
+    pending || wizardLoading || plansLoading || freeContinueMutation.isPending || paidContinueMutation.isPending;
 
   const ctaLabel =
     selectedPlan && isFreePlan(selectedPlan)
@@ -136,23 +137,26 @@ function PlansOnboardingContent() {
         : "Add card & continue";
 
   return (
-    <AuthSplitLayout wide>
-      <SignupWizardProgress stage="plan_selection" />
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white sm:text-3xl">Choose your plan</h1>
-        <p className="mt-2 text-sm text-gray-400">
-          Start free or pick a paid plan. Paid plans require a card — you can change anytime from Subscription.
-        </p>
-      </div>
+    <AuthSplitLayout>
+      <AuthPageHeader
+        title="Choose your plan"
+        subtitle="Start free or pick a paid plan. Paid plans require a card — you can change anytime from Subscription."
+        clearSignupAttempt
+      />
+      <SignupWizardProgress stage="plan_selection" siteId={siteIdParam ?? wizardStatus?.site_id} />
 
+      {wizardLoading || plansLoading || !wizardStatus || pending ? (
+        <WizardFormLoader label={pending ? "Continuing…" : "Loading plans…"} />
+      ) : (
+        <>
       {error && (
-        <div className="mb-6 rounded-md border border-red-800 bg-red-900/50 p-3 text-sm text-red-200">{error}</div>
+        <div className="mb-4 rounded-md border border-red-800 bg-red-900/50 p-3 text-sm text-red-200">{error}</div>
       )}
 
       {plans.length === 0 ? (
         <p className="text-sm text-gray-400">No plans available. Contact support.</p>
       ) : (
-        <PlanSelectionGrid
+        <PlanSelectionList
           plans={plans}
           selectedId={selectedPlanId}
           onSelect={(id) => {
@@ -166,15 +170,18 @@ function PlansOnboardingContent() {
         <p className="mt-4 text-xs text-green-400">Card ready — continue to activate {selectedPlan.name}.</p>
       )}
 
-      <div className="mt-8 flex justify-center sm:justify-start">
+      <div className="mt-6">
         <PlanContinueButton onClick={handleContinue} loading={loading} disabled={!selectedPlanId} label={ctaLabel} />
       </div>
+        </>
+      )}
 
       <AddCardDialog
         open={addCardOpen}
         onOpenChange={setAddCardOpen}
         onSuccess={(paymentMethodId) => {
           if (paymentMethodId && selectedPlan && !isFreePlan(selectedPlan)) {
+            begin();
             setPendingPaymentMethodId(paymentMethodId);
             paidContinueMutation.mutate({
               planId: selectedPlan._id,

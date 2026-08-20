@@ -397,8 +397,8 @@ export class AuthService {
 
     const ownedSites = await this.siteService.getOwnedSitesByUser(userId);
 
-    if (user.strategist_ready_acknowledged_at) {
-      throw new BadRequestError("Signup cannot be abandoned after setup is complete");
+    if (user.workspace_invite_prompt_dismissed_at) {
+      throw new BadRequestError("Signup cannot be abandoned after onboarding is complete");
     }
 
     // Allow abandon while unverified or mid-wizard; block if any non-setup content exists.
@@ -418,9 +418,11 @@ export class AuthService {
           ? "plan_selection"
           : ownedSites.length === 0
             ? "workspace_name"
-            : !user.workspace_invite_prompt_dismissed_at
-              ? "invite"
-              : "strategist_setup";
+            : !user.strategist_ready_acknowledged_at
+              ? "strategist_setup"
+              : !user.workspace_invite_prompt_dismissed_at
+                ? "invite"
+                : "complete";
 
     captureServerEvent(ServerAnalyticsEvents.ONBOARDING_DROPPED, {
       userId,

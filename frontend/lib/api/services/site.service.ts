@@ -24,8 +24,11 @@ export class SiteService {
   /**
    * Ensure user has at least one workspace (create default from env if none). Returns created site or null.
    */
-  static async ensureDefaultWorkspace(): Promise<{ created: boolean; site: Site | null }> {
-    const response = await apiClient.post(API_ENDPOINTS.SITES.ENSURE_DEFAULT);
+  static async ensureDefaultWorkspace(input?: {
+    name?: string;
+    website_url?: string;
+  }): Promise<{ created: boolean; site: Site | null }> {
+    const response = await apiClient.post(API_ENDPOINTS.SITES.ENSURE_DEFAULT, input ?? {});
     const data = response.data?.data ?? response.data;
     return { created: data.created ?? false, site: data.site ?? null };
   }

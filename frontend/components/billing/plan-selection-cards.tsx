@@ -106,6 +106,53 @@ export function PlanSelectionGrid({ plans, selectedId = "", onSelect }: PlanSele
   );
 }
 
+/** Compact stacked list for the onboarding column (max-w-md). */
+export function PlanSelectionList({ plans, selectedId = "", onSelect }: PlanSelectionGridProps) {
+  const paidSorted = [...plans].sort((a, b) => a.price - b.price);
+  const recommendedId = paidSorted.find((p) => !isFreePlan(p))?._id;
+
+  return (
+    <div className="grid gap-2">
+      {paidSorted.map((plan) => {
+        const selected = selectedId === plan._id;
+        const recommended = plan._id === recommendedId && !isFreePlan(plan);
+        const features = plan.features?.length ? plan.features.slice(0, 3).join(" · ") : "Core Bloggr features";
+        return (
+          <button
+            key={plan._id}
+            type="button"
+            onClick={() => onSelect?.(plan._id)}
+            className={cn(
+              "rounded-lg border px-4 py-3 text-left transition-colors",
+              selected
+                ? "border-primary bg-primary/15 text-white"
+                : "border-gray-700 bg-gray-900/50 text-gray-300 hover:border-gray-600"
+            )}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-white">{plan.name}</span>
+                  {recommended && (
+                    <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      Recommended
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">{features}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-semibold text-white">{formatPriceLabel(plan)}</p>
+                {intervalSuffix(plan) && <p className="text-xs text-gray-500">{intervalSuffix(plan)}</p>}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 type PlanContinueButtonProps = {
   onClick: () => void;
   disabled?: boolean;
@@ -116,7 +163,7 @@ type PlanContinueButtonProps = {
 export function PlanContinueButton({ onClick, disabled, loading, label = "Continue" }: PlanContinueButtonProps) {
   return (
     <Button
-      className="w-full bg-primary text-white hover:bg-primary/90 sm:w-auto min-w-[200px]"
+      className="w-full bg-primary text-white hover:bg-primary/90"
       onClick={onClick}
       disabled={disabled || loading}
     >

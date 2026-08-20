@@ -26,10 +26,18 @@ export const updateSiteSchema = z.object({
   website_url: websiteUrlField.optional(),
 });
 
+export const ensureDefaultWorkspaceSchema = z
+  .object({
+    name: z.string().min(1, "Name is required").max(100, "Name must not exceed 100 characters").optional(),
+    website_url: websiteUrlField.optional(),
+  })
+  .default({});
+
 export const siteIdParamSchema = z.object({
   id: z.string().min(1, "Site ID is required"),
 });
 
 export type CreateSiteInput = z.infer<typeof createSiteSchema>;
 export type UpdateSiteInput = z.infer<typeof updateSiteSchema>;
+export type EnsureDefaultWorkspaceInput = z.infer<typeof ensureDefaultWorkspaceSchema>;
 export type SiteIdParam = z.infer<typeof siteIdParamSchema>;

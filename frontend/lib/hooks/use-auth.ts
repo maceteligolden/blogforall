@@ -100,7 +100,12 @@ export function useAuth() {
     onSuccess: () => {
       clearSessionQueries();
       clearAuth();
-      router.replace("/auth/signup");
+      router.replace("/");
+    },
+    onError: () => {
+      clearSessionQueries();
+      clearAuth();
+      router.replace("/");
     },
   });
 
@@ -173,6 +178,7 @@ export function useAuth() {
     abandonSignup: abandonSignupMutation.mutate,
     abandonSignupAsync: abandonSignupMutation.mutateAsync,
     isAbandoningSignup: abandonSignupMutation.isPending,
+    isSigningUp: signupMutation.isPending,
     updateProfile: updateProfileMutation.mutate,
     changePassword: changePasswordMutation.mutate,
     updateSiteContext: updateSiteContextMutation.mutate,

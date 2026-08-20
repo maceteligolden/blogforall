@@ -119,7 +119,7 @@ export enum CampaignRoadmapStatus {
 export const MAX_CAMPAIGN_PLANNED_POSTS = 30;
 
 /** First Evergreen roadmap during signup / default bootstrap — keep this small and fast. */
-export const SIGNUP_DEFAULT_ROADMAP_TOPICS = 4;
+export const SIGNUP_DEFAULT_ROADMAP_TOPICS = 3;
 
 export enum CampaignEventType {
   CAMPAIGN_CREATED = "campaign.created",

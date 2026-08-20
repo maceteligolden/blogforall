@@ -12,6 +12,7 @@ import { ArtifactStoreService } from "../../orchestrator/ai/memory/artifact-stor
 import { AGENT_MODEL } from "../orchestrator.constants";
 import { mapGraphToPackage, packageSummary } from "./research-package.mapper";
 import { classifySourceTier, evaluateStopping, hostnameOf, scoreDocument } from "./research.scoring";
+import { RoadmapTopicsSchema } from "./roadmap-topics.schema";
 import type {
   CampaignTopicSuggestion,
   ResearchBriefState,
@@ -107,32 +108,6 @@ const CritiqueSchema = z.object({
 const ReportSchema = z.object({
   report_markdown: z.string(),
   spoken_summary: z.string(),
-});
-
-const RoadmapTopicsSchema = z.object({
-  topics: z
-    .array(
-      z.object({
-        title: z.string().min(1),
-        about: z.string().min(1),
-        keywords: z.array(z.string()).max(8).default([]),
-        post_type: z.enum([
-          "article",
-          "tutorial",
-          "how_to",
-          "listicle",
-          "opinion",
-          "case_study",
-          "definitive_guide",
-          "software_roundup",
-          "comparison",
-          "thought_leadership",
-        ]),
-        campaign_support: z.string().min(1),
-      })
-    )
-    .min(1)
-    .max(20),
 });
 
 type GraphState = {

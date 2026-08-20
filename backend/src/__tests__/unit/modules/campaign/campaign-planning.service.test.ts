@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { beforeEach, afterEach, describe, expect, it, jest } from "@jest/globals";
 import { CampaignPlanningService } from "../../../../modules/campaign/services/campaign-planning.service";
 import { PostFrequency, SIGNUP_DEFAULT_ROADMAP_TOPICS } from "../../../../shared/constants/campaign.constant";
 import { parseContentStrategyDocument } from "../../../../shared/types/content-strategy.document";
+import type { CampaignTopicSuggestion } from "../../../../modules/orchestratorv2/research/research.types";
 
 describe("CampaignPlanningService.ensureDefaultRoadmap", () => {
   const document = parseContentStrategyDocument({
@@ -29,10 +30,35 @@ describe("CampaignPlanningService.ensureDefaultRoadmap", () => {
     campaign_type: "custom",
   };
 
+  const llmTopics: CampaignTopicSuggestion[] = [
+    {
+      title: "How writers ship a first draft faster",
+      about: "A practical workflow for getting words down without stalling.",
+      keywords: ["drafting", "workflow", "writers"],
+      post_type: "article",
+      campaign_support: "Builds trust in the product as a writing partner.",
+    },
+    {
+      title: "Editorial voice that still ranks",
+      about: "Keep a distinct voice while covering search demand.",
+      keywords: ["voice", "seo", "brand"],
+      post_type: "opinion",
+      campaign_support: "Shows the strategy behind consistent publishing.",
+    },
+    {
+      title: "A weekly cadence teams can actually keep",
+      about: "Cadence design for small content teams.",
+      keywords: ["cadence", "team", "planning"],
+      post_type: "how_to",
+      campaign_support: "Supports evergreen publishing without a campaign sprint.",
+    },
+  ];
+
   let suggestCampaignTopics: jest.Mock;
   let findLatest: jest.Mock;
   let createRoadmap: jest.Mock;
   let approveRoadmap: jest.Mock;
+  let proposeTopicsFromStrategy: jest.Mock;
   let service: CampaignPlanningService;
 
   beforeEach(() => {
@@ -40,6 +66,12 @@ describe("CampaignPlanningService.ensureDefaultRoadmap", () => {
     findLatest = jest.fn();
     createRoadmap = jest.fn(async (doc: unknown) => ({ _id: "r1", ...(doc as object) }));
     approveRoadmap = jest.fn(async () => undefined);
+    proposeTopicsFromStrategy = jest
+      .spyOn(
+        CampaignPlanningService.prototype as unknown as { proposeTopicsFromStrategy: () => Promise<unknown> },
+        "proposeTopicsFromStrategy"
+      )
+      .mockRejectedValue(new Error("no llm")) as unknown as jest.Mock;
     service = new CampaignPlanningService(
       {
         findDefault: jest.fn(async () => campaign),
@@ -63,7 +95,11 @@ describe("CampaignPlanningService.ensureDefaultRoadmap", () => {
     );
   });
 
-  it("creates four strategy-seeded topics without running campaign research", async () => {
+  afterEach(() => {
+    proposeTopicsFromStrategy.mockRestore();
+  });
+
+  it("creates three strategy-seeded topics without running campaign research when the LLM fails", async () => {
     findLatest.mockImplementation(async () => null);
 
     await service.ensureDefaultRoadmap("site1", "user1");
@@ -72,18 +108,25 @@ describe("CampaignPlanningService.ensureDefaultRoadmap", () => {
     expect(createRoadmap).toHaveBeenCalledTimes(1);
     const created = createRoadmap.mock.calls[0]?.[0] as { items: Array<{ title: string }> };
     expect(created.items).toHaveLength(SIGNUP_DEFAULT_ROADMAP_TOPICS);
-    expect(created.items.map((item) => item.title)).toEqual([
-      "SEO playbooks",
-      "Team workflow",
-      "Editorial voice",
-      "Distribution systems",
-    ]);
+    expect(created.items.map((item) => item.title)).toEqual(["SEO playbooks", "Team workflow", "Editorial voice"]);
     expect(approveRoadmap).toHaveBeenCalledWith(
       "c1",
       "site1",
       "user1",
       expect.objectContaining({ skipMaterialize: true })
     );
+  });
+
+  it("uses LLM topics from campaign and content strategy when generation succeeds", async () => {
+    findLatest.mockImplementation(async () => null);
+    proposeTopicsFromStrategy.mockResolvedValue(llmTopics as never);
+
+    await service.ensureDefaultRoadmap("site-llm", "user1");
+
+    expect(suggestCampaignTopics).not.toHaveBeenCalled();
+    const created = createRoadmap.mock.calls[0]?.[0] as { items: Array<{ title: string }> };
+    expect(created.items).toHaveLength(SIGNUP_DEFAULT_ROADMAP_TOPICS);
+    expect(created.items.map((item) => item.title)).toEqual(llmTopics.map((topic) => topic.title));
   });
 
   it("coalesces overlapping ensureDefaultRoadmap calls for the same site", async () => {

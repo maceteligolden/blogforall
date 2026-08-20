@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { UserPlus, Users } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { AuthSplitLayout } from "@/components/auth/auth-split-layout";
+import { AuthPageHeader } from "@/components/auth/auth-page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,11 +15,13 @@ import { SiteInvitationService } from "@/lib/api/services/site-invitation.servic
 import { SiteService } from "@/lib/api/services/site.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
-import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { canVisitStage, signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
+import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
 import { PendingInvitationsList } from "@/components/sites/pending-invitations-list";
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
 
 const INVITE_PROMPT_SEEN_KEY = "blogforall_invite_prompt_seen";
 
@@ -32,6 +35,8 @@ function InviteOnboardingContent() {
   const [role, setRole] = useState<"admin" | "editor" | "viewer">("editor");
   const [error, setError] = useState("");
   const [sentCount, setSentCount] = useState(0);
+  const acknowledgingReady = useRef(false);
+  const { pending, begin, push } = useWizardTransition();
   useOnboardingDropoff("invite");
 
   const { data: wizardStatus } = useQuery({
@@ -41,14 +46,37 @@ function InviteOnboardingContent() {
   });
 
   useEffect(() => {
-    if (wizardStatus && wizardStatus.stage !== "invite") {
+    if (!wizardStatus) return;
+    if (wizardStatus.stage === "complete") {
+      router.replace("/dashboard");
+      return;
+    }
+    if (wizardStatus.stage === "strategist_ready") {
+      if (acknowledgingReady.current) return;
+      acknowledgingReady.current = true;
+      void OnboardingService.acknowledgeStrategistReady()
+        .then(async (status) => {
+          onboardingTracker.stepCompleted({ step: "strategist_ready" });
+          queryClient.setQueryData(["onboarding", "signup-wizard"], status);
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] }),
+            queryClient.invalidateQueries({ queryKey: ["onboarding", "invite-prompt", siteIdParam] }),
+          ]);
+        })
+        .catch(() => {
+          acknowledgingReady.current = false;
+        });
+      return;
+    }
+    if (wizardStatus.stage !== "invite" && !canVisitStage("invite", wizardStatus.stage)) {
       router.replace(signupWizardPath(wizardStatus));
     }
-  }, [wizardStatus, router]);
+  }, [wizardStatus, router, queryClient, siteIdParam]);
 
   const { data: promptStatus, isLoading: promptLoading } = useQuery({
     queryKey: ["onboarding", "invite-prompt", siteIdParam],
     queryFn: () => OnboardingService.getInvitePromptStatus(siteIdParam),
+    enabled: wizardStatus?.stage === "invite",
   });
 
   const siteId = siteIdParam ?? promptStatus?.site_id ?? null;
@@ -66,7 +94,8 @@ function InviteOnboardingContent() {
   });
 
   useEffect(() => {
-    if (!promptLoading && promptStatus && !promptStatus.should_show && wizardStatus) {
+    if (wizardStatus?.stage !== "invite") return;
+    if (!promptLoading && promptStatus && !promptStatus.should_show) {
       router.replace(signupWizardPath(wizardStatus));
     }
   }, [promptLoading, promptStatus, wizardStatus, router]);
@@ -91,14 +120,15 @@ function InviteOnboardingContent() {
     },
   });
 
-  const finish = async (skipped: boolean) => {
+  const finish = async () => {
+    begin();
     try {
       await OnboardingService.dismissInvitePrompt();
     } catch {
-      // Continue to setup even if dismiss fails; wizard GET is the source of truth.
+      // Continue even if dismiss fails; wizard GET is the source of truth.
     }
     queryClient.setQueryData(["onboarding", "signup-wizard"], {
-      stage: "strategist_setup",
+      stage: "complete",
       site_id: siteId ?? undefined,
     });
     if (siteId) {
@@ -112,12 +142,13 @@ function InviteOnboardingContent() {
     if (typeof window !== "undefined") {
       localStorage.setItem(INVITE_PROMPT_SEEN_KEY, "1");
     }
-    if (skipped) {
-      onboardingTracker.invitePromptSkipped();
-    } else {
+    if (sentCount > 0) {
       onboardingTracker.stepCompleted({ step: "invite" });
+    } else {
+      onboardingTracker.invitePromptSkipped();
     }
-    router.push(siteId ? `/onboarding/setup?siteId=${encodeURIComponent(siteId)}` : "/onboarding/setup");
+    onboardingTracker.userOnboardingCompleted();
+    push("/dashboard");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -134,7 +165,7 @@ function InviteOnboardingContent() {
     inviteMutation.mutate({ email: email.trim(), role });
   };
 
-  if (promptLoading) {
+  if (promptLoading || wizardStatus?.stage === "strategist_ready" || !wizardStatus) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <p className="text-gray-400">Loading...</p>
@@ -144,22 +175,22 @@ function InviteOnboardingContent() {
 
   return (
     <AuthSplitLayout>
-      <SignupWizardProgress stage="invite" />
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-          <Users className="h-6 w-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-white">Invite your team</h1>
-          <p className="text-sm text-gray-400">
-            {site?.name
-              ? `Optional — add collaborators to ${site.name}, or skip and invite later`
-              : "Optional — you can skip and invite later from settings"}
-          </p>
-        </div>
-      </div>
+      <AuthPageHeader
+        title="Invite your team"
+        subtitle={
+          site?.name
+            ? `Optional — add collaborators to ${site.name}, or skip and invite later`
+            : "Optional — you can skip and invite later from settings"
+        }
+        clearSignupAttempt
+      />
+      <SignupWizardProgress stage="invite" siteId={siteId ?? undefined} />
+      {pending ? (
+        <WizardFormLoader label="Opening dashboard…" />
+      ) : (
+        <>
       <p className="mb-6 rounded-md border border-gray-800 bg-gray-900/50 px-3 py-2 text-xs text-gray-400">
-        Next we will show progress as your content strategy, default campaign, and topics come together.
+        You can invite more people later from workspace settings.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -204,8 +235,9 @@ function InviteOnboardingContent() {
 
         <Button
           type="submit"
+          variant="outline"
           disabled={inviteMutation.isPending || !siteId}
-          className="w-full bg-primary text-white hover:bg-primary/90"
+          className="w-full border-gray-700 bg-transparent text-white hover:bg-gray-800"
         >
           <UserPlus className="mr-2 h-4 w-4" />
           {inviteMutation.isPending ? "Sending..." : "Send invitation"}
@@ -219,14 +251,11 @@ function InviteOnboardingContent() {
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-2 sm:flex-row">
-        <Button variant="outline" className="flex-1 whitespace-nowrap border-gray-700" onClick={() => finish(true)}>
-          Skip for now
-        </Button>
-        <Button className="flex-1 whitespace-nowrap bg-gray-700 hover:bg-gray-600" onClick={() => finish(false)}>
-          Continue
-        </Button>
-      </div>
+      <Button type="button" className="mt-6 w-full bg-primary text-white hover:bg-primary/90" onClick={() => void finish()}>
+        Continue to dashboard
+      </Button>
+        </>
+      )}
     </AuthSplitLayout>
   );
 }

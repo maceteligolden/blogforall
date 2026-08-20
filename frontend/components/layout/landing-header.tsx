@@ -8,6 +8,7 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { LANDING_CTAS } from "@/lib/landing/landing-copy";
 import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 import { cn } from "@/lib/utils/cn";
+import { useLandingResumeCta } from "@/lib/onboarding/use-landing-resume";
 
 const OPEN_NAV_LINKS = [
   { href: "/#product", label: "Product" },
@@ -40,6 +41,7 @@ function scrollToWaitlistHero() {
 
 export function LandingHeader() {
   const { isAuthenticated } = useAuthStore();
+  const resumeCta = useLandingResumeCta();
   const [mobileOpen, setMobileOpen] = useState(false);
   const navLinks = IS_WAITLIST_MODE ? WAITLIST_NAV_LINKS : OPEN_NAV_LINKS;
 
@@ -73,9 +75,9 @@ export function LandingHeader() {
               </Link>
             ))}
             {isAuthenticated ? (
-              <Link href="/dashboard">
+              <Link href={resumeCta.href}>
                 <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2 transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0">
-                  {LANDING_CTAS.dashboard}
+                  {resumeCta.label}
                 </Button>
               </Link>
             ) : IS_WAITLIST_MODE ? (
@@ -102,9 +104,9 @@ export function LandingHeader() {
 
           <div className="flex items-center gap-3 md:hidden">
             {isAuthenticated ? (
-              <Link href="/dashboard">
+              <Link href={resumeCta.href}>
                 <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-3 py-2">
-                  Dashboard
+                  {resumeCta.label}
                 </Button>
               </Link>
             ) : IS_WAITLIST_MODE ? (

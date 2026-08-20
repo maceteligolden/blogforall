@@ -10,6 +10,11 @@ export interface UpdateSiteInput {
   website_url?: string;
 }
 
+export interface EnsureDefaultWorkspaceInput {
+  name?: string;
+  website_url?: string;
+}
+
 export interface SiteWithMembers {
   _id: string;
   name: string;

@@ -14,16 +14,18 @@ import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
+import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
+import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
 
 function VerifyEmailForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { setTokens, setUser, user } = useAuthStore();
+  const { pending, begin, cancel, push } = useWizardTransition();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
 
   const { data: wizardStatus } = useQuery({
@@ -48,7 +50,7 @@ function VerifyEmailForm() {
       setError("Enter the 6-digit code from your email.");
       return;
     }
-    setSubmitting(true);
+    begin();
     try {
       const res = await AuthService.verifyEmail(code.trim());
       const data = res.data.data;
@@ -62,15 +64,14 @@ function VerifyEmailForm() {
         description: "Nice — tell us your role next.",
       });
       onboardingTracker.stepCompleted({ step: "email_verification" });
-      router.push("/onboarding/company-role");
+      push("/onboarding/company-role");
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "That code doesn't look right. Try again or resend.";
       setError(message);
       toast({ variant: "error", description: message });
-    } finally {
-      setSubmitting(false);
+      cancel();
     }
   };
 
@@ -101,15 +102,20 @@ function VerifyEmailForm() {
             ? `We sent a 6-digit code to ${user.email}. Enter it below to continue.`
             : "Enter the 6-digit code we emailed you."
         }
+        clearSignupAttempt
       />
       <SignupWizardProgress stage="email_verification" />
 
-      {error && (
+      {error && !pending && (
         <div className="mb-4 rounded-md border border-red-800 bg-red-900/50 px-3 py-2 text-sm text-red-200">
           {error}
         </div>
       )}
 
+      {pending ? (
+        <WizardFormLoader />
+      ) : (
+        <>
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="code">Verification code</Label>
@@ -124,8 +130,8 @@ function VerifyEmailForm() {
             className="bg-gray-800 border-gray-700 tracking-[0.3em] text-center text-lg"
           />
         </div>
-        <Button type="submit" className="w-full" disabled={submitting || !codeValid}>
-          {submitting ? "Verifying…" : "Verify email"}
+        <Button type="submit" className="w-full" disabled={pending || !codeValid}>
+          Verify email
         </Button>
       </form>
 
@@ -137,6 +143,8 @@ function VerifyEmailForm() {
       >
         {resending ? "Sending…" : "Resend code"}
       </button>
+        </>
+      )}
     </>
   );
 }

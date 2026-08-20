@@ -5,7 +5,12 @@ import { SubscriptionService } from "../../subscription/services/subscription.se
 import { UserRepository } from "../../auth/repositories/user.repository";
 import { NotFoundError, ForbiddenError, BadRequestError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
-import { CreateSiteInput, UpdateSiteInput, SiteWithMembers } from "../interfaces/site.interface";
+import {
+  CreateSiteInput,
+  UpdateSiteInput,
+  SiteWithMembers,
+  EnsureDefaultWorkspaceInput,
+} from "../interfaces/site.interface";
 import { Site } from "../../../shared/schemas/site.schema";
 import { SiteMemberRole, SiteStatus } from "../../../shared/constants";
 import { env } from "../../../shared/config/env";
@@ -13,6 +18,7 @@ import type { SiteMember as SiteMemberType } from "../../../shared/schemas/site-
 import { deleteMongoAiBySiteId } from "../../../shared/utils/delete-mongo-ai-by-site";
 import { WorkspaceStrategyService } from "../../strategic-intelligence/services/workspace-strategy.service";
 import { BusinessKnowledgeService } from "../../strategic-intelligence/services/business-knowledge.service";
+import { normalizeWebsiteUrl } from "../../orchestrator/utils/website-onboarding.helper";
 
 @injectable()
 export class SiteService {
@@ -167,20 +173,51 @@ export class SiteService {
   }
 
   /**
-   * Ensure user has at least one workspace; create one with default name from env if none.
-   * Returns the created site or null if user already had sites.
+   * Ensure the user has a workspace. Creates one when they have none.
+   * When a workspace already exists, optional name/website_url update that site
+   * without kicking strategy generation (onboarding setup owns bootstrap).
    */
-  async ensureDefaultWorkspace(userId: string): Promise<Site | null> {
-    const sites = await this.siteRepository.findByUser(userId);
-    if (sites.length > 0) {
-      return null;
+  async ensureDefaultWorkspace(
+    userId: string,
+    input: EnsureDefaultWorkspaceInput = {}
+  ): Promise<{ created: boolean; site: Site }> {
+    let sites = await this.siteRepository.findByOwner(userId);
+    if (!sites.length) {
+      sites = await this.siteRepository.findByUser(userId);
     }
+    const existing = sites[0];
+    if (existing) {
+      const siteId = existing._id!.toString();
+      const patch: UpdateSiteInput = {};
+      if (input.name?.trim() && input.name.trim() !== existing.name) {
+        patch.name = input.name.trim();
+      }
+      const nextUrl = input.website_url;
+      const urlChanged = Boolean(
+        nextUrl && normalizeWebsiteUrl(nextUrl) !== normalizeWebsiteUrl(existing.website_url || "")
+      );
+      if (urlChanged && nextUrl) {
+        patch.website_url = nextUrl;
+      }
+      let site = existing;
+      if (patch.name || patch.website_url) {
+        const updated = await this.siteRepository.update(siteId, patch);
+        site = updated ?? existing;
+      }
+      if (nextUrl) {
+        await this.workspaceStrategyService.createGeneratingStub(siteId, userId, nextUrl);
+      }
+      logger.info("Default workspace updated", { siteId, userId }, "SiteService");
+      return { created: false, site };
+    }
+
     const site = await this.createSite(userId, {
-      name: env.workspace.defaultName,
+      name: input.name?.trim() || env.workspace.defaultName,
       description: "",
+      website_url: input.website_url,
     });
     logger.info("Default workspace created for user", { siteId: site._id, userId }, "SiteService");
-    return site;
+    return { created: true, site };
   }
 
   /**

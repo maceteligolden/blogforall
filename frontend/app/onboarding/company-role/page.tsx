@@ -13,9 +13,11 @@ import { useToast } from "@/components/ui/toast";
 import { AuthService } from "@/lib/api/services/auth.service";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { useAuthStore } from "@/lib/store/auth.store";
-import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { canVisitStage, signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { SignupWizardProgress } from "@/components/onboarding/signup-wizard-progress";
+import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
+import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
 
 const ROLES = [
   { id: "founder", label: "Founder / CEO", hint: "You own the vision and content strategy." },
@@ -31,10 +33,10 @@ function CompanyRoleContent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { setTokens, setUser } = useAuthStore();
+  const { pending, begin, cancel, push } = useWizardTransition();
   const [role, setRole] = useState<string>("");
   const [detail, setDetail] = useState("");
   const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   const { data: wizardStatus } = useQuery({
     queryKey: ["onboarding", "signup-wizard"],
@@ -44,7 +46,7 @@ function CompanyRoleContent() {
 
   useEffect(() => {
     if (!wizardStatus) return;
-    if (wizardStatus.stage !== "company_role") {
+    if (wizardStatus.stage !== "company_role" && !canVisitStage("company_role", wizardStatus.stage)) {
       router.replace(signupWizardPath(wizardStatus));
     }
   }, [wizardStatus, router]);
@@ -56,7 +58,7 @@ function CompanyRoleContent() {
       setError("Pick the role that fits you best.");
       return;
     }
-    setSubmitting(true);
+    begin();
     try {
       const res = await AuthService.setCompanyRole({
         company_role: role,
@@ -71,15 +73,14 @@ function CompanyRoleContent() {
         variant: "success",
         description: "Got it — we'll tailor advice to how you work.",
       });
-      router.push("/onboarding/plans");
+      push("/onboarding/plans");
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         "Couldn't save your role. Try again.";
       setError(message);
       toast({ variant: "error", description: message });
-    } finally {
-      setSubmitting(false);
+      cancel();
     }
   };
 
@@ -88,15 +89,19 @@ function CompanyRoleContent() {
       <AuthPageHeader
         title="What's your role?"
         subtitle="We'll use this so the AI talks about your business in a way that fits how you work."
+        clearSignupAttempt
       />
-      <SignupWizardProgress stage="company_role" />
+      <SignupWizardProgress stage="company_role" hideBack />
 
-      {error && (
+      {error && !pending && (
         <div className="mb-4 rounded-md border border-red-800 bg-red-900/50 px-3 py-2 text-sm text-red-200">
           {error}
         </div>
       )}
 
+      {pending ? (
+        <WizardFormLoader />
+      ) : (
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid gap-2">
           {ROLES.map((r) => (
@@ -129,10 +134,11 @@ function CompanyRoleContent() {
           </div>
         )}
 
-        <Button type="submit" className="w-full" disabled={submitting || !role}>
-          {submitting ? "Saving…" : "Continue"}
+        <Button type="submit" className="w-full" disabled={pending || !role}>
+          Continue
         </Button>
       </form>
+      )}
     </AuthSplitLayout>
   );
 }

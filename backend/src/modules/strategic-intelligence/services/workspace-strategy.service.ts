@@ -24,6 +24,7 @@ import {
   type ContentStrategyDocument,
   type ContentStrategyGenerationStatus,
 } from "../../../shared/types/content-strategy.document";
+import { websiteUrlsEqual } from "../../orchestrator/utils/website-onboarding.helper";
 
 export type UpdateWorkspaceStrategyInput = {
   purpose?: string;
@@ -141,6 +142,16 @@ export class WorkspaceStrategyService {
   ): Promise<WorkspaceStrategy> {
     const site = await this.siteRepository.findById(siteId);
     const url = websiteUrl || site?.website_url;
+    if (await this.isStaleWebsiteGeneration(siteId, url)) {
+      logger.info(
+        "Skipping stale website strategy run after URL change",
+        { siteId, attemptedUrl: url },
+        "WorkspaceStrategyService"
+      );
+      const current = await this.peekActive(siteId);
+      if (current) return current;
+      return this.createGeneratingStub(siteId, userId, site?.website_url);
+    }
     await this.createGeneratingStub(siteId, userId, url);
     if (!url) {
       return this.markFailed(siteId, userId, "Add a website URL to generate Content Strategy.");
@@ -148,6 +159,16 @@ export class WorkspaceStrategyService {
 
     try {
       const ingested = await this.generateService.ingestWebsiteAndSeedMemory(siteId, userId, url);
+      if (await this.isStaleWebsiteGeneration(siteId, url)) {
+        logger.info(
+          "Skipping stale website strategy write after URL change",
+          { siteId, attemptedUrl: url },
+          "WorkspaceStrategyService"
+        );
+        const current = await this.peekActive(siteId);
+        if (current) return current;
+        return this.markFailed(siteId, userId, "Content strategy generation was superseded by a new website URL.");
+      }
       if (site && !site.website_url) {
         await this.siteRepository.update(siteId, { website_url: ingested.url });
       }
@@ -193,6 +214,15 @@ export class WorkspaceStrategyService {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      if (await this.isStaleWebsiteGeneration(siteId, url)) {
+        logger.info(
+          "Ignoring stale website strategy failure after URL change",
+          { siteId, attemptedUrl: url, error: message },
+          "WorkspaceStrategyService"
+        );
+        const current = await this.peekActive(siteId);
+        if (current) return current;
+      }
       logger.warn("Content Strategy generation failed", { siteId, error: message }, "WorkspaceStrategyService");
       return this.markFailed(siteId, userId, message);
     }
@@ -296,6 +326,17 @@ export class WorkspaceStrategyService {
       return this.generateFromWebsite(siteId, userId, site.website_url);
     }
     return this.generate(siteId, userId, { force: true, source: "ai" });
+  }
+
+  async peekActive(siteId: string): Promise<WorkspaceStrategy | null> {
+    const existing = await this.strategies.findActive(siteId);
+    return existing ? this.hydrate(this.asPlain(existing)) : null;
+  }
+
+  private async isStaleWebsiteGeneration(siteId: string, attemptedUrl?: string): Promise<boolean> {
+    if (!attemptedUrl) return false;
+    const latest = await this.siteRepository.findById(siteId);
+    return Boolean(latest?.website_url && !websiteUrlsEqual(attemptedUrl, latest.website_url));
   }
 
   private async createStub(

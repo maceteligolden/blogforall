@@ -7,6 +7,7 @@ import {
   acknowledgeStrategistReadyBodySchema,
   completeOnboardingBodySchema,
   siteIdQuerySchema,
+  startStrategistBootstrapBodySchema,
 } from "../validations/onboarding.validation";
 
 const router = Router();
@@ -35,6 +36,7 @@ router.post(
   "/strategist-bootstrap",
   authMiddleware,
   validateQuery(siteIdQuerySchema),
+  validateBody(startStrategistBootstrapBodySchema),
   onboardingController.startStrategistBootstrap
 );
 router.post(

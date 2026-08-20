@@ -2,7 +2,7 @@ import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { SiteService } from "../services/site.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
-import { CreateSiteInput, UpdateSiteInput } from "../validations/site.validation";
+import { CreateSiteInput, UpdateSiteInput, EnsureDefaultWorkspaceInput } from "../validations/site.validation";
 
 @injectable()
 export class SiteController {
@@ -72,11 +72,9 @@ export class SiteController {
   ensureDefault = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = req.user!.userId;
-      const site = await this.siteService.ensureDefaultWorkspace(userId);
-      sendSuccess(res, site ? "Default workspace created" : "User already has workspace(s)", {
-        created: !!site,
-        site: site ?? null,
-      });
+      const body = (req.validatedBody ?? {}) as EnsureDefaultWorkspaceInput;
+      const result = await this.siteService.ensureDefaultWorkspace(userId, body);
+      sendSuccess(res, result.created ? "Default workspace created" : "Workspace ready", result);
     } catch (error) {
       next(error);
     }

@@ -15,6 +15,7 @@ export const LANDING_CTAS = {
   seeHow: "See how it works",
   logIn: "Log in",
   dashboard: "Go to Dashboard",
+  continueSetup: "Continue setup",
   switchToBloggr: "Switch to Bloggr",
   watchOverview: "Watch 90s overview",
   contact: "Contact us",

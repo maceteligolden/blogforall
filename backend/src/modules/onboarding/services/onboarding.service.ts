@@ -15,6 +15,8 @@ import WorkspaceMemory from "../../../shared/schemas/workspace-memory.schema";
 export type SignupWizardStatus = {
   stage: SignupWizardStage;
   site_id?: string;
+  website_url_invalid?: boolean;
+  website_url?: string;
 };
 
 export type SetupProgressItem = {
@@ -178,15 +180,19 @@ export class OnboardingService {
     if (!user.plan_selection_completed_at) {
       return { stage: SignupWizardStage.PLAN_SELECTION, site_id: primarySiteId };
     }
-    if (!user.workspace_invite_prompt_dismissed_at) {
-      return { stage: SignupWizardStage.INVITE, site_id: primarySiteId };
-    }
     if (!user.strategist_ready_acknowledged_at) {
       const progress = primarySiteId ? await this.strategistBootstrapService.deriveProgress(primarySiteId) : null;
       if (progress?.ready) {
         return { stage: SignupWizardStage.STRATEGIST_READY, site_id: primarySiteId };
       }
       return { stage: SignupWizardStage.STRATEGIST_SETUP, site_id: primarySiteId };
+    }
+    if (!user.workspace_invite_prompt_dismissed_at) {
+      const progress = primarySiteId ? await this.strategistBootstrapService.deriveProgress(primarySiteId) : null;
+      if (progress && !progress.ready) {
+        return { stage: SignupWizardStage.STRATEGIST_SETUP, site_id: primarySiteId };
+      }
+      return { stage: SignupWizardStage.INVITE, site_id: primarySiteId };
     }
 
     return { stage: SignupWizardStage.COMPLETE, site_id: primarySiteId };
@@ -226,7 +232,8 @@ export class OnboardingService {
 
   async startStrategistBootstrap(
     userId: string,
-    siteId: string
+    siteId: string,
+    options?: { force?: boolean }
   ): Promise<{ progress: StrategistProgress; alreadyReady: boolean; accepted: boolean }> {
     const site = await this.siteRepository.findById(siteId);
     if (!site) throw new NotFoundError("Workspace not found");
@@ -243,7 +250,11 @@ export class OnboardingService {
       });
     }
 
-    const result = await this.strategistBootstrapService.start(siteId, userId);
+    const result = await this.strategistBootstrapService.start(
+      siteId,
+      userId,
+      options?.force ? { force: true } : undefined
+    );
     logger.info(
       "Signup strategist bootstrap requested",
       { userId, siteId, alreadyReady: result.alreadyReady, accepted: result.accepted },
@@ -279,19 +290,21 @@ export class OnboardingService {
         { userId, siteId: wizard.site_id, degraded },
         "OnboardingService"
       );
-      try {
-        await this.authService.finalizeSignupCompletion(userId);
-      } catch (error) {
-        logger.error(
-          "Failed to finalize signup completion after strategist ready",
-          error as Error,
-          { userId },
-          "OnboardingService"
-        );
-      }
     }
 
-    return { stage: SignupWizardStage.COMPLETE, site_id: wizard.site_id };
+    const next = await this.getSignupWizardStatus(userId);
+    if (next.stage === SignupWizardStage.COMPLETE && !wasAcknowledged) {
+      await this.finalizeSignupIfNeeded(userId);
+    }
+    return next;
+  }
+
+  private async finalizeSignupIfNeeded(userId: string): Promise<void> {
+    try {
+      await this.authService.finalizeSignupCompletion(userId);
+    } catch (error) {
+      logger.error("Failed to finalize signup completion", error as Error, { userId }, "OnboardingService");
+    }
   }
 
   /**
@@ -426,6 +439,10 @@ export class OnboardingService {
         updated_at: new Date(),
       });
       logger.info("Workspace invite prompt dismissed", { userId }, "OnboardingService");
+      const next = await this.getSignupWizardStatus(userId);
+      if (next.stage === SignupWizardStage.COMPLETE) {
+        await this.finalizeSignupIfNeeded(userId);
+      }
     }
   }
 

@@ -3,7 +3,12 @@ import { container } from "tsyringe";
 import { SiteController } from "../controllers/site.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
 import { validateBody, validateParams } from "../../../shared/middlewares/validate.middleware";
-import { createSiteSchema, updateSiteSchema, siteIdParamSchema } from "../validations/site.validation";
+import {
+  createSiteSchema,
+  updateSiteSchema,
+  siteIdParamSchema,
+  ensureDefaultWorkspaceSchema,
+} from "../validations/site.validation";
 import siteMemberRouter from "./site-member.router";
 import siteInvitationRouter from "./site-invitation.router";
 import siteApiKeyRouter from "./site-api-key.router";
@@ -13,7 +18,12 @@ const siteController = container.resolve(SiteController);
 
 // All routes require authentication
 router.post("/", authMiddleware, validateBody(createSiteSchema), siteController.create);
-router.post("/ensure-default", authMiddleware, siteController.ensureDefault);
+router.post(
+  "/ensure-default",
+  authMiddleware,
+  validateBody(ensureDefaultWorkspaceSchema),
+  siteController.ensureDefault
+);
 router.get("/", authMiddleware, siteController.list);
 router.get("/:id", authMiddleware, validateParams(siteIdParamSchema), siteController.getById);
 router.patch(

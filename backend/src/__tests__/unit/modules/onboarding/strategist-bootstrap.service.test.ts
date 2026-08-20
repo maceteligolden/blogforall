@@ -21,7 +21,11 @@ describe("StrategistBootstrapService", () => {
   const emitToUser = jest.fn();
   const generateFromWebsite = jest.fn<() => Promise<typeof readyStrategy>>();
   const markFailed = jest.fn<() => Promise<unknown>>();
-  const getActive = jest.fn<() => Promise<typeof readyStrategy | null>>();
+  const getActive = jest.fn<() => Promise<{
+    generation_status: "ready" | "generating" | "failed";
+    website_url?: string;
+    document?: typeof readyDocument;
+  } | null>>();
   const ensureDefaultCampaign = jest.fn<() => Promise<{ _id: string }>>();
   const findDefault = jest.fn<() => Promise<{ _id: string } | null>>();
   const findLatest = jest.fn<() => Promise<{ _id: string; items: Array<{ title: string }>; status: string } | null>>();
@@ -47,7 +51,7 @@ describe("StrategistBootstrapService", () => {
     ensureDefaultRoadmap.mockResolvedValue(undefined);
     service = new StrategistBootstrapService(
       { findById } as never,
-      { generateFromWebsite, markFailed, getActive } as never,
+      { generateFromWebsite, markFailed, getActive, peekActive: getActive } as never,
       { ensureDefaultCampaign } as never,
       { findDefault } as never,
       { findLatest, deleteById } as never,
@@ -108,6 +112,16 @@ describe("StrategistBootstrapService", () => {
     );
   });
 
+  it("does not create a campaign when the website cannot be read", async () => {
+    generateFromWebsite.mockRejectedValue(new Error("Could not read that website. Check the URL and try again."));
+    await service.start("s1", "u1");
+    await getStrategistBootstrapInflight("s1");
+
+    expect(ensureDefaultCampaign).not.toHaveBeenCalled();
+    expect(ensureDefaultRoadmap).not.toHaveBeenCalled();
+    expect(markFailed).toHaveBeenCalledWith("s1", "u1", "Could not read that website. Check the URL and try again.");
+  });
+
   it("coalesces overlapping start calls for the same site", async () => {
     let resolveGenerate: (value: typeof readyStrategy) => void = () => undefined;
     generateFromWebsite.mockImplementation(
@@ -136,5 +150,96 @@ describe("StrategistBootstrapService", () => {
     resolveGenerate(readyStrategy);
     await getStrategistBootstrapInflight("site-coalesce");
     expect(ensureDefaultRoadmap).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts a new run when force is set while another run is inflight", async () => {
+    let resolveFirst: (value: typeof readyStrategy) => void = () => undefined;
+    generateFromWebsite.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
+    );
+    generateFromWebsite.mockResolvedValueOnce(readyStrategy);
+
+    const first = await service.start("site-force", "u1");
+    expect(first.accepted).toBe(true);
+    let spins = 0;
+    while (generateFromWebsite.mock.calls.length === 0) {
+      spins += 1;
+      if (spins > 50) throw new Error("first generateFromWebsite was never called");
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+
+    findById.mockResolvedValue({ website_url: "https://new.example" });
+    getActive.mockResolvedValue({
+      generation_status: "generating",
+      website_url: "https://new.example",
+      document: readyDocument,
+    });
+
+    const second = await service.start("site-force", "u1", { force: true });
+    expect(second.accepted).toBe(true);
+
+    spins = 0;
+    while (generateFromWebsite.mock.calls.length < 2) {
+      spins += 1;
+      if (spins > 50) {
+        throw new Error("forced start did not call generateFromWebsite again");
+      }
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    expect(generateFromWebsite).toHaveBeenCalledTimes(2);
+    expect(generateFromWebsite).toHaveBeenLastCalledWith("site-force", "u1", "https://new.example", {
+      skipRoadmapBootstrap: true,
+    });
+
+    resolveFirst(readyStrategy);
+    await getStrategistBootstrapInflight("site-force");
+    expect(markFailed).not.toHaveBeenCalled();
+  });
+
+  it("starts a new run when the workspace URL no longer matches the inflight URL", async () => {
+    let resolveFirst: (value: typeof readyStrategy) => void = () => undefined;
+    generateFromWebsite.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
+    );
+    generateFromWebsite.mockResolvedValueOnce(readyStrategy);
+
+    await service.start("site-url-change", "u1");
+    let spins = 0;
+    while (generateFromWebsite.mock.calls.length === 0) {
+      spins += 1;
+      if (spins > 50) throw new Error("first generateFromWebsite was never called");
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+
+    findById.mockResolvedValue({ website_url: "https://changed.example" });
+    getActive.mockResolvedValue({
+      generation_status: "generating",
+      website_url: "https://changed.example",
+      document: readyDocument,
+    });
+
+    const restarted = await service.start("site-url-change", "u1");
+    expect(restarted.accepted).toBe(true);
+
+    spins = 0;
+    while (generateFromWebsite.mock.calls.length < 2) {
+      spins += 1;
+      if (spins > 50) {
+        throw new Error("URL change did not start a new generateFromWebsite run");
+      }
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    expect(generateFromWebsite).toHaveBeenLastCalledWith("site-url-change", "u1", "https://changed.example", {
+      skipRoadmapBootstrap: true,
+    });
+
+    resolveFirst(readyStrategy);
+    await getStrategistBootstrapInflight("site-url-change");
   });
 });

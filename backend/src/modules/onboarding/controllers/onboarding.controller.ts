@@ -114,7 +114,10 @@ export class OnboardingController {
     try {
       const userId = getJwtUserId(req);
       const { site_id: siteId } = req.validatedQuery as { site_id: string };
-      const result = await this.onboardingService.startStrategistBootstrap(userId, siteId);
+      const body = (req.validatedBody as { force?: boolean } | undefined) ?? {};
+      const result = await this.onboardingService.startStrategistBootstrap(userId, siteId, {
+        force: Boolean(body.force),
+      });
       if (result.accepted) {
         sendAccepted(res, "Strategist setup started", result.progress);
         return;
