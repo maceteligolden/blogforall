@@ -16,7 +16,12 @@ import {
   type StrategistProgressStep,
   type StrategistStepStatus,
 } from "@/lib/api/services/onboarding.service";
-import { canVisitStage, nextWizardPath, signupBootstrapRefreshKey, signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import {
+  canVisitStage,
+  nextWizardPath,
+  signupBootstrapRefreshKey,
+  signupWizardPath,
+} from "@/lib/onboarding/signup-wizard";
 import { isWebsiteIngestFailure } from "@/lib/onboarding/website-ingest-failure";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
@@ -193,8 +198,7 @@ function StrategistSetupContent() {
 
   useEffect(() => {
     if (!siteId || startRequested.current) return;
-    const force =
-      refreshThisVisit || sessionStorage.getItem(signupBootstrapRefreshKey(siteId)) === "1";
+    const force = refreshThisVisit || sessionStorage.getItem(signupBootstrapRefreshKey(siteId)) === "1";
     if (!force && (wizardStatus?.stage === "invite" || wizardStatus?.stage === "strategist_ready")) {
       setBootstrapStarted(true);
       return;
@@ -274,10 +278,9 @@ function StrategistSetupContent() {
       Boolean(siteId) &&
       sawGenerating.current &&
       Boolean(progress?.ready) &&
-      (wizardStatus?.stage === "strategist_setup" ||
-        wizardStatus?.stage === "strategist_ready" ||
-        refreshThisVisit);
+      (wizardStatus?.stage === "strategist_setup" || wizardStatus?.stage === "strategist_ready" || refreshThisVisit);
     if (!firstCompletion) return;
+    if (!siteId) return;
     if (advancingToInvite.current) return;
     advancingToInvite.current = true;
     begin();
@@ -369,49 +372,49 @@ function StrategistSetupContent() {
         <WizardFormLoader />
       ) : (
         <>
-      <ol className="space-y-3">
-        {steps.map((step) => (
-          <GeneratingStep key={step.id} step={step} />
-        ))}
-      </ol>
+          <ol className="space-y-3">
+            {steps.map((step) => (
+              <GeneratingStep key={step.id} step={step} />
+            ))}
+          </ol>
 
-      {retryMutation.isError ? (
-        <p className="mt-4 text-sm text-red-300">Could not retry right now. Wait a moment and try again.</p>
-      ) : null}
+          {retryMutation.isError ? (
+            <p className="mt-4 text-sm text-red-300">Could not retry right now. Wait a moment and try again.</p>
+          ) : null}
 
-      {showRetry ? (
-        <div className="mt-6 space-y-3">
-          <p className="text-sm text-red-300">
-            {urlFailed
-              ? "We couldn't read that website. Update the URL so we can generate your Content Strategy."
-              : timedOut
-                ? "This is taking longer than expected. Retry setup or update the website URL."
-                : progress?.steps.find((step) => step.status === "failed" && step.error)?.error ||
-                  "Content strategy was not generated properly. Retry setup or update the website URL."}
-          </p>
-          <Button
-            type="button"
-            className="w-full"
-            disabled={!siteId || retryMutation.isPending}
-            onClick={() => retryMutation.mutate()}
-          >
-            {retryMutation.isPending ? "Retrying…" : "Retry"}
-          </Button>
-        </div>
-      ) : generationComplete && wizardStatus ? (
-        <Button
-          type="button"
-          className="mt-6 w-full"
-          onClick={() => {
-            begin();
-            push(nextWizardPath("strategist_setup", siteId));
-          }}
-        >
-          Continue
-        </Button>
-      ) : (
-        <p className="mt-6 text-xs text-gray-500">This usually takes under a minute. Leave this tab open.</p>
-      )}
+          {showRetry ? (
+            <div className="mt-6 space-y-3">
+              <p className="text-sm text-red-300">
+                {urlFailed
+                  ? "We couldn't read that website. Update the URL so we can generate your Content Strategy."
+                  : timedOut
+                    ? "This is taking longer than expected. Retry setup or update the website URL."
+                    : progress?.steps.find((step) => step.status === "failed" && step.error)?.error ||
+                      "Content strategy was not generated properly. Retry setup or update the website URL."}
+              </p>
+              <Button
+                type="button"
+                className="w-full"
+                disabled={!siteId || retryMutation.isPending}
+                onClick={() => retryMutation.mutate()}
+              >
+                {retryMutation.isPending ? "Retrying…" : "Retry"}
+              </Button>
+            </div>
+          ) : generationComplete && wizardStatus ? (
+            <Button
+              type="button"
+              className="mt-6 w-full"
+              onClick={() => {
+                begin();
+                push(nextWizardPath("strategist_setup", siteId));
+              }}
+            >
+              Continue
+            </Button>
+          ) : (
+            <p className="mt-6 text-xs text-gray-500">This usually takes under a minute. Leave this tab open.</p>
+          )}
         </>
       )}
     </AuthSplitLayout>
