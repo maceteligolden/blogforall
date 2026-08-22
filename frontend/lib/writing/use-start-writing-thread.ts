@@ -8,7 +8,7 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import { useToast } from "@/components/ui/toast";
-import type { ThreadFocus } from "@/lib/api/types/orchestrator.types";
+import type { OrchestratorMessage, ThreadFocus, ThreadWithMessages } from "@/lib/api/types/orchestrator.types";
 import { compactThreadFocus } from "@/lib/writing/compact-thread-focus";
 
 export const WRITING_THREAD_PENDING_KEY = "bloggr_writing_thread_pending";
@@ -20,30 +20,56 @@ export type WritingThreadRequest = ThreadFocus & {
   first_post?: boolean;
 };
 
+const OPERATOR_KICKOFF_MARKERS = [
+  "load the writing skill",
+  "writing_request_research (hitl)",
+  "do not call research_run",
+  "don't start a new draft unless i ask",
+  "don't start a draft until i pick a topic",
+  "help me improve this draft with natural-language edits",
+];
+
 function firstPostLockKey(siteId: string): string {
   return `${FIRST_POST_THREAD_LOCK_PREFIX}${siteId}`;
 }
 
+/** User-facing first message. Operator rules live in the writing-mode system prompt + focus. */
 export function kickoffMessage(req: WritingThreadRequest): string {
   if (req.blog_id) {
-    return `Help me improve this draft with natural-language edits. The post is already in the editor. Load the writing skill and use writing_revise_draft for changes I ask for.`;
+    return `Help me improve "${req.topic || "this draft"}".`;
   }
   if (req.topic) {
-    const campaign = req.campaign_name ? ` for ${req.campaign_name}` : "";
-    return `Let's write the blog post "${req.topic}"${campaign}. Keep this roadmap topic unless a new angle still serves the campaign goal and Content Strategy. Talk through the angle like a colleague — one question at a time. Don't start research until I agree. Load the writing skill. Use writing_request_research (HITL) to start research — do not call research_run. We only write blog posts.`;
+    return `Let's write "${req.topic}".`;
   }
-  return `Let's write the next undrafted blog post. Load the writing skill, call writing_next_due, bind the top topic, then discuss the angle before any research. Use writing_request_research (HITL) — do not call research_run. We only write blog posts.`;
+  return `Let's write the next undrafted post.`;
 }
 
-export function writingLoopUserMessage(req: WritingThreadRequest, userNote?: string): string {
-  const base = kickoffMessage(req);
-  const note = userNote?.trim();
-  if (!note) return base;
-  const alreadyKickoff =
-    note.toLowerCase().includes("load the writing skill") ||
-    (req.topic ? note.toLowerCase().includes(`let's write "${req.topic.toLowerCase()}"`) : false);
-  if (alreadyKickoff) return note;
-  return `${base}\n\nThey said: ${note}`;
+export function campaignKickoffMessage(campaignName: string, topicTitle?: string): string {
+  if (topicTitle) {
+    return `Let's talk about "${topicTitle}" for ${campaignName}.`;
+  }
+  return `Let's work on "${campaignName}".`;
+}
+
+/**
+ * Map a persisted user row to what the chat should show.
+ * Returns null when the row is operator-only kickoff text and should be hidden.
+ */
+export function toDisplayUserContent(content: string): string | null {
+  const theySaid = content.match(/\n\nThey said:\s*([\s\S]+)$/);
+  if (theySaid) {
+    const note = theySaid[1].trim();
+    return note || null;
+  }
+  const lower = content.toLowerCase();
+  if (OPERATOR_KICKOFF_MARKERS.some((marker) => lower.includes(marker))) {
+    return null;
+  }
+  return content;
+}
+
+export function threadHasConversation(messages: OrchestratorMessage[] | undefined): boolean {
+  return (messages ?? []).some((m) => m.role === "user" || m.role === "assistant");
 }
 
 export function persistWritingThreadRequest(req: WritingThreadRequest): void {
@@ -92,11 +118,7 @@ export function useStartWritingThread() {
     async (req: WritingThreadRequest, siteIdOverride?: string) => {
       const siteId = siteIdOverride ?? currentSiteId;
       if (!siteId || inFlight.current) return;
-      const label = req.blog_id
-        ? `Help me improve "${req.topic || "this draft"}".`
-        : req.topic
-          ? `Let's write "${req.topic}".`
-          : "Let's write the next undrafted post.";
+      const label = kickoffMessage(req);
       beginWritingKickoff(label);
       const onDashboard = pathname === "/dashboard";
       const onEditor = Boolean(req.blog_id && pathname.startsWith(`/dashboard/posts/${req.blog_id}`));
@@ -115,17 +137,27 @@ export function useStartWritingThread() {
           topic: req.topic,
           intent: req.intent,
         });
-        const res = await OrchestratorService.chat(siteId, kickoffMessage(req), undefined, {
-          sessionMode: "auto",
-          focus,
-        });
-        if (res.thread_id) {
-          setThreadId(res.thread_id);
-          void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(siteId) });
-          void queryClient.invalidateQueries({
-            queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(siteId, res.thread_id),
+        const thread = await OrchestratorService.createThread(siteId, { focus });
+        const resolvedId = thread._id;
+        if (!resolvedId) {
+          throw new Error("Couldn't start the writing conversation.");
+        }
+        setThreadId(resolvedId);
+
+        const withMessages: ThreadWithMessages = await OrchestratorService.getThread(siteId, resolvedId);
+        queryClient.setQueryData(QUERY_KEYS.ORCHESTRATOR_THREAD(siteId, resolvedId), withMessages);
+
+        if (!threadHasConversation(withMessages.messages)) {
+          const res = await OrchestratorService.chat(siteId, label, resolvedId, {
+            sessionMode: "writing",
+            focus,
+          });
+          await queryClient.invalidateQueries({
+            queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(siteId, res.thread_id || resolvedId),
           });
         }
+
+        void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(siteId) });
         focusComposer();
       } catch (err: unknown) {
         if (req.first_post && siteId) releaseFirstPostLock(siteId);

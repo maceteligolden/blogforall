@@ -19,6 +19,7 @@ import type {
 } from "@/lib/api/types/orchestrator.types";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
+import { ChatThreadLoader } from "./chat-thread-loader";
 import { ConversationStartScreen } from "./conversation-start-screen";
 import { FullConversationView, type ConversationStatus } from "./full-conversation-view";
 import { WritingStageRail } from "./writing-stage-rail";
@@ -48,7 +49,12 @@ import { useSpeechSynthesis } from "@/lib/hooks/use-speech-synthesis";
 import { useElevenLabsTts } from "@/lib/hooks/use-elevenlabs-tts";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
 import { CHAT_ROLES, CONVERSATION_STATUS } from "@/lib/constants/orchestrator";
-import { useStartWritingThread, writingLoopUserMessage } from "@/lib/writing/use-start-writing-thread";
+import {
+  campaignKickoffMessage,
+  threadHasConversation,
+  toDisplayUserContent,
+  useStartWritingThread,
+} from "@/lib/writing/use-start-writing-thread";
 import { WritePostModal } from "@/components/writing/write-post-modal";
 import { StartCampaignThreadModal } from "@/components/orchestrator/start-campaign-thread-modal";
 import { campaignRecordId } from "@/components/campaign/campaign-select-list";
@@ -119,6 +125,7 @@ export function OrchestratorChat({
     setSetupInterviewActive,
     writingKickoffPending,
     writingKickoffLabel,
+    beginWritingKickoff,
     endWritingKickoff,
   } = useOrchestrator();
   const { artifacts, hasViewableArtifacts, showResultsPanel } = useOrchestratorArtifacts();
@@ -439,7 +446,11 @@ export function OrchestratorChat({
     }
     const persistedIds = new Set(msgs.map((m) => m._id));
     const persistedContents = new Set(msgs.filter((m) => m.role === CHAT_ROLES.USER).map((m) => m.content));
-    const persisted: OptimisticMessage[] = msgs.map((m: OrchestratorMessage) => {
+    const persisted: OptimisticMessage[] = [];
+    for (const m of msgs) {
+      if (m.role !== CHAT_ROLES.USER && m.role !== CHAT_ROLES.ASSISTANT && m.role !== CHAT_ROLES.TOOL) continue;
+      const content = m.role === CHAT_ROLES.USER ? toDisplayUserContent(m.content) : m.content;
+      if (m.role === CHAT_ROLES.USER && content == null) continue;
       const toolArtifactId =
         m.role === CHAT_ROLES.TOOL ? findArtifactIdForToolMessage(m.tool_name, m.content, artifacts) : undefined;
       const assistantArtifactId =
@@ -453,18 +464,18 @@ export function OrchestratorChat({
           : m.tool_name);
       const hasDraft =
         !!matched && DRAFT_ARTIFACT_TOOLS.has(matched.tool) && !!extractBlogIdFromArtifactData(matched.outputData);
-      return {
+      persisted.push({
         id: m._id,
-        role: m.role === CHAT_ROLES.SYSTEM ? CHAT_ROLES.ASSISTANT : m.role,
-        content: m.content,
+        role: m.role,
+        content: content ?? m.content,
         toolName: m.tool_name,
         artifactId,
         artifactTool,
         hasDraftEntity: hasDraft,
         viewCtaLabel: matched && artifactHasEntityId(matched) ? entityViewCtaLabel(matched.tool) : null,
         moat: m.role === CHAT_ROLES.ASSISTANT ? (threadMoatByAssistant.get(m._id) ?? null) : null,
-      };
-    });
+      });
+    }
     const pendingOptimistic = optimisticMessages.filter((m) => {
       if (persistedIds.has(m.id)) return false;
       if (m.id.startsWith("local-") && m.role === CHAT_ROLES.USER && persistedContents.has(m.content)) return false;
@@ -593,7 +604,7 @@ export function OrchestratorChat({
             referenceType: "blog" as const,
           }
         : undefined);
-    const isEmptyChat = !combinedMessages.some((m) => m.role === CHAT_ROLES.USER);
+    const isEmptyChat = !(threadQuery.data?.messages ?? []).some((m) => m.role === CHAT_ROLES.USER);
     const emptyChatFocus: ThreadFocus | undefined =
       isEmptyChat && nextTopics[0]
         ? {
@@ -607,19 +618,7 @@ export function OrchestratorChat({
     const boundFocus = emptyChatFocus ?? threadFocus;
     const isWritingLoop = Boolean(boundFocus?.topic || boundFocus?.campaign_id || boundFocus?.roadmap_sequence_index);
     const useOnboardingInterview = setupInterviewActive || Boolean(threadQuery.data?.thread?.is_onboarding);
-    const messageToSend =
-      !useOnboardingInterview && isEmptyChat && isWritingLoop && nextTopics[0]
-        ? writingLoopUserMessage(
-            {
-              campaign_id: nextTopics[0].campaign_id,
-              campaign_name: nextTopics[0].campaign_name,
-              roadmap_sequence_index: nextTopics[0].sequence_index,
-              topic: nextTopics[0].title,
-              intent: nextTopics[0].strategic_intent,
-            },
-            text
-          )
-        : text;
+    const messageToSend = text;
     const chatOptions = {
       sessionMode: !useOnboardingInterview && isWritingLoop ? ("writing" as const) : ("auto" as const),
       attachments: pendingAttachments.length ? pendingAttachments : undefined,
@@ -835,6 +834,8 @@ export function OrchestratorChat({
     if (!currentSiteId || startingChannel) return;
     const campaignId = campaignRecordId(campaign);
     if (!campaignId) return;
+    const label = campaignKickoffMessage(campaign.name, topic?.title);
+    beginWritingKickoff(label);
     setStartingChannel(channel);
     setError(null);
     try {
@@ -845,22 +846,25 @@ export function OrchestratorChat({
         intent: topic?.strategic_intent,
         blog_id: topic?.blog_id,
       });
-      const kickoff = topic
-        ? `This conversation is about the post "${topic.title}" for the "${campaign.name}" campaign. Discuss, plan, or refine that post. Don't start a new draft unless I ask.`
-        : `Let's work on the "${campaign.name}" campaign as a whole. Offer the next undrafted topics from this campaign's roadmap, or we can talk through the campaign itself. Don't start a draft until I pick a topic.`;
-      if (channel === "chat") {
-        const res = await OrchestratorService.chat(currentSiteId, kickoff, undefined, {
-          sessionMode: "auto",
-          focus,
-        });
-        if (!res.thread_id) {
-          throw new Error("Couldn't start the conversation.");
-        }
-        setThreadId(res.thread_id);
-      } else {
-        const thread = await OrchestratorService.createThread(currentSiteId, { channel, focus });
-        setThreadId(thread._id);
+      const thread = await OrchestratorService.createThread(currentSiteId, { channel, focus });
+      if (!thread._id) {
+        throw new Error("Couldn't start the conversation.");
+      }
+      setThreadId(thread._id);
+      if (channel === "call") {
         enterConversationMode();
+      } else {
+        const withMessages = await OrchestratorService.getThread(currentSiteId, thread._id);
+        queryClient.setQueryData(QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, thread._id), withMessages);
+        if (!threadHasConversation(withMessages.messages)) {
+          const res = await OrchestratorService.chat(currentSiteId, label, thread._id, {
+            sessionMode: "auto",
+            focus,
+          });
+          await queryClient.invalidateQueries({
+            queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, res.thread_id || thread._id),
+          });
+        }
       }
       setCampaignThreadChannel(null);
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId) });
@@ -869,6 +873,7 @@ export function OrchestratorChat({
       setError(message ?? "Couldn't start a conversation. Try again.");
     } finally {
       setStartingChannel(null);
+      endWritingKickoff();
     }
   };
 
@@ -950,6 +955,14 @@ export function OrchestratorChat({
 
   const outlineCardProps =
     activeWritingHitl?.kind === "outline" ? extractOutlineCardProps(activeWritingHitl.output) : null;
+
+  const threadTranscriptPending =
+    writingKickoffPending || !!startingChannel || Boolean(threadId && threadQuery.isLoading);
+  const threadLoaderMessage = writingKickoffPending
+    ? writingKickoffLabel ?? "Starting the writing conversation"
+    : startingChannel
+      ? "Starting the conversation"
+      : "Loading conversation…";
 
   if (conversationMode) {
     const voiceWorkflowActions =
@@ -1092,108 +1105,112 @@ export function OrchestratorChat({
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 py-6 space-y-4 max-w-4xl w-full mx-auto [scrollbar-gutter:stable]"
+        className={cn(
+          "flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 py-6 max-w-4xl w-full mx-auto [scrollbar-gutter:stable]",
+          threadTranscriptPending ? "flex flex-col" : "space-y-4"
+        )}
       >
-        {!threadId && combinedMessages.length === 0 && !writingKickoffPending && (
-          <ConversationStartScreen
-            threads={threadsQuery.data?.slice(0, 5) ?? []}
-            starting={!!startingChannel}
-            onChat={() => setCampaignThreadChannel("chat")}
-            onCall={() => setCampaignThreadChannel("call")}
-            onSelectThread={(id) => {
-              clearLiveArtifacts();
-              setThreadId(id);
-            }}
-          />
-        )}
-        {writingKickoffPending && combinedMessages.length === 0 && (
-          <div className="space-y-4">
-            {writingKickoffLabel && <ChatMessage role="user" content={writingKickoffLabel} />}
-            <ThinkingIndicator label="Starting the writing conversation" />
-          </div>
-        )}
-        {threadQuery.isLoading && threadId && <p className="text-xs text-gray-500">Loading conversation…</p>}
-        {combinedMessages.map((m) => (
-          <ChatMessage
-            key={m.id}
-            role={m.role}
-            content={m.content}
-            toolName={m.toolName}
-            artifactId={m.artifactId}
-            artifactTool={m.artifactTool}
-            hasDraftEntity={m.hasDraftEntity}
-            viewCtaLabel={m.viewCtaLabel}
-            onViewArtifact={handleViewArtifact}
-            moat={m.moat}
-          />
-        ))}
-        {pending && livePhaseHistory.length > 0 && <WritingStageRail phases={livePhaseHistory} className="mx-0" />}
-        {pending && (
-          <ThinkingIndicator
-            label={
-              livePhase?.message
-                ? livePhase.percent != null
-                  ? `${livePhase.message} (${livePhase.percent}%)`
-                  : livePhase.message
-                : "Thinking"
-            }
-          />
-        )}
-        {error && (
-          <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">{error}</div>
-        )}
-        {outlineCardProps && !pending && (
-          <OutlineApprovalCard
-            {...outlineCardProps}
-            disabled={!!pending}
-            onApprove={() => handleSend("Approve the outline")}
-            onModify={() => handleSend("Modify the outline")}
-            onContinue={() => handleSend("Continue")}
-          />
-        )}
-        {pendingApproval && (
-          <div className="rounded-xl border border-yellow-700/60 bg-yellow-900/20 p-4">
-            <p className="text-sm font-medium text-yellow-100">
-              Confirmation needed:{" "}
-              {pendingApproval.action === "writing_request_research"
-                ? "Start research"
-                : pendingApproval.action === "writing_confirm_research"
-                  ? "Approve research"
-                  : pendingApproval.action.replace(/_/g, " ")}
-            </p>
-            <p className="text-xs text-yellow-200/80 mt-1">{pendingApproval.summary}</p>
-            <div className="flex gap-2 mt-3">
-              <Button
-                size="sm"
-                onClick={() => {
-                  orchestratorTracker.approvalDecided({
-                    decision: "approved",
-                    tool_name: pendingApproval.action,
-                  });
-                  void handleHitlDecision("approved");
+        {threadTranscriptPending ? (
+          <ChatThreadLoader message={threadLoaderMessage} />
+        ) : (
+          <>
+            {!threadId && combinedMessages.length === 0 && (
+              <ConversationStartScreen
+                threads={threadsQuery.data?.slice(0, 5) ?? []}
+                starting={!!startingChannel}
+                onChat={() => setCampaignThreadChannel("chat")}
+                onCall={() => setCampaignThreadChannel("call")}
+                onSelectThread={(id) => {
+                  clearLiveArtifacts();
+                  setThreadId(id);
                 }}
+              />
+            )}
+            {combinedMessages.map((m) => (
+              <ChatMessage
+                key={m.id}
+                role={m.role}
+                content={m.content}
+                toolName={m.toolName}
+                artifactId={m.artifactId}
+                artifactTool={m.artifactTool}
+                hasDraftEntity={m.hasDraftEntity}
+                viewCtaLabel={m.viewCtaLabel}
+                onViewArtifact={handleViewArtifact}
+                moat={m.moat}
+              />
+            ))}
+            {pending && livePhaseHistory.length > 0 && <WritingStageRail phases={livePhaseHistory} className="mx-0" />}
+            {pending && (
+              <ThinkingIndicator
+                label={
+                  livePhase?.message
+                    ? livePhase.percent != null
+                      ? `${livePhase.message} (${livePhase.percent}%)`
+                      : livePhase.message
+                    : "Thinking"
+                }
+              />
+            )}
+            {error && (
+              <div className="rounded-md bg-red-900/40 border border-red-800 px-3 py-2 text-sm text-red-200">
+                {error}
+              </div>
+            )}
+            {outlineCardProps && !pending && (
+              <OutlineApprovalCard
+                {...outlineCardProps}
                 disabled={!!pending}
-                className="bg-primary text-white hover:bg-primary/90"
-              >
-                {pendingApproval.action === "writing_confirm_research" ? "Continue" : "Confirm"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  orchestratorTracker.approvalDecided({
-                    decision: "rejected",
-                    tool_name: pendingApproval.action,
-                  });
-                  void handleHitlDecision("rejected");
-                }}
-                disabled={!!pending}
-                className="border-gray-700 text-gray-200 hover:bg-gray-800"
-              >
-                {pendingApproval.action === "writing_confirm_research" ? "Reject" : "Cancel"}
-              </Button>
-            </div>
-          </div>
+                onApprove={() => handleSend("Approve the outline")}
+                onModify={() => handleSend("Modify the outline")}
+                onContinue={() => handleSend("Continue")}
+              />
+            )}
+            {pendingApproval && (
+              <div className="rounded-xl border border-yellow-700/60 bg-yellow-900/20 p-4">
+                <p className="text-sm font-medium text-yellow-100">
+                  Confirmation needed:{" "}
+                  {pendingApproval.action === "writing_request_research"
+                    ? "Start research"
+                    : pendingApproval.action === "writing_confirm_research"
+                      ? "Approve research"
+                      : pendingApproval.action.replace(/_/g, " ")}
+                </p>
+                <p className="text-xs text-yellow-200/80 mt-1">{pendingApproval.summary}</p>
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      orchestratorTracker.approvalDecided({
+                        decision: "approved",
+                        tool_name: pendingApproval.action,
+                      });
+                      void handleHitlDecision("approved");
+                    }}
+                    disabled={!!pending}
+                    className="bg-primary text-white hover:bg-primary/90"
+                  >
+                    {pendingApproval.action === "writing_confirm_research" ? "Continue" : "Confirm"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      orchestratorTracker.approvalDecided({
+                        decision: "rejected",
+                        tool_name: pendingApproval.action,
+                      });
+                      void handleHitlDecision("rejected");
+                    }}
+                    disabled={!!pending}
+                    className="border-gray-700 text-gray-200 hover:bg-gray-800"
+                  >
+                    {pendingApproval.action === "writing_confirm_research" ? "Reject" : "Cancel"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -1206,9 +1223,9 @@ export function OrchestratorChat({
           )}
           {threadId &&
             !pending &&
-            !writingKickoffPending &&
+            !threadTranscriptPending &&
             !input.trim() &&
-            !combinedMessages.some((m) => m.role === CHAT_ROLES.USER) &&
+            combinedMessages.length === 0 &&
             (nextTopics.length > 0 || openerChips.length > 0) && (
               <div className="mb-3 space-y-2">
                 {nextTopics.length > 0 && (
@@ -1276,6 +1293,7 @@ export function OrchestratorChat({
               onSubmit={() => handleSend()}
               disabled={
                 !!pending ||
+                threadTranscriptPending ||
                 !currentSiteId ||
                 tokensExhausted ||
                 Boolean(threadQuery.data?.write_lock && threadQuery.data.write_lock.user_id !== user?.id)

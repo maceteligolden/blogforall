@@ -214,6 +214,8 @@ export function OrchestratorProvider({ children }: { children: React.ReactNode }
   const beginWritingKickoff = useCallback((label?: string) => {
     setWritingKickoffPending(true);
     setWritingKickoffLabel(label?.trim() || "Starting the writing conversation…");
+    setLiveArtifacts([]);
+    setSelectedArtifactIdState(null);
   }, []);
 
   const endWritingKickoff = useCallback(() => {
