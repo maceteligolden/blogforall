@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { AppError, AiConcurrencyError, TokenLimitExceededError } from "../errors";
+import { AppError, AiConcurrencyError, ThreadBusyError, TokenLimitExceededError } from "../errors";
 import { HttpStatus } from "../constants";
 import { env } from "../config/env";
 import { AppLogger } from "../observability/logger";
@@ -13,13 +13,21 @@ export const errorHandler = (error: Error | AppError, req: Request, res: Respons
   if (error instanceof AppError) {
     if (error.statusCode === HttpStatus.UNAUTHORIZED) {
       AppLogger.warn(error.message, baseMeta, "ErrorHandler");
-    } else if (error instanceof TokenLimitExceededError || error instanceof AiConcurrencyError) {
+    } else if (
+      error instanceof TokenLimitExceededError ||
+      error instanceof AiConcurrencyError ||
+      error instanceof ThreadBusyError
+    ) {
       AppLogger.warn(error.message, { ...baseMeta, code: error.code }, "ErrorHandler");
     } else {
       AppLogger.error(error.message, error, baseMeta, "ErrorHandler");
     }
 
-    if (!(error instanceof TokenLimitExceededError) && !(error instanceof AiConcurrencyError)) {
+    if (
+      !(error instanceof TokenLimitExceededError) &&
+      !(error instanceof AiConcurrencyError) &&
+      !(error instanceof ThreadBusyError)
+    ) {
       if (error.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
         captureSentryException(error, {
           level: "error",
@@ -39,6 +47,10 @@ export const errorHandler = (error: Error | AppError, req: Request, res: Respons
     }
     if (error instanceof AiConcurrencyError) {
       body.code = error.code;
+    }
+    if (error instanceof ThreadBusyError) {
+      body.code = error.code;
+      body.holder = error.holder;
     }
     if (requestId) {
       body.request_id = requestId;

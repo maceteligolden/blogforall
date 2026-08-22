@@ -67,6 +67,24 @@ describe("orchestratorChatBodySchema selection_context", () => {
     expect(parsed.selection_context?.text).toBe("Some selected text");
   });
 
+  it("strips null optional focus fields from a write-post kickoff", () => {
+    const parsed = orchestratorChatBodySchema.parse({
+      message: "Let's write a post",
+      focus: {
+        campaign_id: "camp-1",
+        roadmap_sequence_index: 0,
+        topic: "First post",
+        blog_id: null,
+        intent: null,
+      },
+    });
+    expect(parsed.focus).toEqual({
+      campaign_id: "camp-1",
+      roadmap_sequence_index: 0,
+      topic: "First post",
+    });
+  });
+
   it("rejects highlight reference without text", () => {
     expect(() =>
       orchestratorChatBodySchema.parse({

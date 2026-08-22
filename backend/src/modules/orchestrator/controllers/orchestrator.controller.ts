@@ -7,6 +7,7 @@ import { OrchestratorApprovalStatus } from "../../../shared/schemas/orchestrator
 import { OrchestratorService } from "../services/orchestrator.service";
 import { OrchestratorKnowledgeService } from "../services/orchestrator-knowledge.service";
 import { ThreadOpenerService } from "../services/thread-opener.service";
+import { ThreadService, parseEntityType } from "../services/thread.service";
 import { ElevenLabsTtsService } from "../services/elevenlabs-tts.service";
 import { serializeApproval } from "../interfaces/orchestrator.interface";
 import type { OrchestratorSessionMode } from "../utils/turn-context.helper";
@@ -27,6 +28,7 @@ export class OrchestratorController {
     private orchestratorService: OrchestratorService,
     private knowledgeService: OrchestratorKnowledgeService,
     private threadOpenerService: ThreadOpenerService,
+    private threadService: ThreadService,
     private elevenLabsTts: ElevenLabsTtsService
   ) {}
 
@@ -229,9 +231,53 @@ export class OrchestratorController {
     try {
       const userId = getJwtUserId(req);
       const siteId = this.siteId(req);
-      const limit = (req.validatedQuery as { limit?: number } | undefined)?.limit;
-      const threads = await this.orchestratorService.listThreads(siteId, userId, limit);
-      sendSuccess(res, "OK", { threads });
+      const query =
+        (req.validatedQuery as {
+          limit?: number;
+          include_archived?: boolean;
+          entity_type?: string;
+          entity_id?: string;
+          q?: string;
+          cursor?: string;
+        }) ?? {};
+      const result = await this.threadService.list(siteId, userId, {
+        limit: query.limit,
+        includeArchived: query.include_archived,
+        entityType: parseEntityType(query.entity_type),
+        entityId: query.entity_id,
+        q: query.q,
+        cursor: query.cursor,
+      });
+      sendSuccess(res, "OK", result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createThread = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const siteId = this.siteId(req);
+      const body =
+        (req.validatedBody as {
+          channel?: "chat" | "call";
+          associations?: Array<{ entity_type: "strategy" | "campaign" | "blog"; entity_id: string }>;
+          focus?: {
+            campaign_id?: string;
+            roadmap_sequence_index?: number;
+            blog_id?: string;
+            topic?: string;
+            intent?: string;
+          };
+        }) ?? {};
+      const thread = await this.threadService.create({
+        siteId,
+        userId,
+        channel: body.channel,
+        associations: body.associations,
+        focus: body.focus,
+      });
+      sendCreated(res, "Thread created", { thread });
     } catch (error) {
       next(error);
     }
@@ -241,7 +287,7 @@ export class OrchestratorController {
     try {
       const userId = getJwtUserId(req);
       const { siteId, threadId } = req.validatedParams as { siteId: string; threadId: string };
-      const data = await this.orchestratorService.getThreadWithMessages(threadId, siteId, userId);
+      const data = await this.threadService.getWithMessages(threadId, siteId, userId);
       sendSuccess(res, "OK", data);
     } catch (error) {
       next(error);
@@ -252,9 +298,26 @@ export class OrchestratorController {
     try {
       const userId = getJwtUserId(req);
       const { siteId, threadId } = req.validatedParams as { siteId: string; threadId: string };
-      const { title } = req.validatedBody as { title: string };
-      const thread = await this.orchestratorService.renameThread(threadId, siteId, userId, title);
-      sendSuccess(res, "Thread renamed", { thread });
+      const body = req.validatedBody as {
+        title?: string;
+        associations?: Array<{ entity_type: "strategy" | "campaign" | "blog"; entity_id: string }>;
+      };
+      let thread = body.title ? await this.threadService.rename(threadId, siteId, userId, body.title) : undefined;
+      if (body.associations?.length) {
+        thread = await this.threadService.updateAssociations(threadId, siteId, userId, body.associations);
+      }
+      sendSuccess(res, "Thread updated", { thread });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteThread = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = getJwtUserId(req);
+      const { siteId, threadId } = req.validatedParams as { siteId: string; threadId: string };
+      await this.threadService.delete(threadId, siteId, userId);
+      sendSuccess(res, "Thread deleted", { deleted: true });
     } catch (error) {
       next(error);
     }

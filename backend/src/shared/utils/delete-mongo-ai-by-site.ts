@@ -16,6 +16,8 @@ import CampaignProgressReport from "../schemas/campaign-progress-report.schema";
 import GoogleDriveToken from "../schemas/google-drive-token.schema";
 import EpisodicEpisode from "../schemas/episodic-episode.schema";
 import { logger } from "./logger";
+import { container } from "tsyringe";
+import { OrchestratorThreadRepository } from "../../modules/orchestrator/repositories/orchestrator-thread.repository";
 
 /** Best-effort cleanup of AI collections that remain on Mongo after a site is deleted in Postgres. */
 export async function deleteMongoAiBySiteId(siteId: string): Promise<void> {
@@ -39,6 +41,15 @@ export async function deleteMongoAiBySiteId(siteId: string): Promise<void> {
     EpisodicEpisode.deleteMany({ site_id: siteId }),
   ];
   const results = await Promise.allSettled(ops);
+  try {
+    await container.resolve(OrchestratorThreadRepository).deleteBySiteId(siteId);
+  } catch (err) {
+    logger.warn(
+      "Postgres orchestrator threads failed to delete for site",
+      { siteId, error: (err as Error).message },
+      "deleteMongoAiBySiteId"
+    );
+  }
   const failed = results.filter((r) => r.status === "rejected").length;
   if (failed) {
     logger.warn("Some Mongo AI collections failed to delete for site", { siteId, failed }, "deleteMongoAiBySiteId");

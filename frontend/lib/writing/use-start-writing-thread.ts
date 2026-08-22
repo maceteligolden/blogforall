@@ -9,13 +9,20 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import { useToast } from "@/components/ui/toast";
 import type { ThreadFocus } from "@/lib/api/types/orchestrator.types";
+import { compactThreadFocus } from "@/lib/writing/compact-thread-focus";
 
 export const WRITING_THREAD_PENDING_KEY = "bloggr_writing_thread_pending";
+export const FIRST_POST_THREAD_LOCK_PREFIX = "bloggr_first_post_thread:";
 
 export type WritingThreadRequest = ThreadFocus & {
   campaign_name?: string;
   stayOnPage?: boolean;
+  first_post?: boolean;
 };
+
+function firstPostLockKey(siteId: string): string {
+  return `${FIRST_POST_THREAD_LOCK_PREFIX}${siteId}`;
+}
 
 export function kickoffMessage(req: WritingThreadRequest): string {
   if (req.blog_id) {
@@ -42,6 +49,34 @@ export function writingLoopUserMessage(req: WritingThreadRequest, userNote?: str
 export function persistWritingThreadRequest(req: WritingThreadRequest): void {
   if (typeof window === "undefined") return;
   sessionStorage.setItem(WRITING_THREAD_PENDING_KEY, JSON.stringify(req));
+}
+
+export function persistFirstPostWritingRequest(): void {
+  persistWritingThreadRequest({ first_post: true });
+}
+
+export function claimWritingThreadRequest(siteId?: string): WritingThreadRequest | null {
+  if (typeof window === "undefined") return null;
+  const raw = sessionStorage.getItem(WRITING_THREAD_PENDING_KEY);
+  if (!raw) return null;
+  sessionStorage.removeItem(WRITING_THREAD_PENDING_KEY);
+  let req: WritingThreadRequest;
+  try {
+    req = JSON.parse(raw) as WritingThreadRequest;
+  } catch {
+    return null;
+  }
+  if (req.first_post && siteId) {
+    const lockKey = firstPostLockKey(siteId);
+    if (localStorage.getItem(lockKey)) return null;
+    localStorage.setItem(lockKey, "1");
+  }
+  return req;
+}
+
+export function releaseFirstPostLock(siteId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(firstPostLockKey(siteId));
 }
 
 export function useStartWritingThread() {
@@ -73,13 +108,13 @@ export function useStartWritingThread() {
 
       inFlight.current = true;
       try {
-        const focus: ThreadFocus = {
+        const focus: ThreadFocus | undefined = compactThreadFocus({
           campaign_id: req.campaign_id,
           roadmap_sequence_index: req.roadmap_sequence_index,
           blog_id: req.blog_id,
           topic: req.topic,
           intent: req.intent,
-        };
+        });
         const res = await OrchestratorService.chat(siteId, kickoffMessage(req), undefined, {
           sessionMode: "auto",
           focus,
@@ -93,6 +128,7 @@ export function useStartWritingThread() {
         }
         focusComposer();
       } catch (err: unknown) {
+        if (req.first_post && siteId) releaseFirstPostLock(siteId);
         const message =
           (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
           "Couldn't start the writing conversation. Try again.";

@@ -13,11 +13,11 @@ import { ConfirmModal } from "@/components/ui/modal";
 import { Search, Grid3x3, Table2, Trash2 } from "lucide-react";
 import { BlogHubTabs } from "@/components/blogs/blog-hub-tabs";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
-import { useStartWritingThread } from "@/lib/writing/use-start-writing-thread";
+import { WritePostModal } from "@/components/writing/write-post-modal";
 
 export default function BlogsPage() {
   const router = useRouter();
-  const { startWritingThread } = useStartWritingThread();
+  const [writePostOpen, setWritePostOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<BlogStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
@@ -81,7 +81,7 @@ export default function BlogsPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-display text-white">My Posts</h1>
         <div className="flex items-center gap-2">
-          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => void startWritingThread({})}>
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => setWritePostOpen(true)}>
             Write a post
           </Button>
           <button
@@ -182,7 +182,7 @@ export default function BlogsPage() {
           <p className="text-gray-400 mb-4">
             {searchQuery ? "No posts found matching your search." : "No posts yet — start from a conversation."}
           </p>
-          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => void startWritingThread({})}>
+          <Button className="bg-primary hover:bg-primary/90 text-white" onClick={() => setWritePostOpen(true)}>
             Write a post
           </Button>
         </div>
@@ -398,6 +398,7 @@ export default function BlogsPage() {
         </div>
       )}
 
+      <WritePostModal isOpen={writePostOpen} onClose={() => setWritePostOpen(false)} />
       <ConfirmModal
         isOpen={deleteModalOpen}
         onClose={() => {

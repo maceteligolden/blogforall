@@ -18,32 +18,16 @@ import { logger } from "../../shared/utils/logger";
 import { ResearchGraphService } from "./research/research-graph.service";
 import { ArtifactStoreService } from "../orchestrator/ai/memory/artifact-store.service";
 import { researchPackageToNotes } from "../orchestrator/ai/skills/writing/package-to-notes";
+import { listNextDueTopics } from "./orchestrator.next-due";
+import { buildDraftStartFocus } from "./orchestrator.focus";
+
+export { compareNextDueTopics, listNextDueTopics, type NextDueTopic } from "./orchestrator.next-due";
 
 export type WritingToolContext = {
   siteId: string;
   userId: string;
   threadId?: string;
 };
-
-export type NextDueTopic = {
-  campaign_id: string;
-  campaign_name: string;
-  sequence_index: number;
-  title: string;
-  objective: string;
-  strategic_intent: string;
-  scheduled_at?: string;
-  overdue: boolean;
-};
-
-const SKIP_STATUSES = new Set<string>([
-  CampaignPostItemStatus.DRAFTING,
-  CampaignPostItemStatus.DRAFT_READY,
-  CampaignPostItemStatus.PUBLISHED,
-  CampaignPostItemStatus.SKIPPED,
-  CampaignPostItemStatus.CANCELLED,
-  CampaignPostItemStatus.AWAITING_APPROVAL,
-]);
 
 function toolResult(summary: string, data: Record<string, unknown> = {}): string {
   return JSON.stringify({ summary, ...data });
@@ -109,44 +93,6 @@ function truncate(text: string, max = 180): string {
   const t = text.replace(/\s+/g, " ").trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max - 1)}…`;
-}
-
-export async function listNextDueTopics(siteId: string, limit = 4): Promise<NextDueTopic[]> {
-  const campaigns = container.resolve(CampaignRepository);
-  const items = container.resolve(CampaignPostItemRepository);
-  const page = await campaigns.findAll(siteId, { limit: 20, page: 1 });
-  const now = Date.now();
-  const collected: NextDueTopic[] = [];
-
-  for (const campaign of page.data) {
-    const campaignId = campaign._id!.toString();
-    const posts = await items.findByCampaign(campaignId, siteId);
-    for (const post of posts) {
-      if (post.blog_id) continue;
-      if (SKIP_STATUSES.has(post.status) && post.status !== CampaignPostItemStatus.DRAFTING) continue;
-      const scheduledAt = post.scheduled_at ? new Date(post.scheduled_at) : undefined;
-      collected.push({
-        campaign_id: campaignId,
-        campaign_name: campaign.name,
-        sequence_index: post.sequence_index,
-        title: post.title,
-        objective: post.objective,
-        strategic_intent: post.strategic_intent,
-        scheduled_at: scheduledAt?.toISOString(),
-        overdue: Boolean(scheduledAt && scheduledAt.getTime() < now),
-      });
-    }
-  }
-
-  collected.sort((a, b) => {
-    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
-    const aTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : Number.MAX_SAFE_INTEGER;
-    const bTime = b.scheduled_at ? new Date(b.scheduled_at).getTime() : Number.MAX_SAFE_INTEGER;
-    if (aTime !== bTime) return aTime - bTime;
-    return a.sequence_index - b.sequence_index;
-  });
-
-  return collected.slice(0, limit);
 }
 
 export async function followUpAfterDraftStarted(siteId: string, justStartedTopic: string): Promise<string> {
@@ -379,23 +325,17 @@ export async function startBoundWritingDraft(
   });
 
   if (ctx.threadId) {
-    const nextTopics = await listNextDueTopics(ctx.siteId, 4).catch(() => [] as NextDueTopic[]);
-    const next = nextTopics.find((row) => row.title !== topic);
-    if (next) {
-      await threads.setFocus(ctx.threadId, ctx.siteId, {
-        campaign_id: next.campaign_id,
-        roadmap_sequence_index: next.sequence_index,
-        topic: next.title,
-        intent: next.strategic_intent,
-      });
-    } else {
-      await threads.setFocus(ctx.threadId, ctx.siteId, {
-        campaign_id: campaignId,
-        roadmap_sequence_index: resolved.sequence,
+    await threads.setFocus(
+      ctx.threadId,
+      ctx.siteId,
+      buildDraftStartFocus({
+        campaignId,
+        sequence: resolved.sequence,
         topic,
         intent,
-      });
-    }
+        blogId,
+      })
+    );
   }
 
   realtime.emitToUser(

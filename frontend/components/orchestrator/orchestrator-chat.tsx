@@ -19,6 +19,7 @@ import type {
 } from "@/lib/api/types/orchestrator.types";
 import { ChatComposer } from "./chat-composer";
 import { ChatMessage, ThinkingIndicator } from "./chat-message";
+import { ConversationStartScreen } from "./conversation-start-screen";
 import { FullConversationView, type ConversationStatus } from "./full-conversation-view";
 import { WritingStageRail } from "./writing-stage-rail";
 import { OutlineApprovalCard } from "./outline-approval-card";
@@ -48,6 +49,14 @@ import { useElevenLabsTts } from "@/lib/hooks/use-elevenlabs-tts";
 import { useSpeechRecognition } from "@/lib/hooks/use-speech-recognition";
 import { CHAT_ROLES, CONVERSATION_STATUS } from "@/lib/constants/orchestrator";
 import { useStartWritingThread, writingLoopUserMessage } from "@/lib/writing/use-start-writing-thread";
+import { WritePostModal } from "@/components/writing/write-post-modal";
+import { StartCampaignThreadModal } from "@/components/orchestrator/start-campaign-thread-modal";
+import { campaignRecordId } from "@/components/campaign/campaign-select-list";
+import { compactThreadFocus } from "@/lib/writing/compact-thread-focus";
+import type { Campaign } from "@/lib/api/services/campaign.service";
+import type { RoadmapTopic } from "@/lib/writing/roadmap-topic";
+import { useRealtimeEvent } from "@/lib/hooks/use-realtime-event";
+import { REALTIME_EVENTS } from "@/lib/realtime";
 
 interface PendingTurn {
   userText: string;
@@ -101,6 +110,7 @@ export function OrchestratorChat({
     openResultsPanel,
     closeResultsPanel,
     conversationMode,
+    enterConversationMode,
     exitConversationMode,
     livePhase,
     livePhaseHistory,
@@ -113,7 +123,9 @@ export function OrchestratorChat({
   } = useOrchestrator();
   const { artifacts, hasViewableArtifacts, showResultsPanel } = useOrchestratorArtifacts();
   const { startWritingThread } = useStartWritingThread();
-  const { currentSiteId } = useAuthStore();
+  const [writePostOpen, setWritePostOpen] = useState(false);
+  const [campaignThreadChannel, setCampaignThreadChannel] = useState<"chat" | "call" | null>(null);
+  const { currentSiteId, user } = useAuthStore();
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const { data: tokenUsage } = useTokenUsage();
@@ -145,6 +157,7 @@ export function OrchestratorChat({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const conversationModeRef = useRef(conversationMode);
   const pendingRef = useRef(pending);
+  const [startingChannel, setStartingChannel] = useState<"chat" | "call" | null>(null);
   const openThreadInFlightRef = useRef(false);
   const openedThreadKeyRef = useRef<string | null>(null);
 
@@ -208,6 +221,24 @@ export function OrchestratorChat({
     refetchOnWindowFocus: false,
   });
 
+  useRealtimeEvent(REALTIME_EVENTS.THREAD_RENAMED, () => {
+    if (!currentSiteId) return;
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId) });
+    if (threadId) {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, threadId) });
+    }
+  });
+
+  useRealtimeEvent(REALTIME_EVENTS.ORCHESTRATOR_TURN_STARTED, () => {
+    if (!currentSiteId || !threadId) return;
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, threadId) });
+  });
+
+  useRealtimeEvent(REALTIME_EVENTS.ORCHESTRATOR_TURN_COMPLETED, () => {
+    if (!currentSiteId || !threadId) return;
+    void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_THREAD(currentSiteId, threadId) });
+  });
+
   useEffect(() => {
     orchestratorTracker.opened();
   }, []);
@@ -218,25 +249,23 @@ export function OrchestratorChat({
     }
   }, [threadQuery.data?.thread?.is_onboarding, setSetupInterviewActive]);
 
-  // Proactive opener: new thread or empty thread with 0 messages.
+  // Proactive opener only for an existing empty thread — never auto-create.
   useEffect(() => {
     if (!currentSiteId || setupInterviewActive || writingKickoffPending) return;
     if (openThreadInFlightRef.current) return;
+    if (!threadId) return;
+    if (threadQuery.data?.thread?.channel === "call") return;
 
-    const needsNewThread = !threadId;
-    const threadLoadedEmpty = !!threadId && threadQuery.isSuccess && (threadQuery.data?.messages?.length ?? 0) === 0;
-    if (!needsNewThread && !threadLoadedEmpty) return;
+    const threadLoadedEmpty = threadQuery.isSuccess && (threadQuery.data?.messages?.length ?? 0) === 0;
+    if (!threadLoadedEmpty) return;
 
-    const key = needsNewThread ? `${currentSiteId}:new` : `${currentSiteId}:${threadId}`;
+    const key = `${currentSiteId}:${threadId}`;
     if (openedThreadKeyRef.current === key) return;
 
     openThreadInFlightRef.current = true;
     openedThreadKeyRef.current = key;
-    void OrchestratorService.openThread(currentSiteId, threadId ?? undefined)
+    void OrchestratorService.openThread(currentSiteId, threadId)
       .then((res) => {
-        if (threadId !== res.thread_id) {
-          setThreadId(res.thread_id);
-        }
         setNextTopics(res.next_topics ?? []);
         setOpenerChips(res.chips ?? []);
         void queryClient.invalidateQueries({
@@ -772,6 +801,9 @@ export function OrchestratorChat({
         const apiCode = err?.response?.data?.code;
         if (err?.response?.status === 409 && apiCode === "AI_REQUEST_IN_PROGRESS") {
           setError("A previous AI request is still finishing. Wait a moment, then try again.");
+        } else if (err?.response?.status === 409 && apiCode === "thread_busy") {
+          const holder = (err.response.data as { holder?: { name?: string } })?.holder?.name;
+          setError(holder ? `${holder} is chatting in this thread.` : "Someone else is chatting in this thread.");
         } else {
           setError(apiMessage ?? "Something went wrong. Please try again.");
         }
@@ -797,6 +829,47 @@ export function OrchestratorChat({
     setLastTurnToolCalls([]);
     setError(null);
     cancelRename();
+  };
+
+  const startConversation = async (channel: "chat" | "call", campaign: Campaign, topic?: RoadmapTopic) => {
+    if (!currentSiteId || startingChannel) return;
+    const campaignId = campaignRecordId(campaign);
+    if (!campaignId) return;
+    setStartingChannel(channel);
+    setError(null);
+    try {
+      const focus = compactThreadFocus({
+        campaign_id: campaignId,
+        roadmap_sequence_index: topic?.sequence_index,
+        topic: topic?.title,
+        intent: topic?.strategic_intent,
+        blog_id: topic?.blog_id,
+      });
+      const kickoff = topic
+        ? `This conversation is about the post "${topic.title}" for the "${campaign.name}" campaign. Discuss, plan, or refine that post. Don't start a new draft unless I ask.`
+        : `Let's work on the "${campaign.name}" campaign as a whole. Offer the next undrafted topics from this campaign's roadmap, or we can talk through the campaign itself. Don't start a draft until I pick a topic.`;
+      if (channel === "chat") {
+        const res = await OrchestratorService.chat(currentSiteId, kickoff, undefined, {
+          sessionMode: "auto",
+          focus,
+        });
+        if (!res.thread_id) {
+          throw new Error("Couldn't start the conversation.");
+        }
+        setThreadId(res.thread_id);
+      } else {
+        const thread = await OrchestratorService.createThread(currentSiteId, { channel, focus });
+        setThreadId(thread._id);
+        enterConversationMode();
+      }
+      setCampaignThreadChannel(null);
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ORCHESTRATOR_THREADS(currentSiteId) });
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(message ?? "Couldn't start a conversation. Try again.");
+    } finally {
+      setStartingChannel(null);
+    }
   };
 
   handleSendRef.current = handleSend;
@@ -1022,16 +1095,16 @@ export function OrchestratorChat({
         className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 py-6 space-y-4 max-w-4xl w-full mx-auto [scrollbar-gutter:stable]"
       >
         {!threadId && combinedMessages.length === 0 && !writingKickoffPending && (
-          <div className="text-center py-16">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 border border-primary/30 mb-4">
-              <Sparkles className="w-7 h-7 text-primary" aria-hidden="true" />
-            </div>
-            <h2 className="text-2xl font-semibold">How can I help today?</h2>
-            <p className="text-sm text-gray-400 mt-2 max-w-lg mx-auto">
-              Ask me to draft a blog post, list scheduled content, create a category, or look up performance for this
-              workspace. I&apos;ll confirm any destructive actions before running them.
-            </p>
-          </div>
+          <ConversationStartScreen
+            threads={threadsQuery.data?.slice(0, 5) ?? []}
+            starting={!!startingChannel}
+            onChat={() => setCampaignThreadChannel("chat")}
+            onCall={() => setCampaignThreadChannel("call")}
+            onSelectThread={(id) => {
+              clearLiveArtifacts();
+              setThreadId(id);
+            }}
+          />
         )}
         {writingKickoffPending && combinedMessages.length === 0 && (
           <div className="space-y-4">
@@ -1124,96 +1197,109 @@ export function OrchestratorChat({
         )}
       </div>
 
-      <div className="px-4 md:px-6 py-3 border-t border-gray-800 max-w-4xl w-full mx-auto shrink-0">
-        {!pending &&
-          !writingKickoffPending &&
-          !input.trim() &&
-          !combinedMessages.some((m) => m.role === CHAT_ROLES.USER) &&
-          (nextTopics.length > 0 || openerChips.length > 0) && (
-            <div className="mb-3 space-y-2">
-              {nextTopics.length > 0 && (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {nextTopics.slice(0, 4).map((topic) => (
-                    <button
-                      key={`${topic.campaign_id}-${topic.sequence_index}`}
-                      type="button"
-                      onClick={() => {
-                        setNextTopics((prev) =>
-                          prev.filter(
-                            (t) => !(t.campaign_id === topic.campaign_id && t.sequence_index === topic.sequence_index)
-                          )
-                        );
-                        void startWritingThread({
-                          campaign_id: topic.campaign_id,
-                          campaign_name: topic.campaign_name,
-                          roadmap_sequence_index: topic.sequence_index,
-                          topic: topic.title,
-                          intent: topic.strategic_intent,
-                          stayOnPage: true,
-                        });
-                      }}
-                      className="text-left rounded-lg border border-gray-800 bg-gray-900/70 px-3 py-2 hover:border-primary/50 hover:bg-gray-900"
-                    >
-                      <p className="text-sm font-medium text-white truncate">{topic.title}</p>
-                      <p className="text-[11px] text-gray-500 mt-0.5 truncate">
-                        {topic.campaign_name}
-                        {topic.overdue
-                          ? " · overdue"
-                          : topic.scheduled_at
-                            ? ` · due ${new Date(topic.scheduled_at).toLocaleDateString()}`
-                            : ""}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {openerChips.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {openerChips.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => {
-                        if (chip === "Write a post") {
-                          const first = nextTopics[0];
-                          void startWritingThread(
-                            first
-                              ? {
-                                  campaign_id: first.campaign_id,
-                                  campaign_name: first.campaign_name,
-                                  roadmap_sequence_index: first.sequence_index,
-                                  topic: first.title,
-                                  intent: first.strategic_intent,
-                                  stayOnPage: true,
-                                }
-                              : { stayOnPage: true }
-                          );
-                          return;
-                        }
-                        void handleSend(chip);
-                      }}
-                      className="text-xs px-2.5 py-1 rounded-full border border-gray-700 text-gray-300 hover:border-primary/50 hover:text-white"
-                    >
-                      {chip}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+      {(threadId || writingKickoffPending) && (
+        <div className="px-4 md:px-6 py-3 border-t border-gray-800 max-w-4xl w-full mx-auto shrink-0">
+          {threadQuery.data?.write_lock && threadQuery.data.write_lock.user_id !== user?.id && (
+            <p className="text-xs text-amber-300 mb-2">
+              {threadQuery.data.write_lock.name} is chatting in this thread.
+            </p>
           )}
-        <ChatComposer
-          value={input}
-          onChange={setInput}
-          onSubmit={() => handleSend()}
-          disabled={!!pending || !currentSiteId || tokensExhausted}
-          autoFocus
-          placeholder={
-            tokensExhausted
-              ? "Daily AI token limit reached — resets when your window rolls over"
-              : "Ask your content strategist…"
-          }
-        />
-      </div>
+          {threadId &&
+            !pending &&
+            !writingKickoffPending &&
+            !input.trim() &&
+            !combinedMessages.some((m) => m.role === CHAT_ROLES.USER) &&
+            (nextTopics.length > 0 || openerChips.length > 0) && (
+              <div className="mb-3 space-y-2">
+                {nextTopics.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {nextTopics.slice(0, 4).map((topic) => (
+                      <button
+                        key={`${topic.campaign_id}-${topic.sequence_index}`}
+                        type="button"
+                        onClick={() => {
+                          setNextTopics((prev) =>
+                            prev.filter(
+                              (t) => !(t.campaign_id === topic.campaign_id && t.sequence_index === topic.sequence_index)
+                            )
+                          );
+                          void startWritingThread({
+                            campaign_id: topic.campaign_id,
+                            campaign_name: topic.campaign_name,
+                            roadmap_sequence_index: topic.sequence_index,
+                            topic: topic.title,
+                            intent: topic.strategic_intent,
+                            stayOnPage: true,
+                          });
+                        }}
+                        className="text-left rounded-lg border border-gray-800 bg-gray-900/70 px-3 py-2 hover:border-primary/50 hover:bg-gray-900"
+                      >
+                        <p className="text-sm font-medium text-white truncate">{topic.title}</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                          {topic.campaign_name}
+                          {topic.overdue
+                            ? " · overdue"
+                            : topic.scheduled_at
+                              ? ` · due ${new Date(topic.scheduled_at).toLocaleDateString()}`
+                              : ""}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {openerChips.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {openerChips.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => {
+                          if (chip === "Write a post") {
+                            setWritePostOpen(true);
+                            return;
+                          }
+                          void handleSend(chip);
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-full border border-gray-700 text-gray-300 hover:border-primary/50 hover:text-white"
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          {(threadId || writingKickoffPending) && (
+            <ChatComposer
+              value={input}
+              onChange={setInput}
+              onSubmit={() => handleSend()}
+              disabled={
+                !!pending ||
+                !currentSiteId ||
+                tokensExhausted ||
+                Boolean(threadQuery.data?.write_lock && threadQuery.data.write_lock.user_id !== user?.id)
+              }
+              autoFocus
+              placeholder={
+                tokensExhausted
+                  ? "Daily AI token limit reached — resets when your window rolls over"
+                  : threadQuery.data?.write_lock && threadQuery.data.write_lock.user_id !== user?.id
+                    ? `${threadQuery.data.write_lock.name} is chatting…`
+                    : "Ask your content strategist…"
+              }
+            />
+          )}
+        </div>
+      )}
+      <WritePostModal isOpen={writePostOpen} onClose={() => setWritePostOpen(false)} stayOnPage />
+      <StartCampaignThreadModal
+        isOpen={campaignThreadChannel != null}
+        channel={campaignThreadChannel ?? "chat"}
+        starting={!!startingChannel}
+        onClose={() => setCampaignThreadChannel(null)}
+        onConfirm={(campaign, topic) => void startConversation(campaignThreadChannel ?? "chat", campaign, topic)}
+      />
     </div>
   );
 }

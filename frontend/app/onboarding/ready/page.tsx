@@ -7,7 +7,7 @@ import { ProtectedRoute } from "@/components/protected-route";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { canVisitStage, signupWizardPath } from "@/lib/onboarding/signup-wizard";
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
-import { SETUP_INTERVIEW_PENDING_KEY } from "@/lib/onboarding/brand-setup-items";
+import { persistFirstPostWritingRequest } from "@/lib/writing/use-start-writing-thread";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { QUERY_KEYS } from "@/lib/api/config";
 
@@ -49,7 +49,7 @@ function StrategistReadyContent() {
         onboardingTracker.stepCompleted({ step: "strategist_ready" });
         if (siteId) {
           useAuthStore.getState().setCurrentSiteId(siteId);
-          sessionStorage.setItem(SETUP_INTERVIEW_PENDING_KEY, siteId);
+          persistFirstPostWritingRequest();
         }
         queryClient.setQueryData(["onboarding", "signup-wizard"], status);
         await Promise.all([

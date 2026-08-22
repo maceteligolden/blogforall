@@ -8,9 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AuthPageHeader } from "@/components/auth/auth-page-header";
+import { validatePassword } from "@/lib/utils/password-validation";
 
 const SIGNUP_INVITE_KEY = "blogforall_signup_invite_token";
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function SignupForm() {
   const router = useRouter();
@@ -28,6 +28,7 @@ function SignupForm() {
     accept_terms: false,
   });
   const [error, setError] = useState<string>("");
+  const [passwordValid, setPasswordValid] = useState(false);
   const submittingRef = useRef(false);
 
   useEffect(() => {
@@ -36,15 +37,15 @@ function SignupForm() {
     }
   }, [invitedEmail]);
 
-  const canSubmit =
-    formData.first_name.trim().length > 0 &&
-    formData.last_name.trim().length > 0 &&
-    EMAIL_PATTERN.test(formData.email.trim()) &&
-    formData.password.trim().length >= 8 &&
-    formData.accept_terms;
-
   const submitSignup = async () => {
-    if (!canSubmit || submittingRef.current) return;
+    if (submittingRef.current) return;
+
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
+      setError("Password does not meet the requirements. Please check the password criteria.");
+      return;
+    }
+
     submittingRef.current = true;
     setError("");
 
@@ -180,11 +181,11 @@ function SignupForm() {
               name="password"
               autoComplete="new-password"
               required
-              minLength={8}
               value={formData.password}
-              onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+              onChange={handleChange}
+              onValidationChange={setPasswordValid}
               className="mt-1 bg-gray-800 border-gray-700 text-white"
-              showValidation={true}
+              showValidation
             />
           </div>
           <div className="flex items-start gap-2">
@@ -210,15 +211,7 @@ function SignupForm() {
         </div>
 
         <div>
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={!canSubmit || isSigningUp}
-            onClick={(e) => {
-              e.preventDefault();
-              void submitSignup();
-            }}
-          >
+          <Button type="submit" className="w-full" disabled={isSigningUp || !passwordValid}>
             {isSigningUp ? "Creating account..." : "Create account"}
           </Button>
         </div>

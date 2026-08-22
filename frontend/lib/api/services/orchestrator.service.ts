@@ -11,11 +11,14 @@ import type {
   OrchestratorSessionMode,
   OrchestratorThread,
   SetupInterviewStartResponse,
+  ThreadAssociation,
   ThreadFocus,
+  ThreadListResponse,
   ThreadWithMessages,
   WorkspaceKnowledgeSource,
 } from "../types/orchestrator.types";
 import type { OrchestratorSelectionContext } from "@/lib/types/orchestrator-session.types";
+import { compactThreadFocus } from "@/lib/writing/compact-thread-focus";
 
 const ORCHESTRATOR_TURN_TIMEOUT_MS = 240_000;
 
@@ -51,12 +54,13 @@ function buildChatBody(
     focus?: ThreadFocus;
   }
 ): OrchestratorChatRequest {
+  const focus = compactThreadFocus(options?.focus);
   return {
     message,
     ...(threadId ? { thread_id: threadId } : {}),
     session_mode: options?.sessionMode ?? "auto",
     ...(options?.conversationMode ? { conversation_mode: true } : {}),
-    ...(options?.focus ? { focus: options.focus } : {}),
+    ...(focus ? { focus } : {}),
     ...(options?.attachments?.length ? { attachments: options.attachments } : {}),
     ...(options?.selectionContext
       ? {
@@ -215,12 +219,77 @@ export class OrchestratorService {
     return response.data?.data ?? response.data;
   }
 
-  static async listThreads(siteId: string, limit?: number): Promise<OrchestratorThread[]> {
+  static async listThreads(
+    siteId: string,
+    limit?: number,
+    extra?: {
+      entity_type?: string;
+      entity_id?: string;
+      q?: string;
+      cursor?: string;
+      include_archived?: boolean;
+    }
+  ): Promise<OrchestratorThread[]> {
+    const params: Record<string, string> = {};
+    if (limit) params.limit = String(limit);
+    if (extra?.entity_type) params.entity_type = extra.entity_type;
+    if (extra?.entity_id) params.entity_id = extra.entity_id;
+    if (extra?.q) params.q = extra.q;
+    if (extra?.cursor) params.cursor = extra.cursor;
+    if (extra?.include_archived) params.include_archived = "true";
     const response = await apiClient.get(API_ENDPOINTS.ORCHESTRATOR.THREADS(siteId), {
-      params: limit ? { limit: String(limit) } : undefined,
+      params: Object.keys(params).length ? params : undefined,
     });
     const data = response.data?.data ?? response.data;
     return data?.threads ?? [];
+  }
+
+  static async listThreadsPage(
+    siteId: string,
+    extra?: {
+      limit?: number;
+      entity_type?: string;
+      entity_id?: string;
+      q?: string;
+      cursor?: string;
+      include_archived?: boolean;
+    }
+  ): Promise<ThreadListResponse> {
+    const params: Record<string, string> = {};
+    if (extra?.limit) params.limit = String(extra.limit);
+    if (extra?.entity_type) params.entity_type = extra.entity_type;
+    if (extra?.entity_id) params.entity_id = extra.entity_id;
+    if (extra?.q) params.q = extra.q;
+    if (extra?.cursor) params.cursor = extra.cursor;
+    if (extra?.include_archived) params.include_archived = "true";
+    const response = await apiClient.get(API_ENDPOINTS.ORCHESTRATOR.THREADS(siteId), { params });
+    const data = (response.data?.data ?? response.data) as ThreadListResponse;
+    return { threads: data?.threads ?? [], next_cursor: data?.next_cursor };
+  }
+
+  static async createThread(
+    siteId: string,
+    body?: {
+      channel?: "chat" | "call";
+      associations?: ThreadAssociation[];
+      focus?: ThreadFocus;
+    }
+  ): Promise<OrchestratorThread> {
+    const focus = compactThreadFocus(body?.focus);
+    const payload = {
+      ...(body ?? {}),
+      ...(focus ? { focus } : {}),
+    };
+    if (!focus && payload && "focus" in payload) {
+      delete payload.focus;
+    }
+    const response = await apiClient.post(API_ENDPOINTS.ORCHESTRATOR.THREADS(siteId), payload);
+    const data = response.data?.data ?? response.data;
+    return data?.thread ?? data;
+  }
+
+  static async deleteThread(siteId: string, threadId: string): Promise<void> {
+    await apiClient.delete(API_ENDPOINTS.ORCHESTRATOR.THREAD(siteId, threadId));
   }
 
   static async getThread(siteId: string, threadId: string): Promise<ThreadWithMessages> {

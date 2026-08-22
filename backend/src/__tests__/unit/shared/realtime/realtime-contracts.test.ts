@@ -28,6 +28,7 @@ describe("room names", () => {
     expect(userRoom("u1")).toBe("user:u1");
     expect(siteRoom("s1")).toBe("site:s1");
     expect(threadRoom("s1", "t1")).toBe("thread:s1:t1");
+    expect(REALTIME_EVENTS.THREAD_RENAMED).toBe("thread.renamed");
   });
 });
 

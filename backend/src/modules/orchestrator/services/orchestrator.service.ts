@@ -39,13 +39,6 @@ import {
 } from "../utils/website-onboarding.helper";
 import type { WorkspaceMemory } from "../../../shared/schemas/workspace-memory.schema";
 import { WebsiteIngestService } from "./website-ingest.service";
-import {
-  buildAutoTitlePromptContext,
-  sanitizeGeneratedTitle,
-  shouldAutoTitleThread,
-} from "../utils/thread-auto-title.helper";
-import { createChatOpenAI } from "../../../shared/ai/create-chat-openai";
-import { z } from "zod";
 import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 import { CampaignRoadmapService } from "../../campaign/services/campaign-roadmap.service";
 import { OnboardingService, type SetupProgress } from "../../onboarding/services/onboarding.service";
@@ -70,6 +63,7 @@ import type { WorkflowPhaseEvent } from "../ai/observability/phase-emitter";
 import { NotificationService } from "../../notification/services/notification.service";
 import { notifyApprovalCreatedInApp } from "../../../shared/utils/notify-approval-created.util";
 import { WorkspaceBriefService } from "./workspace-brief.service";
+import { ThreadService } from "./thread.service";
 
 /**
  * Ops tools live on the supervisor path (blogs.list / get / statistics / publish), not v0.5 skills.
@@ -155,7 +149,8 @@ export class OrchestratorService {
     private readonly notificationService: NotificationService,
     private readonly onboardingService: OnboardingService,
     private readonly websiteIngest: WebsiteIngestService,
-    private readonly workspaceBrief: WorkspaceBriefService
+    private readonly workspaceBrief: WorkspaceBriefService,
+    private readonly threadService: ThreadService
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -259,8 +254,8 @@ export class OrchestratorService {
   }
 
   async listThreads(siteId: string, userId: string, limit = 50): Promise<OrchestratorThread[]> {
-    await this.assertSiteAccess(siteId, userId);
-    return this.threadRepository.listForUser(siteId, userId, { limit });
+    const { threads } = await this.threadService.list(siteId, userId, { limit });
+    return threads;
   }
 
   async getThreadWithMessages(
@@ -268,32 +263,12 @@ export class OrchestratorService {
     siteId: string,
     userId: string
   ): Promise<{ thread: OrchestratorThread; messages: OrchestratorMessage[] }> {
-    await this.assertSiteAccess(siteId, userId);
-    const thread = await this.threadRepository.findById(threadId, siteId);
-    if (!thread) {
-      throw new NotFoundError("Thread not found");
-    }
-    if (thread.user_id !== userId) {
-      throw new ForbiddenError("You do not have access to this thread");
-    }
-    const messages = await this.messageRepository.listByThread(threadId, siteId);
+    const { thread, messages } = await this.threadService.getWithMessages(threadId, siteId, userId);
     return { thread, messages };
   }
 
   async renameThread(threadId: string, siteId: string, userId: string, title: string): Promise<OrchestratorThread> {
-    await this.assertSiteAccess(siteId, userId);
-    const thread = await this.threadRepository.findById(threadId, siteId);
-    if (!thread) {
-      throw new NotFoundError("Thread not found");
-    }
-    if (thread.user_id !== userId) {
-      throw new ForbiddenError("You do not have access to this thread");
-    }
-    const updated = await this.threadRepository.rename(threadId, siteId, title, "user");
-    if (!updated) {
-      throw new NotFoundError("Thread not found");
-    }
-    return updated;
+    return this.threadService.rename(threadId, siteId, userId, title);
   }
 
   async listApprovals(
@@ -1409,16 +1384,9 @@ export class OrchestratorService {
       if (!found) {
         throw new NotFoundError("Thread not found");
       }
-      if (found.user_id !== userId) {
-        throw new ForbiddenError("You do not have access to this thread");
-      }
       return found;
     }
-    return this.threadRepository.create({
-      site_id: siteId,
-      user_id: userId,
-      title: "New conversation",
-    });
+    return this.threadService.create({ siteId, userId });
   }
 
   /**
@@ -2061,50 +2029,7 @@ export class OrchestratorService {
    * Fire-and-forget — never blocks the chat turn.
    */
   private async maybeAutoTitleThread(siteId: string, threadId: string): Promise<void> {
-    try {
-      const thread = await this.threadRepository.findById(threadId, siteId);
-      if (!thread) return;
-      const history = await this.messageRepository.listByThread(threadId, siteId, { limit: 24 });
-      if (!shouldAutoTitleThread(thread, history)) return;
-
-      const apiKey = env.orchestrator.openaiApiKey;
-      if (!apiKey) return;
-
-      const context = buildAutoTitlePromptContext(history);
-      if (!context.trim()) return;
-
-      const chat = createChatOpenAI({
-        apiKey,
-        model: env.orchestrator.supervisorModel || "gpt-4o-mini",
-        temperature: 0.3,
-        timeout: 20_000,
-      });
-      const structured = chat.withStructuredOutput(
-        z.object({
-          title: z.string().min(3).max(80),
-        })
-      );
-      const raw = await structured.invoke([
-        {
-          role: "system",
-          content:
-            "Generate a short conversation title (3–6 words) that captures the theme. No quotes, no trailing punctuation, no generic titles like New conversation.",
-        },
-        { role: "user", content: context },
-      ]);
-
-      const title = sanitizeGeneratedTitle(raw.title);
-      if (!title) return;
-
-      await this.threadRepository.tryAutoRename(threadId, siteId, title);
-    } catch (e) {
-      const err = e as Error;
-      logger.debug(
-        "Auto-title skipped or failed",
-        { siteId, threadId, error: err?.message ?? String(e) },
-        "OrchestratorService"
-      );
-    }
+    await this.threadService.maybeAutoTitle(siteId, threadId);
   }
 
   private buildSimpleResponse(

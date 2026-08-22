@@ -23,6 +23,8 @@ import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/
 import { corsMiddleware } from "./shared/middlewares/cors.middleware";
 import { requestContextMiddleware } from "./shared/middlewares/request-context.middleware";
 import { backfillSitePublicIds } from "./shared/utils/backfill-site-public-ids";
+import { backfillOrchestratorThreads } from "./shared/utils/backfill-orchestrator-threads";
+import { OrchestratorThreadRepository } from "./modules/orchestrator/repositories/orchestrator-thread.repository";
 import { setupExpressErrorHandler, isSentryEnabled } from "./shared/observability/sentry";
 import { seedPlatformAdminIfNeeded } from "./shared/utils/seed-platform-admin.util";
 import { SocketIoRealtimeGateway } from "./shared/realtime";
@@ -93,6 +95,16 @@ const startServer = async () => {
     await connectDatabase();
 
     await backfillSitePublicIds();
+    try {
+      await backfillOrchestratorThreads(container.resolve(OrchestratorThreadRepository));
+    } catch (err) {
+      logger.error(
+        "Orchestrator thread backfill failed; continuing startup",
+        err instanceof Error ? err : new Error(String(err)),
+        {},
+        "Server"
+      );
+    }
 
     // Seed plans if none exist
     await seedPlansIfNeeded();

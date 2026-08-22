@@ -7,22 +7,38 @@ export enum OrchestratorThreadStatus {
 }
 
 export type OrchestratorThreadTitleSource = "default" | "auto" | "user";
+export type OrchestratorThreadChannel = "chat" | "call";
+export type ThreadAssociationEntityType = "strategy" | "campaign" | "blog";
+
+export interface ThreadAssociation {
+  entity_type: ThreadAssociationEntityType;
+  entity_id: string;
+}
+
+export type OrchestratorThreadFocus = {
+  campaign_id?: string;
+  roadmap_sequence_index?: number;
+  blog_id?: string;
+  topic?: string;
+  intent?: string;
+};
 
 /**
- * A persistent conversation between a single user and the Workspace
- * Orchestrator Agent inside a single workspace. Threads survive process
- * restarts so the user can return to a conversation at any time.
+ * A persistent conversation between workspace members and the Workspace
+ * Orchestrator Agent. Metadata lives in Postgres; messages remain in Mongo.
  */
 export interface OrchestratorThread extends BaseEntity {
   /** Owning workspace. Indexed for tenant-scoped queries. */
   site_id: string;
-  /** User who owns the thread (orchestrator threads are private per user). */
+  /** Creator of the thread. Alias of created_by for older callers. */
   user_id: string;
+  created_by: string;
   /** Short, model- or user-assigned label shown in the thread list. */
   title: string;
   /** Who last set the title — prevents auto-title from overwriting user renames. */
   title_source: OrchestratorThreadTitleSource;
   status: OrchestratorThreadStatus;
+  channel: OrchestratorThreadChannel;
   /** Last user/assistant turn timestamp; used to sort the thread list. */
   last_activity_at: Date;
   /**
@@ -32,13 +48,8 @@ export interface OrchestratorThread extends BaseEntity {
    */
   is_onboarding: boolean;
   /** Bound campaign, roadmap item, or post this thread is working on. */
-  focus?: {
-    campaign_id?: string;
-    roadmap_sequence_index?: number;
-    blog_id?: string;
-    topic?: string;
-    intent?: string;
-  };
+  focus?: OrchestratorThreadFocus;
+  associations?: ThreadAssociation[];
   created_at: Date;
   updated_at: Date;
 }

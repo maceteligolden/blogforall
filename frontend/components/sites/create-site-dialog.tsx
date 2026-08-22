@@ -11,7 +11,7 @@ import { SiteService, CreateSiteRequest } from "@/lib/api/services/site.service"
 import { useAuth } from "@/lib/hooks/use-auth";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
-import { SETUP_INTERVIEW_PENDING_KEY } from "@/lib/onboarding/brand-setup-items";
+import { persistFirstPostWritingRequest } from "@/lib/writing/use-start-writing-thread";
 
 interface CreateSiteDialogProps {
   isOpen: boolean;
@@ -36,9 +36,7 @@ export function CreateSiteDialog({ isOpen, onClose }: CreateSiteDialogProps) {
       setWebsiteUrl("");
       setError("");
       onClose();
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem(SETUP_INTERVIEW_PENDING_KEY, newSite._id);
-      }
+      persistFirstPostWritingRequest();
       toast({
         variant: "success",
         title: "Workspace ready",

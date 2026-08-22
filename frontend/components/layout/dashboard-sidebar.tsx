@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, MessageSquare, Pencil, Plus, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Check, MessageSquare, Pencil, Plus, Trash2, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { DASHBOARD_NAV_ITEMS } from "@/lib/config/dashboard-nav";
 import { SiteSwitcher } from "@/components/sites/site-switcher";
@@ -15,6 +15,7 @@ import { formatThreadTimestamp } from "@/lib/utils/format-thread-timestamp";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import { SidebarTooltip } from "@/components/ui/sidebar-tooltip";
 import { useRenameThread } from "@/lib/hooks/use-rename-thread";
+import { useDeleteThread } from "@/lib/hooks/use-delete-thread";
 
 interface DashboardSidebarProps {
   mobileOpen?: boolean;
@@ -38,6 +39,7 @@ export function DashboardSidebar({
   const [renameError, setRenameError] = useState<string | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const renameMutation = useRenameThread(currentSiteId);
+  const deleteMutation = useDeleteThread(currentSiteId);
 
   const threadsQuery = useQuery({
     queryKey: currentSiteId
@@ -289,7 +291,7 @@ export function DashboardSidebar({
                     type="button"
                     onClick={() => handleSelectThread(t._id)}
                     className={cn(
-                      "w-full text-left rounded-md px-3 py-2 pr-8 transition-colors",
+                      "w-full text-left rounded-md px-3 py-2 pr-14 transition-colors",
                       isActive
                         ? "bg-primary/10 text-white border-l-2 border-primary"
                         : "text-gray-400 hover:bg-gray-900 hover:text-white border-l-2 border-transparent"
@@ -305,14 +307,43 @@ export function DashboardSidebar({
                       startRename(t._id, displayTitle);
                     }}
                     aria-label={`Rename ${displayTitle}`}
-                    className="absolute right-1.5 top-2 p-1 rounded text-gray-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-white hover:bg-gray-800 transition-opacity"
+                    className="absolute right-7 top-2 p-1 rounded text-gray-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-white hover:bg-gray-800 transition-opacity"
                   >
                     <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm("Delete this thread?")) {
+                        deleteMutation.mutate(t._id, {
+                          onSuccess: () => {
+                            if (threadId === t._id) {
+                              setThreadId(null);
+                              router.push("/dashboard");
+                            }
+                          },
+                        });
+                      }
+                    }}
+                    aria-label={`Delete ${displayTitle}`}
+                    className="absolute right-1.5 top-2 p-1 rounded text-gray-500 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-red-400 hover:bg-gray-800 transition-opacity"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </li>
               );
             })}
           </ul>
+          {!collapsed && (
+            <Link
+              href="/dashboard/threads"
+              onClick={() => onMobileClose?.()}
+              className="mt-2 block px-3 text-xs text-primary hover:underline"
+            >
+              View all
+            </Link>
+          )}
         </div>
       </nav>
 

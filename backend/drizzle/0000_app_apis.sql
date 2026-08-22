@@ -441,3 +441,41 @@ SET strategist_ready_acknowledged_at = COALESCE(workspace_invite_prompt_dismisse
 WHERE plan_selection_completed_at IS NOT NULL
   AND workspace_invite_prompt_dismissed_at IS NOT NULL
   AND strategist_ready_acknowledged_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS orchestrator_threads (
+  id text PRIMARY KEY,
+  site_id uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  created_by uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title text NOT NULL DEFAULT 'New conversation',
+  title_source text NOT NULL DEFAULT 'default',
+  status text NOT NULL DEFAULT 'active',
+  channel text NOT NULL DEFAULT 'chat',
+  is_onboarding boolean NOT NULL DEFAULT false,
+  topic text,
+  intent text,
+  roadmap_sequence_index integer,
+  last_activity_at timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS orchestrator_threads_site_activity_idx ON orchestrator_threads (site_id, last_activity_at);
+CREATE INDEX IF NOT EXISTS orchestrator_threads_site_status_idx ON orchestrator_threads (site_id, status);
+CREATE INDEX IF NOT EXISTS orchestrator_threads_site_created_by_idx ON orchestrator_threads (site_id, created_by);
+
+CREATE TABLE IF NOT EXISTS thread_associations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  thread_id text NOT NULL REFERENCES orchestrator_threads(id) ON DELETE CASCADE,
+  site_id uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  entity_type text NOT NULL,
+  entity_id text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS thread_associations_thread_entity_unique
+  ON thread_associations (thread_id, entity_type, entity_id);
+CREATE UNIQUE INDEX IF NOT EXISTS thread_associations_one_blog
+  ON thread_associations (entity_id)
+  WHERE entity_type = 'blog';
+CREATE INDEX IF NOT EXISTS thread_associations_site_entity_idx
+  ON thread_associations (site_id, entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS thread_associations_thread_id_idx ON thread_associations (thread_id);

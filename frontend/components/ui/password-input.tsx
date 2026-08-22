@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Check, Eye, EyeOff, X } from "lucide-react";
 import { Input } from "./input";
 import { cn } from "@/lib/utils/cn";
@@ -24,6 +24,8 @@ export function PasswordInput({
   showValidation = false,
   onValidationChange,
   value,
+  onChange,
+  disabled,
   ...props
 }: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
@@ -31,29 +33,30 @@ export function PasswordInput({
   const validation = validatePassword(password);
 
   useEffect(() => {
-    if (!showValidation) {
-      onValidationChange?.(true);
-      return;
-    }
-    onValidationChange?.(validation.isValid);
-    // Parent callbacks are often inline; including them would reset the visibility toggle.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showValidation, validation.isValid]);
+    onValidationChange?.(showValidation ? validation.isValid : true);
+  }, [password, showValidation, validation.isValid, onValidationChange]);
 
   return (
     <div>
       <div className="relative">
-        <Input {...props} type={showPassword ? "text" : "password"} value={value} className={cn("pr-10", className)} />
+        <Input
+          {...props}
+          disabled={disabled}
+          type={showPassword ? "text" : "password"}
+          value={password}
+          onChange={onChange}
+          className={cn("pr-10", className)}
+        />
         <button
           type="button"
-          className="absolute right-0 top-0 z-10 flex h-full w-10 items-center justify-center text-gray-400 hover:text-gray-200"
-          onMouseDown={(e) => {
-            e.preventDefault();
-          }}
+          tabIndex={-1}
+          disabled={disabled}
+          className="absolute inset-y-0 right-0 z-20 flex w-10 items-center justify-center text-gray-400 hover:text-white disabled:opacity-50"
           onClick={() => setShowPassword((visible) => !visible)}
           aria-label={showPassword ? "Hide password" : "Show password"}
+          aria-pressed={showPassword}
         >
-          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
         </button>
       </div>
       {showValidation && (

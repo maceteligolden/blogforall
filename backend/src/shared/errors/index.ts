@@ -64,3 +64,10 @@ export class AiConcurrencyError extends AppError {
     super(message, HttpStatus.CONFLICT);
   }
 }
+
+export class ThreadBusyError extends AppError {
+  readonly code = "thread_busy";
+  constructor(public readonly holder: { user_id: string; name: string }) {
+    super(`${holder.name} is chatting in this thread`, HttpStatus.CONFLICT);
+  }
+}

@@ -19,20 +19,28 @@ export const approvalIdParamSchema = z.object({
  * - `thread_id` optional: when omitted, a new thread is created.
  * - `message` is the user's natural-language input.
  */
+const optionalFocusString = (max: number) =>
+  z.preprocess((value) => (value == null || value === "" ? undefined : value), z.string().min(1).max(max).optional());
+
+export const threadFocusSchema = z
+  .object({
+    campaign_id: optionalFocusString(128),
+    roadmap_sequence_index: z.preprocess(
+      (value) => (value == null ? undefined : value),
+      z.number().int().min(0).optional()
+    ),
+    blog_id: optionalFocusString(128),
+    topic: optionalFocusString(400),
+    intent: optionalFocusString(2000),
+  })
+  .optional();
+
 export const orchestratorChatBodySchema = z.object({
   thread_id: z.string().min(1).optional(),
   message: z.string().min(1).max(8000),
   session_mode: z.enum(["auto", "planning", "writing", "research", "review", "casual", "strategy"]).optional(),
   conversation_mode: z.boolean().optional(),
-  focus: z
-    .object({
-      campaign_id: z.string().min(1).optional(),
-      roadmap_sequence_index: z.number().int().min(0).optional(),
-      blog_id: z.string().min(1).optional(),
-      topic: z.string().min(1).max(400).optional(),
-      intent: z.string().max(2000).optional(),
-    })
-    .optional(),
+  focus: threadFocusSchema,
   selection_context: z
     .object({
       blog_id: z.string().min(1),
@@ -92,11 +100,31 @@ export const threadListQuerySchema = z.object({
     .union([z.literal("true"), z.literal("false")])
     .transform((s) => s === "true")
     .optional(),
+  entity_type: z.enum(["strategy", "campaign", "blog"]).optional(),
+  entity_id: z.string().min(1).optional(),
+  q: z.string().max(120).optional(),
+  cursor: z.string().min(1).optional(),
 });
 
-export const renameThreadBodySchema = z.object({
-  title: z.string().trim().min(1, "Title is required").max(120, "Title must be at most 120 characters"),
+export const threadAssociationSchema = z.object({
+  entity_type: z.enum(["strategy", "campaign", "blog"]),
+  entity_id: z.string().min(1),
 });
+
+export const createThreadBodySchema = z.object({
+  channel: z.enum(["chat", "call"]).optional(),
+  associations: z.array(threadAssociationSchema).max(20).optional(),
+  focus: threadFocusSchema,
+});
+
+export const renameThreadBodySchema = z
+  .object({
+    title: z.string().trim().min(1, "Title is required").max(120, "Title must be at most 120 characters").optional(),
+    associations: z.array(threadAssociationSchema).max(20).optional(),
+  })
+  .refine((v) => Boolean(v.title || v.associations?.length), {
+    message: "title or associations is required",
+  });
 
 export const knowledgeSourceIdParamSchema = z.object({
   siteId: z.string().min(1),

@@ -8,6 +8,7 @@ export const REALTIME_EVENTS = {
   ORCHESTRATOR_PHASE: "orchestrator.phase",
   ORCHESTRATOR_TURN_STARTED: "orchestrator.turn.started",
   ORCHESTRATOR_TURN_COMPLETED: "orchestrator.turn.completed",
+  THREAD_RENAMED: "thread.renamed",
   APPROVAL_CREATED: "approval.created",
   APPROVAL_DECIDED: "approval.decided",
   SCHEDULED_POST_PREPARED: "scheduled_post.prepared",

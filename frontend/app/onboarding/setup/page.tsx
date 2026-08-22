@@ -28,7 +28,7 @@ import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropo
 import { useRealtimeEvent } from "@/lib/hooks/use-realtime-event";
 import { useRealtimeStatus } from "@/lib/hooks/use-realtime-status";
 import { REALTIME_EVENTS } from "@/lib/realtime";
-import { SETUP_INTERVIEW_PENDING_KEY } from "@/lib/onboarding/brand-setup-items";
+import { persistFirstPostWritingRequest } from "@/lib/writing/use-start-writing-thread";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
 import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
@@ -289,7 +289,7 @@ function StrategistSetupContent() {
       .then(async (status) => {
         onboardingTracker.stepCompleted({ step: "strategist_ready" });
         useAuthStore.getState().setCurrentSiteId(siteId);
-        sessionStorage.setItem(SETUP_INTERVIEW_PENDING_KEY, siteId);
+        persistFirstPostWritingRequest();
         queryClient.setQueryData(["onboarding", "signup-wizard"], status);
         await queryClient.invalidateQueries({ queryKey: ["onboarding", "signup-wizard"] });
         push(signupWizardPath(status));

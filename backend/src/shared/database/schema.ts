@@ -627,3 +627,55 @@ export const scheduledPostReviewTokens = pgTable(
     index("review_tokens_expires_at_idx").on(table.expires_at),
   ]
 );
+
+export const orchestratorThreads = pgTable(
+  "orchestrator_threads",
+  {
+    id: text("id").primaryKey(),
+    site_id: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    created_by: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("New conversation"),
+    title_source: text("title_source").notNull().default("default"),
+    status: text("status").notNull().default("active"),
+    channel: text("channel").notNull().default("chat"),
+    is_onboarding: boolean("is_onboarding").notNull().default(false),
+    topic: text("topic"),
+    intent: text("intent"),
+    roadmap_sequence_index: integer("roadmap_sequence_index"),
+    last_activity_at: timestamp("last_activity_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (table) => [
+    index("orchestrator_threads_site_activity_idx").on(table.site_id, table.last_activity_at),
+    index("orchestrator_threads_site_status_idx").on(table.site_id, table.status),
+    index("orchestrator_threads_site_created_by_idx").on(table.site_id, table.created_by),
+  ]
+);
+
+export const threadAssociations = pgTable(
+  "thread_associations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    thread_id: text("thread_id")
+      .notNull()
+      .references(() => orchestratorThreads.id, { onDelete: "cascade" }),
+    site_id: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    entity_type: text("entity_type").notNull(),
+    entity_id: text("entity_id").notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("thread_associations_thread_entity_unique").on(table.thread_id, table.entity_type, table.entity_id),
+    uniqueIndex("thread_associations_one_blog")
+      .on(table.entity_id)
+      .where(sql`${table.entity_type} = 'blog'`),
+    index("thread_associations_site_entity_idx").on(table.site_id, table.entity_type, table.entity_id),
+    index("thread_associations_thread_id_idx").on(table.thread_id),
+  ]
+);

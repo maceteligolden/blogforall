@@ -16,6 +16,7 @@ import {
   piiMiddleware,
 } from "./orchestrator.middleware";
 import { AGENT_MODEL } from "./orchestrator.constants";
+import { mergeFocus, type ThreadFocusInput } from "./orchestrator.focus";
 import { buildRoleAwareSystemPrompt } from "./prompts";
 import {
   followUpAfterDraftStarted,
@@ -26,8 +27,10 @@ import { createChatOpenAI } from "../../shared/ai/create-chat-openai";
 import { OrchestratorThreadRepository } from "../orchestrator/repositories/orchestrator-thread.repository";
 import { OrchestratorMessageRepository } from "../orchestrator/repositories/orchestrator-message.repository";
 import { OrchestratorApprovalRepository } from "../orchestrator/repositories/orchestrator-approval.repository";
+import { ThreadService } from "../orchestrator/services/thread.service";
+import { ThreadWriteLockService } from "../orchestrator/services/thread-write-lock.service";
 import { SiteService } from "../site/services/site.service";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../../shared/errors";
+import { BadRequestError, ForbiddenError, NotFoundError, ThreadBusyError } from "../../shared/errors";
 import { env } from "../../shared/config/env";
 import { serializeApproval, type ChatTurnResponse } from "../orchestrator/interfaces/orchestrator.interface";
 import type { OrchestratorThread } from "../../shared/schemas/orchestrator-thread.schema";
@@ -45,13 +48,7 @@ import { NotificationService } from "../notification/services/notification.servi
 import { notifyApprovalCreatedInApp } from "../../shared/utils/notify-approval-created.util";
 import { logger } from "../../shared/utils/logger";
 
-export type ThreadFocusInput = {
-  campaign_id?: string;
-  roadmap_sequence_index?: number;
-  blog_id?: string;
-  topic?: string;
-  intent?: string;
-};
+export type { ThreadFocusInput };
 
 export type OrchestratorV2ChatInput = {
   siteId: string;
@@ -430,22 +427,6 @@ function hasWritingFocus(focus?: ThreadFocusInput | OrchestratorThread["focus"])
   return Boolean(focus?.blog_id || focus?.campaign_id || focus?.topic);
 }
 
-function mergeFocus(
-  existing: OrchestratorThread["focus"] | undefined,
-  incoming: ThreadFocusInput | undefined
-): OrchestratorThread["focus"] | undefined {
-  if (!incoming && !existing) return existing;
-  const merged: OrchestratorThread["focus"] = {
-    ...(existing ?? {}),
-    ...(incoming ?? {}),
-  };
-  // A new topic/campaign without a blog_id is a new writing discussion — drop the prior draft binding.
-  if (incoming && incoming.blog_id == null && (incoming.topic || incoming.campaign_id)) {
-    delete merged.blog_id;
-  }
-  return merged;
-}
-
 function toTextContent(content: unknown): string {
   if (typeof content === "string") {
     return content;
@@ -559,7 +540,9 @@ export default class OrchestratorV2Service {
     private readonly siteService: SiteService,
     private readonly realtimeService: RealtimeService,
     private readonly notificationService: NotificationService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly threadService: ThreadService,
+    private readonly writeLocks: ThreadWriteLockService
   ) {}
 
   async chat(input: OrchestratorV2ChatInput): Promise<ChatTurnResponse> {
@@ -568,63 +551,81 @@ export default class OrchestratorV2Service {
     await this.assertSiteAccess(siteId, userId);
     const thread = await this.resolveThread(siteId, userId, threadId, input.focus);
     const resolvedThreadId = thread._id!.toString();
-    const focus = thread.focus;
-    const activeSessionMode = resolveSessionMode(sessionMode, focus);
+    await this.acquireWriteLock(siteId, resolvedThreadId, userId);
+    const refresh = setInterval(() => {
+      void this.writeLocks.refresh(siteId, resolvedThreadId, userId);
+    }, 30_000);
 
-    await this.messageRepository.create({
-      thread_id: resolvedThreadId,
-      site_id: siteId,
-      role: OrchestratorMessageRole.USER,
-      content: message,
-    });
+    try {
+      const focus = thread.focus;
+      const activeSessionMode = resolveSessionMode(sessionMode, focus);
 
-    const agentMessage = buildEnrichedUserMessage({
-      message,
-      selectionContext: input.selectionContext,
-      attachments: input.attachments,
-    });
+      await this.messageRepository.create({
+        thread_id: resolvedThreadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.USER,
+        content: message,
+      });
 
-    const { assistantContent, pendingApproval, toolCalls } = await this.invokeAgent({
-      siteId,
-      userId,
-      threadId: resolvedThreadId,
-      message: agentMessage,
-      sessionMode: activeSessionMode,
-      conversationMode: Boolean(input.conversationMode),
-      focus,
-    }).catch((error: unknown) => this.rethrowAgentError(error, siteId, resolvedThreadId));
+      const agentMessage = buildEnrichedUserMessage({
+        message,
+        selectionContext: input.selectionContext,
+        attachments: input.attachments,
+      });
 
-    const assistant = await this.messageRepository.create({
-      thread_id: resolvedThreadId,
-      site_id: siteId,
-      role: OrchestratorMessageRole.ASSISTANT,
-      content: assistantContent,
-      pending_approval_id: pendingApproval?._id?.toString(),
-      tool_calls: toolCalls.map((call) => ({
-        tool: call.tool,
-        input: {},
-        output_summary: call.summary,
-        output_data: call.output_data,
-      })),
-    });
+      const { assistantContent, pendingApproval, toolCalls } = await this.invokeAgent({
+        siteId,
+        userId,
+        threadId: resolvedThreadId,
+        message: agentMessage,
+        sessionMode: activeSessionMode,
+        conversationMode: Boolean(input.conversationMode),
+        focus,
+      }).catch((error: unknown) => this.rethrowAgentError(error, siteId, resolvedThreadId));
 
-    await this.threadRepository.touch(resolvedThreadId);
-    await this.messageRepository.pruneThreadToMaxKeep(resolvedThreadId, siteId, env.orchestrator.maxThreadMessages);
+      const assistant = await this.messageRepository.create({
+        thread_id: resolvedThreadId,
+        site_id: siteId,
+        role: OrchestratorMessageRole.ASSISTANT,
+        content: assistantContent,
+        pending_approval_id: pendingApproval?._id?.toString(),
+        tool_calls: toolCalls.map((call) => ({
+          tool: call.tool,
+          input: {},
+          output_summary: call.summary,
+          output_data: call.output_data,
+        })),
+      });
 
-    return {
-      thread_id: resolvedThreadId,
-      assistant_message: {
-        id: assistant._id!.toString(),
-        content: assistant.content,
-        created_at: assistant.created_at,
-      },
-      tool_calls: toolCalls,
-      pending_approval: pendingApproval ? serializeApproval(pendingApproval) : null,
-      active_session_mode: activeSessionMode,
-      session_mode_source: sessionMode && sessionMode !== "auto" ? "explicit" : "inferred",
-      workspace_status: "active",
-      onboarding_completed: false,
-    };
+      await this.threadRepository.touch(resolvedThreadId);
+      await this.messageRepository.pruneThreadToMaxKeep(resolvedThreadId, siteId, env.orchestrator.maxThreadMessages);
+      await this.threadService.invalidateAfterMessage(siteId, resolvedThreadId);
+      void this.threadService.maybeAutoTitle(siteId, resolvedThreadId);
+
+      return {
+        thread_id: resolvedThreadId,
+        assistant_message: {
+          id: assistant._id!.toString(),
+          content: assistant.content,
+          created_at: assistant.created_at,
+        },
+        tool_calls: toolCalls,
+        pending_approval: pendingApproval ? serializeApproval(pendingApproval) : null,
+        active_session_mode: activeSessionMode,
+        session_mode_source: sessionMode && sessionMode !== "auto" ? "explicit" : "inferred",
+        workspace_status: "active",
+        onboarding_completed: false,
+      };
+    } finally {
+      clearInterval(refresh);
+      await this.writeLocks.release(siteId, resolvedThreadId, userId);
+      this.realtimeService.emitToSite(
+        siteId,
+        REALTIME_EVENTS.ORCHESTRATOR_TURN_COMPLETED,
+        { thread_id: resolvedThreadId, user_id: userId },
+        { siteId }
+      );
+    }
   }
 
   /**
@@ -1206,9 +1207,6 @@ export default class OrchestratorV2Service {
       if (!found) {
         throw new NotFoundError("Thread not found");
       }
-      if (found.user_id !== userId) {
-        throw new ForbiddenError("You do not have access to this thread");
-      }
       const merged = mergeFocus(found.focus, incomingFocus);
       if (incomingFocus && merged) {
         const updated = await this.threadRepository.setFocus(threadId, siteId, merged);
@@ -1217,13 +1215,26 @@ export default class OrchestratorV2Service {
       return found;
     }
 
-    const title = incomingFocus?.topic ? incomingFocus.topic.slice(0, 80) : "New conversation";
-    return this.threadRepository.create({
-      site_id: siteId,
-      user_id: userId,
-      title,
+    return this.threadService.create({
+      siteId,
+      userId,
       focus: incomingFocus,
     });
+  }
+
+  private async acquireWriteLock(siteId: string, threadId: string, userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    const name = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim() || "A teammate";
+    const lock = await this.writeLocks.acquire(siteId, threadId, userId, name);
+    if (!lock.ok) {
+      throw new ThreadBusyError(lock.holder);
+    }
+    this.realtimeService.emitToSite(
+      siteId,
+      REALTIME_EVENTS.ORCHESTRATOR_TURN_STARTED,
+      { thread_id: threadId, user_id: userId, name },
+      { siteId }
+    );
   }
 
   private async assertSiteAccess(siteId: string, userId: string): Promise<void> {

@@ -3,6 +3,7 @@ import { container } from "tsyringe";
 import { OrchestratorController } from "../controllers/orchestrator.controller";
 import OrchestratorV2controller from "../../orchestratorv2/orchestrator.controller";
 import { authMiddleware } from "../../../shared/middlewares/auth.middleware";
+import { siteParamMiddleware } from "../../../shared/middlewares/site-access.middleware";
 import { validateBody, validateParams, validateQuery } from "../../../shared/middlewares/validate.middleware";
 import * as V from "../validations/orchestrator-route.validation";
 import { uploadContextSingle } from "../../../shared/middlewares/context-upload.middleware";
@@ -16,7 +17,7 @@ import { uploadContextSingle } from "../../../shared/middlewares/context-upload.
  */
 const router = Router({ mergeParams: true });
 
-router.use(authMiddleware, validateParams(V.siteIdParamSchema));
+router.use(authMiddleware, validateParams(V.siteIdParamSchema), siteParamMiddleware);
 
 const controller = container.resolve(OrchestratorController);
 const v2Controller = container.resolve(OrchestratorV2controller);
@@ -28,6 +29,7 @@ router.post("/onboarding/start", controller.startOnboardingInterview);
 router.post("/voice/tts", validateBody(V.voiceTtsBodySchema), v2Controller.voiceTts);
 
 router.post("/threads/open", validateBody(V.openThreadBodySchema), controller.openThread);
+router.post("/threads", validateBody(V.createThreadBodySchema), controller.createThread);
 router.get("/threads", validateQuery(V.threadListQuerySchema), controller.listThreads);
 router.get("/threads/:threadId", validateParams(V.threadIdParamSchema), controller.getThread);
 router.patch(
@@ -36,6 +38,7 @@ router.patch(
   validateBody(V.renameThreadBodySchema),
   controller.renameThread
 );
+router.delete("/threads/:threadId", validateParams(V.threadIdParamSchema), controller.deleteThread);
 
 router.get("/approvals", validateQuery(V.approvalListQuerySchema), controller.listApprovals);
 router.post(

@@ -7,6 +7,7 @@ import { CampaignPlanningService } from "../campaign/services/campaign-planning.
 import { CampaignRoadmapService } from "../campaign/services/campaign-roadmap.service";
 import { CampaignProgressReportService } from "../campaign/services/campaign-progress-report.service";
 import { CampaignHealthService } from "../campaign/services/campaign-health.service";
+import { CampaignThreadDigestService } from "../orchestrator/services/campaign-thread-digest.service";
 import { ScheduledPostRepository } from "../campaign/repositories/scheduled-post.repository";
 import { ScheduledPostService } from "../campaign/services/scheduled-post.service";
 import { PostFrequency, ScheduledPostStatus } from "../../shared/constants/campaign.constant";
@@ -218,6 +219,7 @@ export function createCampaignTools(ctx: CampaignToolContext) {
   const roadmapService = container.resolve(CampaignRoadmapService);
   const progressService = container.resolve(CampaignProgressReportService);
   const healthService = container.resolve(CampaignHealthService);
+  const threadDigest = container.resolve(CampaignThreadDigestService);
   const scheduledPostRepository = container.resolve(ScheduledPostRepository);
   const scheduledPostService = container.resolve(ScheduledPostService);
 
@@ -251,11 +253,13 @@ export function createCampaignTools(ctx: CampaignToolContext) {
       }
       const roadmap = await roadmapService.getRoadmap(campaignId, ctx.siteId);
       const current = roadmap.current;
+      const related_conversations = await threadDigest.load(ctx.siteId, campaignId);
       return toolResult(`Campaign '${campaign.name}' — ${truncate(campaign.goal || "")}`, {
         ...campaignEntityFields(campaign),
         roadmap_version: current?.version,
         roadmap_status: current?.status,
         roadmap_summary: current?.summary,
+        related_conversations,
       });
     },
     {

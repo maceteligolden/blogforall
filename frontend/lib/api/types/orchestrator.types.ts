@@ -20,14 +20,31 @@ export interface OrchestratorThread {
   _id: string;
   site_id: string;
   user_id: string;
+  created_by?: string;
   title: string;
+  title_source?: "default" | "auto" | "user";
   status: "active" | "archived";
+  channel?: "chat" | "call";
   last_activity_at: string;
   is_onboarding: boolean;
   focus?: ThreadFocus;
+  associations?: ThreadAssociation[];
   created_at: string;
   updated_at: string;
 }
+
+export type ThreadAssociationEntityType = "strategy" | "campaign" | "blog";
+
+export type ThreadAssociation = {
+  entity_type: ThreadAssociationEntityType;
+  entity_id: string;
+};
+
+export type ThreadWriteLock = {
+  user_id: string;
+  name: string;
+  acquired_at?: string;
+};
 
 export type ThreadFocus = {
   campaign_id?: string;
@@ -163,7 +180,13 @@ export type V05MoatSnapshot = {
 export interface ThreadWithMessages {
   thread: OrchestratorThread;
   messages: OrchestratorMessage[];
+  write_lock?: ThreadWriteLock | null;
 }
+
+export type ThreadListResponse = {
+  threads: OrchestratorThread[];
+  next_cursor?: string;
+};
 
 export type OrchestratorSessionMode = "auto" | "planning" | "writing" | "research" | "review" | "casual" | "strategy";
 
