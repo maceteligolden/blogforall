@@ -959,7 +959,7 @@ export function OrchestratorChat({
   const threadTranscriptPending =
     writingKickoffPending || !!startingChannel || Boolean(threadId && threadQuery.isLoading);
   const threadLoaderMessage = writingKickoffPending
-    ? writingKickoffLabel ?? "Starting the writing conversation"
+    ? (writingKickoffLabel ?? "Starting the writing conversation")
     : startingChannel
       ? "Starting the conversation"
       : "Loading conversation…";

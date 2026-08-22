@@ -22,7 +22,8 @@ export function ConversationStartScreen({
     <div className="flex flex-col items-center justify-center min-h-full py-12 px-4">
       <h2 className="text-2xl font-semibold text-white text-center">How do you want to start?</h2>
       <p className="text-sm text-gray-400 mt-2 max-w-md text-center">
-        Choose a campaign, optionally a topic, then chat with the AI strategist or get on a call. We&apos;ll open a workspace thread you can share with your team.
+        Choose a campaign, optionally a topic, then chat with the AI strategist or get on a call. We&apos;ll open a
+        workspace thread you can share with your team.
       </p>
       <div className="flex flex-col sm:flex-row gap-3 mt-8">
         <button

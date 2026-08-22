@@ -9,13 +9,7 @@ const STEPS = [
 
 export type CampaignTopicStep = (typeof STEPS)[number]["id"];
 
-export function CampaignTopicStepPills({
-  step,
-  label,
-}: {
-  step: CampaignTopicStep;
-  label: string;
-}) {
+export function CampaignTopicStepPills({ step, label }: { step: CampaignTopicStep; label: string }) {
   return (
     <ol className="flex flex-wrap gap-2 mb-6" aria-label={label}>
       {STEPS.map((s, i) => {

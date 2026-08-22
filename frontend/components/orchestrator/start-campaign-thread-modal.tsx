@@ -10,10 +10,7 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { pickMostUrgentUndrafted } from "@/lib/writing/sort-roadmap-topics";
 import { CampaignSelectList, campaignRecordId } from "@/components/campaign/campaign-select-list";
 import { TopicSelectCarousel } from "@/components/campaign/topic-select-carousel";
-import {
-  CampaignTopicStepPills,
-  type CampaignTopicStep,
-} from "@/components/campaign/campaign-topic-step-pills";
+import { CampaignTopicStepPills, type CampaignTopicStep } from "@/components/campaign/campaign-topic-step-pills";
 import type { RoadmapPayload, RoadmapTopic } from "@/lib/writing/roadmap-topic";
 
 export function StartCampaignThreadModal({
@@ -161,8 +158,8 @@ export function StartCampaignThreadModal({
       {step === "topic" && (
         <div className="space-y-3">
           <p className="text-sm text-gray-400">
-            Optional. Skip to talk about {selectedCampaign?.name || "the campaign"} as a whole, or pick a topic to
-            focus this conversation on that post.
+            Optional. Skip to talk about {selectedCampaign?.name || "the campaign"} as a whole, or pick a topic to focus
+            this conversation on that post.
           </p>
           <TopicSelectCarousel
             items={items}

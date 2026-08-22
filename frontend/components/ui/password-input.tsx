@@ -56,7 +56,11 @@ export function PasswordInput({
           aria-label={showPassword ? "Hide password" : "Show password"}
           aria-pressed={showPassword}
         >
-          {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+          {showPassword ? (
+            <EyeOff className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Eye className="h-4 w-4" aria-hidden="true" />
+          )}
         </button>
       </div>
       {showValidation && (

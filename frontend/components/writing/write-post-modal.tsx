@@ -12,10 +12,7 @@ import { buildWritePostThreadRequest } from "@/lib/writing/write-post-request";
 import { useStartWritingThread } from "@/lib/writing/use-start-writing-thread";
 import { CampaignSelectList, campaignRecordId } from "@/components/campaign/campaign-select-list";
 import { TopicSelectCarousel } from "@/components/campaign/topic-select-carousel";
-import {
-  CampaignTopicStepPills,
-  type CampaignTopicStep,
-} from "@/components/campaign/campaign-topic-step-pills";
+import { CampaignTopicStepPills, type CampaignTopicStep } from "@/components/campaign/campaign-topic-step-pills";
 import type { RoadmapPayload } from "@/lib/writing/roadmap-topic";
 
 export function WritePostModal({
