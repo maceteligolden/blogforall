@@ -85,8 +85,9 @@ export function usePublishBlog() {
   const { currentSiteId } = useAuthStore();
 
   return useMutation({
-    mutationFn: (id: string) => BlogService.publishBlog(id),
-    onSuccess: (response, id) => {
+    mutationFn: ({ id, destinations }: { id: string; destinations?: string[] }) =>
+      BlogService.publishBlog(id, destinations),
+    onSuccess: (_response, { id }) => {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOG(id), currentSiteId] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOGS, currentSiteId] });

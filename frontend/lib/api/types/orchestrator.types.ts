@@ -7,6 +7,13 @@ export type OrchestratorApprovalKind =
 
 export type OrchestratorApprovalStatus = "pending" | "approved" | "rejected" | "executed" | "expired";
 
+export interface OrchestratorApprovalPayload {
+  id?: string;
+  destinations?: string[];
+  available_destinations?: Array<{ provider: string; label: string }>;
+  scheduled_at?: string;
+}
+
 export interface OrchestratorApproval {
   id: string;
   kind: OrchestratorApprovalKind;
@@ -14,6 +21,7 @@ export interface OrchestratorApproval {
   summary: string;
   status: OrchestratorApprovalStatus;
   requested_at: string;
+  payload?: OrchestratorApprovalPayload;
 }
 
 export interface OrchestratorThread {

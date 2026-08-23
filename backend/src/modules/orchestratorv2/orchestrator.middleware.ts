@@ -13,6 +13,7 @@ import { container } from "tsyringe";
 import { env } from "../../shared/config/env";
 import { createChatOpenAI } from "../../shared/ai/create-chat-openai";
 import { createLoadSkillTool, findSkillOwningTool, SKILLS } from "./orchestrator.skill";
+import { IntegrationConnectionService } from "../integrations/services/connection.service";
 import { createStrategyTools, formatStrategyUpdateDraft } from "./orchestrator.tool";
 import {
   createCampaignTools,
@@ -394,7 +395,8 @@ function sanitizeWritingHitlToolCalls(response: AIMessage): AIMessage {
 }
 
 function createSkillMiddleware(args: { siteId: string; userId: string; threadId?: string; writingLoop?: boolean }) {
-  const loadSkill = createLoadSkillTool();
+  const connections = container.resolve(IntegrationConnectionService);
+  const loadSkill = createLoadSkillTool(() => connections.listConnectedCms(args.siteId));
   const allTools = [
     ...createStrategyTools(args),
     ...createCampaignTools(args),

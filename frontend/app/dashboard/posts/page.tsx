@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BlogStatus } from "@/lib/types/blog";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
-import { ConfirmModal } from "@/components/ui/modal";
+import { ConfirmModal, Modal } from "@/components/ui/modal";
 import { Search, Grid3x3, Table2, Trash2 } from "lucide-react";
 import { BlogHubTabs } from "@/components/blogs/blog-hub-tabs";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 import { WritePostModal } from "@/components/writing/write-post-modal";
+import { PublishDestinationPicker } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 export default function BlogsPage() {
   const router = useRouter();
@@ -23,11 +25,18 @@ export default function BlogsPage() {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [blogToDelete, setBlogToDelete] = useState<string | null>(null);
+  const [publishBlogId, setPublishBlogId] = useState<string | null>(null);
 
   const { data: blogs, isLoading } = useBlogs(statusFilter !== "all" ? { status: statusFilter } : undefined);
   const deleteBlog = useDeleteBlog();
   const publishBlog = usePublishBlog();
   const unpublishBlog = useUnpublishBlog();
+  const {
+    destinations,
+    hasCms,
+    selected: publishDestinations,
+    setSelected: setPublishDestinations,
+  } = usePublishDestinations();
 
   // Filter blogs by search query
   const filteredBlogs = useMemo(() => {
@@ -51,7 +60,19 @@ export default function BlogsPage() {
   };
 
   const handlePublish = (id: string) => {
-    publishBlog.mutate(id);
+    if (hasCms) {
+      setPublishBlogId(id);
+      return;
+    }
+    publishBlog.mutate({ id });
+  };
+
+  const handlePublishConfirm = () => {
+    if (!publishBlogId || publishDestinations.length === 0) return;
+    publishBlog.mutate(
+      { id: publishBlogId, destinations: publishDestinations },
+      { onSettled: () => setPublishBlogId(null) }
+    );
   };
 
   const handleUnpublish = (id: string) => {
@@ -412,6 +433,39 @@ export default function BlogsPage() {
         cancelText="Cancel"
         variant="danger"
       />
+      <Modal
+        isOpen={!!publishBlogId}
+        onClose={() => !publishBlog.isPending && setPublishBlogId(null)}
+        title="Publish post"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPublishBlogId(null)}
+              disabled={publishBlog.isPending}
+              className="border-gray-700 text-gray-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePublishConfirm}
+              disabled={publishBlog.isPending || publishDestinations.length === 0}
+              className="bg-primary text-white hover:bg-primary/90"
+            >
+              {publishBlog.isPending ? "Publishing…" : "Publish"}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-400 mb-4">Choose where this post should go live.</p>
+        <PublishDestinationPicker
+          destinations={destinations}
+          selected={publishDestinations}
+          onChange={setPublishDestinations}
+          disabled={publishBlog.isPending}
+        />
+      </Modal>
     </>
   );
 }

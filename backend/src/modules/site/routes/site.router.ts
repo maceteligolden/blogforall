@@ -12,6 +12,7 @@ import {
 import siteMemberRouter from "./site-member.router";
 import siteInvitationRouter from "./site-invitation.router";
 import siteApiKeyRouter from "./site-api-key.router";
+import siteIntegrationRouter from "../../integrations/routes/site-integration.router";
 
 const router = Router();
 const siteController = container.resolve(SiteController);
@@ -43,5 +44,7 @@ router.use("/:id/invitations", siteInvitationRouter);
 
 // Workspace API keys (nested under /sites/:id/api-keys)
 router.use("/:id/api-keys", siteApiKeyRouter);
+
+router.use("/:id/integrations", siteIntegrationRouter);
 
 export default router;

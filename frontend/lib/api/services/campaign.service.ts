@@ -132,6 +132,7 @@ export interface CreateScheduledPostRequest {
     campaign_goal?: string;
     target_audience?: string;
     content_theme?: string;
+    destinations?: string[];
   };
   site_id?: string;
 }
@@ -156,6 +157,7 @@ export interface ScheduledPost {
     campaign_goal?: string;
     target_audience?: string;
     content_theme?: string;
+    destinations?: string[];
   };
   created_at: string;
   updated_at: string;

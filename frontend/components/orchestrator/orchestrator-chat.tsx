@@ -63,6 +63,12 @@ import type { Campaign } from "@/lib/api/services/campaign.service";
 import type { RoadmapTopic } from "@/lib/writing/roadmap-topic";
 import { useRealtimeEvent } from "@/lib/hooks/use-realtime-event";
 import { REALTIME_EVENTS } from "@/lib/realtime";
+import {
+  PublishDestinationPicker,
+  defaultDestinationSelection,
+  hasExternalCms,
+  isPublishHitlAction,
+} from "@/components/integrations/publish-destination-picker";
 
 interface PendingTurn {
   userText: string;
@@ -145,6 +151,7 @@ export function OrchestratorChat({
   const [pending, setPending] = useState<PendingTurn | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingApproval, setPendingApproval] = useState<OrchestratorApproval | null>(null);
+  const [hitlDestinations, setHitlDestinations] = useState<string[]>(["bloggr"]);
   const [nextTopics, setNextTopics] = useState<NextDueTopic[]>([]);
   const [openerChips, setOpenerChips] = useState<string[]>([]);
   const [lastTurnToolCalls, setLastTurnToolCalls] = useState<
@@ -417,6 +424,18 @@ export function OrchestratorChat({
     };
   }, [threadQuery.data, currentSiteId]);
 
+  useEffect(() => {
+    if (!pendingApproval) return;
+    setHitlDestinations(
+      defaultDestinationSelection(
+        pendingApproval.payload?.available_destinations,
+        pendingApproval.payload?.destinations
+      )
+    );
+    // Reset only when the pending approval itself changes, not on list refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingApproval?.id]);
+
   // Drop optimistic rows once the same turn is in persisted history (single message lifecycle).
   useEffect(() => {
     const msgs = threadQuery.data?.messages ?? [];
@@ -517,7 +536,13 @@ export function OrchestratorChat({
             : "Cancel",
     });
     try {
-      await OrchestratorService.decideApproval(currentSiteId, pendingApproval.id, decision);
+      await OrchestratorService.decideApproval(
+        currentSiteId,
+        pendingApproval.id,
+        decision,
+        undefined,
+        decision === "approved" && isPublishHitlAction(pendingApproval.action) ? hitlDestinations : undefined
+      );
       const [thread, approvals] = await Promise.all([
         threadId ? OrchestratorService.getThread(currentSiteId, threadId) : Promise.resolve(null),
         OrchestratorService.listApprovals(currentSiteId, "pending"),
@@ -1177,6 +1202,16 @@ export function OrchestratorChat({
                       : pendingApproval.action.replace(/_/g, " ")}
                 </p>
                 <p className="text-xs text-yellow-200/80 mt-1">{pendingApproval.summary}</p>
+                {isPublishHitlAction(pendingApproval.action) &&
+                  hasExternalCms(pendingApproval.payload?.available_destinations) && (
+                    <PublishDestinationPicker
+                      className="mt-3"
+                      destinations={pendingApproval.payload?.available_destinations ?? []}
+                      selected={hitlDestinations}
+                      onChange={setHitlDestinations}
+                      disabled={!!pending}
+                    />
+                  )}
                 <div className="flex gap-2 mt-3">
                   <Button
                     size="sm"
@@ -1187,7 +1222,12 @@ export function OrchestratorChat({
                       });
                       void handleHitlDecision("approved");
                     }}
-                    disabled={!!pending}
+                    disabled={
+                      !!pending ||
+                      (isPublishHitlAction(pendingApproval.action) &&
+                        hasExternalCms(pendingApproval.payload?.available_destinations) &&
+                        hitlDestinations.length === 0)
+                    }
                     className="bg-primary text-white hover:bg-primary/90"
                   >
                     {pendingApproval.action === "writing_confirm_research" ? "Continue" : "Confirm"}

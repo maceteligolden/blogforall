@@ -312,7 +312,7 @@ export class BlogService {
     blogId: string,
     siteId: string,
     authorId: string,
-    input: { scheduled_at: Date; timezone?: string }
+    input: { scheduled_at: Date; timezone?: string; destinations?: string[] }
   ): Promise<ScheduledPost> {
     await this.assertBlogCapability(siteId, authorId, SiteCapability.WRITE_CONTENT);
     const blog = await this.blogRepository.findById(blogId, siteId);
@@ -342,6 +342,7 @@ export class BlogService {
       status: ScheduledPostStatus.PENDING,
       publish_attempts: 0,
       auto_generate: false,
+      metadata: input.destinations?.length ? { destinations: input.destinations } : undefined,
     });
     await this.blogRepository.update(blogId, siteId, { status: BlogStatus.SCHEDULED });
     logger.info(

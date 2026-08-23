@@ -24,6 +24,8 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { BlogService } from "@/lib/api/services/blog.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useUploadImage } from "@/lib/hooks/use-blog";
+import { PublishDestinationPicker } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import type { OrchestratorArtifact } from "@/lib/utils/orchestrator-artifacts";
 import type { ContentBlock } from "@/lib/types/blog";
@@ -109,9 +111,16 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const {
+    destinations,
+    hasCms,
+    selected: publishDestinations,
+    setSelected: setPublishDestinations,
+  } = usePublishDestinations();
 
   const data = artifact.outputData;
   const blogId = typeof data.blog_id === "string" ? data.blog_id : typeof data.id === "string" ? data.id : undefined;
@@ -299,11 +308,12 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
       if (!blogId) throw new Error("No draft to publish");
       if (!title.trim()) throw new Error("Add a title before publishing");
       await flushSave();
-      await BlogService.publishBlog(blogId);
+      await BlogService.publishBlog(blogId, hasCms ? publishDestinations : undefined);
     },
     onSuccess: () => {
       setActionError(null);
       setStatus("published");
+      setShowPublishModal(false);
       setActionsMenuOpen(false);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOG(blogId!) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
@@ -323,7 +333,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
       await flushSave();
       const scheduleDate = new Date(scheduleAt);
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      await BlogService.scheduleBlog(blogId, scheduleDate, timezone);
+      await BlogService.scheduleBlog(blogId, scheduleDate, timezone, hasCms ? publishDestinations : undefined);
     },
     onSuccess: () => {
       setActionError(null);
@@ -467,6 +477,16 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
     setShowScheduleModal(true);
   };
 
+  const openPublishModal = () => {
+    setActionError(null);
+    setActionsMenuOpen(false);
+    if (hasCms) {
+      setShowPublishModal(true);
+      return;
+    }
+    publishMutation.mutate();
+  };
+
   const handleCopyDraft = useCallback(async () => {
     const html = blocksToHtml(contentBlocks);
     const plain = draftToPlainText(title, html);
@@ -571,7 +591,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
                     type="button"
                     role="menuitem"
                     disabled={actionsBusy || status === "published"}
-                    onClick={() => publishMutation.mutate()}
+                    onClick={openPublishModal}
                     className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-50 disabled:pointer-events-none"
                   >
                     <Send className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
@@ -695,7 +715,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
             </Button>
             <Button
               type="button"
-              disabled={scheduleMutation.isPending || !scheduleAt}
+              disabled={scheduleMutation.isPending || !scheduleAt || (hasCms && publishDestinations.length === 0)}
               onClick={() => scheduleMutation.mutate()}
               className="bg-primary hover:bg-primary/90 text-white"
             >
@@ -712,6 +732,49 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
           min={new Date().toISOString().slice(0, 16)}
           aria-label="Schedule date and time"
           className="w-full"
+        />
+        <PublishDestinationPicker
+          className="mt-4"
+          destinations={destinations}
+          selected={publishDestinations}
+          onChange={setPublishDestinations}
+          disabled={scheduleMutation.isPending}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={showPublishModal}
+        onClose={() => !publishMutation.isPending && setShowPublishModal(false)}
+        title="Publish post"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={publishMutation.isPending}
+              onClick={() => setShowPublishModal(false)}
+              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={publishMutation.isPending || publishDestinations.length === 0}
+              onClick={() => publishMutation.mutate()}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              {publishMutation.isPending ? "Publishing…" : "Publish"}
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-400 mb-4">Choose where this post should go live.</p>
+        <PublishDestinationPicker
+          destinations={destinations}
+          selected={publishDestinations}
+          onChange={setPublishDestinations}
+          disabled={publishMutation.isPending}
         />
       </Modal>
 

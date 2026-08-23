@@ -25,6 +25,7 @@ import {
   suggestTopicsBodySchema,
   outlineBodySchema,
 } from "../validations/blog-route.validation";
+import { publishDestinationsBodySchema } from "../../integrations/validations/integration.validation";
 
 const router = Router({ mergeParams: true });
 const blogController = container.resolve(BlogController);
@@ -141,7 +142,13 @@ router.put(
   blogController.update
 );
 router.delete("/:id", authMiddleware, validateParams(siteAndBlogIdParamSchema), blogController.delete);
-router.post("/:id/publish", authMiddleware, validateParams(siteAndBlogIdParamSchema), blogController.publish);
+router.post(
+  "/:id/publish",
+  authMiddleware,
+  validateParams(siteAndBlogIdParamSchema),
+  validateBody(publishDestinationsBodySchema),
+  blogController.publish
+);
 router.post("/:id/unpublish", authMiddleware, validateParams(siteAndBlogIdParamSchema), blogController.unpublish);
 router.post(
   "/:id/schedule",

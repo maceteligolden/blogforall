@@ -7,6 +7,10 @@ import { ScheduledPostRepository } from "../campaign/repositories/scheduled-post
 import { CampaignPostItemRepository } from "../campaign/repositories/campaign-post-item.repository";
 import { assertBlogNotCampaignImmediatePublish } from "../campaign/utils/campaign-publish-guard";
 import { env } from "../../shared/config/env";
+import { PublishRouterService } from "../integrations/services/publish-router.service";
+import { PublishDestinationOverride } from "../integrations/services/destination-override";
+import { normalizeDestinations } from "../integrations/idempotency";
+import { INTEGRATION_PROVIDERS } from "../integrations/constants";
 
 export type BlogToolContext = {
   siteId: string;
@@ -44,9 +48,16 @@ function projectBlog(blog: {
   };
 }
 
+function destinationLabel(destinations: string[]): string {
+  return destinations.map((dest) => (dest === INTEGRATION_PROVIDERS.FRAMER ? "Framer" : "Bloggr")).join(" and ");
+}
+
 export function formatBlogPublishDraft(args: Record<string, unknown>): string {
   const id = typeof args.id === "string" ? args.id : "";
-  return `Publish this blog post now?${id ? `\nPost: ${id}` : ""}`;
+  const destinations = normalizeDestinations(
+    Array.isArray(args.destinations) ? (args.destinations as string[]) : undefined
+  );
+  return `Publish this blog post now to ${destinationLabel(destinations)}?${id ? `\nPost: ${id}` : ""}`;
 }
 
 export function formatBlogUnpublishDraft(args: Record<string, unknown>): string {
@@ -134,18 +145,36 @@ export function createBlogTools(ctx: BlogToolContext) {
   );
 
   const blogs_publish = tool(
-    async (input: { id: string }) => {
+    async (input: { id: string; destinations?: Array<"bloggr" | "framer"> }) => {
       const scheduled = container.resolve(ScheduledPostRepository);
       const items = container.resolve(CampaignPostItemRepository);
+      const publisher = container.resolve(PublishRouterService);
+      const override = container.resolve(PublishDestinationOverride);
       await assertBlogNotCampaignImmediatePublish(input.id, ctx.siteId, scheduled, items);
-      const blog = await blogs.publishBlog(input.id, ctx.siteId, ctx.userId);
-      return toolResult(`Published "${blog.title}".`, projectBlog(blog));
+      const destinations = override.take(ctx.siteId, input.id) ?? normalizeDestinations(input.destinations);
+      const result = await publisher.publish({
+        blogId: input.id,
+        siteId: ctx.siteId,
+        userId: ctx.userId,
+        destinations,
+      });
+      return toolResult(`Published "${result.blog.title}" to ${destinationLabel(result.destinations)}.`, {
+        ...projectBlog(result.blog),
+        destinations: result.destinations,
+        deliveries: result.deliveries,
+      });
     },
     {
       name: "blogs_publish",
       description:
-        "Publish an existing evergreen blog post now. Campaign posts must go through schedule review. HITL-gated.",
-      schema: z.object({ id: z.string().min(1) }),
+        "Publish an existing evergreen blog post now. Optional destinations: bloggr and any connected CMS. Campaign posts must go through schedule review. HITL-gated.",
+      schema: z.object({
+        id: z.string().min(1),
+        destinations: z
+          .array(z.enum(["bloggr", "framer"]))
+          .max(4)
+          .optional(),
+      }),
     }
   );
 
@@ -162,29 +191,45 @@ export function createBlogTools(ctx: BlogToolContext) {
   );
 
   const blogs_schedule = tool(
-    async (input: { id: string; scheduled_at: string; timezone?: string }) => {
+    async (input: {
+      id: string;
+      scheduled_at: string;
+      timezone?: string;
+      destinations?: Array<"bloggr" | "framer">;
+    }) => {
       const at = new Date(input.scheduled_at);
       if (Number.isNaN(at.getTime())) {
         return toolResult("scheduled_at must be a valid ISO-8601 datetime.");
       }
+      const override = container.resolve(PublishDestinationOverride);
+      const destinations = override.take(ctx.siteId, input.id) ?? normalizeDestinations(input.destinations);
       const scheduled = await blogs.scheduleBlogPublish(input.id, ctx.siteId, ctx.userId, {
         scheduled_at: at,
         timezone: input.timezone,
+        destinations,
       });
-      return toolResult(`Scheduled "${scheduled.title}" for ${at.toISOString()}.`, {
-        scheduled_post_id: scheduled._id?.toString(),
-        blog_id: input.id,
-        scheduled_at: at.toISOString(),
-      });
+      return toolResult(
+        `Scheduled "${scheduled.title}" for ${at.toISOString()} to ${destinationLabel(destinations)}.`,
+        {
+          scheduled_post_id: scheduled._id?.toString(),
+          blog_id: input.id,
+          scheduled_at: at.toISOString(),
+          destinations,
+        }
+      );
     },
     {
       name: "blogs_schedule",
       description:
-        "Schedule an existing blog post to publish later. scheduled_at must be ISO-8601 in the future. HITL-gated.",
+        "Schedule an existing blog post to publish later. scheduled_at must be ISO-8601 in the future. Pass destinations when a CMS is connected. HITL-gated.",
       schema: z.object({
         id: z.string().min(1),
         scheduled_at: z.string().min(1),
         timezone: z.string().max(64).optional(),
+        destinations: z
+          .array(z.enum(["bloggr", "framer"]))
+          .max(4)
+          .optional(),
       }),
     }
   );

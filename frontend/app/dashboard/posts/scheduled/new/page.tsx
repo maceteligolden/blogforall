@@ -14,6 +14,8 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
 import { ArrowLeft, Calendar } from "lucide-react";
+import { PublishDestinationPicker } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 const SCHEDULED_BASE = "/dashboard/posts/scheduled";
 
@@ -32,6 +34,12 @@ export default function BlogNewScheduledPostPage() {
   });
 
   const createScheduledPost = useCreateScheduledPost();
+  const {
+    destinations,
+    hasCms,
+    selected: publishDestinations,
+    setSelected: setPublishDestinations,
+  } = usePublishDestinations();
 
   const [formData, setFormData] = useState<{
     blog_id: string;
@@ -138,6 +146,10 @@ export default function BlogNewScheduledPostPage() {
       auto_generate: !useExistingBlog,
       generation_prompt: !useExistingBlog ? formData.generation_prompt : undefined,
       campaign_id: selectedCampaign || undefined,
+      metadata: {
+        ...(formData.metadata as CreateScheduledPostRequest["metadata"]),
+        ...(hasCms ? { destinations: publishDestinations } : {}),
+      },
     };
 
     createScheduledPost.mutate(postData, {
@@ -369,6 +381,11 @@ export default function BlogNewScheduledPostPage() {
                 />
               </div>
             </div>
+            <PublishDestinationPicker
+              destinations={destinations}
+              selected={publishDestinations}
+              onChange={setPublishDestinations}
+            />
           </div>
 
           <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-800">

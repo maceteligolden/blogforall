@@ -15,6 +15,8 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
 import { ArrowLeft, Calendar } from "lucide-react";
+import { PublishDestinationPicker } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 export default function SchedulePostPage() {
   const router = useRouter();
@@ -40,6 +42,12 @@ export default function SchedulePostPage() {
 
   const [error, setError] = useState("");
   const [useExistingBlog, setUseExistingBlog] = useState(true);
+  const {
+    destinations,
+    hasCms,
+    selected: publishDestinations,
+    setSelected: setPublishDestinations,
+  } = usePublishDestinations();
 
   const createScheduledPostMutation = useMutation({
     mutationFn: (data: CreateScheduledPostRequest) => CampaignService.createScheduledPost(data),
@@ -135,7 +143,10 @@ export default function SchedulePostPage() {
       timezone: formData.timezone,
       auto_generate: !useExistingBlog,
       generation_prompt: !useExistingBlog ? formData.generation_prompt : undefined,
-      metadata: formData.metadata,
+      metadata: {
+        ...(formData.metadata as CreateScheduledPostRequest["metadata"]),
+        ...(hasCms ? { destinations: publishDestinations } : {}),
+      },
     };
 
     createScheduledPostMutation.mutate(postData);
@@ -335,6 +346,11 @@ export default function SchedulePostPage() {
                   />
                 </div>
               </div>
+              <PublishDestinationPicker
+                destinations={destinations}
+                selected={publishDestinations}
+                onChange={setPublishDestinations}
+              />
             </div>
 
             {/* Actions */}

@@ -170,9 +170,20 @@ To publish or schedule an existing post, load the posts skill.
 - writing_revise_draft — revise the bound draft from an instruction. Always call this to persist edits into the full post.
 `;
 
-const POSTS_PLAYBOOK = `# Posts
+function postsPlaybook(connectedCms: Array<{ provider: string; label: string }>): string {
+  const destinationBlock = connectedCms.length
+    ? `
+Connected CMS destinations: ${connectedCms.map((item) => item.label).join(", ")}.
+When the user wants to publish or schedule, ask whether they want Bloggr, ${connectedCms.map((item) => item.label).join(" / ")}, or both.
+Pass destinations as ["bloggr"], ${connectedCms.map((item) => `["${item.provider}"]`).join(" or ")}, or both.
+Never mention a CMS that is not in this connected list.`
+    : `
+This workspace has no external CMS connected. Publish only to Bloggr. Never mention Framer, WordPress, or other CMS destinations.`;
 
-This workspace publishes **blog posts only**. Use this skill for existing posts: find them, open them, publish, unpublish, or schedule.
+  return `# Posts
+
+This workspace publishes **blog posts**. Use this skill for existing posts: find them, open them, publish, unpublish, or schedule.
+${destinationBlock}
 
 Never generate a new post here. New writing always goes through the writing skill (discuss → research HITL → draft HITL → background draft).
 
@@ -191,11 +202,14 @@ Never generate a new post here. New writing always goes through the writing skil
 
 - blogs_list — list posts (status/search)
 - blogs_get — open a post by id or title
-- blogs_publish — publish now (HITL; evergreen only)
+- blogs_publish — publish now (HITL; evergreen only).${connectedCms.length ? " Pass destinations for Bloggr, the connected CMS, or both." : " Always publish to Bloggr only."}
 - blogs_unpublish — unpublish (HITL)
-- blogs_schedule — schedule a future publish (HITL)
+- blogs_schedule — schedule a future publish (HITL).${connectedCms.length ? " Pass destinations when scheduling." : ""}
 - blogs_unschedule — cancel a schedule (HITL)
 `;
+}
+
+const POSTS_PLAYBOOK = postsPlaybook([]);
 
 const RESEARCH_PLAYBOOK = `# Research
 
@@ -268,13 +282,17 @@ const SKILLS: Skill[] = [
   },
 ];
 
-function createLoadSkillTool() {
+function createLoadSkillTool(getConnectedCms?: () => Promise<Array<{ provider: string; label: string }>>) {
   return tool(
-    ({ skillName }: { skillName: string }) => {
+    async ({ skillName }: { skillName: string }) => {
       const skill = SKILLS.find((s) => s.name === skillName);
       if (skill) {
+        let content = skill.content;
+        if (skillName === "posts" && getConnectedCms) {
+          content = postsPlaybook(await getConnectedCms());
+        }
         const toolsLine = skill.toolNames.length > 0 ? `\n\nUnlocked tools: ${skill.toolNames.join(", ")}` : "";
-        return `Loaded skill: ${skillName}\n\n${skill.content}${toolsLine}`;
+        return `Loaded skill: ${skillName}\n\n${content}${toolsLine}`;
       }
       const available = SKILLS.map((s) => s.name).join(", ");
       return `Skill '${skillName}' not found. Available skills: ${available}`;
@@ -295,4 +313,4 @@ function findSkillOwningTool(toolName: string): Skill | undefined {
   return SKILLS.find((skill) => skill.toolNames.includes(toolName));
 }
 
-export { SKILLS, createLoadSkillTool, findSkillOwningTool };
+export { SKILLS, createLoadSkillTool, findSkillOwningTool, postsPlaybook };

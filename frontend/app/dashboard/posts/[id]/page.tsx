@@ -29,6 +29,8 @@ import type { ReviewSuggestion } from "@/lib/api/services/blog-review.service";
 import { OrchestratorChat } from "@/components/orchestrator/orchestrator-chat";
 import { WorkspaceSplitLayout } from "@/components/orchestrator/workspace-split-layout";
 import { useStartWritingThread } from "@/lib/writing/use-start-writing-thread";
+import { PublishDestinationPicker } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 export default function EditBlogPage() {
   const router = useRouter();
@@ -58,6 +60,12 @@ export default function EditBlogPage() {
   const [showComparison, setShowComparison] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
   const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<Set<string>>(new Set());
+  const {
+    destinations,
+    hasCms,
+    selected: publishDestinations,
+    setSelected: setPublishDestinations,
+  } = usePublishDestinations();
   const [formData, setFormData] = useState<{
     title: string;
     content: string;
@@ -290,12 +298,19 @@ export default function EditBlogPage() {
 
     const { scheduled_at, ...blogData } = formData;
     const willScheduleLater = formData.status === "scheduled";
+    const becomingPublished = formData.status === "published" && blog?.status !== "published";
     if (willScheduleLater && !scheduled_at) {
       setError("Pick a schedule date and time, or change status away from Scheduled.");
       return;
     }
+    if ((becomingPublished || willScheduleLater) && hasCms && publishDestinations.length === 0) {
+      setError("Select at least one publish destination.");
+      return;
+    }
     const statusForUpdate =
-      formData.status === "scheduled" || formData.status === "generating" ? ("draft" as const) : formData.status;
+      becomingPublished || formData.status === "scheduled" || formData.status === "generating"
+        ? ("draft" as const)
+        : formData.status;
     const blogDataForUpdate = {
       ...blogData,
       status: statusForUpdate,
@@ -333,14 +348,21 @@ export default function EditBlogPage() {
           const shouldSchedule = willScheduleLater && scheduled_at;
           let scheduleSideEffectsOk = true;
           let scheduleChanged = false;
-          if (shouldSchedule) {
+          if (becomingPublished) {
+            try {
+              await BlogService.publishBlog(id, hasCms ? publishDestinations : undefined);
+            } catch (publishErr: any) {
+              scheduleSideEffectsOk = false;
+              setError(publishErr?.response?.data?.message || "Post updated but publishing failed");
+            }
+          } else if (shouldSchedule) {
             try {
               const scheduleDate = new Date(scheduled_at);
               const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
               if (existingSchedule?._id) {
                 await BlogService.unscheduleBlog(id);
               }
-              await BlogService.scheduleBlog(id, scheduleDate, timezone);
+              await BlogService.scheduleBlog(id, scheduleDate, timezone, hasCms ? publishDestinations : undefined);
               setExistingSchedule({
                 scheduled_at: scheduled_at,
                 _id: "new",
@@ -746,6 +768,14 @@ export default function EditBlogPage() {
                                 <option value="unpublished">Unpublished</option>
                               </select>
                             </div>
+
+                            {(formData.status === "published" || formData.status === "scheduled") && (
+                              <PublishDestinationPicker
+                                destinations={destinations}
+                                selected={publishDestinations}
+                                onChange={setPublishDestinations}
+                              />
+                            )}
 
                             <div>
                               <Label htmlFor="category" className="text-gray-300">

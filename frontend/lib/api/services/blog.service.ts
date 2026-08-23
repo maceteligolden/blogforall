@@ -84,9 +84,9 @@ export class BlogService {
     return apiClient.delete(API_ENDPOINTS.BLOGS.DELETE(siteId, id));
   }
 
-  static async publishBlog(id: string) {
+  static async publishBlog(id: string, destinations?: string[]) {
     const siteId = this.requireSiteId();
-    return apiClient.post(API_ENDPOINTS.BLOGS.PUBLISH(siteId, id));
+    return apiClient.post(API_ENDPOINTS.BLOGS.PUBLISH(siteId, id), destinations?.length ? { destinations } : {});
   }
 
   static async unpublishBlog(id: string) {
@@ -124,11 +124,12 @@ export class BlogService {
     });
   }
 
-  static async scheduleBlog(id: string, scheduled_at: Date, timezone?: string) {
+  static async scheduleBlog(id: string, scheduled_at: Date, timezone?: string, destinations?: string[]) {
     const siteId = this.requireSiteId();
-    const requestData: { scheduled_at: Date; timezone?: string } = {
+    const requestData: { scheduled_at: Date; timezone?: string; destinations?: string[] } = {
       scheduled_at,
       ...(timezone && { timezone }),
+      ...(destinations?.length ? { destinations } : {}),
     };
     return apiClient.post(API_ENDPOINTS.BLOGS.SCHEDULE(siteId, id), requestData);
   }

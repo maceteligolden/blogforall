@@ -124,6 +124,11 @@ export const API_ENDPOINTS = {
     LIST_API_KEYS: (siteId: string) => `/sites/${siteId}/api-keys`,
     CREATE_API_KEY: (siteId: string) => `/sites/${siteId}/api-keys`,
     DELETE_API_KEY: (siteId: string, accessKeyId: string) => `/sites/${siteId}/api-keys/${accessKeyId}`,
+    INTEGRATIONS: (siteId: string) => `/sites/${siteId}/integrations`,
+    INTEGRATION_DESTINATIONS: (siteId: string) => `/sites/${siteId}/integrations/destinations`,
+    FRAMER_TEST: (siteId: string) => `/sites/${siteId}/integrations/framer/test`,
+    FRAMER: (siteId: string) => `/sites/${siteId}/integrations/framer`,
+    FRAMER_SYNC: (siteId: string) => `/sites/${siteId}/integrations/framer/sync`,
   },
   INVITATIONS: {
     LIST: "/invitations",
@@ -278,4 +283,7 @@ export const QUERY_KEYS = {
   STRATEGIC_DECISIONS: (siteId: string) => ["strategic", siteId, "decisions"],
   CAMPAIGN_INTELLIGENCE: (id: string) => ["campaigns", id, "intelligence"],
   TOKEN_USAGE: ["usage", "tokens"],
+  INTEGRATIONS: (siteId: string) => ["integrations", siteId],
+  INTEGRATION_DESTINATIONS: (siteId: string) => ["integrations", siteId, "destinations"],
+  FRAMER_INTEGRATION: (siteId: string) => ["integrations", siteId, "framer"],
 };

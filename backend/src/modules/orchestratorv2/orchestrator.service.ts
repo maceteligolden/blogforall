@@ -649,6 +649,19 @@ export default class OrchestratorV2Service {
     const siteId = approval.site_id;
     await this.assertSiteAccess(siteId, userId);
 
+    if (decision === "approved" && (approval.action === "blogs_publish" || approval.action === "blogs_schedule")) {
+      const blogId = typeof approval.payload?.id === "string" ? approval.payload.id : undefined;
+      const destinations = Array.isArray(approval.payload?.destinations)
+        ? approval.payload.destinations.filter((item): item is string => typeof item === "string")
+        : undefined;
+      if (blogId && destinations?.length) {
+        const { container } = await import("tsyringe");
+        const { PublishDestinationOverride } = await import("../integrations/services/destination-override");
+        const { normalizeDestinations } = await import("../integrations/idempotency");
+        container.resolve(PublishDestinationOverride).set(siteId, blogId, normalizeDestinations(destinations));
+      }
+    }
+
     const identity = await this.loadIdentity(siteId, userId);
     const thread = await this.threadRepository.findById(threadId, siteId);
     const agent = this.buildAgent({
@@ -952,6 +965,15 @@ export default class OrchestratorV2Service {
         };
       }
       const summary = action?.description?.trim() || hitlFallbackSummary(actionName);
+      const args = (action?.args ?? {}) as Record<string, unknown>;
+      let available_destinations: Array<{ provider: string; label: string }> | undefined;
+      if (actionName === "blogs_publish" || actionName === "blogs_schedule") {
+        const { container } = await import("tsyringe");
+        const { IntegrationConnectionService } = await import("../integrations/services/connection.service");
+        const { INTEGRATION_PROVIDERS } = await import("../integrations/constants");
+        const cms = await container.resolve(IntegrationConnectionService).listConnectedCms(createApprovalFor.siteId);
+        available_destinations = [{ provider: INTEGRATION_PROVIDERS.BLOGGR, label: "Bloggr" }, ...cms];
+      }
 
       const pendingApproval = await this.approvalRepository.create({
         site_id: createApprovalFor.siteId,
@@ -962,7 +984,8 @@ export default class OrchestratorV2Service {
         action: actionName,
         summary: summary.slice(0, 2000),
         payload: {
-          ...(action?.args ?? {}),
+          ...args,
+          ...(available_destinations ? { available_destinations } : {}),
           _hitl: {
             actionRequests: hitl.actionRequests,
             reviewConfigs: hitl.reviewConfigs,

@@ -1,4 +1,4 @@
-import { Calendar, FileText, FolderOpen, LayoutDashboard, ShieldAlert, Megaphone, Compass } from "lucide-react";
+import { Calendar, FileText, FolderOpen, LayoutDashboard, ShieldAlert, Megaphone, Compass, Plug } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface DashboardNavItem {
@@ -15,4 +15,5 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
   { href: "/dashboard/approvals", label: "Approvals", icon: ShieldAlert },
+  { href: "/dashboard/integrations", label: "Integrations", icon: Plug },
 ];
