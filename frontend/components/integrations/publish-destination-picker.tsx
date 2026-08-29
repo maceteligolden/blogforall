@@ -1,7 +1,8 @@
 "use client";
 
-import { Checkbox } from "@/components/ui/checkbox";
+import { useEffect, useState } from "react";
 import type { PublishDestinationOption } from "@/lib/api/services/integration.service";
+import { ConfigureFramerDialog } from "@/components/integrations/configure-framer-dialog";
 
 export function hasExternalCms(destinations: PublishDestinationOption[] | undefined): boolean {
   return (destinations ?? []).some((item) => item.provider !== "bloggr");
@@ -22,6 +23,28 @@ export function isPublishHitlAction(action: string): boolean {
   return action === "blogs_publish" || action === "blogs_schedule";
 }
 
+export type PublishDestinationChoice = "bloggr" | "framer" | "both";
+
+export function selectionToChoice(selected: string[]): PublishDestinationChoice {
+  const hasBloggr = selected.includes("bloggr");
+  const hasFramer = selected.includes("framer");
+  if (hasBloggr && hasFramer) return "both";
+  if (hasFramer) return "framer";
+  return "bloggr";
+}
+
+export function choiceToSelection(choice: PublishDestinationChoice): string[] {
+  if (choice === "both") return ["bloggr", "framer"];
+  if (choice === "framer") return ["framer"];
+  return ["bloggr"];
+}
+
+export function formatDestinationLabels(selected: string[] | undefined): string {
+  if (!selected?.length) return "Bloggr";
+  const labels = selected.map((item) => (item === "framer" ? "Framer" : item === "bloggr" ? "Bloggr" : item));
+  return labels.join(" + ");
+}
+
 export function PublishDestinationPicker({
   destinations,
   selected,
@@ -35,32 +58,53 @@ export function PublishDestinationPicker({
   disabled?: boolean;
   className?: string;
 }) {
-  if (!hasExternalCms(destinations)) return null;
+  const [configureOpen, setConfigureOpen] = useState(false);
+  const [pendingChoice, setPendingChoice] = useState<PublishDestinationChoice | null>(null);
+  const connected = hasExternalCms(destinations);
+  const choice = selectionToChoice(selected);
 
-  const toggle = (provider: string, checked: boolean) => {
-    if (checked) {
-      onChange(selected.includes(provider) ? selected : [...selected, provider]);
+  useEffect(() => {
+    if (!pendingChoice || !connected) return;
+    onChange(choiceToSelection(pendingChoice));
+    setPendingChoice(null);
+  }, [connected, pendingChoice]); // onChange is applied once when Framer becomes available
+
+  const applyChoice = (next: PublishDestinationChoice) => {
+    if ((next === "framer" || next === "both") && !connected) {
+      setPendingChoice(next);
+      setConfigureOpen(true);
       return;
     }
-    onChange(selected.filter((item) => item !== provider));
+    onChange(choiceToSelection(next));
   };
 
   return (
     <fieldset className={className} disabled={disabled}>
       <legend className="text-sm text-gray-300 mb-2">Publish to</legend>
-      <div className="space-y-2">
-        {destinations.map((dest) => (
-          <label key={dest.provider} className="flex items-center gap-2 text-sm text-gray-200 cursor-pointer">
-            <Checkbox
-              checked={selected.includes(dest.provider)}
-              onCheckedChange={(checked) => toggle(dest.provider, Boolean(checked))}
-              disabled={disabled}
-            />
-            {dest.label}
-          </label>
-        ))}
-      </div>
-      {selected.length === 0 && <p className="text-xs text-red-400 mt-2">Select at least one destination.</p>}
+      <select
+        className="w-full rounded-md border border-gray-700 bg-black px-3 py-2 text-sm text-white"
+        value={pendingChoice ?? choice}
+        disabled={disabled}
+        onChange={(e) => applyChoice(e.target.value as PublishDestinationChoice)}
+        aria-label="Publish destination"
+      >
+        <option value="bloggr">Bloggr</option>
+        <option value="framer">{connected ? "Framer" : "Framer (connect)"}</option>
+        <option value="both">{connected ? "Bloggr and Framer" : "Bloggr and Framer (connect)"}</option>
+      </select>
+      <p className="mt-2 text-xs text-gray-400">
+        {connected
+          ? "Choose Bloggr, your Framer CMS, or both."
+          : "Framer is available after you connect it. Selecting it opens setup."}
+      </p>
+      <ConfigureFramerDialog
+        isOpen={configureOpen}
+        onClose={() => {
+          setConfigureOpen(false);
+          if (!connected) setPendingChoice(null);
+        }}
+        stacked
+      />
     </fieldset>
   );
 }

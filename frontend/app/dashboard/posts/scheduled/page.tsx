@@ -12,6 +12,7 @@ import { Calendar, Plus, Clock, CheckCircle, XCircle, X, Edit, Trash2 } from "lu
 import { ConfirmModal } from "@/components/ui/modal";
 import Link from "next/link";
 import { BlogHubTabs } from "@/components/blogs/blog-hub-tabs";
+import { formatDestinationLabels } from "@/components/integrations/publish-destination-picker";
 
 const SCHEDULED_BASE = "/dashboard/posts/scheduled";
 
@@ -238,6 +239,10 @@ export default function BlogScheduledPostsPage() {
                     <div>
                       <p className="text-xs text-gray-400 mb-1">Timezone</p>
                       <p className="text-sm text-white">{post.timezone}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">Publish to</p>
+                      <p className="text-sm text-white">{formatDestinationLabels(post.metadata?.destinations)}</p>
                     </div>
                   </div>
 

@@ -48,12 +48,7 @@ export default function NewBlogPage() {
   const [reviewHasNewInfo, setReviewHasNewInfo] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [error, setError] = useState("");
-  const {
-    destinations,
-    hasCms,
-    selected: publishDestinations,
-    setSelected: setPublishDestinations,
-  } = usePublishDestinations();
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
   const [formData, setFormData] = useState<{
     title: string;
     content: string;
@@ -252,7 +247,7 @@ export default function NewBlogPage() {
         setError("Pick a schedule date and time, or change status away from Scheduled.");
         return;
       }
-      if ((willPublishNow || willScheduleLater) && hasCms && publishDestinations.length === 0) {
+      if ((willPublishNow || willScheduleLater) && publishDestinations.length === 0) {
         setError("Select at least one publish destination.");
         return;
       }
@@ -267,7 +262,7 @@ export default function NewBlogPage() {
           const blogId = response.data?.data?._id || response.data?._id;
           if (blogId && willPublishNow) {
             try {
-              await BlogService.publishBlog(blogId, hasCms ? publishDestinations : undefined);
+              await BlogService.publishBlog(blogId, publishDestinations);
             } catch (publishErr: any) {
               setError(publishErr?.response?.data?.message || "Post created but publishing failed");
             }
@@ -276,7 +271,7 @@ export default function NewBlogPage() {
             try {
               const scheduleDate = new Date(scheduled_at);
               const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-              await BlogService.scheduleBlog(blogId, scheduleDate, timezone, hasCms ? publishDestinations : undefined);
+              await BlogService.scheduleBlog(blogId, scheduleDate, timezone, publishDestinations);
               await Promise.all([
                 queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS }),
                 queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS }),

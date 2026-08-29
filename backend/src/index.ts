@@ -196,7 +196,11 @@ const startServer = async () => {
         );
       });
     } else {
-      logger.info("Integration publish queue disabled (no REDIS_URL); Framer publishes run inline", {}, "IntegrationPublishQueue");
+      logger.info(
+        "Integration publish queue disabled (no REDIS_URL); Framer publishes run inline",
+        {},
+        "IntegrationPublishQueue"
+      );
     }
 
     const realtimeGateway = container.resolve(SocketIoRealtimeGateway);

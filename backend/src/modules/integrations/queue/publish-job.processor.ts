@@ -9,6 +9,7 @@ import { IntegrationDeliveryRepository } from "../repositories/delivery.reposito
 import { FramerProvider } from "../providers/framer.provider";
 import type { IntegrationPublishJob } from "./publish.queue";
 import type { FramerMappableField } from "../constants";
+import { deriveFramerPublishValues } from "../services/framer-publish-payload";
 
 @injectable()
 export class IntegrationPublishProcessor {
@@ -45,12 +46,7 @@ export class IntegrationPublishProcessor {
         decryptWorkspaceApiKeySecret(connection.credentials_encrypted),
         connection.config.collectionId ?? "",
         {
-          slug: blog.slug,
-          title: blog.title,
-          content: blog.content,
-          excerpt: blog.excerpt,
-          featuredImage: blog.featured_image,
-          publishedAt: blog.published_at,
+          ...deriveFramerPublishValues(blog),
           fieldMap: (connection.config.fieldMap ?? {}) as Partial<Record<FramerMappableField, string>>,
           existingItemId: claimed.external_item_id ?? undefined,
         },

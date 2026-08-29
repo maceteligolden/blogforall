@@ -2,14 +2,14 @@
 
 import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { initPostHog, capturePageView, isPostHogEnabled } from "./posthog";
+import { initAnalytics, capturePageView, isAnalyticsEnabled } from "./client";
 
-function PostHogPageViewTracker() {
+function AnalyticsPageViewTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!isPostHogEnabled()) return;
+    if (!isAnalyticsEnabled()) return;
     const url = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
     capturePageView(url);
   }, [pathname, searchParams]);
@@ -19,17 +19,15 @@ function PostHogPageViewTracker() {
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    initPostHog();
+    initAnalytics();
   }, []);
 
   return (
     <>
       {children}
-      {isPostHogEnabled() && (
-        <Suspense fallback={null}>
-          <PostHogPageViewTracker />
-        </Suspense>
-      )}
+      <Suspense fallback={null}>
+        <AnalyticsPageViewTracker />
+      </Suspense>
     </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -13,9 +13,9 @@ import type { OrchestratorApproval, OrchestratorApprovalStatus } from "@/lib/api
 import {
   PublishDestinationPicker,
   defaultDestinationSelection,
-  hasExternalCms,
   isPublishHitlAction,
 } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 const STATUS_FILTERS: Array<{ label: string; value: OrchestratorApprovalStatus }> = [
   { label: "Pending", value: "pending" },
@@ -52,11 +52,15 @@ function ApprovalCard({
   isDeciding: boolean;
 }) {
   const isPending = approval.status === "pending";
-  const showDestinations =
-    isPending && isPublishHitlAction(approval.action) && hasExternalCms(approval.payload?.available_destinations);
+  const showDestinations = isPending && isPublishHitlAction(approval.action);
+  const { destinations: liveDestinations } = usePublishDestinations();
   const [destinations, setDestinations] = useState(() =>
-    defaultDestinationSelection(approval.payload?.available_destinations, approval.payload?.destinations)
+    defaultDestinationSelection(liveDestinations, approval.payload?.destinations)
   );
+
+  useEffect(() => {
+    setDestinations((prev) => defaultDestinationSelection(liveDestinations, approval.payload?.destinations ?? prev));
+  }, [liveDestinations, approval.payload?.destinations]);
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 sm:p-5">
@@ -74,7 +78,7 @@ function ApprovalCard({
           {showDestinations && (
             <PublishDestinationPicker
               className="mt-3"
-              destinations={approval.payload?.available_destinations ?? []}
+              destinations={liveDestinations}
               selected={destinations}
               onChange={setDestinations}
               disabled={isDeciding}

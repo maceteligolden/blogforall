@@ -134,20 +134,15 @@ Keep the generated roadmap topic and strategic intent. The user may change topic
 
 If they want a different push ("write about our pricing war" when this item is a thought-leadership piece), refuse and steer back — or tell them that belongs on another campaign or a new named push, not this item.
 
-## HITL 1 — start research
+## HITL — start research
 
 After you have a brief, call writing_request_research (HITL). Do not call research_run yourself for this post — that tool runs full research after they approve.
-Do **not** call writing_confirm_research in the same turn.
-- Approve → the tool returns report_markdown. Your written reply IS that report (Markdown). Stop there. The product asks the user to Continue (HITL 2) after the report is on screen.
+- Approve → the tool returns spoken_summary and report_markdown. Your written reply is spoken_summary (3–6 sentences): what we learned, what it means, one question. Do not paste the full report. Do not start a draft.
 - Reject → stay in discussion.
 
-## HITL 2 — approve research
+After research, stay in conversation. If they want a draft now, they can write it in Posts. Do not generate a post from this skill until they clearly start a new research pass.
 
-Do not call writing_confirm_research yourself after the report. The UI collects that confirmation.
-- Approve → background draft starts (editorial review + rewrite happen before the user sees the post). Confirm that you'll notify them, then immediately move on: propose the next due roadmap topic or discuss campaign progress. Do not go silent. Do not repeat the research report. Do not call writing_confirm_research again.
-- Reject → discuss what was wrong, then another writing_request_research if they want a new pass.
-
-Never call outline tools. Research is the last human gate before generate.
+Never call outline tools. Starting research is the only writing HITL.
 
 ## Existing drafts
 
@@ -166,7 +161,6 @@ To publish or schedule an existing post, load the posts skill.
 
 - writing_next_due — undrafted roadmap topics, overdue first.
 - writing_request_research — HITL: approve starting research.
-- writing_confirm_research — HITL: approve research and start the background draft.
 - writing_revise_draft — revise the bound draft from an instruction. Always call this to persist edits into the full post.
 `;
 
@@ -269,9 +263,9 @@ const SKILLS: Skill[] = [
   {
     name: "writing",
     description:
-      "Weekly writing loop for blog posts: discuss a bound roadmap topic, HITL to start research, HITL to approve research, then background draft. Revise existing drafts with natural language. Keep the topic unless a new angle still serves the campaign and Content Strategy.",
+      "Weekly writing loop for blog posts: discuss a bound roadmap topic, HITL to start research, then discuss findings. Revise existing drafts with natural language. Keep the topic unless a new angle still serves the campaign and Content Strategy.",
     content: WRITING_PLAYBOOK,
-    toolNames: ["writing_next_due", "writing_request_research", "writing_confirm_research", "writing_revise_draft"],
+    toolNames: ["writing_next_due", "writing_request_research", "writing_revise_draft"],
   },
   {
     name: "posts",

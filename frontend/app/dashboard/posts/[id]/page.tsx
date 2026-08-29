@@ -60,12 +60,7 @@ export default function EditBlogPage() {
   const [showComparison, setShowComparison] = useState(false);
   const [reviewMode, setReviewMode] = useState(false);
   const [appliedSuggestionIds, setAppliedSuggestionIds] = useState<Set<string>>(new Set());
-  const {
-    destinations,
-    hasCms,
-    selected: publishDestinations,
-    setSelected: setPublishDestinations,
-  } = usePublishDestinations();
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
   const [formData, setFormData] = useState<{
     title: string;
     content: string;
@@ -303,7 +298,7 @@ export default function EditBlogPage() {
       setError("Pick a schedule date and time, or change status away from Scheduled.");
       return;
     }
-    if ((becomingPublished || willScheduleLater) && hasCms && publishDestinations.length === 0) {
+    if ((becomingPublished || willScheduleLater) && publishDestinations.length === 0) {
       setError("Select at least one publish destination.");
       return;
     }
@@ -350,7 +345,7 @@ export default function EditBlogPage() {
           let scheduleChanged = false;
           if (becomingPublished) {
             try {
-              await BlogService.publishBlog(id, hasCms ? publishDestinations : undefined);
+              await BlogService.publishBlog(id, publishDestinations);
             } catch (publishErr: any) {
               scheduleSideEffectsOk = false;
               setError(publishErr?.response?.data?.message || "Post updated but publishing failed");
@@ -362,7 +357,7 @@ export default function EditBlogPage() {
               if (existingSchedule?._id) {
                 await BlogService.unscheduleBlog(id);
               }
-              await BlogService.scheduleBlog(id, scheduleDate, timezone, hasCms ? publishDestinations : undefined);
+              await BlogService.scheduleBlog(id, scheduleDate, timezone, publishDestinations);
               setExistingSchedule({
                 scheduled_at: scheduled_at,
                 _id: "new",

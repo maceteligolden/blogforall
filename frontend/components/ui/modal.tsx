@@ -12,9 +12,11 @@ interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: "sm" | "md" | "lg" | "xl";
+  /** Sit above another open modal (e.g. Connect Framer from a publish dialog). */
+  stacked?: boolean;
 }
 
-export function Modal({ isOpen, onClose, title, children, footer, size = "md" }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, footer, size = "md", stacked = false }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -37,7 +39,7 @@ export function Modal({ isOpen, onClose, title, children, footer, size = "md" }:
 
   const overlay = (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10050] flex items-center justify-center p-4"
+      className={`fixed inset-0 bg-black/60 backdrop-blur-sm ${stacked ? "z-[10070]" : "z-[10050]"} flex items-center justify-center p-4`}
       onClick={onClose}
     >
       <div

@@ -538,7 +538,7 @@ export function createWritingTools(ctx: WritingToolContext) {
           onPhase: (event) => emitResearchPhase(realtime, ctx, event),
         });
         return toolResult(
-          `Research complete for "${topic}". Your user-facing reply MUST be report_markdown as Markdown — not "done" and not a one-line summary. Do not call writing_confirm_research in this turn; the UI will ask the user to continue after the report.`,
+          `Research complete for "${topic}". Your user-facing reply MUST be spoken_summary (3–6 sentences): what we learned, what it means, one question to keep discussing. Do not paste report_markdown. Do not start a draft. Do not call another writing tool this turn.`,
           {
             topic: resolved.topic,
             intent: resolved.intent,
@@ -588,44 +588,13 @@ export function createWritingTools(ctx: WritingToolContext) {
     {
       name: "writing_request_research",
       description:
-        "Ask the user to approve starting research for the bound topic. After they approve, this tool runs full research and returns the report. Do not call writing_confirm_research in this turn. HITL-gated.",
+        "Ask the user to approve starting research for the bound topic. After they approve, this tool runs full research and returns spoken_summary plus the full report in output_data. Then discuss — do not start a draft. HITL-gated.",
       schema: z.object({
         topic: z.string().min(1).max(400),
         intent: z.string().max(2000).optional(),
         campaign_id: z.string().optional(),
         campaign_name: z.string().optional(),
         sequence_index: z.number().int().min(0).optional(),
-        angle: z.string().max(1000).optional(),
-        must_include: z.string().max(2000).optional(),
-        must_avoid: z.string().max(2000).optional(),
-        cta: z.string().max(400).optional(),
-        audience_notes: z.string().max(1000).optional(),
-        personal_notes: z.string().max(4000).optional(),
-      }),
-    }
-  );
-
-  const writing_confirm_research = tool(
-    async (args) => {
-      const started = await startBoundWritingDraft(ctx, args as Record<string, unknown>);
-      const followUp = await followUpAfterDraftStarted(ctx.siteId, started.topic);
-      return toolResult(followUp, {
-        blog_id: started.blogId,
-        campaign_id: started.campaignId,
-        topic: started.topic,
-      });
-    },
-    {
-      name: "writing_confirm_research",
-      description:
-        "Ask the user to approve the research report, then start a background draft (review + rewrite before showing). HITL-gated. Pass the writing brief captured from chat.",
-      schema: z.object({
-        topic: z.string().min(1).max(400),
-        intent: z.string().max(2000).optional(),
-        campaign_id: z.string().optional(),
-        campaign_name: z.string().optional(),
-        sequence_index: z.number().int().min(0).optional(),
-        research_summary: z.string().max(4000).optional(),
         angle: z.string().max(1000).optional(),
         must_include: z.string().max(2000).optional(),
         must_avoid: z.string().max(2000).optional(),
@@ -692,5 +661,5 @@ export function createWritingTools(ctx: WritingToolContext) {
     }
   );
 
-  return [writing_next_due, writing_request_research, writing_confirm_research, writing_revise_draft];
+  return [writing_next_due, writing_request_research, writing_revise_draft];
 }

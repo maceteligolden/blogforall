@@ -65,7 +65,7 @@ export default function ManageFramerPage() {
       <div className="p-6">
         <p className="text-gray-400 mb-3">Framer is not connected.</p>
         <Link
-          href="/dashboard/integrations/framer/configure"
+          href="/dashboard/integrations?configure=framer"
           className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-white hover:bg-primary/90"
         >
           Configure

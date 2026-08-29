@@ -20,9 +20,9 @@ describe("normalizeFramerProjectTarget", () => {
   });
 
   it("strips the editor suffix after the 20-character id", () => {
-    expect(
-      normalizeFramerProjectTarget("https://framer.com/projects/Alive-Eyes--ciftteW00GGfesoI7YBa-g4orW")
-    ).toBe("ciftteW00GGfesoI7YBa");
+    expect(normalizeFramerProjectTarget("https://framer.com/projects/Alive-Eyes--ciftteW00GGfesoI7YBa-g4orW")).toBe(
+      "ciftteW00GGfesoI7YBa"
+    );
   });
 
   it("rejects published site URLs", () => {

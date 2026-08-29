@@ -11,28 +11,26 @@ import { validatePassword } from "@/lib/utils/password-validation";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { captureEvent } from "@/lib/analytics/posthog";
 import { AnalyticsEvents } from "@/lib/analytics/events";
-import { DeveloperDocsBanner } from "@/components/settings/developer-docs-banner";
-import { ApiKeysPanel } from "@/components/settings/api-keys-panel";
 import { BusinessContextPanel } from "@/components/settings/business-context-panel";
 import { cn } from "@/lib/utils/cn";
 
-type SettingsTab = "profile" | "password" | "business" | "developer";
+type SettingsTab = "profile" | "password" | "business";
 
 const TAB_LABELS: Record<SettingsTab, string> = {
   profile: "Profile",
   password: "Password",
   business: "Business",
-  developer: "Developer",
 };
 
 function parseTab(value: string | null): SettingsTab {
-  if (value === "password" || value === "business" || value === "developer") return value;
+  if (value === "password" || value === "business") return value;
   return "profile";
 }
 
 function ProfileSettingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const wantsDeveloper = searchParams.get("tab") === "developer";
   const activeTab = parseTab(searchParams.get("tab"));
   const { user, updateProfile, changePassword, profileQuery, isUpdatingProfile, isChangingPassword } = useAuth();
   const [profileForm, setProfileForm] = useState({
@@ -48,6 +46,12 @@ function ProfileSettingsContent() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isNewPasswordValid, setIsNewPasswordValid] = useState(false);
+
+  useEffect(() => {
+    if (wantsDeveloper) {
+      router.replace("/dashboard/integrations/api");
+    }
+  }, [wantsDeveloper, router]);
 
   const setTab = (tab: SettingsTab) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -146,6 +150,17 @@ function ProfileSettingsContent() {
     }
   };
 
+  if (wantsDeveloper) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black">
+        <div className="text-center">
+          <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          <p className="text-gray-400">Redirecting to Bloggr API…</p>
+        </div>
+      </div>
+    );
+  }
+
   if (profileQuery?.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black">
@@ -180,12 +195,12 @@ function ProfileSettingsContent() {
             ))}
           </div>
 
-          {activeTab !== "developer" && activeTab !== "business" && success && (
+          {activeTab !== "business" && success && (
             <div className="mb-6 rounded-md border border-green-800 bg-green-900/20 p-4 text-sm text-green-400">
               {success}
             </div>
           )}
-          {activeTab !== "developer" && activeTab !== "business" && error && (
+          {activeTab !== "business" && error && (
             <div className="mb-6 rounded-md border border-red-800 bg-red-900/20 p-4 text-sm text-red-400">{error}</div>
           )}
 
@@ -316,13 +331,6 @@ function ProfileSettingsContent() {
           {activeTab === "business" && (
             <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
               <BusinessContextPanel />
-            </div>
-          )}
-
-          {activeTab === "developer" && (
-            <div className="rounded-lg border border-gray-800 bg-gray-900 p-6">
-              <DeveloperDocsBanner />
-              <ApiKeysPanel />
             </div>
           )}
         </main>

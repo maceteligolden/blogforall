@@ -42,12 +42,7 @@ export default function SchedulePostPage() {
 
   const [error, setError] = useState("");
   const [useExistingBlog, setUseExistingBlog] = useState(true);
-  const {
-    destinations,
-    hasCms,
-    selected: publishDestinations,
-    setSelected: setPublishDestinations,
-  } = usePublishDestinations();
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
 
   const createScheduledPostMutation = useMutation({
     mutationFn: (data: CreateScheduledPostRequest) => CampaignService.createScheduledPost(data),
@@ -145,7 +140,7 @@ export default function SchedulePostPage() {
       generation_prompt: !useExistingBlog ? formData.generation_prompt : undefined,
       metadata: {
         ...(formData.metadata as CreateScheduledPostRequest["metadata"]),
-        ...(hasCms ? { destinations: publishDestinations } : {}),
+        destinations: publishDestinations,
       },
     };
 

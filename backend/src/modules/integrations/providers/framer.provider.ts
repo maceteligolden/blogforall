@@ -1,6 +1,7 @@
 import { injectable } from "tsyringe";
 import { logger } from "../../../shared/utils/logger";
 import type { FramerMappableField } from "../constants";
+import { framerMappedFieldValues } from "../services/framer-publish-payload";
 import { normalizeFramerProjectTarget } from "./framer-project-url";
 
 export type FramerCollectionField = {
@@ -177,14 +178,7 @@ export class FramerProvider {
       const fields = await readFields(collection);
       const fieldById = new Map(fields.map((field) => [field.id, field]));
       const fieldData: Record<string, FramerFieldValue> = {};
-      const mapped: Array<[FramerMappableField, string | undefined]> = [
-        ["title", payload.title],
-        ["content", payload.content],
-        ["excerpt", payload.excerpt],
-        ["featured_image", payload.featuredImage],
-        ["published_at", payload.publishedAt?.toISOString()],
-      ];
-      for (const [blogField, value] of mapped) {
+      for (const [blogField, value] of framerMappedFieldValues(payload)) {
         const fieldId = payload.fieldMap[blogField];
         if (!fieldId || value == null || value === "") continue;
         const field = fieldById.get(fieldId);

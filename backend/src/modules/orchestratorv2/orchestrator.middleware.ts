@@ -22,11 +22,7 @@ import {
   formatCampaignUpdateDraft,
 } from "./orchestrator.campaign-tools";
 import { createResearchTools } from "./orchestrator.research-tools";
-import {
-  createWritingTools,
-  formatWritingConfirmResearchDraft,
-  formatWritingResearchDraft,
-} from "./orchestrator.writing-tools";
+import { createWritingTools, formatWritingResearchDraft } from "./orchestrator.writing-tools";
 import {
   createBlogTools,
   formatBlogPublishDraft,
@@ -373,12 +369,9 @@ function resolveLoadedSkills(state: { loadedSkills?: string[]; messages?: unknow
 function sanitizeWritingHitlToolCalls(response: AIMessage): AIMessage {
   if (!response.tool_calls?.length) return response;
   const calls = response.tool_calls;
-  const hasRequest = calls.some((call) => call.name === "writing_request_research");
-  const hasConfirm = calls.some((call) => call.name === "writing_confirm_research");
-  let next = hasRequest && hasConfirm ? calls.filter((call) => call.name !== "writing_confirm_research") : calls;
   const seenHitl = new Set<string>();
-  next = next.filter((call) => {
-    if (call.name !== "writing_request_research" && call.name !== "writing_confirm_research") {
+  const next = calls.filter((call) => {
+    if (call.name !== "writing_request_research") {
       return true;
     }
     if (seenHitl.has(call.name)) return false;
@@ -441,7 +434,7 @@ function createSkillMiddleware(args: { siteId: string; userId: string; threadId?
         "about handling a specific type of request. Skill tools unlock only after load_skill." +
         writingPlaybook +
         (args.writingLoop
-          ? "\n\nThis thread is the weekly writing loop. Do not call research_run. After you have a brief, call writing_request_research (HITL 1) only. After that tool returns the report, stop — the UI collects Continue (HITL 2). Do not call writing_confirm_research yourself."
+          ? "\n\nThis thread is the weekly writing loop. Do not call research_run. After you have a brief, call writing_request_research (HITL) only. After that tool returns, speak spoken_summary and keep discussing. Do not start a draft."
           : "");
 
       const response = await handler({
@@ -508,10 +501,6 @@ function createSkillHitlMiddleware(ctx: { siteId: string }) {
       writing_request_research: {
         ...hitlReview,
         description: (toolCall) => formatWritingResearchDraft((toolCall.args ?? {}) as Record<string, unknown>),
-      },
-      writing_confirm_research: {
-        ...hitlReview,
-        description: (toolCall) => formatWritingConfirmResearchDraft((toolCall.args ?? {}) as Record<string, unknown>),
       },
       blogs_publish: {
         ...hitlReview,

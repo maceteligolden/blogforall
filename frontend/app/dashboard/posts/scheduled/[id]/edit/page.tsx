@@ -43,12 +43,7 @@ export default function BlogEditScheduledPostPage() {
   });
 
   const [error, setError] = useState("");
-  const {
-    destinations,
-    hasCms,
-    selected: publishDestinations,
-    setSelected: setPublishDestinations,
-  } = usePublishDestinations();
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
 
   useEffect(() => {
     if (scheduledPost) {
@@ -94,7 +89,7 @@ export default function BlogEditScheduledPostPage() {
       timezone: formData.timezone,
       metadata: {
         ...scheduledPost?.metadata,
-        ...(hasCms ? { destinations: publishDestinations } : {}),
+        destinations: publishDestinations,
       },
     };
 

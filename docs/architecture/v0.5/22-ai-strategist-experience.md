@@ -2,8 +2,10 @@
 
 **Status:** Canonical experience contract (M7 AI Strategist Experience)  
 **Date:** 2026-08-06  
-**Companion:** [19](./19-conversation-intelligence.md), [21](./21-strategic-intelligence.md), [09](./09-execution-flow.md)  
+**Companion:** [19](./19-conversation-intelligence.md), [21](./21-strategic-intelligence.md), [09](./09-execution-flow.md), product requirements [`docs/REQUIREMENTS_STRATEGIST_AND_FRAMER_PUBLISH.md`](../../REQUIREMENTS_STRATEGIST_AND_FRAMER_PUBLISH.md)  
 **Supersedes (UX personality):** [`docs/DASHBOARD_AGENT_UX_PERSONALITY.md`](../../DASHBOARD_AGENT_UX_PERSONALITY.md)
+
+Product lock for Framer publish surfaces, research HITL (approve before research; chat after findings), and wiring Conversation Intelligence onto v2 lives in that requirements file. This document remains the experience contract; where §4 / §4.1 conflict with that file (post-research HITL, outline HITL), the requirements file wins.
 
 ---
 

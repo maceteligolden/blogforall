@@ -340,7 +340,6 @@ export class OrchestratorService {
       decided.action === "campaign_update" ||
       decided.action === "campaign_schedule_additional_posts" ||
       decided.action === "writing_request_research" ||
-      decided.action === "writing_confirm_research" ||
       decided.action === "blogs_publish" ||
       decided.action === "blogs_unpublish" ||
       decided.action === "blogs_schedule" ||

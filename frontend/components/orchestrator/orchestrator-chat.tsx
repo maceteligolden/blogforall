@@ -66,9 +66,9 @@ import { REALTIME_EVENTS } from "@/lib/realtime";
 import {
   PublishDestinationPicker,
   defaultDestinationSelection,
-  hasExternalCms,
   isPublishHitlAction,
 } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 interface PendingTurn {
   userText: string;
@@ -152,6 +152,7 @@ export function OrchestratorChat({
   const [error, setError] = useState<string | null>(null);
   const [pendingApproval, setPendingApproval] = useState<OrchestratorApproval | null>(null);
   const [hitlDestinations, setHitlDestinations] = useState<string[]>(["bloggr"]);
+  const { destinations: livePublishDestinations } = usePublishDestinations();
   const [nextTopics, setNextTopics] = useState<NextDueTopic[]>([]);
   const [openerChips, setOpenerChips] = useState<string[]>([]);
   const [lastTurnToolCalls, setLastTurnToolCalls] = useState<
@@ -412,8 +413,8 @@ export function OrchestratorChat({
         return {
           id: latestId,
           kind: "in_chat_confirmation",
-          action: "writing_confirm_research",
-          summary: "Approve this research to start the background draft?",
+          action: "writing_request_research",
+          summary: "Start research for this post?",
           status: "pending",
           requested_at: new Date().toISOString(),
         };
@@ -426,15 +427,10 @@ export function OrchestratorChat({
 
   useEffect(() => {
     if (!pendingApproval) return;
-    setHitlDestinations(
-      defaultDestinationSelection(
-        pendingApproval.payload?.available_destinations,
-        pendingApproval.payload?.destinations
-      )
+    setHitlDestinations((prev) =>
+      defaultDestinationSelection(livePublishDestinations, pendingApproval.payload?.destinations ?? prev)
     );
-    // Reset only when the pending approval itself changes, not on list refetch.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingApproval?.id]);
+  }, [pendingApproval, livePublishDestinations]);
 
   // Drop optimistic rows once the same turn is in persisted history (single message lifecycle).
   useEffect(() => {
@@ -566,8 +562,8 @@ export function OrchestratorChat({
           ? (approvals.find((a) => a.id === nextApprovalId) ?? {
               id: nextApprovalId,
               kind: "in_chat_confirmation",
-              action: "writing_confirm_research",
-              summary: "Approve this research to start the background draft?",
+              action: "writing_request_research",
+              summary: "Start research for this post?",
               status: "pending",
               requested_at: new Date().toISOString(),
             })
@@ -1197,21 +1193,18 @@ export function OrchestratorChat({
                   Confirmation needed:{" "}
                   {pendingApproval.action === "writing_request_research"
                     ? "Start research"
-                    : pendingApproval.action === "writing_confirm_research"
-                      ? "Approve research"
-                      : pendingApproval.action.replace(/_/g, " ")}
+                    : pendingApproval.action.replace(/_/g, " ")}
                 </p>
                 <p className="text-xs text-yellow-200/80 mt-1">{pendingApproval.summary}</p>
-                {isPublishHitlAction(pendingApproval.action) &&
-                  hasExternalCms(pendingApproval.payload?.available_destinations) && (
-                    <PublishDestinationPicker
-                      className="mt-3"
-                      destinations={pendingApproval.payload?.available_destinations ?? []}
-                      selected={hitlDestinations}
-                      onChange={setHitlDestinations}
-                      disabled={!!pending}
-                    />
-                  )}
+                {isPublishHitlAction(pendingApproval.action) && (
+                  <PublishDestinationPicker
+                    className="mt-3"
+                    destinations={livePublishDestinations}
+                    selected={hitlDestinations}
+                    onChange={setHitlDestinations}
+                    disabled={!!pending}
+                  />
+                )}
                 <div className="flex gap-2 mt-3">
                   <Button
                     size="sm"
@@ -1223,14 +1216,11 @@ export function OrchestratorChat({
                       void handleHitlDecision("approved");
                     }}
                     disabled={
-                      !!pending ||
-                      (isPublishHitlAction(pendingApproval.action) &&
-                        hasExternalCms(pendingApproval.payload?.available_destinations) &&
-                        hitlDestinations.length === 0)
+                      !!pending || (isPublishHitlAction(pendingApproval.action) && hitlDestinations.length === 0)
                     }
                     className="bg-primary text-white hover:bg-primary/90"
                   >
-                    {pendingApproval.action === "writing_confirm_research" ? "Continue" : "Confirm"}
+                    Confirm
                   </Button>
                   <Button
                     size="sm"
@@ -1245,7 +1235,7 @@ export function OrchestratorChat({
                     disabled={!!pending}
                     className="border-gray-700 text-gray-200 hover:bg-gray-800"
                   >
-                    {pendingApproval.action === "writing_confirm_research" ? "Reject" : "Cancel"}
+                    Cancel
                   </Button>
                 </div>
               </div>

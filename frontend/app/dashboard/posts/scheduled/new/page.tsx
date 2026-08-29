@@ -34,12 +34,7 @@ export default function BlogNewScheduledPostPage() {
   });
 
   const createScheduledPost = useCreateScheduledPost();
-  const {
-    destinations,
-    hasCms,
-    selected: publishDestinations,
-    setSelected: setPublishDestinations,
-  } = usePublishDestinations();
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
 
   const [formData, setFormData] = useState<{
     blog_id: string;
@@ -148,7 +143,7 @@ export default function BlogNewScheduledPostPage() {
       campaign_id: selectedCampaign || undefined,
       metadata: {
         ...(formData.metadata as CreateScheduledPostRequest["metadata"]),
-        ...(hasCms ? { destinations: publishDestinations } : {}),
+        destinations: publishDestinations,
       },
     };
 
