@@ -41,6 +41,10 @@ export function primaryButton(href: string, label: string): string {
   return `<a href="${escapeHtml(href)}" class="email-cta" style="display: inline-block; background: ${EMAIL_COLORS.cta}; color: ${EMAIL_COLORS.white}; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; line-height: 1.25;">${escapeHtml(label)}</a>`;
 }
 
+export function mutedButton(href: string, label: string): string {
+  return `<a href="${escapeHtml(href)}" style="display: inline-block; background: ${EMAIL_COLORS.heading}; color: ${EMAIL_COLORS.white}; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; line-height: 1.25;">${escapeHtml(label)}</a>`;
+}
+
 export function contentCard(innerHtml: string): string {
   return `<div style="background: ${EMAIL_COLORS.surface}; border: 1px solid ${EMAIL_COLORS.border}; border-radius: 8px; padding: 16px; margin: 16px 0;">${innerHtml}</div>`;
 }

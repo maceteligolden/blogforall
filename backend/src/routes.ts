@@ -19,6 +19,7 @@ import usageRouter from "./modules/token-ledger/routes/usage.router";
 import adminRouter from "./modules/admin/routes/admin.router";
 import referralRouter from "./modules/referral/routes/referral.router";
 import waitlistRouter from "./modules/waitlist/routes/waitlist.router";
+import betaAccessRouter from "./modules/beta-access/routes/beta-access.router";
 import siteMemoryRouter from "./modules/memory/routes/site-memory.router";
 import siteStrategicRouter from "./modules/strategic-intelligence/routes/site-strategic.router";
 const router = Router();
@@ -87,5 +88,8 @@ router.use("/sites/:siteId", siteStrategicRouter);
 
 // Waitlist signup (public)
 router.use("/waitlist", waitlistRouter);
+
+// Beta approval from email links (token-authenticated; no JWT)
+router.use("/beta-access", betaAccessRouter);
 
 export { router as routes };

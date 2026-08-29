@@ -187,6 +187,12 @@ export const env = {
     redirectUri: (process.env.GOOGLE_DRIVE_REDIRECT_URI || "").trim(),
   },
 
+  betaAccess: {
+    notifyEmail: (process.env.BETA_APPROVAL_NOTIFY_EMAIL || "macteligolden@gmail.com").trim(),
+    tokenSecret: (process.env.BETA_APPROVAL_TOKEN_SECRET || process.env.ACCESS_SECRET || "").trim(),
+    tokenTtlDays: parseIntEnv(process.env.BETA_APPROVAL_TOKEN_TTL_DAYS, 30),
+  },
+
   frontend: {
     baseUrl: process.env.FRONTEND_URL?.split(",")[0]?.trim() || FRONTEND_BASE_URL_DEFAULT,
     urls: process.env.FRONTEND_URL

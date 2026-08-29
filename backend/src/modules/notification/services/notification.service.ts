@@ -230,6 +230,10 @@ export class NotificationService {
         return EMAIL_TEMPLATE_KEYS.WELCOME;
       case NotificationType.WAITLIST_CONFIRMATION:
         return EMAIL_TEMPLATE_KEYS.WAITLIST_CONFIRMATION;
+      case NotificationType.BETA_SIGNUP_REQUEST:
+        return EMAIL_TEMPLATE_KEYS.BETA_SIGNUP_REQUEST;
+      case NotificationType.BETA_ACCESS_GRANTED:
+        return EMAIL_TEMPLATE_KEYS.BETA_ACCESS_GRANTED;
       default:
         return "site_invitation";
     }

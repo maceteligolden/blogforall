@@ -76,4 +76,31 @@ describe("email template theme", () => {
     expect(comment.html).toContain("View comment");
     expect(comment.text).toContain("https://app.bloggr.io/comments/1");
   });
+
+  it("renders beta signup request with applicant details and both links", () => {
+    const email = getTemplate(EMAIL_TEMPLATE_KEYS.BETA_SIGNUP_REQUEST, "en", {
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "ada@example.com",
+      approveUrl: "https://app.bloggr.io/beta-access/approve?token=a",
+      rejectUrl: "https://app.bloggr.io/beta-access/reject?token=a",
+    });
+    expect(email.html).toContain("Ada");
+    expect(email.html).toContain("Lovelace");
+    expect(email.html).toContain("ada@example.com");
+    expect(email.html).toContain("Approve");
+    expect(email.html).toContain("Reject");
+    expect(email.html).toContain("https://app.bloggr.io/beta-access/approve?token=a");
+    expect(email.text).toContain("ada@example.com");
+  });
+
+  it("renders beta access granted with login CTA", () => {
+    const email = getTemplate(EMAIL_TEMPLATE_KEYS.BETA_ACCESS_GRANTED, "en", {
+      firstName: "Ada",
+      loginUrl: "https://app.bloggr.io/auth/login",
+    });
+    expect(email.html).toContain("start beta testing");
+    expect(email.html).toContain("https://app.bloggr.io/auth/login");
+    expect(email.text).toContain("https://app.bloggr.io/auth/login");
+  });
 });

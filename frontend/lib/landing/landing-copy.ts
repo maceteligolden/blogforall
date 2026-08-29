@@ -20,8 +20,9 @@ export const LANDING_CTAS = {
   watchOverview: "Watch 90s overview",
   contact: "Contact us",
   readDocs: "Read the docs →",
-  trustLine: "Full access on Free. No waitlist. No credit card.",
+  trustLine: "Free to start. Request early access. No credit card.",
   getEarlyAccess: "Get early access",
+  waitingForAccess: "Check approval status",
 } as const;
 
 export const HERO = {
@@ -299,7 +300,7 @@ export const FAQ_ITEMS = [
   },
   {
     q: "Is there a waitlist?",
-    a: "No. Full access is open—create an account and start.",
+    a: "New accounts request early access. Create an account, finish setup, and we'll approve you for the beta.",
   },
   {
     q: "Can my team join?",
@@ -314,7 +315,7 @@ export const FAQ_ITEMS = [
 export const FINAL_CTA = {
   h2: "Start with full access. Brief your business once.",
   body: "Your business, already briefed—every draft after that gets easier.",
-  trust: "No waitlist. No credit card.",
+  trust: "Request early access. No credit card.",
 } as const;
 
 export const FOOTER_TAGLINE = "Context-aware blog posts from conversation, not prompts.";

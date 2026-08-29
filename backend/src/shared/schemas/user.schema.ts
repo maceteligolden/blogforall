@@ -1,4 +1,4 @@
-import { UserRole, UserPlan } from "../constants";
+import { UserRole, UserPlan, AccountType } from "../constants";
 import { BaseEntity } from "../interfaces";
 
 export interface User extends BaseEntity {
@@ -9,6 +9,9 @@ export interface User extends BaseEntity {
   phone_number?: string;
   role: UserRole;
   plan: UserPlan;
+  account_type: AccountType;
+  is_approved: boolean;
+  beta_rejected_at?: Date | null;
   sessionToken?: string | null;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;

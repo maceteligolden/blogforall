@@ -4,20 +4,24 @@ import { useAuthStore } from "../store/auth.store";
 import { AuthService, LoginRequest, SignupRequest, ChangePasswordRequest } from "../api/services/auth.service";
 import { OnboardingService } from "../api/services/onboarding.service";
 import { signupWizardPath } from "../onboarding/signup-wizard";
+import { needsBetaApproval, postOnboardingPath } from "../auth/beta-access";
 import { authTracker } from "../analytics/flows/auth.tracker";
 import { QUERY_KEYS } from "../api/config";
+import type { User } from "../store/auth.store";
 
-async function routeToSignupWizard(router: ReturnType<typeof useRouter>, redirect?: string | null) {
+async function routeToSignupWizard(router: ReturnType<typeof useRouter>, redirect?: string | null, user?: User | null) {
   try {
     const wizard = await OnboardingService.getSignupWizardStatus();
-    if (
-      wizard.stage === "complete" &&
-      redirect &&
-      redirect.startsWith("/") &&
-      !redirect.startsWith("//") &&
-      redirect.startsWith("/dashboard")
-    ) {
-      router.push(redirect);
+    if (wizard.stage === "complete") {
+      if (needsBetaApproval(user)) {
+        router.push("/auth/waiting");
+        return;
+      }
+      if (redirect && redirect.startsWith("/") && !redirect.startsWith("//") && redirect.startsWith("/dashboard")) {
+        router.push(redirect);
+        return;
+      }
+      router.push(postOnboardingPath(user));
       return;
     }
     router.push(signupWizardPath(wizard));
@@ -50,7 +54,7 @@ export function useAuth() {
 
       const redirect =
         typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("redirect") : null;
-      await routeToSignupWizard(router, redirect);
+      await routeToSignupWizard(router, redirect, userData);
     },
     onError: (error: unknown) => {
       const message =

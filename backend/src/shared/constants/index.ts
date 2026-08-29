@@ -13,6 +13,18 @@ export enum UserPlan {
   FREE = "free",
 }
 
+/** Public-signup cohort. Existing accounts stay `standard` (unrestricted). */
+export enum AccountType {
+  STANDARD = "standard",
+  BETA = "beta",
+}
+
+export function needsBetaApproval(
+  user: { account_type?: string | null; is_approved?: boolean | null } | null | undefined
+): boolean {
+  return user?.account_type === AccountType.BETA && user.is_approved === false;
+}
+
 export enum BlogStatus {
   DRAFT = "draft",
   GENERATING = "generating",

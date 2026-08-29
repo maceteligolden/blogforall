@@ -21,6 +21,7 @@ import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
 import { PendingInvitationsList } from "@/components/sites/pending-invitations-list";
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { postOnboardingPath } from "@/lib/auth/beta-access";
 import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
 
 const INVITE_PROMPT_SEEN_KEY = "blogforall_invite_prompt_seen";
@@ -48,7 +49,7 @@ function InviteOnboardingContent() {
   useEffect(() => {
     if (!wizardStatus) return;
     if (wizardStatus.stage === "complete") {
-      router.replace("/dashboard");
+      router.replace(postOnboardingPath(useAuthStore.getState().user));
       return;
     }
     if (wizardStatus.stage === "strategist_ready") {
@@ -148,7 +149,7 @@ function InviteOnboardingContent() {
       onboardingTracker.invitePromptSkipped();
     }
     onboardingTracker.userOnboardingCompleted();
-    push("/dashboard");
+    push(postOnboardingPath(useAuthStore.getState().user));
   };
 
   const handleSubmit = (e: React.FormEvent) => {

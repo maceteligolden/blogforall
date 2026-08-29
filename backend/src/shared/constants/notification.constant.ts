@@ -34,6 +34,10 @@ export enum NotificationType {
   CONTENT_STRATEGY_READY = "content_strategy_ready",
   /** Waitlist signup confirmation for early access. */
   WAITLIST_CONFIRMATION = "waitlist_confirmation",
+  /** Admin notification that a beta applicant signed up. */
+  BETA_SIGNUP_REQUEST = "beta_signup_request",
+  /** Applicant notification that beta access was granted. */
+  BETA_ACCESS_GRANTED = "beta_access_granted",
 }
 
 export enum NotificationStatus {
@@ -63,6 +67,8 @@ export const EMAIL_TEMPLATE_KEYS = {
   WEEKLY_REVIEW_DIGEST: "weekly_review_digest",
   CAMPAIGN_DAILY_PROGRESS_REPORT: "campaign_daily_progress_report",
   WAITLIST_CONFIRMATION: "waitlist_confirmation",
+  BETA_SIGNUP_REQUEST: "beta_signup_request",
+  BETA_ACCESS_GRANTED: "beta_access_granted",
 } as const;
 
 export type EmailTemplateKey = (typeof EMAIL_TEMPLATE_KEYS)[keyof typeof EMAIL_TEMPLATE_KEYS];

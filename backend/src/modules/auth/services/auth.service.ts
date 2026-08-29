@@ -10,7 +10,8 @@ import {
   ForbiddenError,
   TooManyRequestsError,
 } from "../../../shared/errors";
-import { UserPlan, UserRole, isPlatformAdminRole } from "../../../shared/constants";
+import { AccountType, UserPlan, UserRole, isPlatformAdminRole } from "../../../shared/constants";
+import { BetaAccessService } from "../../beta-access/services/beta-access.service";
 import { Site } from "../../../shared/schemas/site.schema";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
 import { logger } from "../../../shared/utils/logger";
@@ -57,7 +58,8 @@ export class AuthService {
     private notificationService: NotificationService,
     private referralService: ReferralService,
     private siteInvitationService: SiteInvitationService,
-    private blogRepository: BlogRepository
+    private blogRepository: BlogRepository,
+    private betaAccessService: BetaAccessService
   ) {}
 
   /**
@@ -107,6 +109,8 @@ export class AuthService {
       email_verified: false,
       terms_accepted_at: new Date(),
       terms_version: terms_version ?? undefined,
+      account_type: AccountType.BETA,
+      is_approved: false,
     });
 
     try {
@@ -252,6 +256,8 @@ export class AuthService {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundError("User not found");
 
+    const alreadyCompleted = user.onboarding_completed === true;
+
     await this.userRepository.update(userId, {
       onboarding_completed: true,
     });
@@ -264,6 +270,17 @@ export class AuthService {
         company_role: user.company_role,
       },
     });
+
+    if (user.account_type === AccountType.BETA) {
+      if (!alreadyCompleted && user.is_approved === false) {
+        this.betaAccessService.notifyAdminOfSignup(user).catch((error: unknown) => {
+          const err = error instanceof Error ? error : new Error(String(error));
+          logger.error("Failed to send beta signup request email", err, { userId }, "AuthService");
+        });
+      }
+      logger.info("Skipped welcome email for beta account", { userId, isApproved: user.is_approved }, "AuthService");
+      return;
+    }
 
     const loginUrl = `${env.frontend.baseUrl}/auth/login`;
     const recipientEmail = user.email;
@@ -531,6 +548,8 @@ export class AuthService {
     role: string;
     email_verified: boolean;
     company_role?: string;
+    account_type: string;
+    is_approved: boolean;
     created_at?: Date;
     updated_at?: Date;
   }> {
@@ -549,6 +568,8 @@ export class AuthService {
       role: user.role ?? UserRole.USER,
       email_verified: Boolean(isEmailVerified(user)),
       company_role: user.company_role,
+      account_type: user.account_type ?? AccountType.STANDARD,
+      is_approved: user.is_approved !== false,
       created_at: user.created_at,
       updated_at: user.updated_at,
     };
@@ -748,6 +769,8 @@ export class AuthService {
         role,
         email_verified: emailVerified,
         company_role: user.company_role,
+        account_type: user.account_type ?? AccountType.STANDARD,
+        is_approved: user.is_approved !== false,
       },
       requiresSiteCreation: isPlatformAdminRole(role) ? false : !hasSites,
       requires_email_verification: !emailVerified,
