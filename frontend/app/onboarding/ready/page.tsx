@@ -9,6 +9,7 @@ import { canVisitStage, signupWizardPath } from "@/lib/onboarding/signup-wizard"
 import { onboardingTracker } from "@/lib/analytics/flows/onboarding.tracker";
 import { persistFirstPostWritingRequest } from "@/lib/writing/use-start-writing-thread";
 import { useAuthStore } from "@/lib/store/auth.store";
+import { postOnboardingPath } from "@/lib/auth/beta-access";
 import { QUERY_KEYS } from "@/lib/api/config";
 
 function StrategistReadyContent() {
@@ -29,7 +30,7 @@ function StrategistReadyContent() {
   useEffect(() => {
     if (!wizardStatus) return;
     if (wizardStatus.stage === "complete") {
-      router.replace("/dashboard");
+      router.replace(postOnboardingPath(useAuthStore.getState().user));
       return;
     }
     if (wizardStatus.stage === "invite" || wizardStatus.stage === "strategist_setup") {

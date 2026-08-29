@@ -33,6 +33,9 @@ export class UserRepository {
         email_verified: userData.email_verified ?? false,
         company_role: userData.company_role,
         company_role_detail: userData.company_role_detail,
+        account_type: userData.account_type,
+        is_approved: userData.is_approved,
+        beta_rejected_at: userData.beta_rejected_at,
       })
       .returning();
     return this.toEntity(row);

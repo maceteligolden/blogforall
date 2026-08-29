@@ -57,6 +57,8 @@ export interface LoginResponse {
     role: string;
     email_verified?: boolean;
     company_role?: string;
+    account_type: string;
+    is_approved: boolean;
   };
   requiresSiteCreation?: boolean;
   requires_email_verification?: boolean;

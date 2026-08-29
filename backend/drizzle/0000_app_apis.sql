@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS users (
   email_verification_attempts integer NOT NULL DEFAULT 0,
   company_role text,
   company_role_detail text,
+  account_type text NOT NULL DEFAULT 'standard',
+  is_approved boolean NOT NULL DEFAULT true,
+  beta_rejected_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

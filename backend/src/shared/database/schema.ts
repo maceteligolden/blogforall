@@ -36,6 +36,9 @@ export const users = pgTable(
     email_verification_attempts: integer("email_verification_attempts").notNull().default(0),
     company_role: text("company_role"),
     company_role_detail: text("company_role_detail"),
+    account_type: text("account_type").notNull().default("standard"),
+    is_approved: boolean("is_approved").notNull().default(true),
+    beta_rejected_at: timestamp("beta_rejected_at", { withTimezone: true }),
     ...timestamps,
   },
   (table) => [

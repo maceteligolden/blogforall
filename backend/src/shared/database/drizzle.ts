@@ -38,13 +38,20 @@ export async function withTransaction<T>(fn: (tx: AppTransaction) => Promise<T>)
 }
 
 async function runAppMigrations(): Promise<void> {
-  const migrationPath = path.join(process.cwd(), "drizzle", "0000_app_apis.sql");
-  if (!fs.existsSync(migrationPath)) {
-    logger.warn("App SQL migration file not found; skipping", { migrationPath }, "Database");
+  const dir = path.join(process.cwd(), "drizzle");
+  if (!fs.existsSync(dir)) {
+    logger.warn("App SQL migration directory not found; skipping", { dir }, "Database");
     return;
   }
-  const sql = fs.readFileSync(migrationPath, "utf8");
-  await pool.query(sql);
+  const files = fs
+    .readdirSync(dir)
+    .filter((file) => file.endsWith(".sql"))
+    .sort();
+  for (const file of files) {
+    const sql = fs.readFileSync(path.join(dir, file), "utf8");
+    await pool.query(sql);
+    logger.info("Applied SQL migration", { file }, "Database");
+  }
 }
 
 export { schema };

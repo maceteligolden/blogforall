@@ -18,6 +18,10 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { needsBetaApproval } from "@/lib/auth/beta-access";
+import type { SiteWithMemberCount } from "@/lib/api/services/site.service";
+
+const EMPTY_SITES: SiteWithMemberCount[] = [];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -40,10 +44,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return next;
     });
   };
-  const { currentSiteId, isAuthenticated } = useAuthStore();
+  const { currentSiteId, isAuthenticated, user } = useAuthStore();
+  const pendingBeta = needsBetaApproval(user);
   const { updateSiteContext } = useAuth();
 
-  const { data: wizardStatus, isLoading: wizardLoading } = useQuery({
+  const {
+    data: wizardStatus,
+    isLoading: wizardLoading,
+    isError: wizardError,
+    isFetched: wizardFetched,
+  } = useQuery({
     queryKey: ["onboarding", "signup-wizard"],
     queryFn: () => OnboardingService.getSignupWizardStatus(),
     retry: false,
@@ -54,14 +64,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const {
     data: sitesData,
     isLoading: sitesLoading,
+    isError: sitesError,
     isFetched: sitesFetched,
   } = useQuery({
     queryKey: QUERY_KEYS.SITES,
     queryFn: () => SiteService.getSites(),
     retry: false,
-    enabled: isAuthenticated && wizardComplete,
+    enabled: isAuthenticated && wizardComplete && !pendingBeta,
   });
-  const sites = Array.isArray(sitesData) ? sitesData : [];
+  const sites = sitesData ?? EMPTY_SITES;
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -85,6 +96,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
+    if (wizardError || (wizardFetched && !wizardStatus)) {
+      setCheckingOnboarding(false);
+      return;
+    }
+
     if (wizardStatus && wizardStatus.stage !== "complete") {
       router.replace(signupWizardPath(wizardStatus));
       return;
@@ -94,13 +110,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
+    if (wizardComplete && pendingBeta) {
+      router.replace("/auth/waiting");
+      return;
+    }
+
     if (wizardComplete) {
       if (sitesLoading || !sitesFetched) {
         return;
       }
 
+      if (sitesError) {
+        setCheckingOnboarding(false);
+        return;
+      }
+
       if (sites.length === 0) {
         router.push("/onboarding/create-site");
+        setCheckingOnboarding(false);
         return;
       }
 
@@ -121,17 +148,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     pathname,
     wizardStatus,
     wizardLoading,
+    wizardError,
+    wizardFetched,
     wizardComplete,
     sites,
     sitesLoading,
+    sitesError,
     sitesFetched,
     currentSiteId,
     isAuthenticated,
+    pendingBeta,
     router,
     updateSiteContext,
   ]);
 
-  if (checkingOnboarding || wizardLoading || (wizardComplete && (sitesLoading || !sitesFetched))) {
+  if (
+    checkingOnboarding ||
+    wizardLoading ||
+    (wizardComplete && !pendingBeta && (sitesLoading || !sitesFetched) && !sitesError)
+  ) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="animate-pulse">Loading...</div>

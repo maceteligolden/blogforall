@@ -12,7 +12,7 @@ export const USER_ROLE = {
 
 export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
 
-interface User {
+export interface User {
   id: string;
   email: string;
   first_name: string;
@@ -22,6 +22,8 @@ interface User {
   role?: string;
   email_verified?: boolean;
   company_role?: string;
+  account_type?: string;
+  is_approved?: boolean;
 }
 
 interface AuthState {

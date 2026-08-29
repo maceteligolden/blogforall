@@ -8,6 +8,7 @@ import {
   heading,
   muted,
   paragraph,
+  mutedButton,
   primaryButton,
   wrapEmail,
 } from "./email-theme";
@@ -120,6 +121,10 @@ function getSubjectForTemplate(key: EmailTemplateKey, params: Record<string, str
     }
     case EMAIL_TEMPLATE_KEYS.CAMPAIGN_DAILY_PROGRESS_REPORT:
       return `Campaign update: ${params.campaignName ?? "Campaign"} — ${params.reportDate ?? "today"}`;
+    case EMAIL_TEMPLATE_KEYS.BETA_SIGNUP_REQUEST:
+      return `Beta signup: ${params.firstName ?? ""} ${params.lastName ?? ""}`.trim();
+    case EMAIL_TEMPLATE_KEYS.BETA_ACCESS_GRANTED:
+      return "You're approved to start beta testing Bloggr";
     default:
       return "Notification";
   }
@@ -187,6 +192,18 @@ function getCodeBackedTemplate(key: EmailTemplateKey, _locale: string, params: R
         html: buildCampaignProgressHtml(params),
         text: buildCampaignProgressText(params),
       };
+    case EMAIL_TEMPLATE_KEYS.BETA_SIGNUP_REQUEST:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildBetaSignupRequestHtml(params),
+        text: buildBetaSignupRequestText(params),
+      };
+    case EMAIL_TEMPLATE_KEYS.BETA_ACCESS_GRANTED:
+      return {
+        subject: getSubjectForTemplate(key, params),
+        html: buildBetaAccessGrantedHtml(params),
+        text: buildBetaAccessGrantedText(params),
+      };
     default:
       return { subject: "Notification", text: "" };
   }
@@ -201,6 +218,62 @@ function postCard(blogTitle: string, scheduledFor: string, excerpt: string): str
     <div style="font-size: 13px; color: ${EMAIL_COLORS.muted}; margin-top: 4px;">Scheduled for ${escapeHtml(scheduledFor)}</div>
     ${excerptHtml}`
   );
+}
+
+function buildBetaSignupRequestHtml(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "";
+  const lastName = params.lastName ?? "";
+  const email = params.email ?? "";
+  const approveUrl = params.approveUrl ?? "#";
+  const rejectUrl = params.rejectUrl ?? "#";
+  const details = contentCard(
+    `<div style="font-size: 14px; color: ${EMAIL_COLORS.body}; line-height: 1.7;">
+      <div><strong style="color: ${EMAIL_COLORS.heading};">First name</strong> ${escapeHtml(firstName)}</div>
+      <div style="margin-top: 6px;"><strong style="color: ${EMAIL_COLORS.heading};">Last name</strong> ${escapeHtml(lastName)}</div>
+      <div style="margin-top: 6px;"><strong style="color: ${EMAIL_COLORS.heading};">Email</strong> ${escapeHtml(email)}</div>
+    </div>`
+  );
+  const body = `
+    ${heading("New beta signup")}
+    ${paragraph("Someone requested early access. Review their details and approve or reject the account.")}
+    ${details}
+    <p style="margin: 24px 0 12px;">${primaryButton(approveUrl, "Approve")}</p>
+    <p style="margin: 0 0 16px;">${mutedButton(rejectUrl, "Reject")}</p>
+    ${disclaimer("These links open a confirmation page. Approving grants dashboard access. Setup is already complete.")}
+  `;
+  return wrapEmail({ preheader: `Beta signup from ${firstName} ${lastName}`.trim(), bodyHtml: body });
+}
+
+function buildBetaSignupRequestText(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "";
+  const lastName = params.lastName ?? "";
+  const email = params.email ?? "";
+  return [
+    "New beta signup",
+    `Name: ${firstName} ${lastName}`.trim(),
+    `Email: ${email}`,
+    `Approve: ${params.approveUrl ?? ""}`,
+    `Reject: ${params.rejectUrl ?? ""}`,
+  ].join("\n");
+}
+
+function buildBetaAccessGrantedHtml(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const loginUrl = params.loginUrl ?? "#";
+  const body = `
+    ${heading("You're in")}
+    ${paragraph(`Hi ${escapeHtml(firstName)},`)}
+    ${paragraph("Your Bloggr account is approved. You can start beta testing the system now.")}
+    <p style="margin: 24px 0;">${primaryButton(loginUrl, "Start beta testing")}</p>
+    ${disclaimer("If you weren't expecting this email, you can ignore it.")}
+  `;
+  return wrapEmail({ preheader: "You're approved to start beta testing Bloggr.", bodyHtml: body });
+}
+
+function buildBetaAccessGrantedText(params: Record<string, string>): string {
+  const firstName = params.firstName ?? "there";
+  const loginUrl = params.loginUrl ?? "#";
+  return `Hi ${firstName}, your Bloggr account is approved. You can start beta testing now: ${loginUrl}`;
 }
 
 function buildWelcomeHtml(params: Record<string, string>): string {

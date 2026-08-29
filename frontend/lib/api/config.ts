@@ -225,6 +225,11 @@ export const API_ENDPOINTS = {
    * Public, token-authenticated scheduled-post review endpoints. Reached
    * from the weekly digest email link; no JWT, no dashboard required.
    */
+  BETA_ACCESS: {
+    CONTEXT: "/beta-access",
+    APPROVE: "/beta-access/approve",
+    REJECT: "/beta-access/reject",
+  },
   SCHEDULED_POST_REVIEW: {
     CONTEXT: (token: string) => `/scheduled-post-review/${token}`,
     APPROVE: (token: string) => `/scheduled-post-review/${token}/approve`,
