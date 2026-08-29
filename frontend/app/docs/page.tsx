@@ -159,9 +159,9 @@ export default function DocsPage() {
                       2
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Open Developer settings</h4>
+                      <h4 className="font-semibold mb-2">Open Bloggr API</h4>
                       <p className="text-gray-400">
-                        Go to Settings → Developer tab in your dashboard to create and manage API keys.
+                        Go to Integrations → Bloggr API in your dashboard to create and manage API keys.
                       </p>
                     </div>
                   </div>

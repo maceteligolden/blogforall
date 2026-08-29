@@ -85,11 +85,38 @@ export function usePublishBlog() {
   const { currentSiteId } = useAuthStore();
 
   return useMutation({
-    mutationFn: (id: string) => BlogService.publishBlog(id),
-    onSuccess: (response, id) => {
+    mutationFn: ({ id, destinations }: { id: string; destinations?: string[] }) =>
+      BlogService.publishBlog(id, destinations),
+    onSuccess: (_response, { id }) => {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOG(id), currentSiteId] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOGS, currentSiteId] });
+    },
+  });
+}
+
+export function useScheduleBlog() {
+  const queryClient = useQueryClient();
+  const { currentSiteId } = useAuthStore();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      scheduled_at,
+      timezone,
+      destinations,
+    }: {
+      id: string;
+      scheduled_at: Date;
+      timezone?: string;
+      destinations?: string[];
+    }) => BlogService.scheduleBlog(id, scheduled_at, timezone, destinations),
+    onSuccess: (_response, { id }) => {
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOG(id), currentSiteId] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.BLOGS, currentSiteId] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS });
     },
   });
 }

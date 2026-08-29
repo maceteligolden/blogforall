@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAllScheduledPosts } from "@/lib/hooks/use-scheduled-post";
 import { ScheduledPost } from "@/lib/api/services/campaign.service";
 import { Button } from "@/components/ui/button";
+import { formatDestinationLabels } from "@/components/integrations/publish-destination-picker";
 import { ChevronLeft, ChevronRight, List } from "lucide-react";
 import {
   format,
@@ -243,6 +244,9 @@ export function ScheduledPostsCalendar({
                         <span className="text-sm text-gray-400">{format(new Date(post.scheduled_at), "h:mm a")}</span>
                       </div>
                       <h4 className="text-white font-medium mb-1">{post.title}</h4>
+                      <p className="text-xs text-gray-400 mb-1">
+                        Publish to {formatDestinationLabels(post.metadata?.destinations)}
+                      </p>
                       {post.campaign_id && (
                         <Link
                           href={`/dashboard/campaigns/${post.campaign_id}`}

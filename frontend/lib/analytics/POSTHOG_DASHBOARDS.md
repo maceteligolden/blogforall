@@ -10,13 +10,15 @@ Configure these in the PostHog project UI after deploying with valid keys.
 | `NEXT_PUBLIC_POSTHOG_HOST`                       | Frontend | API host (e.g. `https://us.i.posthog.com`) |
 | `NEXT_PUBLIC_POSTHOG_ENABLED`                    | Frontend | Set `false` to disable                     |
 | `NEXT_PUBLIC_POSTHOG_SESSION_REPLAY_SAMPLE_RATE` | Frontend | `0.1` prod, `1.0` dev                      |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID`                  | Frontend | GA4 measurement ID (`G-…`)                 |
+| `NEXT_PUBLIC_GA_ENABLED`                         | Frontend | Set `false` to disable GA4                 |
 | `POSTHOG_API_KEY`                                | Backend  | Server events                              |
 | `POSTHOG_HOST`                                   | Backend  | Server API host                            |
 | `POSTHOG_ENABLED`                                | Backend  | Set `false` to disable                     |
 
 ## Session replay
 
-Configured in `lib/analytics/posthog.ts`:
+Configured in `lib/analytics/destinations/posthog.ts`:
 
 - `maskAllInputs: true`
 - Sample rate from `NEXT_PUBLIC_POSTHOG_SESSION_REPLAY_SAMPLE_RATE`

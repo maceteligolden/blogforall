@@ -292,10 +292,11 @@ export class OrchestratorService {
     userId: string,
     approvalId: string,
     decision: "approved" | "rejected",
-    note?: string
+    note?: string,
+    destinations?: string[]
   ): Promise<OrchestratorApproval> {
     await this.assertSiteAccess(siteId, userId);
-    const decided = await this.approvalRepository.decide(
+    let decided = await this.approvalRepository.decide(
       approvalId,
       siteId,
       decision === "approved" ? OrchestratorApprovalStatus.APPROVED : OrchestratorApprovalStatus.REJECTED,
@@ -304,6 +305,22 @@ export class OrchestratorService {
     );
     if (!decided) {
       throw new NotFoundError("Approval not found or already decided");
+    }
+    if (
+      decision === "approved" &&
+      destinations?.length &&
+      (decided.action === "blogs_publish" || decided.action === "blogs_schedule")
+    ) {
+      const { normalizeDestinations } = await import("../../integrations/idempotency");
+      const { PublishDestinationOverride } = await import("../../integrations/services/destination-override");
+      const { container } = await import("tsyringe");
+      const normalized = normalizeDestinations(destinations);
+      const merged = await this.approvalRepository.mergePayload(approvalId, siteId, { destinations: normalized });
+      if (merged) decided = merged;
+      const blogId = typeof decided.payload?.id === "string" ? decided.payload.id : undefined;
+      if (blogId) {
+        container.resolve(PublishDestinationOverride).set(siteId, blogId, normalized);
+      }
     }
     this.realtimeService.emitToUser(
       decided.requested_for_user_id,
@@ -323,7 +340,6 @@ export class OrchestratorService {
       decided.action === "campaign_update" ||
       decided.action === "campaign_schedule_additional_posts" ||
       decided.action === "writing_request_research" ||
-      decided.action === "writing_confirm_research" ||
       decided.action === "blogs_publish" ||
       decided.action === "blogs_unpublish" ||
       decided.action === "blogs_schedule" ||

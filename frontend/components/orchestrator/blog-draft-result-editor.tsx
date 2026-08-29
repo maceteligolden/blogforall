@@ -19,11 +19,12 @@ import { BlockEditor } from "@/components/editor/BlockEditor";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ConfirmModal, Modal } from "@/components/ui/modal";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { ConfirmModal } from "@/components/ui/modal";
 import { BlogService } from "@/lib/api/services/blog.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useUploadImage } from "@/lib/hooks/use-blog";
+import { PublishFlowDialog } from "@/components/integrations/publish-flow-dialog";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 import { useOrchestrator } from "@/components/orchestrator/orchestrator-provider";
 import type { OrchestratorArtifact } from "@/lib/utils/orchestrator-artifacts";
 import type { ContentBlock } from "@/lib/types/blog";
@@ -109,9 +110,11 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
 
   const data = artifact.outputData;
   const blogId = typeof data.blog_id === "string" ? data.blog_id : typeof data.id === "string" ? data.id : undefined;
@@ -299,11 +302,12 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
       if (!blogId) throw new Error("No draft to publish");
       if (!title.trim()) throw new Error("Add a title before publishing");
       await flushSave();
-      await BlogService.publishBlog(blogId);
+      await BlogService.publishBlog(blogId, publishDestinations);
     },
     onSuccess: () => {
       setActionError(null);
       setStatus("published");
+      setShowPublishModal(false);
       setActionsMenuOpen(false);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BLOG(blogId!) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_BLOGS });
@@ -323,7 +327,7 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
       await flushSave();
       const scheduleDate = new Date(scheduleAt);
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      await BlogService.scheduleBlog(blogId, scheduleDate, timezone);
+      await BlogService.scheduleBlog(blogId, scheduleDate, timezone, publishDestinations);
     },
     onSuccess: () => {
       setActionError(null);
@@ -467,6 +471,12 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
     setShowScheduleModal(true);
   };
 
+  const openPublishModal = () => {
+    setActionError(null);
+    setActionsMenuOpen(false);
+    setShowPublishModal(true);
+  };
+
   const handleCopyDraft = useCallback(async () => {
     const html = blocksToHtml(contentBlocks);
     const plain = draftToPlainText(title, html);
@@ -544,62 +554,72 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
             {copied ? "Copied" : "Copy"}
           </Button>
           {blogId && (
-            <div className="relative" ref={actionsMenuRef}>
+            <>
+              <Button
+                type="button"
+                size="sm"
+                disabled={actionsBusy || status === "published"}
+                onClick={openPublishModal}
+                className="h-7 text-xs bg-primary text-white hover:bg-primary/90"
+              >
+                {publishMutation.isPending ? (
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Send className="w-3 h-3 mr-1" aria-hidden="true" />
+                )}
+                Publish
+              </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 disabled={actionsBusy}
-                onClick={() => setActionsMenuOpen((open) => !open)}
+                onClick={openScheduleModal}
                 className="h-7 text-xs border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
-                aria-expanded={actionsMenuOpen}
-                aria-haspopup="menu"
               >
-                {actionsBusy ? (
+                {scheduleMutation.isPending ? (
                   <Loader2 className="w-3 h-3 mr-1 animate-spin" aria-hidden="true" />
                 ) : (
-                  <ChevronDown className="w-3 h-3 mr-1" aria-hidden="true" />
+                  <Calendar className="w-3 h-3 mr-1" aria-hidden="true" />
                 )}
-                Actions
+                Schedule
               </Button>
-              {actionsMenuOpen && (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-full mt-1 z-20 min-w-[10.5rem] rounded-md border border-gray-800 bg-gray-950 py-1 shadow-lg"
+              <div className="relative" ref={actionsMenuRef}>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={actionsBusy}
+                  onClick={() => setActionsMenuOpen((open) => !open)}
+                  className="h-7 text-xs border-gray-700 text-gray-200 hover:bg-gray-800 hover:text-white"
+                  aria-expanded={actionsMenuOpen}
+                  aria-haspopup="menu"
                 >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={actionsBusy || status === "published"}
-                    onClick={() => publishMutation.mutate()}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-50 disabled:pointer-events-none"
+                  <ChevronDown className="w-3 h-3 mr-1" aria-hidden="true" />
+                  More
+                </Button>
+                {actionsMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full mt-1 z-20 min-w-[10.5rem] rounded-md border border-gray-800 bg-gray-950 py-1 shadow-lg"
                   >
-                    <Send className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                    Publish
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={actionsBusy}
-                    onClick={openScheduleModal}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <Calendar className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                    Schedule…
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={actionsBusy || status === "draft"}
-                    onClick={() => saveDraftMutation.mutate()}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <FileText className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                    Save as draft
-                  </button>
-                </div>
-              )}
-            </div>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={actionsBusy || status === "draft"}
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        saveDraftMutation.mutate();
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-200 hover:bg-gray-800 disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      <FileText className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                      Save as draft
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
           {blogId && (
             <Button
@@ -677,43 +697,30 @@ export function BlogDraftResultEditor({ artifact, className }: BlogDraftResultEd
         </div>
       </div>
 
-      <Modal
+      <PublishFlowDialog
+        isOpen={showPublishModal}
+        mode="publish"
+        title={title}
+        destinations={destinations}
+        selected={publishDestinations}
+        onChange={setPublishDestinations}
+        pending={publishMutation.isPending}
+        onClose={() => setShowPublishModal(false)}
+        onConfirm={() => publishMutation.mutate()}
+      />
+      <PublishFlowDialog
         isOpen={showScheduleModal}
-        onClose={() => !scheduleMutation.isPending && setShowScheduleModal(false)}
-        title="Schedule post"
-        size="sm"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={scheduleMutation.isPending}
-              onClick={() => setShowScheduleModal(false)}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              disabled={scheduleMutation.isPending || !scheduleAt}
-              onClick={() => scheduleMutation.mutate()}
-              className="bg-primary hover:bg-primary/90 text-white"
-            >
-              {scheduleMutation.isPending ? "Scheduling…" : "Schedule"}
-            </Button>
-          </div>
-        }
-      >
-        <p className="text-sm text-gray-400 mb-4">Choose when this post should go live.</p>
-        <DateTimePicker
-          id="orchestrator-schedule-at"
-          value={scheduleAt}
-          onChange={setScheduleAt}
-          min={new Date().toISOString().slice(0, 16)}
-          aria-label="Schedule date and time"
-          className="w-full"
-        />
-      </Modal>
+        mode="schedule"
+        title={title}
+        destinations={destinations}
+        selected={publishDestinations}
+        onChange={setPublishDestinations}
+        scheduleAt={scheduleAt}
+        onScheduleAtChange={setScheduleAt}
+        pending={scheduleMutation.isPending}
+        onClose={() => setShowScheduleModal(false)}
+        onConfirm={() => scheduleMutation.mutate()}
+      />
 
       <ConfirmModal
         isOpen={showDeleteConfirm}

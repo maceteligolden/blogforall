@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useBlogs } from "@/lib/hooks/use-blog";
-import { useDeleteBlog, usePublishBlog, useUnpublishBlog } from "@/lib/hooks/use-blog";
+import { useDeleteBlog, usePublishBlog, useScheduleBlog, useUnpublishBlog } from "@/lib/hooks/use-blog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BlogStatus } from "@/lib/types/blog";
@@ -14,6 +14,8 @@ import { Search, Grid3x3, Table2, Trash2 } from "lucide-react";
 import { BlogHubTabs } from "@/components/blogs/blog-hub-tabs";
 import { deriveExcerptFromContent } from "@/lib/utils/blog-excerpt";
 import { WritePostModal } from "@/components/writing/write-post-modal";
+import { PublishFlowDialog, type PublishFlowMode } from "@/components/integrations/publish-flow-dialog";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 export default function BlogsPage() {
   const router = useRouter();
@@ -23,11 +25,16 @@ export default function BlogsPage() {
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [blogToDelete, setBlogToDelete] = useState<string | null>(null);
+  const [publishFlow, setPublishFlow] = useState<{ mode: PublishFlowMode; id: string; title: string } | null>(null);
+  const [scheduleAt, setScheduleAt] = useState("");
 
   const { data: blogs, isLoading } = useBlogs(statusFilter !== "all" ? { status: statusFilter } : undefined);
   const deleteBlog = useDeleteBlog();
   const publishBlog = usePublishBlog();
+  const scheduleBlog = useScheduleBlog();
   const unpublishBlog = useUnpublishBlog();
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
+  const flowPending = publishBlog.isPending || scheduleBlog.isPending;
 
   // Filter blogs by search query
   const filteredBlogs = useMemo(() => {
@@ -50,8 +57,36 @@ export default function BlogsPage() {
     }
   };
 
-  const handlePublish = (id: string) => {
-    publishBlog.mutate(id);
+  const defaultScheduleAt = () => {
+    const next = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    next.setMinutes(0, 0, 0);
+    return next.toISOString().slice(0, 16);
+  };
+
+  const openPublishFlow = (mode: PublishFlowMode, blog: { _id: string; title: string }) => {
+    if (mode === "schedule" && !scheduleAt) setScheduleAt(defaultScheduleAt());
+    setPublishFlow({ mode, id: blog._id, title: blog.title });
+  };
+
+  const handlePublishConfirm = () => {
+    if (!publishFlow || publishDestinations.length === 0) return;
+    if (publishFlow.mode === "publish") {
+      publishBlog.mutate(
+        { id: publishFlow.id, destinations: publishDestinations },
+        { onSettled: () => setPublishFlow(null) }
+      );
+      return;
+    }
+    if (!scheduleAt) return;
+    scheduleBlog.mutate(
+      {
+        id: publishFlow.id,
+        scheduled_at: new Date(scheduleAt),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        destinations: publishDestinations,
+      },
+      { onSettled: () => setPublishFlow(null) }
+    );
   };
 
   const handleUnpublish = (id: string) => {
@@ -230,7 +265,7 @@ export default function BlogsPage() {
                     <span>{blog.views || 0} views</span>
                     <span>{blog.likes || 0} likes</span>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex-1"
                       size="sm"
@@ -246,13 +281,22 @@ export default function BlogsPage() {
                       Edit
                     </Button>
                     {blog.status === "draft" && (
-                      <Button
-                        className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex-1"
-                        size="sm"
-                        onClick={() => handlePublish(blog._id)}
-                      >
-                        Publish
-                      </Button>
+                      <>
+                        <Button
+                          className="bg-primary hover:bg-primary/90 text-white flex-1"
+                          size="sm"
+                          onClick={() => openPublishFlow("publish", blog)}
+                        >
+                          Publish
+                        </Button>
+                        <Button
+                          className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 flex-1"
+                          size="sm"
+                          onClick={() => openPublishFlow("schedule", blog)}
+                        >
+                          Schedule
+                        </Button>
+                      </>
                     )}
                     {blog.status === "published" && (
                       <Button
@@ -364,13 +408,22 @@ export default function BlogsPage() {
                           Edit
                         </Button>
                         {blog.status === "draft" && (
-                          <Button
-                            className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
-                            size="sm"
-                            onClick={() => handlePublish(blog._id)}
-                          >
-                            Publish
-                          </Button>
+                          <>
+                            <Button
+                              className="bg-primary hover:bg-primary/90 text-white"
+                              size="sm"
+                              onClick={() => openPublishFlow("publish", blog)}
+                            >
+                              Publish
+                            </Button>
+                            <Button
+                              className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700"
+                              size="sm"
+                              onClick={() => openPublishFlow("schedule", blog)}
+                            >
+                              Schedule
+                            </Button>
+                          </>
                         )}
                         {blog.status === "published" && (
                           <Button
@@ -411,6 +464,19 @@ export default function BlogsPage() {
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
+      />
+      <PublishFlowDialog
+        isOpen={!!publishFlow}
+        mode={publishFlow?.mode ?? "publish"}
+        title={publishFlow?.title}
+        destinations={destinations}
+        selected={publishDestinations}
+        onChange={setPublishDestinations}
+        scheduleAt={scheduleAt}
+        onScheduleAtChange={setScheduleAt}
+        pending={flowPending}
+        onClose={() => setPublishFlow(null)}
+        onConfirm={handlePublishConfirm}
       />
     </>
   );

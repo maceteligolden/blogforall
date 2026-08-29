@@ -18,11 +18,6 @@ import {
 import { AGENT_MODEL } from "./orchestrator.constants";
 import { mergeFocus, type ThreadFocusInput } from "./orchestrator.focus";
 import { buildRoleAwareSystemPrompt } from "./prompts";
-import {
-  followUpAfterDraftStarted,
-  formatWritingConfirmResearchDraft,
-  startBoundWritingDraft,
-} from "./orchestrator.writing-tools";
 import { createChatOpenAI } from "../../shared/ai/create-chat-openai";
 import { OrchestratorThreadRepository } from "../orchestrator/repositories/orchestrator-thread.repository";
 import { OrchestratorMessageRepository } from "../orchestrator/repositories/orchestrator-message.repository";
@@ -103,7 +98,6 @@ const V2_HITL_ACTIONS = new Set([
   "campaign_update",
   "campaign_schedule_additional_posts",
   "writing_request_research",
-  "writing_confirm_research",
   "blogs_publish",
   "blogs_unpublish",
   "blogs_schedule",
@@ -164,7 +158,6 @@ function primaryHitlAction(requests: HitlActionRequest[], fallback?: string): st
     .map((request) => request.name)
     .filter((name): name is string => typeof name === "string" && V2_HITL_ACTIONS.has(name));
   if (names.includes("writing_request_research")) return "writing_request_research";
-  if (names.includes("writing_confirm_research")) return "writing_confirm_research";
   return names[0] || fallback || "strategy_update";
 }
 
@@ -186,19 +179,6 @@ function hitlDecisionsForHanging(args: {
       if (name === args.action && !usedPrimary) {
         usedPrimary = true;
         return userDecision;
-      }
-      if (args.action === "writing_request_research" && name === "writing_confirm_research") {
-        return {
-          type: "reject" as const,
-          message:
-            "Research has not run yet. Call writing_confirm_research only after writing_request_research returns the report.",
-        };
-      }
-      if (args.action === "writing_confirm_research" && name === "writing_request_research") {
-        return {
-          type: "reject" as const,
-          message: "Research is already complete. Do not call writing_request_research again.",
-        };
       }
       return {
         type: "reject" as const,
@@ -223,7 +203,6 @@ const TOOL_NAME_TO_CLIENT: Record<string, string> = {
   research_get: "research.get",
   writing_next_due: "writing.nextDue",
   writing_request_research: "writing.requestResearch",
-  writing_confirm_research: "writing.confirmResearch",
   writing_revise_draft: "blogs.update",
   blogs_list: "blogs.list",
   blogs_get: "blogs.get",
@@ -239,149 +218,29 @@ function stringField(data: unknown, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function numberField(data: unknown, key: string): number | undefined {
-  if (!data || typeof data !== "object") return undefined;
-  const value = (data as Record<string, unknown>)[key];
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && /^-?\d+$/.test(value.trim())) return Number(value.trim());
-  return undefined;
-}
-
-function recordField(data: unknown, key: string): Record<string, unknown> {
-  if (!data || typeof data !== "object") return {};
-  const value = (data as Record<string, unknown>)[key];
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
-function researchToolData(toolCalls: ChatTurnResponse["tool_calls"]): Record<string, unknown> | null {
-  const call = [...toolCalls]
+function preferResearchSpoken(assistantContent: string, toolCalls: ChatTurnResponse["tool_calls"]): string {
+  const research = [...toolCalls]
     .reverse()
     .find(
-      (item) =>
-        item.tool === "writing.requestResearch" ||
-        item.tool === "research" ||
-        Boolean(stringField(item.output_data, "report_markdown"))
+      (call) =>
+        call.tool === "writing.requestResearch" ||
+        call.tool === "research" ||
+        Boolean(stringField(call.output_data, "spoken_summary")) ||
+        Boolean(stringField(call.output_data, "report_markdown"))
     );
-  if (!call?.output_data || typeof call.output_data !== "object") return null;
-  return call.output_data as Record<string, unknown>;
-}
-
-function researchFailed(toolCalls: ChatTurnResponse["tool_calls"]): boolean {
-  return toolCalls.some((call) => Boolean(stringField(call.output_data, "error")));
-}
-
-function writingConfirmPayload(args: {
-  requestPayload?: Record<string, unknown>;
-  research?: Record<string, unknown> | null;
-  assistantContent: string;
-  focus?: OrchestratorThread["focus"];
-}): Record<string, unknown> | null {
-  const source = args.requestPayload ?? {};
-  const hitlArgs = payloadHitlRequests(source)[0]?.args ?? {};
-  const research = args.research ?? {};
-  const brief = recordField(research, "brief");
-  const topic =
-    stringField(research, "topic") ||
-    stringField(source, "topic") ||
-    stringField(hitlArgs, "topic") ||
-    args.focus?.topic ||
-    "";
-  if (!topic) return null;
-  const report = stringField(research, "report_markdown") || args.assistantContent.trim();
-  const researchSummary =
-    stringField(research, "spoken_summary") || stringField(source, "research_summary") || report.slice(0, 4000);
-  return {
-    package_id:
-      stringField(research, "package_id") || stringField(source, "package_id") || stringField(hitlArgs, "package_id"),
-    topic,
-    intent:
-      stringField(research, "intent") ||
-      stringField(source, "intent") ||
-      stringField(hitlArgs, "intent") ||
-      args.focus?.intent ||
-      "",
-    campaign_id:
-      stringField(research, "campaign_id") ||
-      stringField(source, "campaign_id") ||
-      stringField(hitlArgs, "campaign_id") ||
-      args.focus?.campaign_id ||
-      "",
-    campaign_name:
-      stringField(research, "campaign_name") ||
-      stringField(source, "campaign_name") ||
-      stringField(hitlArgs, "campaign_name"),
-    sequence_index:
-      numberField(research, "sequence_index") ??
-      numberField(source, "sequence_index") ??
-      numberField(hitlArgs, "sequence_index") ??
-      args.focus?.roadmap_sequence_index,
-    research_summary: researchSummary.slice(0, 4000),
-    angle: stringField(brief, "angle") || stringField(source, "angle") || stringField(hitlArgs, "angle"),
-    must_include:
-      stringField(brief, "must_include") ||
-      stringField(source, "must_include") ||
-      stringField(hitlArgs, "must_include"),
-    must_avoid:
-      stringField(brief, "must_avoid") || stringField(source, "must_avoid") || stringField(hitlArgs, "must_avoid"),
-    cta: stringField(brief, "cta") || stringField(source, "cta") || stringField(hitlArgs, "cta"),
-    audience_notes:
-      stringField(brief, "audience_notes") ||
-      stringField(source, "audience_notes") ||
-      stringField(hitlArgs, "audience_notes"),
-    personal_notes:
-      stringField(brief, "personal_notes") ||
-      stringField(source, "personal_notes") ||
-      stringField(hitlArgs, "personal_notes"),
-  };
-}
-
-function preferResearchReport(assistantContent: string, toolCalls: ChatTurnResponse["tool_calls"]): string {
-  const confirm = [...toolCalls].reverse().find((call) => call.tool === "writing.confirmResearch");
-  const confirmBlogId = stringField(confirm?.output_data, "blog_id");
-  const report = stringField(
-    [...toolCalls].reverse().find((call) => Boolean(stringField(call.output_data, "report_markdown")))?.output_data,
-    "report_markdown"
-  );
-  if (confirmBlogId) {
-    const trimmed = assistantContent.trim();
-    const drafting = confirm?.summary?.trim() || "Drafting has started. I'll notify you when it's ready to edit.";
-    if (
-      !trimmed ||
-      trimmed.startsWith("{") ||
-      (report && (trimmed === report || trimmed.length >= Math.min(report.length * 0.4, 800)))
-    ) {
-      return drafting;
+  const spoken = stringField(research?.output_data, "spoken_summary");
+  const report = stringField(research?.output_data, "report_markdown");
+  const trimmed = assistantContent.trim();
+  if (trimmed.startsWith("{")) {
+    return spoken || [...toolCalls].reverse().find((call) => call.summary)?.summary || trimmed;
+  }
+  if (spoken) {
+    if (!trimmed || (report && (trimmed === report || trimmed.length > spoken.length * 3))) {
+      return spoken;
     }
     return trimmed;
   }
-  const research = [...toolCalls]
-    .reverse()
-    .find((call) => call.tool === "research" || Boolean(stringField(call.output_data, "report_markdown")));
-  const researchReport = stringField(research?.output_data, "report_markdown") || report;
-  if (!researchReport) {
-    const trimmed = assistantContent.trim();
-    if (trimmed.startsWith("{")) {
-      const summary = [...toolCalls].reverse().find((call) => call.summary)?.summary;
-      return summary || trimmed;
-    }
-    return assistantContent;
-  }
-  const trimmed = assistantContent.trim();
-  if (!trimmed || trimmed.startsWith("{") || trimmed.length < researchReport.length * 0.4) {
-    return researchReport;
-  }
-  return trimmed;
-}
-
-function hasStartedDraft(toolCalls: ChatTurnResponse["tool_calls"]): boolean {
-  return toolCalls.some(
-    (call) => call.tool === "writing.confirmResearch" && Boolean(stringField(call.output_data, "blog_id"))
-  );
-}
-
-function interruptActionName(result: Record<string, unknown>): string | undefined {
-  const action = extractInterrupt(result)?.value?.actionRequests?.[0];
-  return typeof action?.name === "string" ? action.name : undefined;
+  return trimmed || assistantContent;
 }
 
 function hitlFallbackSummary(action: string | undefined): string {
@@ -394,8 +253,6 @@ function hitlFallbackSummary(action: string | undefined): string {
       return "Scheduling additional posts requires your approval before it is saved.";
     case "writing_request_research":
       return "Start research for this post? Approve to research, or reject to keep discussing.";
-    case "writing_confirm_research":
-      return "Approve this research to start the background draft?";
     case "blogs_publish":
       return "Publish this blog post now?";
     case "blogs_unpublish":
@@ -649,6 +506,19 @@ export default class OrchestratorV2Service {
     const siteId = approval.site_id;
     await this.assertSiteAccess(siteId, userId);
 
+    if (decision === "approved" && (approval.action === "blogs_publish" || approval.action === "blogs_schedule")) {
+      const blogId = typeof approval.payload?.id === "string" ? approval.payload.id : undefined;
+      const destinations = Array.isArray(approval.payload?.destinations)
+        ? approval.payload.destinations.filter((item): item is string => typeof item === "string")
+        : undefined;
+      if (blogId && destinations?.length) {
+        const { container } = await import("tsyringe");
+        const { PublishDestinationOverride } = await import("../integrations/services/destination-override");
+        const { normalizeDestinations } = await import("../integrations/idempotency");
+        container.resolve(PublishDestinationOverride).set(siteId, blogId, normalizeDestinations(destinations));
+      }
+    }
+
     const identity = await this.loadIdentity(siteId, userId);
     const thread = await this.threadRepository.findById(threadId, siteId);
     const agent = this.buildAgent({
@@ -682,111 +552,30 @@ export default class OrchestratorV2Service {
       decision,
       note,
     });
-    const confirmHanging = hanging.some((request) => request.name === "writing_confirm_research");
-    const programmaticConfirm = approval.action === "writing_confirm_research" && !confirmHanging;
 
     try {
-      let result: Record<string, unknown> & { messages: Array<Record<string, unknown>> } = {
-        messages: [],
-      };
-      if (!programmaticConfirm) {
-        result = await this.invokeGraph(agent, new Command({ resume }), config);
-      }
-
-      let draftFallback: { blogId: string; topic: string; campaignId?: string } | null = null;
-      if (decision === "approved" && approval.action === "writing_confirm_research") {
-        const resumeCalls = extractClientToolCalls(result.messages ?? []);
-        if (programmaticConfirm || !hasStartedDraft(resumeCalls)) {
-          draftFallback = await startBoundWritingDraft({ siteId, userId, threadId }, approval.payload ?? {});
-        }
-        let guard = 0;
-        while (interruptActionName(result) === "writing_confirm_research" && guard < 2) {
-          guard += 1;
-          result = await this.invokeGraph(
-            agent,
-            new Command({
-              resume: {
-                decisions: [
-                  {
-                    type: "reject",
-                    message:
-                      "The background draft already started. Do not call writing_confirm_research again. Confirm in one sentence that writing has begun. Do not repeat the research report.",
-                  },
-                ],
-              },
-            }),
-            config
-          );
-        }
-      }
-
+      const result = await this.invokeGraph(agent, new Command({ resume }), config);
       const turned = await this.turnFromResult(result, {
         siteId,
         userId,
         threadId,
       });
-      let pendingApproval = turned.pendingApproval;
-      if (
-        decision === "approved" &&
-        approval.action === "writing_request_research" &&
-        !pendingApproval &&
-        !hasStartedDraft(turned.toolCalls) &&
-        !researchFailed(turned.toolCalls)
-      ) {
-        const payload = writingConfirmPayload({
-          requestPayload: approval.payload,
-          research: researchToolData(turned.toolCalls),
-          assistantContent: turned.assistantContent,
-          focus: thread?.focus,
-        });
-        if (payload) {
-          pendingApproval = await this.createWritingConfirmHitl({
-            siteId,
-            userId,
-            threadId,
-            payload,
-          });
-        }
-      }
-      const toolCalls = draftFallback
-        ? [
-            ...turned.toolCalls,
-            {
-              tool: "writing.confirmResearch",
-              summary: `Drafting "${draftFallback.topic}" in the background. I'll notify you when it's ready to edit.`,
-              output_data: {
-                blog_id: draftFallback.blogId,
-                campaign_id: draftFallback.campaignId,
-                topic: draftFallback.topic,
-              },
-            },
-          ]
-        : turned.toolCalls;
-      let content =
-        preferResearchReport(turned.assistantContent, toolCalls).trim() ||
-        (pendingApproval && !hasStartedDraft(toolCalls)
+      const toolCalls = turned.toolCalls;
+      const pendingApproval = turned.pendingApproval;
+      const content =
+        preferResearchSpoken(turned.assistantContent, toolCalls).trim() ||
+        (pendingApproval
           ? hitlFallbackSummary(pendingApproval.action)
           : decision === "rejected"
             ? "Okay — we'll keep discussing."
             : "");
-      if (hasStartedDraft(toolCalls) || draftFallback) {
-        const topic =
-          draftFallback?.topic ||
-          stringField(
-            [...toolCalls].reverse().find((call) => call.tool === "writing.confirmResearch")?.output_data,
-            "topic"
-          ) ||
-          "this post";
-        content = await followUpAfterDraftStarted(siteId, topic);
-      }
       if (content || toolCalls.length > 0 || pendingApproval) {
         await this.messageRepository.create({
           thread_id: threadId,
           site_id: siteId,
           role: OrchestratorMessageRole.ASSISTANT,
           content: content || "I've prepared the next step. Please approve or reject it to continue.",
-          pending_approval_id:
-            hasStartedDraft(toolCalls) || draftFallback ? undefined : pendingApproval?._id?.toString(),
+          pending_approval_id: pendingApproval?._id?.toString(),
           tool_calls: toolCalls.map((call) => ({
             tool: call.tool,
             input: {},
@@ -942,16 +731,16 @@ export default class OrchestratorV2Service {
       const actionName = primaryHitlAction(requests as HitlActionRequest[], "strategy_update");
       const action = requests.find((item) => item?.name === actionName) ?? requests[0];
       const lastMessageContent = toTextContent(result.messages?.[result.messages.length - 1]?.content);
-      if (actionName === "writing_confirm_research" && hasStartedDraft(toolCalls)) {
-        return {
-          assistantContent:
-            preferResearchReport(lastMessageContent, toolCalls).trim() ||
-            "Drafting has started. I'll notify you when it's ready to edit.",
-          pendingApproval: null,
-          toolCalls,
-        };
-      }
       const summary = action?.description?.trim() || hitlFallbackSummary(actionName);
+      const args = (action?.args ?? {}) as Record<string, unknown>;
+      let available_destinations: Array<{ provider: string; label: string }> | undefined;
+      if (actionName === "blogs_publish" || actionName === "blogs_schedule") {
+        const { container } = await import("tsyringe");
+        const { IntegrationConnectionService } = await import("../integrations/services/connection.service");
+        const { INTEGRATION_PROVIDERS } = await import("../integrations/constants");
+        const cms = await container.resolve(IntegrationConnectionService).listConnectedCms(createApprovalFor.siteId);
+        available_destinations = [{ provider: INTEGRATION_PROVIDERS.BLOGGR, label: "Bloggr" }, ...cms];
+      }
 
       const pendingApproval = await this.approvalRepository.create({
         site_id: createApprovalFor.siteId,
@@ -962,7 +751,8 @@ export default class OrchestratorV2Service {
         action: actionName,
         summary: summary.slice(0, 2000),
         payload: {
-          ...(action?.args ?? {}),
+          ...args,
+          ...(available_destinations ? { available_destinations } : {}),
           _hitl: {
             actionRequests: hitl.actionRequests,
             reviewConfigs: hitl.reviewConfigs,
@@ -973,16 +763,14 @@ export default class OrchestratorV2Service {
       this.emitApprovalCreated(pendingApproval);
 
       const assistantContent =
-        preferResearchReport(lastMessageContent, toolCalls).trim() ||
-        (actionName === "writing_confirm_research"
-          ? "I've finished research. Approve to start the draft, or reject to keep discussing."
-          : "I've prepared a change. Please approve or reject it to continue.");
+        preferResearchSpoken(lastMessageContent, toolCalls).trim() ||
+        "I've prepared a change. Please approve or reject it to continue.";
 
       return { assistantContent, pendingApproval, toolCalls };
     }
 
     return {
-      assistantContent: preferResearchReport(
+      assistantContent: preferResearchSpoken(
         toTextContent(result.messages[result.messages.length - 1]?.content),
         toolCalls
       ),
@@ -1155,27 +943,6 @@ export default class OrchestratorV2Service {
       companyRoleDetail: user?.company_role_detail,
       memberRole: memberRole ?? undefined,
     };
-  }
-
-  private async createWritingConfirmHitl(args: {
-    siteId: string;
-    userId: string;
-    threadId: string;
-    payload: Record<string, unknown>;
-  }): Promise<OrchestratorApproval> {
-    const pendingApproval = await this.approvalRepository.create({
-      site_id: args.siteId,
-      thread_id: args.threadId,
-      requested_for_user_id: args.userId,
-      requested_by_user_id: args.userId,
-      kind: OrchestratorApprovalKind.IN_CHAT_CONFIRMATION,
-      action: "writing_confirm_research",
-      summary: formatWritingConfirmResearchDraft(args.payload).slice(0, 2000),
-      payload: args.payload,
-      expires_at: new Date(Date.now() + env.orchestrator.confirmTimeoutMs),
-    });
-    this.emitApprovalCreated(pendingApproval);
-    return pendingApproval;
   }
 
   private emitApprovalCreated(approval: OrchestratorApproval): void {

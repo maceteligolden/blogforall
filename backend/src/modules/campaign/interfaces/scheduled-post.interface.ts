@@ -12,6 +12,7 @@ export interface CreateScheduledPostInput {
     campaign_goal?: string;
     target_audience?: string;
     content_theme?: string;
+    destinations?: string[];
   };
 }
 
@@ -26,6 +27,7 @@ export interface UpdateScheduledPostInput {
     campaign_goal?: string;
     target_audience?: string;
     content_theme?: string;
+    destinations?: string[];
   };
 }
 
@@ -58,6 +60,7 @@ export interface ScheduledPostWithBlog {
     campaign_goal?: string;
     target_audience?: string;
     content_theme?: string;
+    destinations?: string[];
   };
   blog?: {
     _id: string;

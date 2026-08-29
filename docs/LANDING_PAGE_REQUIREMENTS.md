@@ -82,7 +82,7 @@ LangGraph, Conversation Intelligence pipeline internals, Research Package algori
 
 | Claim | Allowed? | Reality |
 |-------|----------|---------|
-| Public REST API + API keys | Yes | Documented; Settings → Developer |
+| Public REST API + API keys | Yes | Documented; Integrations → Bloggr API |
 | Google Drive → Library | Yes | Connect flow exists |
 | In-app draft, schedule, publish | Yes | Core product |
 | Dropbox / OneDrive | Soft “coming soon” only if shown at all | UI stubs — prefer omit on homepage |

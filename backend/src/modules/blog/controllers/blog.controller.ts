@@ -1,15 +1,20 @@
 import { injectable } from "tsyringe";
 import { Request, Response, NextFunction } from "express";
 import { BlogService } from "../services/blog.service";
+import { PublishRouterService } from "../../integrations/services/publish-router.service";
 import { sendSuccess, sendCreated, sendNoContent } from "../../../shared/helper/response.helper";
 import { getJwtUserId } from "../../../shared/utils/jwt-user";
+import { getRequestIdFromHeaders } from "../../../shared/utils/request-id";
 import type { CreateBlogInput } from "../interfaces/blog.interface";
 import type { UpdateBlogInput } from "../interfaces/blog.interface";
 import type { BlogQueryFilters } from "../interfaces/blog.interface";
 
 @injectable()
 export class BlogController {
-  constructor(private blogService: BlogService) {}
+  constructor(
+    private blogService: BlogService,
+    private publishRouter: PublishRouterService
+  ) {}
 
   private siteId(req: Request): string {
     return (req.validatedParams as { siteId: string }).siteId;
@@ -103,8 +108,15 @@ export class BlogController {
       const userId = getJwtUserId(req);
       const { id } = req.validatedParams as { siteId: string; id: string };
       const siteId = this.siteId(req);
-      const blog = await this.blogService.publishBlog(id, siteId, userId);
-      sendSuccess(res, "Blog published successfully", blog);
+      const destinations = (req.validatedBody as { destinations?: string[] } | undefined)?.destinations;
+      const result = await this.publishRouter.publish({
+        blogId: id,
+        siteId,
+        userId,
+        destinations,
+        clientRequestId: getRequestIdFromHeaders(req),
+      });
+      sendSuccess(res, "Blog published successfully", result.blog);
     } catch (error) {
       next(error);
     }
@@ -140,10 +152,11 @@ export class BlogController {
       const userId = getJwtUserId(req);
       const { id } = req.validatedParams as { siteId: string; id: string };
       const siteId = this.siteId(req);
-      const validated = req.validatedBody as { scheduled_at: Date; timezone: string };
+      const validated = req.validatedBody as { scheduled_at: Date; timezone: string; destinations?: string[] };
       const scheduled = await this.blogService.scheduleBlogPublish(id, siteId, userId, {
         scheduled_at: validated.scheduled_at,
         timezone: validated.timezone,
+        destinations: validated.destinations,
       });
       sendCreated(res, "Blog scheduled for publish", scheduled);
     } catch (error) {

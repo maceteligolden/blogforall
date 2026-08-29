@@ -21,6 +21,7 @@ export interface ScheduledPost extends BaseEntity {
     target_audience?: string;
     content_theme?: string;
     campaign_post_item_id?: string;
+    destinations?: string[];
   };
   prepared_at?: Date;
   approved_at?: Date;

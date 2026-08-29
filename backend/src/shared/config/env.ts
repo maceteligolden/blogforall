@@ -255,6 +255,7 @@ export const env = {
       EMAIL_METADATA_RETENTION_DAYS_DEFAULT
     ),
     emailQueueName: process.env.EMAIL_QUEUE_NAME || "notification:email",
+    integrationPublishQueueName: process.env.INTEGRATION_PUBLISH_QUEUE_NAME || "integration:publish",
   },
 
   /**

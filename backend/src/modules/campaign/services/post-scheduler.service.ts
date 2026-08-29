@@ -3,7 +3,7 @@ import * as cron from "node-cron";
 import { ScheduledPostRepository } from "../repositories/scheduled-post.repository";
 import { CampaignRepository } from "../repositories/campaign.repository";
 import { BlogRepository } from "../../blog/repositories/blog.repository";
-import { BlogService } from "../../blog/services/blog.service";
+import { PublishRouterService } from "../../integrations/services/publish-router.service";
 import {
   ScheduledPostStatus,
   CampaignStatus,
@@ -43,7 +43,7 @@ export class PostSchedulerService {
     private scheduledPostRepository: ScheduledPostRepository,
     private campaignRepository: CampaignRepository,
     private blogRepository: BlogRepository,
-    private blogService: BlogService,
+    private publishRouter: PublishRouterService,
     private prepareService: ScheduledPostPrepareService,
     private campaignPostItemRepository: CampaignPostItemRepository,
     private realtimeService: RealtimeService
@@ -217,7 +217,15 @@ export class PostSchedulerService {
       }
 
       if (blog.status !== BlogStatus.PUBLISHED) {
-        await this.blogService.publishBlog(blogId, scheduledPost.site_id, scheduledPost.user_id);
+        const destinations = Array.isArray(scheduledPost.metadata?.destinations)
+          ? (scheduledPost.metadata.destinations as string[])
+          : undefined;
+        await this.publishRouter.publish({
+          blogId,
+          siteId: scheduledPost.site_id,
+          userId: scheduledPost.user_id,
+          destinations,
+        });
         logger.info(`Published blog ${blogId} for scheduled post ${scheduledPostId}`, {}, "PostSchedulerService");
       }
 

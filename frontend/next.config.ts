@@ -1,8 +1,11 @@
+import path from "path";
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Keep tracing rooted in `frontend/` so parent lockfiles don't make Next serve the wrong chunks.
+  outputFileTracingRoot: path.join(__dirname),
   // Standalone is for Docker/Node deploys. On Netlify it breaks serving of `public/`
   // (including /demos/*), which is why landing screenshots 404 in the Netlify dev env
   // while working locally — see Netlify Next runtime + output:standalone guidance.

@@ -13,6 +13,8 @@ import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
 import { ArrowLeft, Calendar } from "lucide-react";
+import { PublishDestinationPicker } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 const SCHEDULED_BASE = "/dashboard/posts/scheduled";
 
@@ -41,6 +43,7 @@ export default function BlogEditScheduledPostPage() {
   });
 
   const [error, setError] = useState("");
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
 
   useEffect(() => {
     if (scheduledPost) {
@@ -51,8 +54,11 @@ export default function BlogEditScheduledPostPage() {
         scheduled_at: scheduledDate,
         timezone: scheduledPost.timezone,
       });
+      if (scheduledPost.metadata?.destinations?.length) {
+        setPublishDestinations(scheduledPost.metadata.destinations);
+      }
     }
-  }, [scheduledPost]);
+  }, [scheduledPost, setPublishDestinations]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +87,10 @@ export default function BlogEditScheduledPostPage() {
       scheduled_at: new Date(formData.scheduled_at).toISOString(),
       blog_id: formData.blog_id || undefined,
       timezone: formData.timezone,
+      metadata: {
+        ...scheduledPost?.metadata,
+        destinations: publishDestinations,
+      },
     };
 
     updateScheduledPost.mutate(
@@ -316,6 +326,11 @@ export default function BlogEditScheduledPostPage() {
                 />
               </div>
             </div>
+            <PublishDestinationPicker
+              destinations={destinations}
+              selected={publishDestinations}
+              onChange={setPublishDestinations}
+            />
           </div>
 
           <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-800">

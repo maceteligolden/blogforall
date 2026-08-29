@@ -344,11 +344,19 @@ export class OrchestratorController {
     try {
       const userId = getJwtUserId(req);
       const { siteId, approvalId } = req.validatedParams as { siteId: string; approvalId: string };
-      const { decision, note } = req.validatedBody as {
+      const { decision, note, destinations } = req.validatedBody as {
         decision: "approved" | "rejected";
         note?: string;
+        destinations?: string[];
       };
-      const approval = await this.orchestratorService.decideApproval(siteId, userId, approvalId, decision, note);
+      const approval = await this.orchestratorService.decideApproval(
+        siteId,
+        userId,
+        approvalId,
+        decision,
+        note,
+        destinations
+      );
       sendCreated(res, "Approval decision recorded", { approval: serializeApproval(approval) });
     } catch (error) {
       next(error);

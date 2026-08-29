@@ -322,13 +322,15 @@ export class OrchestratorService {
     siteId: string,
     approvalId: string,
     decision: "approved" | "rejected",
-    note?: string
+    note?: string,
+    destinations?: string[]
   ): Promise<OrchestratorApproval> {
     const response = await apiClient.post(
       API_ENDPOINTS.ORCHESTRATOR.APPROVAL_DECIDE(siteId, approvalId),
       {
         decision,
         ...(note ? { note } : {}),
+        ...(destinations?.length ? { destinations } : {}),
       },
       { timeout: ORCHESTRATOR_TURN_TIMEOUT_MS }
     );

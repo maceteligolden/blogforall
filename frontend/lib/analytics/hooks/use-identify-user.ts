@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import { useAuthStore } from "../../store/auth.store";
-import { identifyUser, groupWorkspace, resetPostHog } from "../posthog";
+import { identifyUser, groupWorkspace, resetAnalytics } from "../client";
 
 /**
- * Syncs PostHog identity with auth store.
+ * Syncs analytics identity with auth store.
  * Call once at app root (inside AnalyticsProvider tree).
  */
 export function useIdentifyUser() {
@@ -15,7 +15,7 @@ export function useIdentifyUser() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
-      resetPostHog();
+      resetAnalytics();
       return;
     }
 

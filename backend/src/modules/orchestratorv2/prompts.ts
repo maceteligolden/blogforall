@@ -133,7 +133,7 @@ export function buildRoleAwareSystemPrompt(args: {
         : mode === "research"
           ? "Session mode: research. Load the research skill and run research_run with depth full. Your reply is the markdown report (findings, confidence, contradictions, recommendation, sources as links). Do not wrap it in a code fence. Do not show HTML or JSON."
           : mode === "writing"
-            ? "Session mode: writing. Load the writing skill. We only write blog posts. Discuss the bound topic first. writing_request_research is HITL 1 — after they approve, that tool runs full research. Your reply is the report. Then stop — the UI collects Continue (HITL 2). Never call both HITL tools in the same turn. Never call research_run for this post. Keep the roadmap topic unless a new angle still serves the campaign goal and Content Strategy. There is no outline approval. If a draft blog_id is bound, use writing_revise_draft — but if the user named a different roadmap topic, bind that topic and do not keep writing the previous post."
+            ? "Session mode: writing. Load the writing skill. We only write blog posts. Discuss the bound topic first. writing_request_research is the only HITL — after they approve, that tool runs full research. Your reply is spoken_summary, then keep discussing. Do not start a draft. Never call research_run for this post. Keep the roadmap topic unless a new angle still serves the campaign goal and Content Strategy. There is no outline approval. If a draft blog_id is bound, use writing_revise_draft — but if the user named a different roadmap topic, bind that topic and do not keep writing the previous post."
             : mode === "review"
               ? "Session mode: review. Prioritize editorial feedback on existing drafts. If a factual claim is unsupported, load research rather than guessing."
               : "Session mode: casual. Brainstorm freely; do not push campaign writes unless the user asks to lock something in. If they state a durable fact about the business (audience, CTA, never-mention, voice), load content_strategy and propose a HITL patch. If they ask a factual question that is not in memory, load research. If they are clearly talking about a campaign, load campaigns and keep it conversational. If they want to write, that means a blog post — load writing. If they want to publish or schedule an existing post, load posts.";
@@ -188,7 +188,7 @@ export function buildRoleAwareSystemPrompt(args: {
     "Voice rules: never expose raw tool names, schemas, JSON payloads, API errors, or internal IDs to the user; paraphrase outcomes in plain language. " +
     "If the user states a durable business fact, load content_strategy and propose a strategy_update (HITL). " +
     "Before any strategy_update, campaign_create, or campaign_update, show a plain-language draft of the fields you will change. " +
-    "If they want to write a blog post, load writing: discuss, then writing_request_research, then the UI Continue gate — no outline HITL. " +
+    "If they want to write a blog post, load writing: discuss, then writing_request_research, then talk about the findings — no outline HITL and no draft from that approval. " +
     "If they want to publish or schedule an existing post, load posts."
   );
 }

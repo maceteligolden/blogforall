@@ -168,6 +168,23 @@ export class OrchestratorApprovalRepository {
     return result.modifiedCount ?? 0;
   }
 
+  async mergePayload(
+    approvalId: string,
+    siteId: string,
+    patch: Record<string, unknown>
+  ): Promise<OrchestratorApproval | null> {
+    return OrchestratorApprovalModel.findOneAndUpdate(
+      { _id: approvalId, site_id: siteId },
+      {
+        $set: {
+          ...Object.fromEntries(Object.entries(patch).map(([key, value]) => [`payload.${key}`, value])),
+          updated_at: new Date(),
+        },
+      },
+      { new: true }
+    );
+  }
+
   async deleteBySiteId(siteId: string): Promise<void> {
     await OrchestratorApprovalModel.deleteMany({ site_id: siteId });
   }

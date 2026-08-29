@@ -87,4 +87,8 @@ export const blogQuerySchema = z.object({
 export const scheduleBlogSchema = z.object({
   scheduled_at: z.coerce.date().refine((d) => d > new Date(), { message: "Scheduled time must be in the future" }),
   timezone: z.string().max(64).optional().default("UTC"),
+  destinations: z
+    .array(z.enum(["bloggr", "framer"]))
+    .max(4)
+    .optional(),
 });

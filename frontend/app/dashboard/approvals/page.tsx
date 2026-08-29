@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -10,6 +10,12 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { useAuthStore } from "@/lib/store/auth.store";
 import { useRouter } from "next/navigation";
 import type { OrchestratorApproval, OrchestratorApprovalStatus } from "@/lib/api/types/orchestrator.types";
+import {
+  PublishDestinationPicker,
+  defaultDestinationSelection,
+  isPublishHitlAction,
+} from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 const STATUS_FILTERS: Array<{ label: string; value: OrchestratorApprovalStatus }> = [
   { label: "Pending", value: "pending" },
@@ -42,10 +48,20 @@ function ApprovalCard({
   isDeciding,
 }: {
   approval: OrchestratorApproval;
-  onDecide: (decision: "approved" | "rejected") => void;
+  onDecide: (decision: "approved" | "rejected", destinations?: string[]) => void;
   isDeciding: boolean;
 }) {
   const isPending = approval.status === "pending";
+  const showDestinations = isPending && isPublishHitlAction(approval.action);
+  const { destinations: liveDestinations } = usePublishDestinations();
+  const [destinations, setDestinations] = useState(() =>
+    defaultDestinationSelection(liveDestinations, approval.payload?.destinations)
+  );
+
+  useEffect(() => {
+    setDestinations((prev) => defaultDestinationSelection(liveDestinations, approval.payload?.destinations ?? prev));
+  }, [liveDestinations, approval.payload?.destinations]);
+
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 sm:p-5">
       <div className="flex items-start gap-3">
@@ -59,6 +75,15 @@ function ApprovalCard({
           </div>
           <p className="text-sm text-gray-300 mt-1 leading-relaxed">{approval.summary}</p>
           <p className="text-xs text-gray-500 mt-2">Requested {new Date(approval.requested_at).toLocaleString()}</p>
+          {showDestinations && (
+            <PublishDestinationPicker
+              className="mt-3"
+              destinations={liveDestinations}
+              selected={destinations}
+              onChange={setDestinations}
+              disabled={isDeciding}
+            />
+          )}
         </div>
         <span
           className={`text-xs px-2 py-1 rounded-full border ${
@@ -86,8 +111,8 @@ function ApprovalCard({
           </Button>
           <Button
             size="sm"
-            onClick={() => onDecide("approved")}
-            disabled={isDeciding}
+            onClick={() => onDecide("approved", showDestinations ? destinations : undefined)}
+            disabled={isDeciding || (showDestinations && destinations.length === 0)}
             className="bg-primary text-white hover:bg-primary/90"
           >
             <CheckCircle2 className="w-4 h-4 mr-1" aria-hidden="true" /> Approve
@@ -113,8 +138,15 @@ export default function ApprovalsPage() {
   });
 
   const decideMutation = useMutation({
-    mutationFn: ({ approvalId, decision }: { approvalId: string; decision: "approved" | "rejected" }) =>
-      OrchestratorService.decideApproval(currentSiteId as string, approvalId, decision),
+    mutationFn: ({
+      approvalId,
+      decision,
+      destinations,
+    }: {
+      approvalId: string;
+      decision: "approved" | "rejected";
+      destinations?: string[];
+    }) => OrchestratorService.decideApproval(currentSiteId as string, approvalId, decision, undefined, destinations),
     onSuccess: () => {
       if (currentSiteId) {
         queryClient.invalidateQueries({
@@ -180,7 +212,9 @@ export default function ApprovalsPage() {
               <ApprovalCard
                 key={a.id}
                 approval={a}
-                onDecide={(decision) => decideMutation.mutate({ approvalId: a.id, decision })}
+                onDecide={(decision, destinations) =>
+                  decideMutation.mutate({ approvalId: a.id, decision, destinations })
+                }
                 isDeciding={decideMutation.isPending && decideMutation.variables?.approvalId === a.id}
               />
             ))}

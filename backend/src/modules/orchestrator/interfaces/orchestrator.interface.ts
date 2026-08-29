@@ -264,6 +264,32 @@ export interface SerializedApproval {
   summary: string;
   status: "pending" | "approved" | "rejected" | "executed" | "expired";
   requested_at: Date;
+  payload?: {
+    id?: string;
+    destinations?: string[];
+    available_destinations?: Array<{ provider: string; label: string }>;
+    scheduled_at?: string;
+  };
+}
+
+function approvalPayload(approval: OrchestratorApproval): SerializedApproval["payload"] {
+  const raw = approval.payload ?? {};
+  const destinations = Array.isArray(raw.destinations)
+    ? raw.destinations.filter((item): item is string => typeof item === "string")
+    : undefined;
+  const available = Array.isArray(raw.available_destinations)
+    ? raw.available_destinations.filter(
+        (item): item is { provider: string; label: string } =>
+          Boolean(item) &&
+          typeof item === "object" &&
+          typeof (item as { provider?: unknown }).provider === "string" &&
+          typeof (item as { label?: unknown }).label === "string"
+      )
+    : undefined;
+  const id = typeof raw.id === "string" ? raw.id : undefined;
+  const scheduled_at = typeof raw.scheduled_at === "string" ? raw.scheduled_at : undefined;
+  if (!id && !destinations && !available && !scheduled_at) return undefined;
+  return { id, destinations, available_destinations: available, scheduled_at };
 }
 
 export function serializeApproval(approval: OrchestratorApproval): SerializedApproval {
@@ -274,6 +300,7 @@ export function serializeApproval(approval: OrchestratorApproval): SerializedApp
     summary: approval.summary,
     status: approval.status,
     requested_at: approval.requested_at,
+    payload: approvalPayload(approval),
   };
 }
 

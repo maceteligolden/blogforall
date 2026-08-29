@@ -98,6 +98,10 @@ const postMetadataSchema = z
     campaign_goal: z.string().optional(),
     target_audience: z.string().optional(),
     content_theme: z.string().optional(),
+    destinations: z
+      .array(z.enum(["bloggr", "framer"]))
+      .max(4)
+      .optional(),
   })
   .optional();
 

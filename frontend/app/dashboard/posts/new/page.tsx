@@ -27,6 +27,8 @@ import { useBlogDraft } from "@/lib/hooks/use-blog-draft";
 import { Sparkles, PenTool, Save, Trash2, Keyboard, Calendar } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { generationTracker } from "@/lib/analytics/flows/generation.tracker";
+import { PublishDestinationPicker } from "@/components/integrations/publish-destination-picker";
+import { usePublishDestinations } from "@/lib/hooks/use-publish-destinations";
 
 type BlogCreationMode = "write" | "ai-generate";
 
@@ -46,6 +48,7 @@ export default function NewBlogPage() {
   const [reviewHasNewInfo, setReviewHasNewInfo] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [error, setError] = useState("");
+  const { destinations, selected: publishDestinations, setSelected: setPublishDestinations } = usePublishDestinations();
   const [formData, setFormData] = useState<{
     title: string;
     content: string;
@@ -239,11 +242,16 @@ export default function NewBlogPage() {
       };
       const { scheduled_at, ...blogData } = submitData;
       const willScheduleLater = formData.status === "scheduled";
+      const willPublishNow = formData.status === "published";
       if (willScheduleLater && !scheduled_at) {
         setError("Pick a schedule date and time, or change status away from Scheduled.");
         return;
       }
-      const createPayload = willScheduleLater ? { ...blogData, status: "draft" as const } : blogData;
+      if ((willPublishNow || willScheduleLater) && publishDestinations.length === 0) {
+        setError("Select at least one publish destination.");
+        return;
+      }
+      const createPayload = willScheduleLater || willPublishNow ? { ...blogData, status: "draft" as const } : blogData;
       createBlog.mutate(createPayload, {
         onSuccess: async (response) => {
           if (formData.status === "published") {
@@ -252,11 +260,18 @@ export default function NewBlogPage() {
             generationTracker.blogSaved();
           }
           const blogId = response.data?.data?._id || response.data?._id;
+          if (blogId && willPublishNow) {
+            try {
+              await BlogService.publishBlog(blogId, publishDestinations);
+            } catch (publishErr: any) {
+              setError(publishErr?.response?.data?.message || "Post created but publishing failed");
+            }
+          }
           if (blogId && willScheduleLater && scheduled_at) {
             try {
               const scheduleDate = new Date(scheduled_at);
               const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-              await BlogService.scheduleBlog(blogId, scheduleDate, timezone);
+              await BlogService.scheduleBlog(blogId, scheduleDate, timezone, publishDestinations);
               await Promise.all([
                 queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SCHEDULED_POSTS }),
                 queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MY_SCHEDULED_POSTS }),
@@ -509,6 +524,14 @@ export default function NewBlogPage() {
                       <option value="unpublished">Unpublished</option>
                     </select>
                   </div>
+
+                  {(formData.status === "published" || formData.status === "scheduled") && (
+                    <PublishDestinationPicker
+                      destinations={destinations}
+                      selected={publishDestinations}
+                      onChange={setPublishDestinations}
+                    />
+                  )}
 
                   <div>
                     <Label htmlFor="category" className="text-gray-300">

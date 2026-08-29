@@ -1,6 +1,17 @@
-# PostHog Event Taxonomy
+# Analytics Event Taxonomy
 
-Event naming: **`[object] [action]`** (lowercase, space-separated). All captures go through `captureEvent()` in `lib/analytics/posthog.ts`.
+Event naming (product catalog): **`[object] [action]`** (lowercase, space-separated). All captures go through `captureEvent()` in `lib/analytics/client.ts`, which fans out to PostHog and GA4.
+
+## Destinations
+
+| Destination | Client env                      | Notes                                                            |
+| ----------- | ------------------------------- | ---------------------------------------------------------------- |
+| PostHog     | `NEXT_PUBLIC_POSTHOG_KEY`       | Product analytics, session replay, groups                        |
+| GA4         | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Pageviews + mapped custom events. No email/name. `user_id` only. |
+
+GA4 event names are snake_case (≤40 chars). Mapping lives in `lib/analytics/ga4-event-map.ts`. Recommended events: `login`, `sign_up`, `logout`, `page_view`. Everything else is a deterministic snake_case of the catalog name (e.g. `onboarding started` → `onboarding_started`).
+
+In the GA4 property, disable Enhanced Measurement **Page views** so App Router navigations are not double-counted. Register `plan_type` and `workspace_id` as custom dimensions if you want them in reports.
 
 ## Base properties (every event)
 

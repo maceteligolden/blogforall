@@ -482,3 +482,56 @@ CREATE UNIQUE INDEX IF NOT EXISTS thread_associations_one_blog
 CREATE INDEX IF NOT EXISTS thread_associations_site_entity_idx
   ON thread_associations (site_id, entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS thread_associations_thread_id_idx ON thread_associations (thread_id);
+
+CREATE TABLE IF NOT EXISTS integration_connections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  provider text NOT NULL,
+  status text NOT NULL DEFAULT 'disconnected',
+  credentials_encrypted text,
+  config jsonb NOT NULL DEFAULT '{}'::jsonb,
+  connected_by uuid REFERENCES users(id) ON DELETE SET NULL,
+  last_verified_at timestamptz,
+  last_error text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS integration_connections_site_provider_unique
+  ON integration_connections (site_id, provider);
+CREATE INDEX IF NOT EXISTS integration_connections_site_status_idx
+  ON integration_connections (site_id, status);
+
+CREATE TABLE IF NOT EXISTS integration_deliveries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id uuid NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  connection_id uuid NOT NULL REFERENCES integration_connections(id) ON DELETE CASCADE,
+  blog_id uuid NOT NULL REFERENCES blogs(id) ON DELETE CASCADE,
+  provider text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  idempotency_key text NOT NULL,
+  client_request_id text,
+  external_item_id text,
+  external_url text,
+  deployment_id text,
+  attempts integer NOT NULL DEFAULT 0,
+  last_error text,
+  last_synced_at timestamptz,
+  locked_at timestamptz,
+  locked_by text,
+  published_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS integration_deliveries_idempotency_key_unique
+  ON integration_deliveries (idempotency_key);
+CREATE UNIQUE INDEX IF NOT EXISTS integration_deliveries_blog_connection_unique
+  ON integration_deliveries (blog_id, connection_id);
+CREATE UNIQUE INDEX IF NOT EXISTS integration_deliveries_connection_external_item_unique
+  ON integration_deliveries (connection_id, external_item_id)
+  WHERE external_item_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS integration_deliveries_client_request_id_unique
+  ON integration_deliveries (client_request_id)
+  WHERE client_request_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS integration_deliveries_site_connection_status_idx
+  ON integration_deliveries (site_id, connection_id, status);
+CREATE INDEX IF NOT EXISTS integration_deliveries_blog_id_idx ON integration_deliveries (blog_id);

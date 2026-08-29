@@ -682,3 +682,75 @@ export const threadAssociations = pgTable(
     index("thread_associations_thread_id_idx").on(table.thread_id),
   ]
 );
+
+export type IntegrationConnectionConfig = {
+  projectUrl?: string;
+  collectionId?: string;
+  collectionName?: string;
+  fieldMap?: Record<string, string>;
+  autoDeploy?: boolean;
+};
+
+export const integrationConnections = pgTable(
+  "integration_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    site_id: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    status: text("status").notNull().default("disconnected"),
+    credentials_encrypted: text("credentials_encrypted"),
+    config: jsonb("config").$type<IntegrationConnectionConfig>().notNull().default(sql`'{}'::jsonb`),
+    connected_by: uuid("connected_by").references(() => users.id, { onDelete: "set null" }),
+    last_verified_at: timestamp("last_verified_at", { withTimezone: true }),
+    last_error: text("last_error"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("integration_connections_site_provider_unique").on(table.site_id, table.provider),
+    index("integration_connections_site_status_idx").on(table.site_id, table.status),
+  ]
+);
+
+export const integrationDeliveries = pgTable(
+  "integration_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    site_id: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    connection_id: uuid("connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    blog_id: uuid("blog_id")
+      .notNull()
+      .references(() => blogs.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    status: text("status").notNull().default("pending"),
+    idempotency_key: text("idempotency_key").notNull(),
+    client_request_id: text("client_request_id"),
+    external_item_id: text("external_item_id"),
+    external_url: text("external_url"),
+    deployment_id: text("deployment_id"),
+    attempts: integer("attempts").notNull().default(0),
+    last_error: text("last_error"),
+    last_synced_at: timestamp("last_synced_at", { withTimezone: true }),
+    locked_at: timestamp("locked_at", { withTimezone: true }),
+    locked_by: text("locked_by"),
+    published_at: timestamp("published_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("integration_deliveries_idempotency_key_unique").on(table.idempotency_key),
+    uniqueIndex("integration_deliveries_blog_connection_unique").on(table.blog_id, table.connection_id),
+    uniqueIndex("integration_deliveries_connection_external_item_unique")
+      .on(table.connection_id, table.external_item_id)
+      .where(sql`${table.external_item_id} is not null`),
+    uniqueIndex("integration_deliveries_client_request_id_unique")
+      .on(table.client_request_id)
+      .where(sql`${table.client_request_id} is not null`),
+    index("integration_deliveries_site_connection_status_idx").on(table.site_id, table.connection_id, table.status),
+    index("integration_deliveries_blog_id_idx").on(table.blog_id),
+  ]
+);

@@ -20,6 +20,11 @@ import { CampaignProgressEmailService } from "./modules/campaign/services/campai
 import { CampaignProgressReportCronService } from "./modules/campaign/services/campaign-progress-report-cron.service";
 import { EmailJobProcessor } from "./modules/notification/queue/email-job.processor";
 import { emailQueue, isEmailQueueConnected } from "./modules/notification/queue/email.queue";
+import { IntegrationPublishProcessor } from "./modules/integrations/queue/publish-job.processor";
+import {
+  integrationPublishQueue,
+  isIntegrationPublishQueueConnected,
+} from "./modules/integrations/queue/publish.queue";
 import { corsMiddleware } from "./shared/middlewares/cors.middleware";
 import { requestContextMiddleware } from "./shared/middlewares/request-context.middleware";
 import { backfillSitePublicIds } from "./shared/utils/backfill-site-public-ids";
@@ -177,6 +182,25 @@ const startServer = async () => {
       });
     } else {
       logger.info("Email queue disabled (no REDIS_URL); notifications will not be sent", {}, "EmailQueue");
+    }
+
+    if (isIntegrationPublishQueueConnected) {
+      const publishProcessor = container.resolve(IntegrationPublishProcessor);
+      integrationPublishQueue.process((job) => publishProcessor.handle(job));
+      integrationPublishQueue.on("failed", (job, err) => {
+        logger.error(
+          "Integration publish job failed",
+          err,
+          { jobId: job?.id, deliveryId: job?.data?.deliveryId, attempt: job?.attemptsMade },
+          "IntegrationPublishQueue"
+        );
+      });
+    } else {
+      logger.info(
+        "Integration publish queue disabled (no REDIS_URL); Framer publishes run inline",
+        {},
+        "IntegrationPublishQueue"
+      );
     }
 
     const realtimeGateway = container.resolve(SocketIoRealtimeGateway);

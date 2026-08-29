@@ -88,6 +88,10 @@ export const voiceTtsBodySchema = z.object({
 export const orchestratorApprovalDecisionBodySchema = z.object({
   decision: z.enum(["approved", "rejected"]),
   note: z.string().max(4000).optional(),
+  destinations: z
+    .array(z.enum(["bloggr", "framer"]))
+    .max(4)
+    .optional(),
 });
 
 export const threadListQuerySchema = z.object({

@@ -1,6 +1,7 @@
 /**
- * Single source of truth for PostHog event names.
+ * Single source of truth for product analytics event names.
  * Format: [object] [action] (lowercase, space-separated).
+ * GA4 snake_case names are mapped in ga4-event-map.ts.
  */
 export const AnalyticsEvents = {
   // Auth
