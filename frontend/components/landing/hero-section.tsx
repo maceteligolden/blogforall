@@ -15,11 +15,16 @@ export function HeroSection() {
       <Atmosphere />
 
       <div className="relative max-w-3xl mx-auto text-center z-10">
-        <p className="landing-eyebrow mb-4 font-display text-sm tracking-[0.2em]">{HERO.eyebrow}</p>
+        <p className="mb-4">
+          <span className="inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-3 py-1 font-display text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            {HERO.eyebrow}
+          </span>
+        </p>
         <h1 className="landing-hero-title text-white mb-5 font-display tracking-[0.04em] motion-safe:animate-[landing-hero-in_0.8s_ease-out]">
           {HERO.h1}
         </h1>
-        <p className="landing-lead text-gray-300 max-w-xl mx-auto mb-10">{HERO.subhead}</p>
+        <p className="landing-lead text-gray-300 max-w-xl mx-auto mb-4">{HERO.subhead}</p>
+        <p className="landing-caption text-gray-400 max-w-xl mx-auto mb-10">{HERO.accessNote}</p>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
           <StartFreeButton size="lg" />
           <Link

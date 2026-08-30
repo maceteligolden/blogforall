@@ -37,25 +37,42 @@ type PlanSelectionCardProps = {
   selected: boolean;
   onSelect: () => void;
   highlighted?: boolean;
+  locked?: boolean;
+  lockedLabel?: string;
 };
 
-export function PlanSelectionCard({ plan, selected, onSelect, highlighted }: PlanSelectionCardProps) {
+export function PlanSelectionCard({
+  plan,
+  selected,
+  onSelect,
+  highlighted,
+  locked,
+  lockedLabel = "Opens after beta",
+}: PlanSelectionCardProps) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      disabled={locked}
       className={cn(
         "relative w-full rounded-2xl border p-5 text-left transition-all sm:p-6",
         selected
           ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
           : "border-gray-800 bg-gradient-to-br from-gray-900 to-black hover:border-gray-700",
-        highlighted && !selected && "border-primary/40"
+        highlighted && !selected && "border-primary/40",
+        locked && "cursor-not-allowed opacity-60 hover:border-gray-800"
       )}
     >
-      {highlighted && (
-        <span className="absolute -top-3 left-4 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">
-          Recommended
+      {locked ? (
+        <span className="absolute -top-3 left-4 rounded-full border border-gray-700 bg-gray-900 px-3 py-0.5 text-xs font-semibold text-gray-400">
+          {lockedLabel}
         </span>
+      ) : (
+        highlighted && (
+          <span className="absolute -top-3 left-4 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-white">
+            Recommended
+          </span>
+        )
       )}
 
       <div className="mb-4">
@@ -84,30 +101,51 @@ type PlanSelectionGridProps = {
   plans: Plan[];
   selectedId?: string;
   onSelect?: (id: string) => void;
+  lockPaidPlans?: boolean;
+  lockedLabel?: string;
 };
 
-export function PlanSelectionGrid({ plans, selectedId = "", onSelect }: PlanSelectionGridProps) {
+export function PlanSelectionGrid({
+  plans,
+  selectedId = "",
+  onSelect,
+  lockPaidPlans,
+  lockedLabel = "Opens after beta",
+}: PlanSelectionGridProps) {
   const paidSorted = [...plans].sort((a, b) => a.price - b.price);
   const recommendedId =
     paidSorted.find((p) => !isFreePlan(p))?._id ?? paidSorted[Math.min(1, paidSorted.length - 1)]?._id;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {paidSorted.map((plan) => (
-        <PlanSelectionCard
-          key={plan._id}
-          plan={plan}
-          selected={selectedId === plan._id}
-          highlighted={plan._id === recommendedId && !isFreePlan(plan)}
-          onSelect={() => onSelect?.(plan._id)}
-        />
-      ))}
+      {paidSorted.map((plan) => {
+        const locked = Boolean(lockPaidPlans && !isFreePlan(plan));
+        return (
+          <PlanSelectionCard
+            key={plan._id}
+            plan={plan}
+            selected={selectedId === plan._id}
+            highlighted={!locked && plan._id === recommendedId && !isFreePlan(plan)}
+            locked={locked}
+            lockedLabel={lockedLabel}
+            onSelect={() => {
+              if (!locked) onSelect?.(plan._id);
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
 
 /** Compact stacked list for the onboarding column (max-w-md). */
-export function PlanSelectionList({ plans, selectedId = "", onSelect }: PlanSelectionGridProps) {
+export function PlanSelectionList({
+  plans,
+  selectedId = "",
+  onSelect,
+  lockPaidPlans,
+  lockedLabel = "Opens after beta",
+}: PlanSelectionGridProps) {
   const paidSorted = [...plans].sort((a, b) => a.price - b.price);
   const recommendedId = paidSorted.find((p) => !isFreePlan(p))?._id;
 
@@ -115,28 +153,39 @@ export function PlanSelectionList({ plans, selectedId = "", onSelect }: PlanSele
     <div className="grid gap-2">
       {paidSorted.map((plan) => {
         const selected = selectedId === plan._id;
-        const recommended = plan._id === recommendedId && !isFreePlan(plan);
+        const locked = Boolean(lockPaidPlans && !isFreePlan(plan));
+        const recommended = !locked && plan._id === recommendedId && !isFreePlan(plan);
         const features = plan.features?.length ? plan.features.slice(0, 3).join(" · ") : "Core Bloggr features";
         return (
           <button
             key={plan._id}
             type="button"
-            onClick={() => onSelect?.(plan._id)}
+            disabled={locked}
+            onClick={() => {
+              if (!locked) onSelect?.(plan._id);
+            }}
             className={cn(
               "rounded-lg border px-4 py-3 text-left transition-colors",
               selected
                 ? "border-primary bg-primary/15 text-white"
-                : "border-gray-700 bg-gray-900/50 text-gray-300 hover:border-gray-600"
+                : "border-gray-700 bg-gray-900/50 text-gray-300 hover:border-gray-600",
+              locked && "cursor-not-allowed opacity-60 hover:border-gray-700"
             )}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-white">{plan.name}</span>
-                  {recommended && (
-                    <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                      Recommended
+                  {locked ? (
+                    <span className="rounded-full border border-gray-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                      {lockedLabel}
                     </span>
+                  ) : (
+                    recommended && (
+                      <span className="rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        Recommended
+                      </span>
+                    )
                   )}
                 </div>
                 <p className="mt-1 text-xs text-gray-500">{features}</p>

@@ -24,7 +24,9 @@ export function PricingTeaserSection() {
                   "relative h-full rounded-2xl border p-6 flex flex-col transition-colors",
                   plan.featured
                     ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
-                    : "border-gray-800 bg-gray-900/20 hover:border-gray-700"
+                    : plan.opensAfterBeta
+                      ? "border-gray-800 bg-gray-900/20 opacity-70"
+                      : "border-gray-800 bg-gray-900/20 hover:border-gray-700"
                 )}
               >
                 {plan.badge && (
@@ -52,11 +54,21 @@ export function PricingTeaserSection() {
                     </li>
                   ))}
                 </ul>
-                <StartFreeButton
-                  fullWidth
-                  variant={plan.featured ? "primary" : "secondary"}
-                  className={!plan.featured ? "border-gray-700" : undefined}
-                />
+                {plan.opensAfterBeta ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex w-full items-center justify-center min-h-[40px] px-4 rounded-lg border border-gray-800 bg-gray-900/40 text-sm font-medium text-gray-500 cursor-not-allowed"
+                  >
+                    {PRICING.paidLockedLabel}
+                  </button>
+                ) : (
+                  <StartFreeButton
+                    fullWidth
+                    variant={plan.featured ? "primary" : "secondary"}
+                    className={!plan.featured ? "border-gray-700" : undefined}
+                  />
+                )}
               </article>
             </Reveal>
           ))}

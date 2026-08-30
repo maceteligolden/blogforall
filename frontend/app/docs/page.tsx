@@ -1129,7 +1129,7 @@ function BlogList() {
             </p>
             <Link href={IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup"}>
               <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">
-                {IS_WAITLIST_MODE ? LANDING_CTAS.getEarlyAccess : "Sign Up Free"}
+                {LANDING_CTAS.getEarlyAccess}
               </Button>
             </Link>
           </div>

@@ -16,3 +16,8 @@ export function postOnboardingPath(
 ): "/auth/waiting" | "/dashboard" {
   return needsBetaApproval(user) ? "/auth/waiting" : "/dashboard";
 }
+
+/** Beta testers stay on Free. Paid upgrades unlock when the account is standard. */
+export function paidUpgradesLocked(user: { account_type?: string | null } | null | undefined): boolean {
+  return user?.account_type === ACCOUNT_TYPE.BETA;
+}

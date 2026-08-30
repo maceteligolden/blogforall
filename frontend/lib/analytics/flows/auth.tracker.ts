@@ -1,6 +1,6 @@
 import { AnalyticsEvents } from "../events";
 import type { AuthEventProperties } from "../properties";
-import { captureEvent } from "../posthog";
+import { captureEvent } from "../client";
 
 export const authTracker = {
   signupStarted: (props?: AuthEventProperties) => captureEvent(AnalyticsEvents.SIGNUP_STARTED, props),

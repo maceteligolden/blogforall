@@ -1,6 +1,6 @@
 import { AnalyticsEvents } from "../events";
 import type { OrchestratorEventProperties } from "../properties";
-import { captureEvent } from "../posthog";
+import { captureEvent } from "../client";
 
 export const orchestratorTracker = {
   opened: (props?: OrchestratorEventProperties) => captureEvent(AnalyticsEvents.ORCHESTRATOR_OPENED, props),

@@ -8,7 +8,7 @@ import { AuthService } from "../../auth/services/auth.service";
 import { StrategistBootstrapService } from "./strategist-bootstrap.service";
 import { NotFoundError, BadRequestError, ForbiddenError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
-import { SignupWizardStage, SiteStatus } from "../../../shared/constants";
+import { SignupWizardStage, SiteStatus, paidUpgradesLocked } from "../../../shared/constants";
 import { assertSlidingWindowRateLimit } from "../../../shared/utils/sliding-window-rate-limit";
 import WorkspaceMemory from "../../../shared/schemas/workspace-memory.schema";
 
@@ -361,6 +361,10 @@ export class OnboardingService {
     if (selected.price === 0 || selected.interval === "free") {
       await this.completePlanSelection(userId);
       return;
+    }
+
+    if (paidUpgradesLocked(user)) {
+      throw new BadRequestError("Paid plans open after the beta. Beta testers stay on the Free plan.");
     }
 
     // Card may already be saved (e.g. AddCardDialog confirmed it client-side).

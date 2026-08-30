@@ -8,6 +8,7 @@ import { useAuthStore } from "@/lib/store/auth.store";
 import { LANDING_CTAS } from "@/lib/landing/landing-copy";
 import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 import { cn } from "@/lib/utils/cn";
+import { LandingWordmark } from "@/components/brand/landing-wordmark";
 import { useLandingResumeCta } from "@/lib/onboarding/use-landing-resume";
 
 const OPEN_NAV_LINKS = [
@@ -58,10 +59,11 @@ export function LandingHeader() {
         <nav className="flex justify-between items-center h-16" aria-label="Primary">
           <Link
             href="/"
-            className="flex items-center font-display text-xl tracking-[0.08em] text-white hover:text-primary transition-colors"
+            className="flex items-center hover:opacity-90 transition-opacity"
             onClick={closeMobile}
+            aria-label="Bloggr home"
           >
-            Bloggr
+            <LandingWordmark />
           </Link>
 
           <div className="hidden md:flex items-center gap-7">
@@ -95,7 +97,7 @@ export function LandingHeader() {
                 </Link>
                 <Link href="/auth/signup">
                   <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2 transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0">
-                    {LANDING_CTAS.startFree}
+                    {LANDING_CTAS.getEarlyAccess}
                   </Button>
                 </Link>
               </div>
@@ -120,7 +122,7 @@ export function LandingHeader() {
             ) : (
               <Link href="/auth/signup">
                 <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-3 py-2">
-                  {LANDING_CTAS.startFree}
+                  {LANDING_CTAS.getEarlyAccess}
                 </Button>
               </Link>
             )}
@@ -178,7 +180,7 @@ export function LandingHeader() {
                 </Link>
                 <Link href="/auth/signup" onClick={closeMobile} className="mt-2 block">
                   <Button className="min-h-[48px] w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg">
-                    {LANDING_CTAS.startFree}
+                    {LANDING_CTAS.getEarlyAccess}
                   </Button>
                 </Link>
               </>

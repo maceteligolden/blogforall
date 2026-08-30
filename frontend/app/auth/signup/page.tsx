@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AuthPageHeader } from "@/components/auth/auth-page-header";
 import { validatePassword } from "@/lib/utils/password-validation";
+import { CURRENT_TERMS_VERSION } from "@/lib/legal/terms-version";
 
 const SIGNUP_INVITE_KEY = "blogforall_signup_invite_token";
 
@@ -28,8 +29,8 @@ function SignupForm() {
     accept_terms: false,
   });
   const [error, setError] = useState<string>("");
-  const [passwordValid, setPasswordValid] = useState(false);
   const submittingRef = useRef(false);
+  const passwordValid = validatePassword(formData.password).isValid;
 
   useEffect(() => {
     if (invitedEmail) {
@@ -37,8 +38,15 @@ function SignupForm() {
     }
   }, [invitedEmail]);
 
+  const canSubmit = formData.accept_terms && passwordValid;
+
   const submitSignup = async () => {
     if (submittingRef.current) return;
+
+    if (!formData.accept_terms) {
+      setError("Please accept the Terms and Conditions to continue.");
+      return;
+    }
 
     const passwordValidation = validatePassword(formData.password);
     if (!passwordValidation.isValid) {
@@ -59,8 +67,8 @@ function SignupForm() {
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
         phone_number: formData.phone_number.trim(),
-        accept_terms: true,
-        terms_version: "2025-01",
+        accept_terms: formData.accept_terms,
+        terms_version: CURRENT_TERMS_VERSION,
         ...(referralCode ? { referral_code: referralCode } : {}),
         ...(inviteToken ? { invite_token: inviteToken } : {}),
       });
@@ -182,8 +190,7 @@ function SignupForm() {
               autoComplete="new-password"
               required
               value={formData.password}
-              onChange={handleChange}
-              onValidationChange={setPasswordValid}
+              onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
               className="mt-1 bg-gray-800 border-gray-700 text-white"
               showValidation
             />
@@ -205,13 +212,17 @@ function SignupForm() {
               </Label>{" "}
               <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 Terms and Conditions
+              </a>{" "}
+              and{" "}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                Privacy Policy
               </a>
             </p>
           </div>
         </div>
 
         <div>
-          <Button type="submit" className="w-full" disabled={isSigningUp || !passwordValid}>
+          <Button type="submit" className="w-full" disabled={isSigningUp || !canSubmit}>
             {isSigningUp ? "Creating account..." : "Create account"}
           </Button>
         </div>

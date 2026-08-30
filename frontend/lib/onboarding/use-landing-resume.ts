@@ -17,7 +17,7 @@ export function useLandingResumeCta() {
   });
 
   if (!isAuthenticated) {
-    return { href: "/auth/signup" as const, label: LANDING_CTAS.startFree };
+    return { href: "/auth/signup" as const, label: LANDING_CTAS.getEarlyAccess };
   }
   if (!isLoading && data?.stage === "complete") {
     if (needsBetaApproval(user)) {

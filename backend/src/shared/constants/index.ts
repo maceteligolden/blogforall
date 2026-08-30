@@ -25,6 +25,11 @@ export function needsBetaApproval(
   return user?.account_type === AccountType.BETA && user.is_approved === false;
 }
 
+/** Beta testers stay on Free. Paid upgrades unlock when the account is standard. */
+export function paidUpgradesLocked(user: { account_type?: string | null } | null | undefined): boolean {
+  return user?.account_type === AccountType.BETA;
+}
+
 export enum BlogStatus {
   DRAFT = "draft",
   GENERATING = "generating",

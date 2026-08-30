@@ -16,6 +16,8 @@ import { canVisitStage, nextWizardPath, signupWizardPath } from "@/lib/onboardin
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
 import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
+import { paidUpgradesLocked } from "@/lib/auth/beta-access";
+import { useAuthStore } from "@/lib/store/auth.store";
 
 function PlansOnboardingContent() {
   const router = useRouter();
@@ -25,6 +27,8 @@ function PlansOnboardingContent() {
   const [error, setError] = useState("");
   useOnboardingDropoff("plan_selection");
   const { pending, begin, cancel, push } = useWizardTransition();
+  const user = useAuthStore((s) => s.user);
+  const lockPaidPlans = paidUpgradesLocked(user);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [addCardOpen, setAddCardOpen] = useState(false);
   const [pendingPaymentMethodId, setPendingPaymentMethodId] = useState<string | null>(null);
@@ -110,6 +114,10 @@ function PlansOnboardingContent() {
       setError("Select a plan to continue.");
       return;
     }
+    if (lockPaidPlans && !isFreePlan(selectedPlan)) {
+      setError("Paid plans open after the beta. Continue with Free.");
+      return;
+    }
     begin();
     if (isFreePlan(selectedPlan)) {
       freeContinueMutation.mutate();
@@ -140,7 +148,11 @@ function PlansOnboardingContent() {
     <AuthSplitLayout>
       <AuthPageHeader
         title="Choose your plan"
-        subtitle="Start free or pick a paid plan. Paid plans require a card — you can change anytime from Subscription."
+        subtitle={
+          lockPaidPlans
+            ? "Beta testers use the Free plan. Paid plans open after the beta."
+            : "Start free or pick a paid plan. Paid plans require a card — you can change anytime from Subscription."
+        }
         clearSignupAttempt
       />
       <SignupWizardProgress stage="plan_selection" siteId={siteIdParam ?? wizardStatus?.site_id} />
@@ -159,6 +171,7 @@ function PlansOnboardingContent() {
             <PlanSelectionList
               plans={plans}
               selectedId={selectedPlanId}
+              lockPaidPlans={lockPaidPlans}
               onSelect={(id) => {
                 setSelectedPlanId(id);
                 setPendingPaymentMethodId(null);

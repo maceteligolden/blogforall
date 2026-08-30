@@ -168,7 +168,7 @@ export default function AboutPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href={IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup"}>
               <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">
-                {IS_WAITLIST_MODE ? LANDING_CTAS.getEarlyAccess : "Get Started Free"}
+                {LANDING_CTAS.getEarlyAccess}
               </Button>
             </Link>
             <Link href="/contact">

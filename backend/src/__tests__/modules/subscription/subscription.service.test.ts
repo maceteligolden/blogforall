@@ -9,6 +9,7 @@ jest.mock("../../../shared/analytics/posthog.server", () => ({
   },
 }));
 
+import { AccountType } from "../../../shared/constants";
 import { SubscriptionService } from "../../../modules/subscription/services/subscription.service";
 
 describe("SubscriptionService restored paid paths", () => {
@@ -88,6 +89,63 @@ describe("SubscriptionService restored paid paths", () => {
 
     await expect(service.changePlan("u1", "p1")).rejects.toBeInstanceOf(BadRequestError);
     await expect(service.changePlan("u1", "p1")).rejects.toThrow(/payment method/i);
+  });
+
+  it("changePlan to paid is rejected for beta accounts", async () => {
+    const betaService = new SubscriptionService(
+      {
+        findByUserId: mockFindByUserId,
+        update: mockUpdate,
+        findActiveByUserId: jest.fn(),
+        create: jest.fn(),
+        findById: jest.fn(),
+        deleteByUserId: jest.fn(),
+      } as never,
+      {
+        fetchActivePlans: mockFetchActivePlans,
+        findById: mockFindByIdPlan,
+        update: jest.fn(),
+      } as never,
+      {
+        setCancelAtPeriodEnd: mockSetCancelAtPeriodEnd,
+        createSubscription: jest.fn(),
+        updateSubscription: jest.fn(),
+        cancelSubscription: jest.fn(),
+        findOrCreateProduct: jest.fn(),
+        createPrice: jest.fn(),
+        attachPaymentMethod: jest.fn(),
+        setDefaultPaymentMethod: jest.fn(),
+        updateSubscriptionPaymentMethod: jest.fn(),
+      } as never,
+      {
+        findDefaultCard: mockFindDefaultCard,
+      } as never,
+      {
+        findById: jest.fn(async () => ({
+          _id: "u1",
+          stripe_customer_id: "cus_1",
+          account_type: AccountType.BETA,
+        })),
+      } as never
+    );
+
+    mockFindByUserId.mockResolvedValue({
+      _id: "sub1",
+      userId: "u1",
+      planId: "p0",
+      status: SubscriptionStatus.FREE,
+    });
+    mockFindByIdPlan.mockResolvedValue({
+      _id: "p1",
+      name: "Starter",
+      price: 5,
+      interval: "month",
+      isActive: true,
+      stripe_price_id: "price_1",
+    });
+
+    await expect(betaService.changePlan("u1", "p1")).rejects.toBeInstanceOf(BadRequestError);
+    await expect(betaService.changePlan("u1", "p1")).rejects.toThrow(/after the beta/i);
   });
 
   it("cancelSubscription rejects free plans", async () => {

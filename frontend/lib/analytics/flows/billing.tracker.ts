@@ -1,6 +1,6 @@
 import { AnalyticsEvents } from "../events";
 import type { BillingEventProperties } from "../properties";
-import { captureEvent } from "../posthog";
+import { captureEvent } from "../client";
 
 export const billingTracker = {
   viewed: (props?: BillingEventProperties) => captureEvent(AnalyticsEvents.BILLING_VIEWED, props),

@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import * as Sentry from "@sentry/nextjs";
 import { getCurrentSiteIdFromToken } from "../utils/jwt";
 import { getOrCreateSessionId } from "../observability/session";
-import { identifyUser, groupWorkspace, resetPostHog } from "../analytics/posthog";
+import { identifyUser, groupWorkspace, resetPostHog } from "../analytics/client";
 
 export const USER_ROLE = {
   USER: "user",

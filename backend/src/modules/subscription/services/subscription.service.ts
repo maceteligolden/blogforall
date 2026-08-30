@@ -5,6 +5,7 @@ import { Subscription, SubscriptionStatus } from "../../../shared/schemas/subscr
 import { Plan } from "../../../shared/schemas/plan.schema";
 import { NotFoundError, BadRequestError } from "../../../shared/errors";
 import { StripeFacade } from "../../../shared/facade/stripe.facade";
+import { paidUpgradesLocked } from "../../../shared/constants";
 import { SUBSCRIPTION_CONSTANTS } from "../../../shared/constants/subscription.constant";
 import { UserRepository } from "../../auth/repositories/user.repository";
 import { CardRepository } from "../../billing/repositories/card.repository";
@@ -148,6 +149,11 @@ export class SubscriptionService {
 
     if (subscription.planId === newPlanId) {
       throw new BadRequestError("You are already on this plan");
+    }
+
+    const movingToPaid = newPlan.interval !== "free" && newPlan.price > 0;
+    if (movingToPaid && paidUpgradesLocked(user)) {
+      throw new BadRequestError("Paid plans open after the beta. Beta testers stay on the Free plan.");
     }
 
     // If changing to free plan

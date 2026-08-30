@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { validatePassword } from "@/lib/utils/password-validation";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
-import { captureEvent } from "@/lib/analytics/posthog";
+import { captureEvent } from "@/lib/analytics/client";
 import { AnalyticsEvents } from "@/lib/analytics/events";
 import { BusinessContextPanel } from "@/components/settings/business-context-panel";
 import { cn } from "@/lib/utils/cn";

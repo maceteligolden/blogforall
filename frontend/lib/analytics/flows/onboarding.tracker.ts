@@ -1,6 +1,6 @@
 import { AnalyticsEvents } from "../events";
 import type { OnboardingEventProperties } from "../properties";
-import { captureEvent } from "../posthog";
+import { captureEvent } from "../client";
 
 export const onboardingTracker = {
   started: (props?: OnboardingEventProperties) => captureEvent(AnalyticsEvents.ONBOARDING_STARTED, props),

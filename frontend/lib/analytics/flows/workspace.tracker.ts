@@ -1,6 +1,6 @@
 import { AnalyticsEvents } from "../events";
 import type { WorkspaceEventProperties } from "../properties";
-import { captureEvent } from "../posthog";
+import { captureEvent } from "../client";
 
 export const workspaceTracker = {
   creationStarted: (props?: WorkspaceEventProperties) =>

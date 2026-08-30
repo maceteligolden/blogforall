@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { isAxiosError } from "axios";
 import { AnalyticsEvents } from "../analytics/events";
-import { captureEvent } from "../analytics/posthog";
+import { captureEvent } from "../analytics/client";
 
 export function captureApiError(error: unknown, context?: { url?: string; method?: string }): void {
   try {

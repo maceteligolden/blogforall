@@ -11,7 +11,7 @@ export function FinalCtaSection() {
         <h2 className="landing-section-title text-white mb-4">{FINAL_CTA.h2}</h2>
         <p className="landing-body mb-8">{FINAL_CTA.body}</p>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-          <StartFreeButton size="lg" label={LANDING_CTAS.startFreeFull} />
+          <StartFreeButton size="lg" label={LANDING_CTAS.getEarlyAccess} />
           <Link
             href="/contact"
             className="inline-flex items-center justify-center min-h-[48px] px-8 rounded-lg border border-gray-700 text-white text-base font-medium hover:bg-gray-900 transition-colors"

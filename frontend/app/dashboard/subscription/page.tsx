@@ -15,6 +15,8 @@ import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
 import { billingTracker } from "@/lib/analytics/flows/billing.tracker";
 import type { Plan } from "@/lib/api/services/subscription.service";
+import { paidUpgradesLocked } from "@/lib/auth/beta-access";
+import { useAuthStore } from "@/lib/store/auth.store";
 
 function formatPrice(price: number, currency = "usd", interval?: string): string {
   if (price === 0 || interval === "free") return "Free";
@@ -51,6 +53,8 @@ function isFreePlan(plan: { price: number; interval: string }): boolean {
 
 export default function SubscriptionPage() {
   const { toast } = useToast();
+  const user = useAuthStore((s) => s.user);
+  const lockPaidPlans = paidUpgradesLocked(user);
   const { data: subscriptionData, isLoading: subscriptionLoading } = useSubscription();
   const { data: plans = [], isLoading: plansLoading } = usePlans();
   const changePlan = useChangePlan();
@@ -107,6 +111,7 @@ export default function SubscriptionPage() {
 
   const handleSelectPlan = async (plan: Plan) => {
     if (plan._id === currentPlanId) return;
+    if (lockPaidPlans && !isFreePlan(plan)) return;
 
     if (isFreePlan(plan)) {
       setConfirmDowngradePlan(plan);
@@ -157,6 +162,12 @@ export default function SubscriptionPage() {
         <h1 className="text-2xl font-display text-white">Subscription</h1>
         <p className="text-sm text-gray-400 mt-1">Manage your plan, payment methods, and billing history.</p>
       </div>
+
+      {lockPaidPlans && (
+        <div className="mb-8 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-gray-200">
+          You&apos;re on Free for the private beta. Paid plans open after the beta — thanks for helping us test.
+        </div>
+      )}
 
       {currentPlan && subscription && (
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-8">
@@ -250,17 +261,24 @@ export default function SubscriptionPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {plans.map((plan) => {
               const isCurrent = plan._id === currentPlanId;
+              const paidLocked = lockPaidPlans && !isFreePlan(plan);
               return (
                 <div
                   key={plan._id}
                   className={`rounded-xl border p-5 ${
-                    isCurrent ? "border-primary bg-primary/5" : "border-gray-800 bg-gray-900"
+                    isCurrent
+                      ? "border-primary bg-primary/5"
+                      : paidLocked
+                        ? "border-gray-800 bg-gray-900 opacity-60"
+                        : "border-gray-800 bg-gray-900"
                   }`}
                 >
                   <h3 className="font-semibold text-white">{plan.name}</h3>
                   <p className="text-primary mt-1">{formatPrice(plan.price, plan.currency, plan.interval)}</p>
                   {isCurrent ? (
                     <p className="text-xs text-primary mt-3">Current plan</p>
+                  ) : lockPaidPlans && !isFreePlan(plan) ? (
+                    <p className="text-xs text-gray-500 mt-3">Opens after beta</p>
                   ) : (
                     <Button
                       size="sm"

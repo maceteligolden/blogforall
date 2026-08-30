@@ -1,6 +1,6 @@
 import { AnalyticsEvents } from "../events";
 import type { GenerationEventProperties } from "../properties";
-import { captureEvent } from "../posthog";
+import { captureEvent } from "../client";
 
 export const generationTracker = {
   viewed: (props?: GenerationEventProperties) => captureEvent(AnalyticsEvents.GENERATION_FLOW_VIEWED, props),

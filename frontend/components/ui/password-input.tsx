@@ -51,8 +51,12 @@ export function PasswordInput({
           type="button"
           tabIndex={-1}
           disabled={disabled}
-          className="absolute inset-y-0 right-0 z-20 flex w-10 items-center justify-center text-gray-400 hover:text-white disabled:opacity-50"
-          onClick={() => setShowPassword((visible) => !visible)}
+          className="absolute inset-y-0 right-0 z-20 flex w-10 items-center justify-center text-gray-400 hover:text-white disabled:opacity-50 pointer-events-auto"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowPassword((visible) => !visible);
+          }}
           aria-label={showPassword ? "Hide password" : "Show password"}
           aria-pressed={showPassword}
         >

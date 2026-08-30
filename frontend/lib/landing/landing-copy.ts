@@ -1,7 +1,7 @@
 export const LANDING_SEO = {
   title: "Bloggr — AI content strategist that knows your business",
   description:
-    "Plan, research, write, and publish on-brand blog content through conversation—not endless prompts. Full access free.",
+    "Plan, research, write, and publish on-brand blog content through conversation—not endless prompts. Request early access.",
 } as const;
 
 export const WAITLIST_SEO = {
@@ -26,10 +26,11 @@ export const LANDING_CTAS = {
 } as const;
 
 export const HERO = {
-  eyebrow: "AI content strategist",
+  eyebrow: "Now in private beta",
   h1: "Talk about your business. Ship content that sounds like you.",
   subhead:
     "Bloggr remembers your positioning, researches with sources, and turns natural conversation into on-brand posts—planned, drafted, and ready to publish.",
+  accessNote: "Request early access. We review every account before opening the full product.",
 } as const;
 
 export const PROOF_STRIP = "Built for founders and marketers who are done prompting.";
@@ -231,39 +232,44 @@ export const SOCIAL_PROOF = {
 } as const;
 
 export const PRICING = {
-  h2: "Simple pricing. Full access to start.",
-  subhead: "Full product on Free. Upgrade when you outgrow limits.",
+  h2: "Simple pricing. Free while we beta.",
+  subhead: "Beta testers use the Free plan. Paid plans open after the beta.",
+  paidLockedLabel: "Opens after beta",
   plans: [
     {
       name: "Free",
       price: "$0",
       period: "",
-      badge: "Full access",
+      badge: "Beta access",
       featured: true,
+      opensAfterBeta: false,
       bullets: ["Up to 3 blog posts", "1 workspace", "API access", "AI strategist workspace", "No credit card"],
     },
     {
       name: "Starter",
       price: "$5",
       period: "/month",
-      badge: null,
+      badge: "Opens after beta",
       featured: false,
+      opensAfterBeta: true,
       bullets: ["Up to 10 posts", "AI generation & review", "1 workspace", "Basic campaigns", "API access"],
     },
     {
       name: "Professional",
       price: "$10",
       period: "/month",
-      badge: "Most popular",
+      badge: "Opens after beta",
       featured: false,
+      opensAfterBeta: true,
       bullets: ["Up to 50 posts", "3 workspaces", "Unlimited campaigns", "Team collaboration", "Campaign templates"],
     },
     {
       name: "Enterprise",
       price: "$20",
       period: "/month",
-      badge: null,
+      badge: "Opens after beta",
       featured: false,
+      opensAfterBeta: true,
       bullets: ["Unlimited posts & workspaces", "Advanced API", "Unlimited members", "Priority support"],
     },
   ],
@@ -313,7 +319,7 @@ export const FAQ_ITEMS = [
 ] as const;
 
 export const FINAL_CTA = {
-  h2: "Start with full access. Brief your business once.",
+  h2: "Request early access. Brief your business once.",
   body: "Your business, already briefed—every draft after that gets easier.",
   trust: "Request early access. No credit card.",
 } as const;
