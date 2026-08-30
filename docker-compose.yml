@@ -2,7 +2,7 @@
 #   docker compose up -d
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Isolated via compose project name `bloggr-dev`, host ports 5005 / 27017.
+# Isolated via compose project name `bloggr-dev`, host ports 5005 / 27017 / 5433.
 # Valkey is not published to the host. Service key stays `valkey` (Dokploy).
 # Isolation from prod: container bloggr-valkey-dev, network bloggr-dev-network.
 
@@ -29,8 +29,10 @@ services:
   postgres:
     image: postgres:16
     container_name: bloggr-postgres
+    # Publish on 5433 so a local/Homebrew Postgres or another compose stack can keep 5432.
+    # Inside the network the hostname is still `postgres` on 5432.
     ports:
-      - "5432:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-blogforall}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blogforall}
@@ -140,7 +142,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      # Dockerfile.dev runs `yarn install` then ts-node before listen; wget gets
+      # connection refused until then. 40s was too tight on a cold start.
+      start_period: 120s
 
 volumes:
   mongodb-data:
