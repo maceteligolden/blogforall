@@ -36,6 +36,7 @@ import { RealtimeService, REALTIME_EVENTS } from "../../../shared/realtime";
 @injectable()
 export class PostSchedulerService {
   private cronJob: cron.ScheduledTask | null = null;
+  private tickInFlight = false;
   private readonly MAX_RETRY_ATTEMPTS = 3;
   private readonly SCHEDULE_INTERVAL = env.scheduler.cronInterval;
 
@@ -53,6 +54,10 @@ export class PostSchedulerService {
    * Start the scheduler cron job
    */
   start(): void {
+    if (!env.scheduler.enabled) {
+      logger.info("Post scheduler disabled (SCHEDULER_ENABLED=false)", {}, "PostSchedulerService");
+      return;
+    }
     if (this.cronJob) {
       logger.warn("Scheduler is already running", {}, "PostSchedulerService");
       return;
@@ -60,11 +65,17 @@ export class PostSchedulerService {
 
     // Run every minute by default (configurable via SCHEDULER_INTERVAL env var)
     this.cronJob = cron.schedule(this.SCHEDULE_INTERVAL, async () => {
-      // Prepare drafts that are inside the review lead time first; then
-      // publish approved posts. Order matters: a post that approval came in
-      // for since the last tick will be picked up by the publish pass.
-      await this.runPreparePhase();
-      await this.processScheduledPosts();
+      if (this.tickInFlight) {
+        logger.warn("Scheduler tick skipped; previous sweep still running", {}, "PostSchedulerService");
+        return;
+      }
+      this.tickInFlight = true;
+      try {
+        await this.runPreparePhase();
+        await this.processScheduledPosts();
+      } finally {
+        this.tickInFlight = false;
+      }
     });
 
     logger.info(`Post scheduler started with interval: ${this.SCHEDULE_INTERVAL}`, {}, "PostSchedulerService");

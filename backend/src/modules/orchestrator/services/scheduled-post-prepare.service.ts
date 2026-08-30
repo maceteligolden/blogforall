@@ -55,6 +55,8 @@ interface PrepareOutcome {
  */
 @injectable()
 export class ScheduledPostPrepareService {
+  private sweepInFlight = false;
+
   constructor(
     private readonly scheduledPostRepository: ScheduledPostRepository,
     private readonly blogService: BlogService,
@@ -78,16 +80,25 @@ export class ScheduledPostPrepareService {
    * so a single bad post never blocks the queue.
    */
   async sweep(): Promise<void> {
-    const leadTimeMs = env.orchestrator.reviewLeadTimeHoursDefault * 60 * 60 * 1000;
-    const dueWindowMs = Math.max(leadTimeMs, 60 * 60 * 1000);
-    const candidates = await this.scheduledPostRepository.findDueForPreparation(dueWindowMs, 100);
-    if (candidates.length === 0) return;
+    if (this.sweepInFlight) {
+      logger.warn("Prepare sweep already in progress; skipping overlapping tick", {}, "ScheduledPostPrepareService");
+      return;
+    }
+    this.sweepInFlight = true;
+    try {
+      const leadTimeMs = env.orchestrator.reviewLeadTimeHoursDefault * 60 * 60 * 1000;
+      const dueWindowMs = Math.max(leadTimeMs, 60 * 60 * 1000);
+      const candidates = await this.scheduledPostRepository.findDueForPreparation(dueWindowMs, 100);
+      if (candidates.length === 0) return;
 
-    logger.info(`Preparing ${candidates.length} scheduled post(s) for review`, {}, "ScheduledPostPrepareService");
+      logger.info(`Preparing ${candidates.length} scheduled post(s) for review`, {}, "ScheduledPostPrepareService");
 
-    for (let i = 0; i < candidates.length; i += PREPARE_BATCH_SIZE) {
-      const batch = candidates.slice(i, i + PREPARE_BATCH_SIZE);
-      await Promise.allSettled(batch.map((p) => this.prepareOne(p._id!.toString(), p.site_id)));
+      for (let i = 0; i < candidates.length; i += PREPARE_BATCH_SIZE) {
+        const batch = candidates.slice(i, i + PREPARE_BATCH_SIZE);
+        await Promise.allSettled(batch.map((p) => this.prepareOne(p._id!.toString(), p.site_id)));
+      }
+    } finally {
+      this.sweepInFlight = false;
     }
   }
 

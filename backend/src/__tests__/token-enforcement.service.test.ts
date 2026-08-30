@@ -7,6 +7,7 @@ import { TokenEstimationService } from "../modules/token-ledger/services/token-e
 import { TokenLedgerEntryStatus, TOKEN_WINDOW_MS } from "../shared/constants/token-ledger.constant";
 import type { TokenLedger } from "../shared/schemas/token-ledger.schema";
 import type { TokenLedgerEntry } from "../shared/schemas/token-ledger-entry.schema";
+import * as tokenEvents from "../shared/observability/token-events";
 
 const USER_ID = "user-ledger-test";
 const ALLOCATION = 100_000;
@@ -208,6 +209,28 @@ describe("TokenEnforcementService", () => {
 
     const entry = entries.get("req-refund");
     expect(entry?.status).toBe(TokenLedgerEntryStatus.COMMITTED);
+  });
+
+  it("logs token_window_reset once after a successful window reset", async () => {
+    const spy = jest.spyOn(tokenEvents, "logTokenEvent");
+    const expiredStart = new Date(Date.now() - TOKEN_WINDOW_MS - 60_000);
+    ledger = makeLedger({
+      window_start: expiredStart,
+      used_tokens: 90_000,
+    });
+
+    const result = await service.runWithReservation({
+      userId: USER_ID,
+      feature: "blog_generate",
+      requestId: "req-window-reset",
+      estimate: { feature: "blog_generate", promptText: "hello" },
+      fn: async () => "ok",
+    });
+
+    expect(result).toBe("ok");
+    const resets = spy.mock.calls.filter((call) => call[0] === "token_window_reset");
+    expect(resets).toHaveLength(1);
+    spy.mockRestore();
   });
 
   it("treats duplicate committed request_id as already processed", async () => {

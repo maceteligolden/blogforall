@@ -58,6 +58,7 @@ export const env = {
   },
 
   scheduler: {
+    enabled: (process.env.SCHEDULER_ENABLED || "true").toLowerCase() !== "false",
     cronInterval: process.env.SCHEDULER_INTERVAL || "*/1 * * * *",
   },
 

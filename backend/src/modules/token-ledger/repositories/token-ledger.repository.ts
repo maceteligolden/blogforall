@@ -3,6 +3,12 @@ import mongoose, { ClientSession } from "mongoose";
 import { TokenLedgerModel, type TokenLedger } from "../../../shared/schemas/token-ledger.schema";
 import { TokenLedgerEntryModel, type TokenLedgerEntry } from "../../../shared/schemas/token-ledger-entry.schema";
 import { TokenLedgerEntryStatus } from "../../../shared/constants/token-ledger.constant";
+import { logger } from "../../../shared/utils/logger";
+
+function isTransactionsUnsupportedError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Transaction numbers are only allowed/i.test(message) || /not supported.*transaction/i.test(message);
+}
 
 @injectable()
 export class TokenLedgerRepository {
@@ -98,8 +104,19 @@ export class TokenLedgerRepository {
     );
   }
 
-  /** Run a callback inside a MongoDB transaction (requires replica set in production). */
-  async withTransaction<T>(fn: (session: ClientSession) => Promise<T>): Promise<T> {
+  private transactionsSupported: boolean | null = null;
+  private loggedStandaloneFallback = false;
+
+  /**
+   * Replica set / mongos: run `fn` in a Mongo transaction.
+   * Standalone (typical local mongod): run `fn` with no session so the driver
+   * cannot retry the callback in a tight loop.
+   */
+  async withTransaction<T>(fn: (session?: ClientSession) => Promise<T>): Promise<T> {
+    if (!(await this.mongoSupportsTransactions())) {
+      return fn(undefined);
+    }
+
     const session = await mongoose.startSession();
     try {
       let result!: T;
@@ -107,9 +124,48 @@ export class TokenLedgerRepository {
         result = await fn(session);
       });
       return result;
+    } catch (error) {
+      if (isTransactionsUnsupportedError(error)) {
+        this.transactionsSupported = false;
+        this.warnStandaloneFallback();
+        return fn(undefined);
+      }
+      throw error;
     } finally {
       await session.endSession();
     }
+  }
+
+  private async mongoSupportsTransactions(): Promise<boolean> {
+    if (this.transactionsSupported !== null) {
+      return this.transactionsSupported;
+    }
+    try {
+      const db = mongoose.connection.db;
+      if (!db) {
+        this.transactionsSupported = false;
+        this.warnStandaloneFallback();
+        return false;
+      }
+      const hello = (await db.admin().command({ hello: 1 })) as { setName?: string; msg?: string };
+      this.transactionsSupported = Boolean(hello.setName || hello.msg === "isdbgrid");
+    } catch {
+      this.transactionsSupported = false;
+    }
+    if (!this.transactionsSupported) {
+      this.warnStandaloneFallback();
+    }
+    return this.transactionsSupported;
+  }
+
+  private warnStandaloneFallback(): void {
+    if (this.loggedStandaloneFallback) return;
+    this.loggedStandaloneFallback = true;
+    logger.warn(
+      "Mongo transactions unavailable (standalone); token ledger runs without sessions",
+      {},
+      "TokenLedger"
+    );
   }
 
   isDuplicateKeyError(error: unknown): boolean {

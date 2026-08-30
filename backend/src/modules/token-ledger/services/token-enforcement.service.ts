@@ -198,6 +198,7 @@ export class TokenEnforcementService {
     const now = new Date();
     const lockExpires = new Date(now.getTime() + env.tokenLedger.activeRequestTtlMs);
     const windowMs = env.tokenLedger.windowMs || TOKEN_WINDOW_MS;
+    let didResetWindow = false;
 
     await this.ledgerRepository.withTransaction(async (session) => {
       let ledger = await this.ledgerRepository.findByUserId(args.userId, session);
@@ -215,11 +216,6 @@ export class TokenEnforcementService {
       const windowExpired = !ledger.window_start || now.getTime() >= ledger.window_start.getTime() + windowMs;
 
       if (windowExpired) {
-        logTokenEvent("token_window_reset", {
-          userId: args.userId,
-          requestId: args.requestId,
-          allocation,
-        });
         ledger = (await this.ledgerRepository.updateLedger(
           args.userId,
           {
@@ -232,6 +228,7 @@ export class TokenEnforcementService {
           },
           session
         ))!;
+        didResetWindow = true;
       }
 
       const staleLockByExpiry =
@@ -338,6 +335,14 @@ export class TokenEnforcementService {
         session
       );
     });
+
+    if (didResetWindow) {
+      logTokenEvent("token_window_reset", {
+        userId: args.userId,
+        requestId: args.requestId,
+        allocation,
+      });
+    }
 
     logTokenEvent("token_reserved", {
       userId: args.userId,
