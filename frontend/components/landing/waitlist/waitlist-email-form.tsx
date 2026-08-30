@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { waitlistTracker } from "@/lib/analytics/flows/waitlist.tracker";
 import { WaitlistService } from "@/lib/api/services/waitlist.service";
 import { cn } from "@/lib/utils/cn";
 
@@ -47,14 +48,24 @@ export function WaitlistEmailForm({ id, className, inputId = "waitlist-email" }:
     setIsSubmitting(true);
     setError(null);
 
+    const source = inputId.includes("launch") ? "launch" : inputId.includes("hero") ? "hero" : "landing";
+    waitlistTracker.joinStarted({ source });
+
     try {
       await WaitlistService.joinWaitlist({
         email: email.trim(),
         first_name: firstName.trim(),
         last_name: lastName.trim(),
       });
+      waitlistTracker.joined({ source });
       setSubmitted(true);
     } catch (err) {
+      const status = err instanceof AxiosError ? err.response?.status : undefined;
+      waitlistTracker.joinFailed({
+        source,
+        status,
+        error_code: status === 409 ? "already_joined" : status === 502 ? "brevo_failed" : "unknown",
+      });
       setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);

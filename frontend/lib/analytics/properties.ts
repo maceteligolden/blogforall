@@ -10,7 +10,31 @@ export interface BaseEventProperties {
 export interface AuthEventProperties extends BaseEventProperties {
   method?: "email";
   has_invite?: boolean;
+  referral?: boolean;
+  terms_version?: string;
   error_message?: string;
+}
+
+export interface LandingEventProperties extends BaseEventProperties {
+  placement?: string;
+  cta_label?: string;
+  href?: string;
+  waitlist_mode?: boolean;
+  plan_name?: string;
+}
+
+export interface WaitlistEventProperties extends BaseEventProperties {
+  source?: string;
+  status?: number;
+  error_code?: string;
+}
+
+export interface BetaEventProperties extends BaseEventProperties {
+  terms_version?: string;
+  account_type?: string;
+  is_approved?: boolean;
+  reason?: string;
+  plan_name?: string;
 }
 
 export interface OnboardingEventProperties extends BaseEventProperties {
@@ -64,6 +88,9 @@ export interface ApiFailureProperties extends BaseEventProperties {
 export type EventProperties =
   | BaseEventProperties
   | AuthEventProperties
+  | LandingEventProperties
+  | WaitlistEventProperties
+  | BetaEventProperties
   | OnboardingEventProperties
   | GenerationEventProperties
   | WorkspaceEventProperties

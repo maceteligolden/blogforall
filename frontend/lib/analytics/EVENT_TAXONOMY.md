@@ -25,6 +25,14 @@ In the GA4 property, disable Enhanced Measurement **Page views** so App Router n
 
 ## Funnels (configure in PostHog UI)
 
+### Funnel 0: Early access (this deploy)
+
+`$pageview` `/` → `landing cta clicked` → `signup started` → `terms accepted` → `signup completed` → `onboarding step completed` → `beta waiting viewed` → `beta approved` (server) → `orchestrator message sent` or `generation success`
+
+Waitlist-mode variant: `$pageview` → `waitlist join started` → `waitlist joined`.
+
+Identity traits (required for the waiting step): `account_type`, `is_approved`.
+
 ### Funnel 1: Signup → activation
 
 `signup started` → `signup completed` → `login success` → `workspace onboarding completed` → `generation success`
@@ -57,7 +65,7 @@ In the GA4 property, disable Enhanced Measurement **Page views** so App Router n
 ## Session replay
 
 - Sample rate: `NEXT_PUBLIC_POSTHOG_SESSION_REPLAY_SAMPLE_RATE` (default 0.1 prod, 1.0 dev)
-- Priority routes: `/onboarding/*`, `/dashboard/blogs/new`, `/auth/signup`
+- Priority routes: `/onboarding/*`, `/dashboard/blogs/new`, `/auth/signup`, `/auth/waiting`
 - All inputs masked; add `data-ph-mask` to mask additional text
 
 ## Privacy

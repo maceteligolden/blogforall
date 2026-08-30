@@ -2,6 +2,7 @@
 
 import { Reveal } from "./reveal";
 import { StartFreeButton } from "./start-free-button";
+import { landingTracker } from "@/lib/analytics/flows/landing.tracker";
 import { PRICING } from "@/lib/landing/landing-copy";
 import { cn } from "@/lib/utils/cn";
 
@@ -57,7 +58,8 @@ export function PricingTeaserSection() {
                 {plan.opensAfterBeta ? (
                   <button
                     type="button"
-                    disabled
+                    aria-disabled="true"
+                    onClick={() => landingTracker.pricingLockedClicked({ plan_name: plan.name })}
                     className="inline-flex w-full items-center justify-center min-h-[40px] px-4 rounded-lg border border-gray-800 bg-gray-900/40 text-sm font-medium text-gray-500 cursor-not-allowed"
                   >
                     {PRICING.paidLockedLabel}
@@ -65,6 +67,7 @@ export function PricingTeaserSection() {
                 ) : (
                   <StartFreeButton
                     fullWidth
+                    placement="pricing"
                     variant={plan.featured ? "primary" : "secondary"}
                     className={!plan.featured ? "border-gray-700" : undefined}
                   />

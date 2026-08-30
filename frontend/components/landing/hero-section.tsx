@@ -26,7 +26,7 @@ export function HeroSection() {
         <p className="landing-lead text-gray-300 max-w-xl mx-auto mb-4">{HERO.subhead}</p>
         <p className="landing-caption text-gray-400 max-w-xl mx-auto mb-10">{HERO.accessNote}</p>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
-          <StartFreeButton size="lg" />
+          <StartFreeButton size="lg" placement="hero" />
           <Link
             href="/#how-it-works"
             className="inline-flex items-center justify-center min-h-[48px] px-8 rounded-lg border border-gray-700 text-white text-base font-medium hover:bg-gray-900 hover:border-gray-600 transition-colors"

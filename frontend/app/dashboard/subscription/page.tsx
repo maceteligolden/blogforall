@@ -13,6 +13,7 @@ import { useSubscription, usePlans, useChangePlan, useCancelSubscription } from 
 import { BillingService } from "@/lib/api/services/billing.service";
 import { QUERY_KEYS } from "@/lib/api/config";
 import { useToast } from "@/components/ui/toast";
+import { betaTracker } from "@/lib/analytics/flows/beta.tracker";
 import { billingTracker } from "@/lib/analytics/flows/billing.tracker";
 import type { Plan } from "@/lib/api/services/subscription.service";
 import { paidUpgradesLocked } from "@/lib/auth/beta-access";
@@ -111,7 +112,10 @@ export default function SubscriptionPage() {
 
   const handleSelectPlan = async (plan: Plan) => {
     if (plan._id === currentPlanId) return;
-    if (lockPaidPlans && !isFreePlan(plan)) return;
+    if (lockPaidPlans && !isFreePlan(plan)) {
+      betaTracker.planUpgradeBlocked({ reason: "beta", plan_name: plan.name });
+      return;
+    }
 
     if (isFreePlan(plan)) {
       setConfirmDowngradePlan(plan);
@@ -278,7 +282,13 @@ export default function SubscriptionPage() {
                   {isCurrent ? (
                     <p className="text-xs text-primary mt-3">Current plan</p>
                   ) : lockPaidPlans && !isFreePlan(plan) ? (
-                    <p className="text-xs text-gray-500 mt-3">Opens after beta</p>
+                    <button
+                      type="button"
+                      className="mt-3 text-xs text-gray-500"
+                      onClick={() => betaTracker.planUpgradeBlocked({ reason: "beta", plan_name: plan.name })}
+                    >
+                      Opens after beta
+                    </button>
                   ) : (
                     <Button
                       size="sm"

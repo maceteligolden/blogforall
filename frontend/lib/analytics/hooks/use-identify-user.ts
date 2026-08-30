@@ -24,8 +24,10 @@ export function useIdentifyUser() {
       plan: user.plan,
       first_name: user.first_name,
       last_name: user.last_name,
+      account_type: user.account_type,
+      is_approved: user.is_approved,
     });
-  }, [isAuthenticated, user?.id, user?.email, user?.plan]);
+  }, [isAuthenticated, user?.id, user?.email, user?.plan, user?.account_type, user?.is_approved]);
 
   useEffect(() => {
     if (currentSiteId) {

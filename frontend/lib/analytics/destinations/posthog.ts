@@ -58,7 +58,15 @@ export function capturePostHogEvent(event: AnalyticsEventName, properties: Recor
 
 export function identifyPostHogUser(
   userId: string,
-  traits?: { email?: string; plan?: string; first_name?: string; last_name?: string }
+  traits?: {
+    email?: string;
+    plan?: string;
+    first_name?: string;
+    last_name?: string;
+    account_type?: string;
+    is_approved?: boolean;
+    terms_version?: string;
+  }
 ): void {
   if (!isPostHogEnabled()) return;
   if (!initialized) initPostHog();

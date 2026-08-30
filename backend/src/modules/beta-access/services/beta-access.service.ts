@@ -6,6 +6,7 @@ import { AccountType } from "../../../shared/constants";
 import { env } from "../../../shared/config/env";
 import { BadRequestError, NotFoundError } from "../../../shared/errors";
 import { logger } from "../../../shared/utils/logger";
+import { captureServerEvent, identifyServerUser, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 import { User } from "../../../shared/schemas/user.schema";
 import { signBetaApprovalToken, verifyBetaApprovalToken } from "../utils/beta-approval-token";
 
@@ -94,6 +95,11 @@ export class BetaAccessService {
         });
     });
 
+    identifyServerUser(userId, { email: next.email, account_type: next.account_type, is_approved: true });
+    captureServerEvent(ServerAnalyticsEvents.BETA_APPROVED, {
+      userId,
+      properties: { already_decided: false },
+    });
     logger.info("Beta account approved", { userId, email: next.email }, "BetaAccessService");
     return { ...this.toContext(next), already_decided: false };
   }
@@ -110,6 +116,11 @@ export class BetaAccessService {
       beta_rejected_at: new Date(),
     });
     const next = updated ?? { ...user, is_approved: false, beta_rejected_at: new Date() };
+    identifyServerUser(userId, { email: next.email, account_type: next.account_type, is_approved: false });
+    captureServerEvent(ServerAnalyticsEvents.BETA_REJECTED, {
+      userId,
+      properties: { already_decided: false },
+    });
     logger.info("Beta account reject recorded", { userId, email: next.email }, "BetaAccessService");
     return { ...this.toContext(next), already_decided: false };
   }

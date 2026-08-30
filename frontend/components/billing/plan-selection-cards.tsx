@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { betaTracker } from "@/lib/analytics/flows/beta.tracker";
 import { cn } from "@/lib/utils/cn";
 import type { Plan } from "@/lib/api/services/subscription.service";
 
@@ -52,8 +53,14 @@ export function PlanSelectionCard({
   return (
     <button
       type="button"
-      onClick={onSelect}
-      disabled={locked}
+      onClick={() => {
+        if (locked) {
+          betaTracker.planUpgradeBlocked({ reason: "beta", plan_name: plan.name });
+          return;
+        }
+        onSelect();
+      }}
+      aria-disabled={locked || undefined}
       className={cn(
         "relative w-full rounded-2xl border p-5 text-left transition-all sm:p-6",
         selected
@@ -160,9 +167,13 @@ export function PlanSelectionList({
           <button
             key={plan._id}
             type="button"
-            disabled={locked}
+            aria-disabled={locked || undefined}
             onClick={() => {
-              if (!locked) onSelect?.(plan._id);
+              if (locked) {
+                betaTracker.planUpgradeBlocked({ reason: "beta", plan_name: plan.name });
+                return;
+              }
+              onSelect?.(plan._id);
             }}
             className={cn(
               "rounded-lg border px-4 py-3 text-left transition-colors",

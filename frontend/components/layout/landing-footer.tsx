@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LandingWordmark } from "@/components/brand/landing-wordmark";
+import { landingTracker } from "@/lib/analytics/flows/landing.tracker";
 import { FOOTER_TAGLINE, LANDING_CTAS } from "@/lib/landing/landing-copy";
 import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 import { useAuthStore } from "@/lib/store/auth.store";
@@ -102,7 +103,17 @@ export function LandingFooter() {
               ) : IS_WAITLIST_MODE ? (
                 <>
                   <li>
-                    <Link href="/#waitlist-hero" className="hover:text-white transition-colors">
+                    <Link
+                      href="/#waitlist-hero"
+                      className="hover:text-white transition-colors"
+                      onClick={() =>
+                        landingTracker.ctaClicked({
+                          placement: "footer",
+                          cta_label: LANDING_CTAS.getEarlyAccess,
+                          href: "/#waitlist-hero",
+                        })
+                      }
+                    >
                       {LANDING_CTAS.getEarlyAccess}
                     </Link>
                   </li>
@@ -110,7 +121,17 @@ export function LandingFooter() {
               ) : (
                 <>
                   <li>
-                    <Link href="/auth/signup" className="hover:text-white transition-colors">
+                    <Link
+                      href="/auth/signup"
+                      className="hover:text-white transition-colors"
+                      onClick={() =>
+                        landingTracker.ctaClicked({
+                          placement: "footer",
+                          cta_label: LANDING_CTAS.getEarlyAccess,
+                          href: "/auth/signup",
+                        })
+                      }
+                    >
                       {LANDING_CTAS.getEarlyAccess}
                     </Link>
                   </li>

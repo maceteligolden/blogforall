@@ -191,7 +191,7 @@ const startServer = async () => {
         logger.error(
           "Integration publish job failed",
           err,
-          { jobId: job?.id, deliveryId: job?.data?.deliveryId, attempt: job?.attemptsMade },
+          { jobId: job?.id, deliveryId: job?.data?.deliveryId, attempt: job?.attemptsMade, flow: "publish" },
           "IntegrationPublishQueue"
         );
       });

@@ -89,6 +89,8 @@ export const useAuthStore = create<AuthState>()(
               plan: user.plan,
               first_name: user.first_name,
               last_name: user.last_name,
+              account_type: user.account_type,
+              is_approved: user.is_approved,
             });
           } catch {
             // observability must not block auth

@@ -71,6 +71,17 @@ export const AnalyticsEvents = {
   PROFILE_UPDATED: "profile updated",
   PASSWORD_CHANGED: "password changed",
 
+  // Landing / waitlist / beta gate
+  LANDING_CTA_CLICKED: "landing cta clicked",
+  LANDING_PRICING_LOCKED_CLICKED: "landing pricing locked clicked",
+  WAITLIST_JOIN_STARTED: "waitlist join started",
+  WAITLIST_JOINED: "waitlist joined",
+  WAITLIST_JOIN_FAILED: "waitlist join failed",
+  TERMS_ACCEPTED: "terms accepted",
+  BETA_WAITING_VIEWED: "beta waiting viewed",
+  BETA_STATUS_CHECKED: "beta status checked",
+  PLAN_UPGRADE_BLOCKED: "plan upgrade blocked",
+
   // System / failures
   API_CALL_FAILED: "api call failed",
   PAGE_VIEW: "$pageview",

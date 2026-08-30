@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { landingTracker } from "@/lib/analytics/flows/landing.tracker";
 import { useLandingResumeCta } from "@/lib/onboarding/use-landing-resume";
 import { cn } from "@/lib/utils/cn";
 
@@ -11,6 +12,7 @@ interface StartFreeButtonProps {
   size?: "default" | "lg";
   variant?: "primary" | "secondary";
   fullWidth?: boolean;
+  placement?: string;
 }
 
 export function StartFreeButton({
@@ -19,13 +21,21 @@ export function StartFreeButton({
   size = "default",
   variant = "primary",
   fullWidth,
+  placement,
 }: StartFreeButtonProps) {
   const resumeCta = useLandingResumeCta();
   const href = resumeCta.href === "/auth/signup" && label ? "/auth/signup" : resumeCta.href;
   const text = resumeCta.href === "/auth/signup" ? (label ?? resumeCta.label) : resumeCta.label;
 
   return (
-    <Link href={href} className={cn(fullWidth && "w-full block")}>
+    <Link
+      href={href}
+      className={cn(fullWidth && "w-full block")}
+      onClick={() => {
+        if (!placement) return;
+        landingTracker.ctaClicked({ placement, cta_label: text, href });
+      }}
+    >
       <Button
         size={size}
         className={cn(

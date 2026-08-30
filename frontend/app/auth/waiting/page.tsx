@@ -10,6 +10,7 @@ import { AuthService } from "@/lib/api/services/auth.service";
 import { OnboardingService } from "@/lib/api/services/onboarding.service";
 import { needsBetaApproval, postOnboardingPath } from "@/lib/auth/beta-access";
 import { signupWizardPath } from "@/lib/onboarding/signup-wizard";
+import { betaTracker } from "@/lib/analytics/flows/beta.tracker";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useAuthStore } from "@/lib/store/auth.store";
 
@@ -43,6 +44,10 @@ function WaitingContent() {
     leaveIfReady();
   }, [leaveIfReady]);
 
+  useEffect(() => {
+    betaTracker.waitingViewed({ account_type: user?.account_type });
+  }, []);
+
   const handleContinue = async () => {
     setChecking(true);
     setCheckError("");
@@ -59,6 +64,10 @@ function WaitingContent() {
           email: profile.email ?? user.email,
         });
       }
+      betaTracker.statusChecked({
+        account_type: profile.account_type,
+        is_approved: profile.is_approved,
+      });
       if (profile.account_type === "beta" && profile.is_approved === false) {
         setCheckError("Your account is still waiting for approval. We'll email you when you're in.");
         return;

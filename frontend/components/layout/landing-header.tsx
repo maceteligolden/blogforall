@@ -9,6 +9,7 @@ import { LANDING_CTAS } from "@/lib/landing/landing-copy";
 import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 import { cn } from "@/lib/utils/cn";
 import { LandingWordmark } from "@/components/brand/landing-wordmark";
+import { landingTracker } from "@/lib/analytics/flows/landing.tracker";
 import { useLandingResumeCta } from "@/lib/onboarding/use-landing-resume";
 
 const OPEN_NAV_LINKS = [
@@ -48,7 +49,16 @@ export function LandingHeader() {
 
   const closeMobile = () => setMobileOpen(false);
 
-  const handleEarlyAccess = () => {
+  const trackEarlyAccess = (placement: string, href: string) => {
+    landingTracker.ctaClicked({
+      placement,
+      cta_label: LANDING_CTAS.getEarlyAccess,
+      href,
+    });
+  };
+
+  const handleEarlyAccess = (placement: string) => {
+    trackEarlyAccess(placement, "/#waitlist-hero");
     closeMobile();
     scrollToWaitlistHero();
   };
@@ -85,7 +95,7 @@ export function LandingHeader() {
             ) : IS_WAITLIST_MODE ? (
               <Button
                 type="button"
-                onClick={handleEarlyAccess}
+                onClick={() => handleEarlyAccess("header")}
                 className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2 transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0"
               >
                 {LANDING_CTAS.getEarlyAccess}
@@ -95,7 +105,7 @@ export function LandingHeader() {
                 <Link href="/auth/login" className="text-sm text-gray-400 hover:text-white transition-colors">
                   {LANDING_CTAS.logIn}
                 </Link>
-                <Link href="/auth/signup">
+                <Link href="/auth/signup" onClick={() => trackEarlyAccess("header", "/auth/signup")}>
                   <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-4 py-2 transition-transform hover:-translate-y-0.5 motion-reduce:hover:translate-y-0">
                     {LANDING_CTAS.getEarlyAccess}
                   </Button>
@@ -114,13 +124,13 @@ export function LandingHeader() {
             ) : IS_WAITLIST_MODE ? (
               <Button
                 type="button"
-                onClick={handleEarlyAccess}
+                onClick={() => handleEarlyAccess("header_mobile")}
                 className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-3 py-2"
               >
                 {LANDING_CTAS.getEarlyAccess}
               </Button>
             ) : (
-              <Link href="/auth/signup">
+              <Link href="/auth/signup" onClick={() => trackEarlyAccess("header_mobile", "/auth/signup")}>
                 <Button className="bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-lg px-3 py-2">
                   {LANDING_CTAS.getEarlyAccess}
                 </Button>
@@ -164,7 +174,7 @@ export function LandingHeader() {
             (IS_WAITLIST_MODE ? (
               <Button
                 type="button"
-                onClick={handleEarlyAccess}
+                onClick={() => handleEarlyAccess("header_mobile_nav")}
                 className="mt-2 min-h-[48px] w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg"
               >
                 {LANDING_CTAS.getEarlyAccess}
@@ -178,7 +188,14 @@ export function LandingHeader() {
                 >
                   {LANDING_CTAS.logIn}
                 </Link>
-                <Link href="/auth/signup" onClick={closeMobile} className="mt-2 block">
+                <Link
+                  href="/auth/signup"
+                  onClick={() => {
+                    trackEarlyAccess("header_mobile_nav", "/auth/signup");
+                    closeMobile();
+                  }}
+                  className="mt-2 block"
+                >
                   <Button className="min-h-[48px] w-full bg-primary hover:bg-primary/90 text-white font-medium rounded-lg">
                     {LANDING_CTAS.getEarlyAccess}
                   </Button>

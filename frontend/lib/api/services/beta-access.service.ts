@@ -1,11 +1,6 @@
-import axios, { AxiosError } from "axios";
-import { API_CONFIG, API_ENDPOINTS } from "../config";
-
-const betaClient = axios.create({
-  baseURL: API_CONFIG.baseURL,
-  timeout: API_CONFIG.timeout,
-  headers: { "Content-Type": "application/json" },
-});
+import { AxiosError } from "axios";
+import apiClient from "../client";
+import { API_ENDPOINTS } from "../config";
 
 export type BetaAccessContext = {
   first_name: string;
@@ -27,7 +22,7 @@ function extractMessage(err: unknown): string {
 export class BetaAccessClient {
   static async getContext(token: string): Promise<BetaAccessContext> {
     try {
-      const response = await betaClient.get(API_ENDPOINTS.BETA_ACCESS.CONTEXT, { params: { token } });
+      const response = await apiClient.get(API_ENDPOINTS.BETA_ACCESS.CONTEXT, { params: { token } });
       return response.data?.data ?? response.data;
     } catch (err) {
       throw new Error(extractMessage(err));
@@ -36,7 +31,7 @@ export class BetaAccessClient {
 
   static async approve(token: string): Promise<BetaAccessDecision> {
     try {
-      const response = await betaClient.post(API_ENDPOINTS.BETA_ACCESS.APPROVE, { token });
+      const response = await apiClient.post(API_ENDPOINTS.BETA_ACCESS.APPROVE, { token });
       return response.data?.data ?? response.data;
     } catch (err) {
       throw new Error(extractMessage(err));
@@ -45,7 +40,7 @@ export class BetaAccessClient {
 
   static async reject(token: string): Promise<BetaAccessDecision> {
     try {
-      const response = await betaClient.post(API_ENDPOINTS.BETA_ACCESS.REJECT, { token });
+      const response = await apiClient.post(API_ENDPOINTS.BETA_ACCESS.REJECT, { token });
       return response.data?.data ?? response.data;
     } catch (err) {
       throw new Error(extractMessage(err));

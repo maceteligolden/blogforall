@@ -12,6 +12,13 @@ const mockUpdateBrevoSync = jest.fn<() => Promise<void>>();
 const mockCreateOrUpdateContact = jest.fn<() => Promise<{ contactId: number }>>();
 const mockCreateAndSend = jest.fn<() => Promise<{ notificationId: string; correlationId: string }>>();
 
+jest.mock("../../../shared/analytics/posthog.server", () => ({
+  captureServerEvent: jest.fn(),
+  ServerAnalyticsEvents: {
+    WAITLIST_JOINED: "waitlist joined",
+  },
+}));
+
 jest.mock("../../../shared/config/env", () => ({
   env: {
     isDevelopment: true,

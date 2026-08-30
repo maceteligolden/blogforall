@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { LandingHeader } from "@/components/layout/landing-header";
 import { LandingFooter } from "@/components/layout/landing-footer";
+import { landingTracker } from "@/lib/analytics/flows/landing.tracker";
 import { LANDING_CTAS } from "@/lib/landing/landing-copy";
 import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 
@@ -1127,7 +1128,16 @@ function BlogList() {
             <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
               Create your API keys and start building amazing integrations with Bloggr.
             </p>
-            <Link href={IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup"}>
+            <Link
+              href={IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup"}
+              onClick={() =>
+                landingTracker.ctaClicked({
+                  placement: "docs",
+                  cta_label: LANDING_CTAS.getEarlyAccess,
+                  href: IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup",
+                })
+              }
+            >
               <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">
                 {LANDING_CTAS.getEarlyAccess}
               </Button>

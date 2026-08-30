@@ -70,14 +70,19 @@ export function useAuth() {
     onMutate: () => {
       authTracker.signupStarted();
     },
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
       const { tokens, user: userData } = response.data.data;
       // Drop previous account's onboarding/sites cache before navigating.
       clearSessionQueries();
       setTokens(tokens.access_token, tokens.refresh_token);
       setUser(userData);
       queryClient.setQueryData(["onboarding", "signup-wizard"], { stage: "email_verification" });
-      authTracker.signupCompleted();
+      authTracker.signupCompleted({
+        userId: userData.id,
+        has_invite: Boolean(variables.invite_token),
+        referral: Boolean(variables.referral_code),
+        terms_version: variables.terms_version,
+      });
 
       if (typeof window !== "undefined") {
         const inviteToken = sessionStorage.getItem("blogforall_signup_invite_token");

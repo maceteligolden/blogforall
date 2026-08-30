@@ -99,7 +99,15 @@ export function capturePageView(path: string): void {
 
 export function identifyUser(
   userId: string,
-  traits?: { email?: string; plan?: string; first_name?: string; last_name?: string }
+  traits?: {
+    email?: string;
+    plan?: string;
+    first_name?: string;
+    last_name?: string;
+    account_type?: string;
+    is_approved?: boolean;
+    terms_version?: string;
+  }
 ): void {
   try {
     identifyPostHogUser(userId, traits);

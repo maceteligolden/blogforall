@@ -142,7 +142,12 @@ export class AuthService {
     logger.info("User signup started (awaiting email verification)", { userId: user._id, email }, "AuthService");
 
     const userId = user._id!.toString();
-    identifyServerUser(userId, { email: user.email, plan: user.plan });
+    identifyServerUser(userId, {
+      email: user.email,
+      plan: user.plan,
+      account_type: user.account_type,
+      is_approved: user.is_approved === true,
+    });
 
     const userSites = await this.siteService.getSitesByUser(userId);
     return this.buildLoginResponse(user, userSites);
@@ -262,12 +267,19 @@ export class AuthService {
       onboarding_completed: true,
     });
 
-    identifyServerUser(userId, { email: user.email, plan: user.plan });
+    identifyServerUser(userId, {
+      email: user.email,
+      plan: user.plan,
+      account_type: user.account_type,
+      is_approved: user.is_approved === true,
+    });
     captureServerEvent(ServerAnalyticsEvents.USER_SIGNED_UP, {
       userId,
       properties: {
         plan_type: user.plan,
         company_role: user.company_role,
+        account_type: user.account_type,
+        is_approved: user.is_approved === true,
       },
     });
 

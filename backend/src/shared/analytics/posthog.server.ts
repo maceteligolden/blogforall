@@ -32,6 +32,9 @@ export const ServerAnalyticsEvents = {
   COMPANY_ROLE_SET: "company role set",
   SETUP_CHECKLIST_OPENED: "setup checklist opened",
   SETUP_COMPLETE: "setup complete",
+  WAITLIST_JOINED: "waitlist joined",
+  BETA_APPROVED: "beta approved",
+  BETA_REJECTED: "beta rejected",
 } as const;
 
 export type ServerAnalyticsEvent = (typeof ServerAnalyticsEvents)[keyof typeof ServerAnalyticsEvents];

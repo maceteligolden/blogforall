@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LandingHeader } from "@/components/layout/landing-header";
 import { LandingFooter } from "@/components/layout/landing-footer";
+import { landingTracker } from "@/lib/analytics/flows/landing.tracker";
 import { LANDING_CTAS } from "@/lib/landing/landing-copy";
 import { IS_WAITLIST_MODE } from "@/lib/landing/waitlist-mode";
 
@@ -166,7 +167,16 @@ export default function AboutPage() {
             power their blogs.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href={IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup"}>
+            <Link
+              href={IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup"}
+              onClick={() =>
+                landingTracker.ctaClicked({
+                  placement: "about",
+                  cta_label: LANDING_CTAS.getEarlyAccess,
+                  href: IS_WAITLIST_MODE ? "/#waitlist-hero" : "/auth/signup",
+                })
+              }
+            >
               <Button className="bg-primary hover:bg-primary/90 text-white px-8 py-6 text-lg">
                 {LANDING_CTAS.getEarlyAccess}
               </Button>

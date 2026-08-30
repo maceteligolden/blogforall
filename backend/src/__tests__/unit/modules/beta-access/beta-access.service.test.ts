@@ -2,6 +2,15 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { AccountType } from "../../../../shared/constants";
 import { signBetaApprovalToken } from "../../../../modules/beta-access/utils/beta-approval-token";
 
+jest.mock("../../../../shared/analytics/posthog.server", () => ({
+  captureServerEvent: jest.fn(),
+  identifyServerUser: jest.fn(),
+  ServerAnalyticsEvents: {
+    BETA_APPROVED: "beta approved",
+    BETA_REJECTED: "beta rejected",
+  },
+}));
+
 jest.mock("../../../../shared/config/env", () => ({
   env: {
     betaAccess: { notifyEmail: "macteligolden@gmail.com", tokenSecret: "test-secret", tokenTtlDays: 30 },

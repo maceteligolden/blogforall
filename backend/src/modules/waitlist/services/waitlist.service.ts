@@ -5,6 +5,7 @@ import { BrevoFacade } from "../../../shared/facade/brevo.facade";
 import { NotificationChannel, NotificationType } from "../../../shared/constants/notification.constant";
 import { NotificationService } from "../../notification/services/notification.service";
 import { logger } from "../../../shared/utils/logger";
+import { captureServerEvent, ServerAnalyticsEvents } from "../../../shared/analytics/posthog.server";
 import { WaitlistRepository } from "../repositories/waitlist.repository";
 import { JoinWaitlistResult } from "../interfaces/waitlist.interface";
 
@@ -73,6 +74,11 @@ export class WaitlistService {
       });
 
       this.sendConfirmationEmail(normalizedEmail, trimmedFirstName, trimmedLastName);
+
+      captureServerEvent(ServerAnalyticsEvents.WAITLIST_JOINED, {
+        userId: normalizedEmail,
+        properties: { source },
+      });
 
       return {
         email: normalizedEmail,

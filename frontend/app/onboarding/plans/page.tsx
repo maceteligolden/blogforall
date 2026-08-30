@@ -16,6 +16,7 @@ import { canVisitStage, nextWizardPath, signupWizardPath } from "@/lib/onboardin
 import { useOnboardingDropoff } from "@/lib/analytics/hooks/use-onboarding-dropoff";
 import { useWizardTransition } from "@/lib/onboarding/use-wizard-transition";
 import { WizardFormLoader } from "@/components/onboarding/wizard-form-loader";
+import { betaTracker } from "@/lib/analytics/flows/beta.tracker";
 import { paidUpgradesLocked } from "@/lib/auth/beta-access";
 import { useAuthStore } from "@/lib/store/auth.store";
 
@@ -115,6 +116,7 @@ function PlansOnboardingContent() {
       return;
     }
     if (lockPaidPlans && !isFreePlan(selectedPlan)) {
+      betaTracker.planUpgradeBlocked({ reason: "beta", plan_name: selectedPlan.name });
       setError("Paid plans open after the beta. Continue with Free.");
       return;
     }

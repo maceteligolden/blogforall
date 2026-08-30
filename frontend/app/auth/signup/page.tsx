@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AuthPageHeader } from "@/components/auth/auth-page-header";
 import { validatePassword } from "@/lib/utils/password-validation";
+import { betaTracker } from "@/lib/analytics/flows/beta.tracker";
 import { CURRENT_TERMS_VERSION } from "@/lib/legal/terms-version";
 
 const SIGNUP_INVITE_KEY = "blogforall_signup_invite_token";
@@ -203,7 +204,13 @@ function SignupForm() {
               value="on"
               required
               checked={formData.accept_terms}
-              onChange={(e) => setFormData((prev) => ({ ...prev, accept_terms: e.target.checked }))}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setFormData((prev) => ({ ...prev, accept_terms: checked }));
+                if (checked) {
+                  betaTracker.termsAccepted({ terms_version: CURRENT_TERMS_VERSION });
+                }
+              }}
               className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-gray-600 bg-gray-800 text-primary focus:ring-primary"
             />
             <p className="text-sm text-gray-300">
