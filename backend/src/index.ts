@@ -207,7 +207,11 @@ const startServer = async () => {
     await realtimeGateway.attach(server);
 
     server.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT}`, {}, "Server");
+      logger.info(
+        `Server running on port ${PORT}`,
+        { entry: __filename, node: process.version, nodeEnv: env.nodeEnv },
+        "Server"
+      );
     });
 
     process.on("SIGTERM", () => {

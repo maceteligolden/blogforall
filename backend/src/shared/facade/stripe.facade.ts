@@ -4,16 +4,19 @@ import { env } from "../config/env";
 
 @injectable()
 export class StripeFacade {
-  private stripe: Stripe;
+  private stripeClient: Stripe | undefined;
 
-  constructor() {
-    const apiKey = env.stripe.apiKey;
-    if (!apiKey) {
-      throw new Error("STRIPE_API_KEY environment variable is not set");
+  private get stripe(): Stripe {
+    if (!this.stripeClient) {
+      const apiKey = env.stripe.apiKey;
+      if (!apiKey) {
+        throw new Error("STRIPE_API_KEY environment variable is not set");
+      }
+      this.stripeClient = new Stripe(apiKey, {
+        apiVersion: "2023-10-16",
+      });
     }
-    this.stripe = new Stripe(apiKey, {
-      apiVersion: "2023-10-16",
-    });
+    return this.stripeClient;
   }
   /**
    * Create a customer in Stripe

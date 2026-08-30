@@ -1,4 +1,6 @@
-# Production Dockerfile — multi-stage, low memory footprint for small VPS (Dokploy)
+# Production image — compiles TypeScript in the builder, then runs
+# `node dist/src/index.js` (not ts-node). Dokploy must use this file,
+# not Dockerfile.dev.
 FROM node:22-alpine AS builder
 
 WORKDIR /app
@@ -28,6 +30,7 @@ COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile --production && yarn cache clean
 
 COPY --from=builder /app/dist ./dist
+COPY drizzle ./drizzle
 
 RUN mkdir -p uploads
 

@@ -10,19 +10,24 @@ import { env } from "../../../shared/config/env";
 
 @injectable()
 export class BillingWebhook {
-  private stripe: Stripe;
+  private stripeClient: Stripe | undefined;
 
   constructor(
     private subscriptionRepository: SubscriptionRepository,
     private planRepository: PlanRepository
-  ) {
-    const apiKey = env.stripe.apiKey;
-    if (!apiKey) {
-      throw new Error("STRIPE_API_KEY environment variable is not set");
+  ) {}
+
+  private get stripe(): Stripe {
+    if (!this.stripeClient) {
+      const apiKey = env.stripe.apiKey;
+      if (!apiKey) {
+        throw new Error("STRIPE_API_KEY environment variable is not set");
+      }
+      this.stripeClient = new Stripe(apiKey, {
+        apiVersion: "2023-10-16",
+      });
     }
-    this.stripe = new Stripe(apiKey, {
-      apiVersion: "2023-10-16",
-    });
+    return this.stripeClient;
   }
 
   async handleWebhook(req: Request, res: Response): Promise<void> {
