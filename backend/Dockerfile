@@ -1,5 +1,5 @@
 # Production Dockerfile — multi-stage, low memory footprint for small VPS (Dokploy)
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY src ./src
 # Lighter compile for Docker (no source maps) on memory-constrained VPS
 RUN yarn exec tsc -p tsconfig.build.json
 
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 WORKDIR /app
 
